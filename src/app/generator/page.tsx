@@ -38,7 +38,7 @@ export default function GeneratorPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [excelData, setExcelData] = useState<any[][] | null>(null); 
   const [foundColumnIndex, setFoundColumnIndex] = useState<number | null>(null);
-  const [foundCellValue, setFoundCellValue] = useState<string | null>(null); // New state for found cell value
+  const [foundCellValue, setFoundCellValue] = useState<string | null>(null); 
   const [isFileMissingError, setIsFileMissingError] = useState(false);
   const [isProcessingGeneration, setIsProcessingGeneration] = useState(false);
   const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
@@ -61,7 +61,7 @@ export default function GeneratorPage() {
       form.setValue("fileNumber", ""); 
       setExcelData(null); 
       setFoundColumnIndex(null);
-      setFoundCellValue(null); // Reset found cell value
+      setFoundCellValue(null);
       toast({
         title: "Archivo Seleccionado",
         description: file.name,
@@ -97,7 +97,7 @@ export default function GeneratorPage() {
     setFileSearchStatus("searching");
     setExcelData(null); 
     setFoundColumnIndex(null);
-    setFoundCellValue(null); // Reset found cell value
+    setFoundCellValue(null);
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -115,7 +115,7 @@ export default function GeneratorPage() {
 
         let found = false;
         let colIdx = -1;
-        let cellValue = null;
+        let cellValueForName = null;
 
         if (data && data.length > 0) {
           const numCols = data.reduce((max, row) => Math.max(max, row.length), 0);
@@ -125,7 +125,12 @@ export default function GeneratorPage() {
               if (data[i] && data[i][j] !== undefined && data[i][j] !== null) {
                 if (String(data[i][j]).trim().includes(fileNumber)) {
                   colIdx = j;
-                  cellValue = String(data[i][j]).trim(); // Store the exact cell value
+                  // Try to get the value from the cell below
+                  if (i + 1 < data.length && data[i+1] && data[i+1][j] !== undefined && data[i+1][j] !== null) {
+                    cellValueForName = String(data[i+1][j]).trim();
+                  } else {
+                    cellValueForName = "No se encontró nombre debajo del file.";
+                  }
                   found = true;
                   break; 
                 }
@@ -137,7 +142,7 @@ export default function GeneratorPage() {
 
         if (found) {
           setFoundColumnIndex(colIdx);
-          setFoundCellValue(cellValue); // Set the found cell value
+          setFoundCellValue(cellValueForName);
           setFileSearchStatus("found");
           toast({
             title: "Búsqueda Exitosa",
@@ -199,14 +204,12 @@ export default function GeneratorPage() {
     
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // TODO: In future steps, use excelData and foundColumnIndex to extract real groupName and paxCount
-    // For now, still using placeholders for these values passed to results page.
     const queryParams = new URLSearchParams({
       fileNumber: values.fileNumber,
       guideName: values.guideName,
       fileName: selectedFile.name, 
-      groupName: "Grupo Ejemplo (desde Excel)", 
-      paxCount: "10 (desde Excel)", 
+      groupName: foundCellValue || "Grupo Ejemplo (desde Excel)", 
+      paxCount: "10 (desde Excel)", // Placeholder, will be extracted later
     });
     
     router.push(`/results?${queryParams.toString()}`);
@@ -277,7 +280,7 @@ export default function GeneratorPage() {
                             if (fileSearchStatus !== "idle" && fileSearchStatus !== "searching") {
                               setFileSearchStatus("idle"); 
                               setFoundColumnIndex(null);
-                              setFoundCellValue(null); // Reset if user types again
+                              setFoundCellValue(null);
                             }
                           }}
                         />
@@ -296,7 +299,7 @@ export default function GeneratorPage() {
                     <FormMessage />
                     {fileSearchStatus === "found" && foundCellValue && (
                       <div className="mt-2">
-                        <FormLabel htmlFor="foundValueDisplay" className="text-sm">Valor Encontrado en Archivo:</FormLabel>
+                        <FormLabel htmlFor="foundValueDisplay" className="text-sm">Nombre del File:</FormLabel>
                         <div 
                           id="foundValueDisplay"
                           className="mt-1 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm"
@@ -306,10 +309,10 @@ export default function GeneratorPage() {
                         </div>
                       </div>
                     )}
-                    {fileSearchStatus === "found" && !foundCellValue && ( // Fallback if somehow cell value is null but found
+                    {fileSearchStatus === "found" && !foundCellValue && (
                        <div className="flex items-center text-sm text-green-600 dark:text-green-400 mt-1">
                         <CheckCircle2 className="mr-1 h-4 w-4" />
-                        File encontrado.
+                        File encontrado. No se encontró nombre debajo.
                       </div>
                     )}
                     {fileSearchStatus === "not_found" && (
@@ -359,3 +362,5 @@ export default function GeneratorPage() {
     </div>
   );
 }
+
+    
