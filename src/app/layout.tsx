@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'TourFileProcessor',
+  title: 'TourFile Generator',
   description: 'Process tourism program files and generate Excel reports.',
 };
 
