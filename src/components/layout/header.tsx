@@ -21,21 +21,23 @@ export default function Header() {
           TourFile Generator
         </h1>
       </Link>
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1 sm:gap-2">
         <Link href="/" passHref>
-          <Button variant="outline" size="icon" aria-label="Go to home">
-            <Home className="h-4 w-4 sm:h-5 sm:w-5" />
+          <Button variant="ghost" className="hover:bg-muted hover:text-primary">
+            <Home className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+            Inicio
           </Button>
         </Link>
-        <Button 
-          variant="outline" 
-          size="icon" 
-          aria-label="Log out" 
+        <Button
+          variant="ghost"
+          className="hover:bg-muted hover:text-primary"
           onClick={() => alert('Log Out functionality is not yet implemented.')}
         >
-          <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
+          <LogOut className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+          Salir
         </Button>
       </div>
     </header>
   );
 }
+
