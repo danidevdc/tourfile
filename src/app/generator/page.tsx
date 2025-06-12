@@ -6,6 +6,8 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import * as XLSX from 'xlsx'; // Import xlsx
+
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -34,6 +36,8 @@ export default function GeneratorPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [excelData, setExcelData] = useState<any[][] | null>(null); // To store parsed excel data
+  const [foundColumnIndex, setFoundColumnIndex] = useState<number | null>(null); // To store column index of found file
   const [isFileMissingError, setIsFileMissingError] = useState(false);
   const [isProcessingGeneration, setIsProcessingGeneration] = useState(false);
   const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
@@ -49,22 +53,27 @@ export default function GeneratorPage() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      setSelectedFile(event.target.files[0]);
+      const file = event.target.files[0];
+      setSelectedFile(file);
       setIsFileMissingError(false);
-      setFileSearchStatus("idle"); // Reset search status on new file
-      form.setValue("fileNumber", ""); // Reset file number input
+      setFileSearchStatus("idle"); 
+      form.setValue("fileNumber", ""); 
+      setExcelData(null); // Clear previous excel data
+      setFoundColumnIndex(null); // Clear previously found column index
       toast({
         title: "Archivo Seleccionado",
-        description: event.target.files[0].name,
+        description: file.name,
         variant: "default",
       });
     } else {
       setSelectedFile(null);
+      setExcelData(null);
+      setFoundColumnIndex(null);
     }
   };
 
   const handleSearchFile = async () => {
-    const fileNumber = form.getValues("fileNumber");
+    const fileNumber = form.getValues("fileNumber").trim();
     if (!selectedFile) {
       toast({
         title: "Error de Búsqueda",
@@ -83,15 +92,81 @@ export default function GeneratorPage() {
     }
 
     setFileSearchStatus("searching");
-    // Simulate API call or actual file processing
-    await new Promise(resolve => setTimeout(resolve, 1000)); 
+    setExcelData(null); // Reset excel data before new search
+    setFoundColumnIndex(null); // Reset found column index
 
-    // SIMULATED LOGIC: Replace with actual Excel parsing and search in future steps
-    if (fileNumber === "CTFI107098" || fileNumber.includes("found")) { // Example successful search
-      setFileSearchStatus("found");
-    } else {
-      setFileSearchStatus("not_found");
-    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const arrayBuffer = e.target?.result;
+        if (!arrayBuffer) {
+          throw new Error("Error al leer el archivo.");
+        }
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
+        
+        setExcelData(data); // Store parsed data
+
+        let found = false;
+        let colIdx = -1;
+
+        if (data && data.length > 0) {
+          // Determine number of columns from the row with the most cells, or first row
+          const numCols = data.reduce((max, row) => Math.max(max, row.length), 0);
+
+          for (let j = 0; j < numCols; j++) { // Iterate columns
+            for (let i = 0; i < data.length; i++) { // Iterate rows
+              if (data[i] && data[i][j] !== undefined && data[i][j] !== null) {
+                if (String(data[i][j]).trim().includes(fileNumber)) {
+                  colIdx = j;
+                  found = true;
+                  break; 
+                }
+              }
+            }
+            if (found) break; 
+          }
+        }
+
+        if (found) {
+          setFoundColumnIndex(colIdx);
+          setFileSearchStatus("found");
+          toast({
+            title: "Búsqueda Exitosa",
+            description: `File "${fileNumber}" encontrado en la columna ${colIdx + 1}.`,
+            variant: "default",
+            className: "bg-green-100 dark:bg-green-900 border-green-500",
+          });
+        } else {
+          setFileSearchStatus("not_found");
+          toast({
+            title: "Búsqueda Fallida",
+            description: `File "${fileNumber}" no encontrado en el archivo.`,
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error al procesar el archivo Excel:", error);
+        setFileSearchStatus("error");
+        toast({
+          title: "Error de Procesamiento",
+          description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.onerror = (e) => {
+      console.error("Error al leer el archivo:", e);
+      setFileSearchStatus("error");
+      toast({
+        title: "Error de Lectura",
+        description: "Hubo un problema al leer el archivo.",
+        variant: "destructive",
+      });
+    };
+    reader.readAsArrayBuffer(selectedFile);
   };
 
   async function onSubmit(values: FormValues) {
@@ -104,10 +179,10 @@ export default function GeneratorPage() {
       });
       return;
     }
-    if (fileSearchStatus !== "found") {
+    if (fileSearchStatus !== "found" || excelData === null || foundColumnIndex === null) {
        toast({
         title: "Error de Generación",
-        description: "Por favor, busca y confirma el número de file antes de generar.",
+        description: "Por favor, busca y confirma el número de file antes de generar. Asegúrate que el file fue encontrado en el archivo.",
         variant: "destructive",
       });
       return;
@@ -119,14 +194,20 @@ export default function GeneratorPage() {
     // Simulate generation process
     await new Promise(resolve => setTimeout(resolve, 1000));
 
+    // TODO: In future steps, use excelData and foundColumnIndex to extract real groupName and paxCount
+    // For now, still using placeholders for these values passed to results page.
     const queryParams = new URLSearchParams({
       fileNumber: values.fileNumber,
       guideName: values.guideName,
-      fileName: selectedFile.name, // Keep passing file name for now
-      groupName: "Grupo Ejemplo (desde Excel)", // This will come from Excel data later
-      paxCount: "10 (desde Excel)", // This will come from Excel data later
+      fileName: selectedFile.name, 
+      groupName: "Grupo Ejemplo (desde Excel)", 
+      paxCount: "10 (desde Excel)", 
     });
 
+    // Pass excelData and foundColumnIndex to results page using router state or a more robust method if large
+    // For simplicity, we'll retrieve it again on the results page or use a state management solution later.
+    // For now, the results page is still using dummy data for the table content.
+    
     router.push(`/results?${queryParams.toString()}`);
     setIsProcessingGeneration(false); 
   }
@@ -161,14 +242,14 @@ export default function GeneratorPage() {
                     )}
                   >
                     <Upload className="mr-2 h-4 w-4" />
-                    {selectedFile ? selectedFile.name : "Seleccionar archivo"}
+                    {selectedFile ? selectedFile.name : "Seleccionar archivo (.xlsx, .xls)"}
                   </Button>
                   <input
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileChange}
                     className="hidden"
-                    accept=".xlsx,.xls"
+                    accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   />
                 </div>
                 {isFileMissingError && (
@@ -190,7 +271,8 @@ export default function GeneratorPage() {
                           onChange={(e) => {
                             field.onChange(e);
                             if (fileSearchStatus !== "idle" && fileSearchStatus !== "searching") {
-                              setFileSearchStatus("idle"); // Reset search if user types again
+                              setFileSearchStatus("idle"); 
+                              setFoundColumnIndex(null); // Reset if user types again after a search
                             }
                           }}
                         />
@@ -219,10 +301,10 @@ export default function GeneratorPage() {
                         File no encontrado. Verifica el número o el archivo.
                       </div>
                     )}
-                     {fileSearchStatus === "error" && ( // Though not used in simulation, good to have
+                     {fileSearchStatus === "error" && (
                       <div className="flex items-center text-sm text-destructive mt-1">
                         <XCircle className="mr-1 h-4 w-4" />
-                        Error al buscar el file.
+                        Error al buscar el file. Intenta con otro archivo o verifica el formato.
                       </div>
                     )}
                   </FormItem>
@@ -260,3 +342,5 @@ export default function GeneratorPage() {
     </div>
   );
 }
+
+    
