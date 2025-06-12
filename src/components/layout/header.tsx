@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Home, LogOut, ArrowLeft, FileSpreadsheet } from 'lucide-react'; // Added ArrowLeft and FileSpreadsheet
+import { Home, LogOut, ArrowLeft, FileSpreadsheet } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 
 export default function Header() {
@@ -22,7 +22,7 @@ export default function Header() {
             variant="ghost"
             size="icon"
             onClick={handleBack}
-            className="hover:bg-muted text-primary hover:text-primary/90"
+            className="hover:bg-muted hover:text-primary" // Changed to match other buttons
             aria-label="Go back"
           >
             <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
