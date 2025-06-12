@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -17,8 +18,8 @@ body {
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
 
-    --primary: 174 72% 56.1%; /* Turquoise #40E0D0 */
-    --primary-foreground: 174 50% 15%; /* Dark Teal/Black for contrast on Turquoise */
+    --primary: 262 51% 63%; /* Muted Violet #9575CD */
+    --primary-foreground: 262 30% 15%; /* Dark Violet #1F1B33 for contrast on Muted Violet */
 
     --secondary: 0 0% 92%; /* A slightly lighter gray for secondary elements */
     --secondary-foreground: 240 10% 3.9%;
@@ -64,8 +65,8 @@ body {
     --popover: 240 10% 12%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 174 72% 56.1%; /* Turquoise */
-    --primary-foreground: 174 50% 15%; /* Dark Teal/Black */
+    --primary: 262 51% 63%; /* Muted Violet #9575CD */
+    --primary-foreground: 262 30% 15%; /* Dark Violet #1F1B33 */
 
     --secondary: 240 10% 18%;
     --secondary-foreground: 0 0% 98%;
