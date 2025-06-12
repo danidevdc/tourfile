@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import * as XLSX from 'xlsx'; // Import xlsx
+import * as XLSX from 'xlsx'; 
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle } from "lucide-react";
+import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -36,8 +36,9 @@ export default function GeneratorPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [excelData, setExcelData] = useState<any[][] | null>(null); // To store parsed excel data
-  const [foundColumnIndex, setFoundColumnIndex] = useState<number | null>(null); // To store column index of found file
+  const [excelData, setExcelData] = useState<any[][] | null>(null); 
+  const [foundColumnIndex, setFoundColumnIndex] = useState<number | null>(null);
+  const [foundCellValue, setFoundCellValue] = useState<string | null>(null); // New state for found cell value
   const [isFileMissingError, setIsFileMissingError] = useState(false);
   const [isProcessingGeneration, setIsProcessingGeneration] = useState(false);
   const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
@@ -58,8 +59,9 @@ export default function GeneratorPage() {
       setIsFileMissingError(false);
       setFileSearchStatus("idle"); 
       form.setValue("fileNumber", ""); 
-      setExcelData(null); // Clear previous excel data
-      setFoundColumnIndex(null); // Clear previously found column index
+      setExcelData(null); 
+      setFoundColumnIndex(null);
+      setFoundCellValue(null); // Reset found cell value
       toast({
         title: "Archivo Seleccionado",
         description: file.name,
@@ -69,6 +71,7 @@ export default function GeneratorPage() {
       setSelectedFile(null);
       setExcelData(null);
       setFoundColumnIndex(null);
+      setFoundCellValue(null);
     }
   };
 
@@ -92,8 +95,9 @@ export default function GeneratorPage() {
     }
 
     setFileSearchStatus("searching");
-    setExcelData(null); // Reset excel data before new search
-    setFoundColumnIndex(null); // Reset found column index
+    setExcelData(null); 
+    setFoundColumnIndex(null);
+    setFoundCellValue(null); // Reset found cell value
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -107,20 +111,21 @@ export default function GeneratorPage() {
         const worksheet = workbook.Sheets[firstSheetName];
         const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
         
-        setExcelData(data); // Store parsed data
+        setExcelData(data); 
 
         let found = false;
         let colIdx = -1;
+        let cellValue = null;
 
         if (data && data.length > 0) {
-          // Determine number of columns from the row with the most cells, or first row
           const numCols = data.reduce((max, row) => Math.max(max, row.length), 0);
 
-          for (let j = 0; j < numCols; j++) { // Iterate columns
-            for (let i = 0; i < data.length; i++) { // Iterate rows
+          for (let j = 0; j < numCols; j++) { 
+            for (let i = 0; i < data.length; i++) { 
               if (data[i] && data[i][j] !== undefined && data[i][j] !== null) {
                 if (String(data[i][j]).trim().includes(fileNumber)) {
                   colIdx = j;
+                  cellValue = String(data[i][j]).trim(); // Store the exact cell value
                   found = true;
                   break; 
                 }
@@ -132,6 +137,7 @@ export default function GeneratorPage() {
 
         if (found) {
           setFoundColumnIndex(colIdx);
+          setFoundCellValue(cellValue); // Set the found cell value
           setFileSearchStatus("found");
           toast({
             title: "Búsqueda Exitosa",
@@ -191,7 +197,6 @@ export default function GeneratorPage() {
     setIsFileMissingError(false);
     setIsProcessingGeneration(true);
     
-    // Simulate generation process
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     // TODO: In future steps, use excelData and foundColumnIndex to extract real groupName and paxCount
@@ -203,10 +208,6 @@ export default function GeneratorPage() {
       groupName: "Grupo Ejemplo (desde Excel)", 
       paxCount: "10 (desde Excel)", 
     });
-
-    // Pass excelData and foundColumnIndex to results page using router state or a more robust method if large
-    // For simplicity, we'll retrieve it again on the results page or use a state management solution later.
-    // For now, the results page is still using dummy data for the table content.
     
     router.push(`/results?${queryParams.toString()}`);
     setIsProcessingGeneration(false); 
@@ -238,7 +239,7 @@ export default function GeneratorPage() {
                     onClick={() => fileInputRef.current?.click()}
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      selectedFile && "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800"
+                      selectedFile && "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200"
                     )}
                   >
                     <Upload className="mr-2 h-4 w-4" />
@@ -268,11 +269,15 @@ export default function GeneratorPage() {
                         <Input 
                           placeholder="Ingresa número de file" 
                           {...field} 
+                          className={cn(
+                            fileSearchStatus === "found" && "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500"
+                          )}
                           onChange={(e) => {
                             field.onChange(e);
                             if (fileSearchStatus !== "idle" && fileSearchStatus !== "searching") {
                               setFileSearchStatus("idle"); 
-                              setFoundColumnIndex(null); // Reset if user types again after a search
+                              setFoundColumnIndex(null);
+                              setFoundCellValue(null); // Reset if user types again
                             }
                           }}
                         />
@@ -289,8 +294,20 @@ export default function GeneratorPage() {
                       </Button>
                     </div>
                     <FormMessage />
-                    {fileSearchStatus === "found" && (
-                      <div className="flex items-center text-sm text-green-600 dark:text-green-400 mt-1">
+                    {fileSearchStatus === "found" && foundCellValue && (
+                      <div className="mt-2">
+                        <FormLabel htmlFor="foundValueDisplay" className="text-sm">Valor Encontrado en Archivo:</FormLabel>
+                        <div 
+                          id="foundValueDisplay"
+                          className="mt-1 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm"
+                        >
+                          <FileText className="inline-block mr-2 h-4 w-4 align-middle" />
+                          {foundCellValue}
+                        </div>
+                      </div>
+                    )}
+                    {fileSearchStatus === "found" && !foundCellValue && ( // Fallback if somehow cell value is null but found
+                       <div className="flex items-center text-sm text-green-600 dark:text-green-400 mt-1">
                         <CheckCircle2 className="mr-1 h-4 w-4" />
                         File encontrado.
                       </div>
@@ -342,5 +359,3 @@ export default function GeneratorPage() {
     </div>
   );
 }
-
-    
