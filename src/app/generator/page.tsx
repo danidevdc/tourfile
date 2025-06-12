@@ -1,11 +1,12 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+// import Link from "next/link"; // No longer needed for Home button here
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Loader2, Home, ArrowLeft } from "lucide-react";
+import { Upload, Loader2 } from "lucide-react"; // Home, ArrowLeft removed
 import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
@@ -64,42 +65,25 @@ export default function GeneratorPage() {
     }
     setIsFileMissingError(false);
     setIsProcessing(true);
-
-    // In a real app, you might want to upload the file here or process it
-    // For now, we'll just pass the names and navigate
     
-    // Simulate processing time
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     const queryParams = new URLSearchParams({
       fileNumber: values.fileNumber,
       guideName: values.guideName,
       fileName: selectedFile.name,
-      // Ideally, we'd get more info from the file if processing client-side, or get it from server after upload
-      groupName: "Grupo Ejemplo", // Placeholder
-      paxCount: "15", // Placeholder
+      groupName: "Grupo Ejemplo", 
+      paxCount: "15", 
     });
 
     router.push(`/results?${queryParams.toString()}`);
-    
-    // No longer setting generatedExcelData here, will be handled on results page
-    // No longer toasting success here, will be handled on results page or implicitly by navigation
     setIsProcessing(false); 
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
-      <div className="w-full max-w-lg mb-4 flex justify-between items-center">
-        <Button variant="outline" size="icon" onClick={() => router.back()} aria-label="Go back">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <Link href="/" passHref>
-          <Button variant="outline" size="icon" aria-label="Go to home">
-            <Home className="h-4 w-4" />
-          </Button>
-        </Link>
-      </div>
-      <Card className="w-full max-w-lg shadow-2xl">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-5rem)] p-4 bg-background"> {/* Adjusted min-h for fixed header */}
+      {/* Navigation buttons removed from here, handled by global Header */}
+      <Card className="w-full max-w-lg shadow-2xl mt-8"> {/* Added mt-8 for spacing from global header */}
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center text-primary">Generador de Cajas Chicas</CardTitle>
           <CardDescription className="text-center">
@@ -126,7 +110,7 @@ export default function GeneratorPage() {
                     ref={fileInputRef}
                     onChange={handleFileChange}
                     className="hidden"
-                    accept=".xlsx,.xls" // Standardizing to Excel files as per python script
+                    accept=".xlsx,.xls"
                   />
                 </div>
                 {isFileMissingError && (

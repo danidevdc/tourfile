@@ -1,21 +1,22 @@
+
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // CardDescription removed as it's not used for title styling
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
-import { Home, ArrowLeft, FileSpreadsheet, Printer, FilePlus2, DoorOpen, Loader2 } from "lucide-react";
+import { FileSpreadsheet, Printer, FilePlus2, DoorOpen, Loader2 } from "lucide-react"; // Home, ArrowLeft removed
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 
 interface ExpenseItem {
   date: string;
-  quantity: string | number; // Can be a formula string like "=$G$3" or a number
+  quantity: string | number;
   detail: string;
-  unitPrice: number | string; // Can be empty string
-  total: number | string; // Can be a formula string
-  vobOps?: string; // Optional
+  unitPrice: number | string; 
+  total: number | string; 
+  vobOps?: string;
 }
 
 const DUMMY_EXPENSE_DATA: ExpenseItem[] = [
@@ -37,7 +38,7 @@ const calculateGrandTotal = (data: ExpenseItem[]) => {
 };
 
 export default function ResultsPage() {
-  const router = useRouter();
+  const router = useRouter(); // Keep router if other navigation is needed, but back button is removed
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -46,8 +47,8 @@ export default function ResultsPage() {
 
   const [fileNumber, setFileNumber] = useState("");
   const [guideName, setGuideName] = useState("");
-  const [groupName, setGroupName] = useState("GTA # 3 -2025"); // Default from image
-  const [paxCount, setPaxCount] = useState("17"); // Default from image
+  const [groupName, setGroupName] = useState("GTA # 3 -2025");
+  const [paxCount, setPaxCount] = useState("17"); 
   const [currentDate, setCurrentDate] = useState('');
 
   useEffect(() => {
@@ -56,14 +57,14 @@ export default function ResultsPage() {
     setGuideName(searchParams.get("guideName") || "N/A");
     setGroupName(searchParams.get("groupName") || "GTA # 3 -2025");
     setPaxCount(searchParams.get("paxCount") || "17");
-    setCurrentDate(new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.')); // dd.mm.yyyy
+    setCurrentDate(new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.'));
   }, [searchParams]);
 
   const grandTotal = calculateGrandTotal(DUMMY_EXPENSE_DATA);
 
   const handleDownloadExcel = async () => {
     setIsDownloadingExcel(true);
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate generation
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     const excelHeader = [
       ["CAJA CHICA GUIA"],
@@ -80,12 +81,11 @@ export default function ResultsPage() {
       ["", "", "GASTO TOTAL", "", grandTotal.toFixed(2)]
     ];
     
-    // Simple CSV like structure for mock
     let csvContent = excelHeader.map(row => row.join(",")).join("\n");
     csvContent += "\n" + excelBody.map(row => row.join(",")).join("\n");
     csvContent += "\n" + excelFooter.map(row => row.join(",")).join("\n");
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); // For simplicity, using CSV that Excel can open
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const fileName = `G.O. ${currentDate} - ${groupName.replace(/[\/\s]/g, '_')} - ${guideName.replace(/\s/g, '_')} - ${fileNumber}.csv`;
     
     const link = document.createElement("a");
@@ -128,39 +128,28 @@ export default function ResultsPage() {
   }
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-4 bg-background">
-      <div className="w-full max-w-4xl mb-4 flex justify-between items-center">
-        <Button variant="outline" size="icon" onClick={() => router.back()} aria-label="Go back">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <Link href="/" passHref>
-          <Button variant="outline" size="icon" aria-label="Go to home">
-            <Home className="h-4 w-4" />
-          </Button>
-        </Link>
-      </div>
-
-      <Card className="w-full max-w-4xl shadow-2xl">
+    <div className="flex flex-col items-center min-h-[calc(100vh-5rem)] p-4 bg-background"> {/* Adjusted min-h */}
+      {/* Navigation buttons removed, handled by global Header */}
+      <Card className="w-full max-w-4xl shadow-2xl mt-8"> {/* Added mt-8 */}
         <CardHeader className="pb-2">
           <CardTitle className="text-2xl font-headline text-primary text-center">Reporte de Caja Chica</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Encabezado tipo Excel */}
           <div className="space-y-1 mb-4 text-sm p-3 border rounded-md bg-card">
             <div className="grid grid-cols-3 gap-x-4">
                 <div className="col-span-2 font-bold text-lg">CAJA CHICA GUIA</div>
             </div>
             <div className="grid grid-cols-7 gap-x-2 items-center">
                 <div className="font-semibold col-span-1">FILE:</div>
-                <div className="col-span-2 border px-2 py-0.5 rounded bg-white">{fileNumber}</div>
+                <div className="col-span-2 border px-2 py-0.5 rounded bg-white text-foreground">{fileNumber}</div>
                 <div className="font-semibold col-span-1 text-right pr-2">NOMBRE GUIA:</div>
-                <div className="col-span-3 border px-2 py-0.5 rounded bg-white">{guideName}</div>
+                <div className="col-span-3 border px-2 py-0.5 rounded bg-white text-foreground">{guideName}</div>
             </div>
              <div className="grid grid-cols-7 gap-x-2 items-center">
                 <div className="font-semibold col-span-2">NOMBRE Y Nº DE PAX:</div>
-                <div className="col-span-2 border px-2 py-0.5 rounded bg-white">{groupName}</div>
+                <div className="col-span-2 border px-2 py-0.5 rounded bg-white text-foreground">{groupName}</div>
                 <div className="font-semibold col-span-1 text-right pr-2">Nº</div>
-                <div className="col-span-2 border px-2 py-0.5 rounded bg-white">{paxCount}</div>
+                <div className="col-span-2 border px-2 py-0.5 rounded bg-white text-foreground">{paxCount}</div>
             </div>
           </div>
 
