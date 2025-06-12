@@ -82,11 +82,11 @@ export default function GeneratorPage() {
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8"> {/* Adjusted justify-center to justify-start and added pt-8 */}
       <div className="w-full max-w-lg mb-4"> {/* Container for back button */}
-        <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back">
+        <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back" className="hover:bg-primary/90">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
-      <Card className="w-full max-w-lg shadow-2xl">
+      <Card className="w-full max-w-lg shadow-lg">
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center text-primary">Generador de Cajas Chicas</CardTitle>
           <CardDescription className="text-center">

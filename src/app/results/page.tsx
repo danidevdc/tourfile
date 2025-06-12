@@ -130,11 +130,11 @@ export default function ResultsPage() {
   return (
     <div className="flex flex-col items-center min-h-[calc(100vh-5rem)] p-4 bg-background pt-8"> {/* Adjusted pt-8 */}
        <div className="w-full max-w-4xl mb-4"> {/* Container for back button */}
-        <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back">
+        <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back" className="hover:bg-primary/90">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
-      <Card className="w-full max-w-4xl shadow-2xl">
+      <Card className="w-full max-w-4xl shadow-lg">
         <CardHeader className="pb-2">
           <CardTitle className="text-2xl font-headline text-primary text-center">Reporte de Caja Chica</CardTitle>
         </CardHeader>

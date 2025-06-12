@@ -9,7 +9,7 @@ import { FileSpreadsheet, ArrowRight } from "lucide-react";
 export default function HomePage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
-      <Card className="w-full max-w-xl shadow-2xl rounded-xl">
+      <Card className="w-full max-w-xl shadow-lg rounded-xl">
         <CardContent className="p-10">
           {/* Greeting Section */}
           <div className="mb-10 text-center">
