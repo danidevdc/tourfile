@@ -19,7 +19,7 @@ body {
     --popover-foreground: 240 10% 3.9%;
 
     --primary: 262 51% 63%; /* Muted Violet #9575CD */
-    --primary-foreground: 262 30% 15%; /* Dark Violet #1F1B33 for contrast on Muted Violet */
+    --primary-foreground: 0 0% 98%; /* Almost White for contrast on Muted Violet */
 
     --secondary: 0 0% 92%; /* A slightly lighter gray for secondary elements */
     --secondary-foreground: 240 10% 3.9%;
@@ -66,7 +66,7 @@ body {
     --popover-foreground: 0 0% 98%;
 
     --primary: 262 51% 63%; /* Muted Violet #9575CD */
-    --primary-foreground: 262 30% 15%; /* Dark Violet #1F1B33 */
+    --primary-foreground: 0 0% 98%; /* Almost White for contrast on Muted Violet */
 
     --secondary: 240 10% 18%;
     --secondary-foreground: 0 0% 98%;
