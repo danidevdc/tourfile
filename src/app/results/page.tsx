@@ -4,9 +4,9 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // CardDescription removed as it's not used for title styling
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
-import { FileSpreadsheet, Printer, FilePlus2, DoorOpen, Loader2 } from "lucide-react"; // Home, ArrowLeft removed
+import { FileSpreadsheet, Printer, FilePlus2, DoorOpen, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 
@@ -38,7 +38,7 @@ const calculateGrandTotal = (data: ExpenseItem[]) => {
 };
 
 export default function ResultsPage() {
-  const router = useRouter(); // Keep router if other navigation is needed, but back button is removed
+  const router = useRouter(); 
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -81,12 +81,12 @@ export default function ResultsPage() {
       ["", "", "GASTO TOTAL", "", grandTotal.toFixed(2)]
     ];
     
-    let csvContent = excelHeader.map(row => row.join(",")).join("\n");
-    csvContent += "\n" + excelBody.map(row => row.join(",")).join("\n");
-    csvContent += "\n" + excelFooter.map(row => row.join(",")).join("\n");
+    let csvContent = excelHeader.map(row => row.join(",")).join("\\n");
+    csvContent += "\\n" + excelBody.map(row => row.join(",")).join("\\n");
+    csvContent += "\\n" + excelFooter.map(row => row.join(",")).join("\\n");
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const fileName = `G.O. ${currentDate} - ${groupName.replace(/[\/\s]/g, '_')} - ${guideName.replace(/\s/g, '_')} - ${fileNumber}.csv`;
+    const fileName = `G.O. ${currentDate} - ${groupName.replace(/[/\\s]/g, '_')} - ${guideName.replace(/\\s/g, '_')} - ${fileNumber}.csv`;
     
     const link = document.createElement("a");
     if (link.download !== undefined) {
@@ -128,9 +128,13 @@ export default function ResultsPage() {
   }
 
   return (
-    <div className="flex flex-col items-center min-h-[calc(100vh-5rem)] p-4 bg-background"> {/* Adjusted min-h */}
-      {/* Navigation buttons removed, handled by global Header */}
-      <Card className="w-full max-w-4xl shadow-2xl mt-8"> {/* Added mt-8 */}
+    <div className="flex flex-col items-center min-h-[calc(100vh-5rem)] p-4 bg-background pt-8"> {/* Adjusted pt-8 */}
+       <div className="w-full max-w-4xl mb-4"> {/* Container for back button */}
+        <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+      </div>
+      <Card className="w-full max-w-4xl shadow-2xl">
         <CardHeader className="pb-2">
           <CardTitle className="text-2xl font-headline text-primary text-center">Reporte de Caja Chica</CardTitle>
         </CardHeader>

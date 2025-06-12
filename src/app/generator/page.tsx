@@ -6,7 +6,6 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-// import Link from "next/link"; // No longer needed for Home button here
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -18,7 +17,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Loader2 } from "lucide-react"; // Home, ArrowLeft removed
+import { Upload, Loader2, ArrowLeft } from "lucide-react"; 
 import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
@@ -81,9 +80,13 @@ export default function GeneratorPage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-5rem)] p-4 bg-background"> {/* Adjusted min-h for fixed header */}
-      {/* Navigation buttons removed from here, handled by global Header */}
-      <Card className="w-full max-w-lg shadow-2xl mt-8"> {/* Added mt-8 for spacing from global header */}
+    <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8"> {/* Adjusted justify-center to justify-start and added pt-8 */}
+      <div className="w-full max-w-lg mb-4"> {/* Container for back button */}
+        <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+      </div>
+      <Card className="w-full max-w-lg shadow-2xl">
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center text-primary">Generador de Cajas Chicas</CardTitle>
           <CardDescription className="text-center">

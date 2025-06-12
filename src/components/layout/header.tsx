@@ -3,31 +3,21 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Home, LogOut, ArrowLeft, FileSpreadsheet } from 'lucide-react';
-import { usePathname, useRouter } from 'next/navigation';
+import { Home, LogOut, FileSpreadsheet } from 'lucide-react'; // ArrowLeft removed
+import { usePathname } from 'next/navigation'; // useRouter removed as it's only for the back button now
 
 export default function Header() {
   const pathname = usePathname();
-  const router = useRouter();
+  // const router = useRouter(); // No longer needed here
 
-  const handleBack = () => {
-    router.back();
-  };
+  // const handleBack = () => { // No longer needed here
+  //   router.back();
+  // };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b shadow-md">
       <div className="flex items-center gap-2">
-        {pathname !== '/' && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleBack}
-            className="hover:bg-muted hover:text-primary" // Changed to match other buttons
-            aria-label="Go back"
-          >
-            <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
-          </Button>
-        )}
+        {/* Back button removed from here */}
         <Link href="/" passHref>
           <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
             <FileSpreadsheet className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
