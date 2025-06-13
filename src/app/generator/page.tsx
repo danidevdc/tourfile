@@ -51,10 +51,10 @@ export default function GeneratorPage() {
   const [isFileUploaded, setIsFileUploaded] = useState(false);
 
   const [foundColumnIndex, setFoundColumnIndex] = useState<number | null>(null);
-  const [foundCellValue, setFoundCellValue] = useState<string | null>(null); // This will store the group name
+  const [foundCellValue, setFoundCellValue] = useState<string | null>(null); 
   const [currentPaxCount, setCurrentPaxCount] = useState<string | null>(null);
 
-  const [isFileMissingError, setIsFileMissingError] = useState(false); // For initial file upload
+  const [isFileMissingError, setIsFileMissingError] = useState(false); 
   const [isProcessingSearch, setIsProcessingSearch] = useState(false);
   const [isProcessingGeneration, setIsProcessingGeneration] = useState(false);
   const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
@@ -89,15 +89,12 @@ export default function GeneratorPage() {
       const file = event.target.files[0];
       setSelectedFile(file);
       setIsFileMissingError(false);
-      // Reset states related to search and form for the new file
       setExcelData(null); 
       setFoundColumnIndex(null);
       setFoundCellValue(null);
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
       form.reset({ fileNumber: "", guideName: "" }); 
-      // Optionally clear previous generated reports if a new program file implies a new context
-      // setGeneratedReports([]); 
 
       toast({
         title: "Archivo Seleccionado",
@@ -105,7 +102,6 @@ export default function GeneratorPage() {
         variant: "default",
       });
 
-      // Process the new file to get excelData
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
@@ -123,7 +119,7 @@ export default function GeneratorPage() {
             description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
             variant: "destructive",
           });
-          setSelectedFile(null); // Reset if processing fails
+          setSelectedFile(null); 
         }
       };
       reader.onerror = (e) => {
@@ -157,7 +153,7 @@ export default function GeneratorPage() {
     setCurrentPaxCount(null);
     setFoundColumnIndex(null);
     
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate search delay
+    await new Promise(resolve => setTimeout(resolve, 500)); 
 
     let found = false;
     let colIdx = -1;
@@ -168,7 +164,7 @@ export default function GeneratorPage() {
       for (let j = 0; j < numCols; j++) { 
         for (let i = 0; i < excelData.length; i++) { 
           if (excelData[i] && excelData[i][j] !== undefined && excelData[i][j] !== null) {
-            if (String(excelData[i][j]).trim() === fileNumberToSearch) {
+            if (String(excelData[i][j]).trim() === fileNumberToSearch.trim()) {
               colIdx = j;
               rowIdxWhereFileNumberFound = i;
               found = true;
@@ -183,14 +179,11 @@ export default function GeneratorPage() {
     if (found && colIdx !== -1 && rowIdxWhereFileNumberFound !== -1) {
       setFoundColumnIndex(colIdx);
       
-      // Extract Group Name (cell below the found file number)
       const groupName = (excelData[rowIdxWhereFileNumberFound + 1] && excelData[rowIdxWhereFileNumberFound + 1][colIdx] !== undefined) 
                         ? String(excelData[rowIdxWhereFileNumberFound + 1][colIdx]).trim() 
-                        : "Nombre no encontrado";
+                        : "No se encontró nombre debajo del file.";
       setFoundCellValue(groupName);
 
-      // Extract Pax Count (cell at row index 4 of the found column, assuming 0-indexed like Python iloc[4])
-      // This assumes the program structure is consistent.
       const pax = (excelData[4] && excelData[4][colIdx] !== undefined) 
                   ? String(excelData[4][colIdx]).trim() 
                   : "N/A";
@@ -228,10 +221,10 @@ export default function GeneratorPage() {
     }
 
     setIsProcessingGeneration(true);
-    await new Promise(resolve => setTimeout(resolve, 700)); // Simulate generation
+    await new Promise(resolve => setTimeout(resolve, 700)); 
 
     const newReport: GeneratedReportInfo = {
-      id: new Date().toISOString() + Math.random().toString(36).substring(2, 9), // More unique ID
+      id: new Date().toISOString() + Math.random().toString(36).substring(2, 9), 
       fileNumber: values.fileNumber,
       guideName: values.guideName,
       originalProgramFileName: selectedFile.name,
@@ -242,8 +235,9 @@ export default function GeneratorPage() {
 
     setGeneratedReports(prev => [newReport, ...prev]);
     
-    form.reset({ fileNumber: "", guideName: "" });
-    resetSearchState();
+    form.reset({ fileNumber: "", guideName: "" }); // Reset only form fields managed by react-hook-form
+    resetSearchState(); // Reset the search status and related values
+    // selectedFile and excelData remain for further use
     
     toast({
       title: "Reporte Añadido",
@@ -296,39 +290,39 @@ export default function GeneratorPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-6">
-            {/* Sección de Carga de Archivo - Siempre Visible */}
-            <FormItem>
-              <FormLabel>1. Archivo de Programa de Turismo Mensual</FormLabel>
-              <div className="flex items-center gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    selectedFile && "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200"
-                  )}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  {selectedFile ? selectedFile.name : "Seleccionar archivo (.xlsx, .xls)"}
-                </Button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                  accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                />
-              </div>
-              {isFileMissingError && !selectedFile && (
-                   <p className="text-sm font-medium text-destructive">Por favor, selecciona un archivo.</p>
-              )}
-            </FormItem>
+          <Form {...form}> {/* Moved FormProvider to wrap the entire content */}
+            <div className="space-y-6">
+              {/* Sección de Carga de Archivo - Siempre Visible */}
+              <FormItem>
+                <FormLabel>1. Archivo de Programa de Turismo Mensual</FormLabel>
+                <div className="flex items-center gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      selectedFile && "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200"
+                    )}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {selectedFile ? selectedFile.name : "Seleccionar archivo (.xlsx, .xls)"}
+                  </Button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  />
+                </div>
+                {isFileMissingError && !selectedFile && (
+                     <p className="text-sm font-medium text-destructive">Por favor, selecciona un archivo.</p>
+                )}
+              </FormItem>
 
-            {/* Secciones Condicionales - Visibles solo si hay archivo cargado */}
-            {isFileUploaded && (
-              <Form {...form}>
+              {/* Secciones Condicionales - Visibles solo si hay archivo cargado */}
+              {isFileUploaded && (
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
                     control={form.control}
@@ -341,23 +335,27 @@ export default function GeneratorPage() {
                             <Input 
                               placeholder="Ingresa número de file" 
                               {...field} 
-                              className={cn({
+                               className={cn({
                                 "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500": fileSearchStatus === "found",
                                 "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive": fileSearchStatus === "not_found" || fileSearchStatus === "error",
                               })}
                               onChange={(e) => {
                                 field.onChange(e);
-                                resetSearchState();
+                                // Reset search status when user types in the file number field
+                                if (fileSearchStatus !== "idle") {
+                                  resetSearchState();
+                                }
                               }}
                             />
                           </FormControl>
                           <Button 
                             type="button" 
                             onClick={handleSearchFile} 
-                            variant="default" // Usa el color primario
+                            variant="default" 
                             size="icon" 
                             disabled={!selectedFile || !field.value || isProcessingSearch}
                             aria-label="Buscar File"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
                           >
                             {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                           </Button>
@@ -410,9 +408,9 @@ export default function GeneratorPage() {
                     )}
                   </Button>
                 </form>
-              </Form>
-            )}
-          </div>
+              )}
+            </div>
+          </Form>
         </CardContent>
       </Card>
 
