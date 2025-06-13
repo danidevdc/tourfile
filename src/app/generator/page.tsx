@@ -125,6 +125,7 @@ export default function GeneratorPage() {
               if (data[i] && data[i][j] !== undefined && data[i][j] !== null) {
                 if (String(data[i][j]).trim().includes(fileNumber)) {
                   colIdx = j;
+                  // Look for the cell directly below for the "Nombre del File"
                   if (i + 1 < data.length && data[i+1] && data[i+1][j] !== undefined && data[i+1][j] !== null) {
                     cellValueForName = String(data[i+1][j]).trim();
                   } else {
@@ -207,8 +208,8 @@ export default function GeneratorPage() {
       fileNumber: values.fileNumber,
       guideName: values.guideName,
       fileName: selectedFile.name, 
-      groupName: foundCellValue || "Grupo Ejemplo (desde Excel)", 
-      paxCount: "10 (desde Excel)", // Placeholder, will be extracted later
+      groupName: foundCellValue || "Grupo Ejemplo (Error al extraer)",
+      paxCount: "10 (desde Excel)", 
     });
     
     router.push(`/results?${queryParams.toString()}`);
@@ -272,7 +273,8 @@ export default function GeneratorPage() {
                           placeholder="Ingresa número de file" 
                           {...field} 
                           className={cn(
-                            fileSearchStatus === "found" && "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500"
+                            fileSearchStatus === "found" && "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500",
+                            (fileSearchStatus === "not_found" || fileSearchStatus === "error") && "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive"
                           )}
                           onChange={(e) => {
                             field.onChange(e);
@@ -287,7 +289,7 @@ export default function GeneratorPage() {
                       <Button 
                         type="button" 
                         onClick={handleSearchFile} 
-                        variant="default" 
+                        variant="default"
                         size="icon" 
                         disabled={!selectedFile || !field.value || fileSearchStatus === "searching"}
                         aria-label="Buscar File"
