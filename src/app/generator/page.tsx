@@ -20,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, FileText, Eye, FileDown, Trash2, Printer } from "lucide-react";
+import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, FileText, Eye, FileDown, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -227,7 +227,7 @@ export default function GeneratorPage() {
     const newReport: GeneratedReportInfo = {
       id: new Date().toISOString() + Math.random().toString(36).substring(2, 9), 
       fileNumber: values.fileNumber,
-      guideName: values.guideName,
+      guideName: values.guideName.toUpperCase(),
       originalProgramFileName: selectedFile.name,
       groupName: foundCellValue, 
       paxCount: currentPaxCount,
@@ -236,7 +236,7 @@ export default function GeneratorPage() {
 
     setGeneratedReports(prev => [...prev, newReport]);
     
-    form.reset({ fileNumber: "", guideName: values.guideName }); 
+    form.reset({ fileNumber: "", guideName: "" }); 
     resetSearchStateAndValue(); 
     
     toast({
@@ -435,7 +435,7 @@ export default function GeneratorPage() {
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{report.fileNumber}</TableCell>
                     <TableCell>{report.guideName}</TableCell>
-                    <TableCell>{report.groupName} ({report.paxCount} pax)</TableCell>
+                    <TableCell>{report.groupName}</TableCell>
                     <TableCell className="text-center space-x-1">
                       <Button variant="default" size="icon" onClick={() => handleViewReport(report)} title="Visualizar" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                         <Eye className="h-4 w-4" />
