@@ -136,12 +136,6 @@ export default function GeneratorPage() {
     }
   };
 
-  const resetSearchStateAndValue = () => {
-    setFileSearchStatus("idle");
-    setFoundCellValue(null);
-    setFoundColumnIndex(null);
-  };
-
   const handleSearchFile = async () => {
     const fileNumberToSearch = form.getValues("fileNumber");
     if (!selectedFile || !excelData) {
@@ -237,7 +231,9 @@ export default function GeneratorPage() {
     setGeneratedReports(prev => [...prev, newReport]);
     
     form.reset({ fileNumber: "", guideName: "" }); 
-    resetSearchStateAndValue(); 
+    setFileSearchStatus("idle");
+    setFoundCellValue(null);
+    setFoundColumnIndex(null);
     
     toast({
       title: "Reporte Añadido",
@@ -274,6 +270,16 @@ export default function GeneratorPage() {
     });
   };
 
+  const getFileNumberInputClasses = () => {
+    if (fileSearchStatus === "found") {
+      return "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
+    }
+    if (fileSearchStatus === "not_found" || fileSearchStatus === "error") {
+      return "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
+    }
+    return "bg-muted"; // Default for "idle" or "searching"
+  };
+
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
@@ -301,8 +307,9 @@ export default function GeneratorPage() {
                     onClick={() => fileInputRef.current?.click()}
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                       // Si hay un archivo seleccionado, se pinta de verde, sino, usa el color de fondo por defecto (muted)
-                      selectedFile ? "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200" : "bg-muted"
+                      selectedFile 
+                        ? "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200" 
+                        : "bg-muted"
                     )}
                   >
                     <Upload className="mr-2 h-4 w-4" />
@@ -334,15 +341,13 @@ export default function GeneratorPage() {
                             <Input 
                               placeholder="Ingresa número de file" 
                               {...field}
-                              className={cn(
-                                (fileSearchStatus !== "found" && fileSearchStatus !== "not_found" && fileSearchStatus !== "error") && "bg-muted", // bg-muted para estado idle
-                                fileSearchStatus === "found" && "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500",
-                                (fileSearchStatus === "not_found" || fileSearchStatus === "error") && "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive"
-                              )}
+                              className={getFileNumberInputClasses()}
                               onChange={(e) => {
                                 field.onChange(e);
-                                if (fileSearchStatus !== "idle") {
-                                  resetSearchStateAndValue();
+                                if (fileSearchStatus !== "idle" && fileSearchStatus !== "searching") {
+                                  setFileSearchStatus("idle");
+                                  setFoundCellValue(null);
+                                  setFoundColumnIndex(null);
                                 }
                               }}
                             />
@@ -459,3 +464,5 @@ export default function GeneratorPage() {
     </div>
   );
 }
+
+    
