@@ -51,7 +51,10 @@ export default function GeneratorPage() {
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [excelData, setExcelData] = useState<any[][] | null>(null); 
+  // isFileUploaded is no longer used to control form visibility, but can be kept for other conditional logic if needed.
+  // For now, its direct control over form visibility is removed.
   const [isFileUploaded, setIsFileUploaded] = useState(false);
+
 
   const [foundColumnIndex, setFoundColumnIndex] = useState<number | null>(null);
   const [foundCellValue, setFoundCellValue] = useState<string | null>(null); 
@@ -76,8 +79,8 @@ export default function GeneratorPage() {
   useEffect(() => {
     if (selectedFile) {
       setIsFileUploaded(true);
+      setIsFileMissingError(false); // Clear missing file error when a file is selected
     } else {
-      // This block runs when selectedFile is set to null (e.g., by handleClearFile)
       setIsFileUploaded(false);
       setExcelData(null);
       setFoundColumnIndex(null);
@@ -86,6 +89,7 @@ export default function GeneratorPage() {
       setFileSearchStatus("idle");
       form.reset({ fileNumber: "", guideName: "" });
       setGeneratedReports([]);
+      // isFileMissingError is handled by search/clear actions, not directly here
     }
   }, [selectedFile, form]);
 
@@ -93,10 +97,8 @@ export default function GeneratorPage() {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       
-      // Reset everything before processing the new file
-      setSelectedFile(null); // Temporarily set to null to trigger useEffect for full reset if needed
+      setSelectedFile(null); 
       
-      // Explicitly reset states related to the old file and search
       setExcelData(null);
       setFoundColumnIndex(null);
       setFoundCellValue(null);
@@ -104,9 +106,9 @@ export default function GeneratorPage() {
       setFileSearchStatus("idle");
       form.reset({ fileNumber: "", guideName: "" }); 
       setGeneratedReports([]);
-      setIsFileMissingError(false);
+      setIsFileMissingError(false); // Clear error as a new file is being processed
 
-      setSelectedFile(file); // Now set the new file, which will trigger useEffect to set isFileUploaded = true
+      setSelectedFile(file);
 
       toast({
         title: "Archivo Seleccionado",
@@ -132,26 +134,22 @@ export default function GeneratorPage() {
             variant: "destructive",
           });
           if (fileInputRef.current) {
-            fileInputRef.current.value = ""; // Clear native input on error
+            fileInputRef.current.value = ""; 
           }
-          setSelectedFile(null); // Reset selected file on error
+          setSelectedFile(null); 
         }
       };
       reader.onerror = (e) => {
         console.error("Error al leer el archivo:", e);
         toast({ title: "Error de Lectura", description: "Hubo un problema al leer el archivo.", variant: "destructive" });
         if (fileInputRef.current) {
-            fileInputRef.current.value = ""; // Clear native input on error
+            fileInputRef.current.value = ""; 
         }
-        setSelectedFile(null); // Reset selected file on error
+        setSelectedFile(null); 
       };
       reader.readAsArrayBuffer(file);
 
     } else {
-      // No file selected (e.g., user cancels file dialog)
-      // If there was a file previously, handleClearFile should be used.
-      // If they just opened dialog and closed, selectedFile might already be null or unchanged.
-      // To be safe, if they somehow clear it this way and a file WAS selected, treat it as a clear.
       if (selectedFile) {
         handleClearFile();
       }
@@ -160,18 +158,10 @@ export default function GeneratorPage() {
 
   const handleClearFile = () => {
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Clear the native file input
+      fileInputRef.current.value = ""; 
     }
-    setSelectedFile(null); // This will trigger the useEffect to reset other states
-    // The useEffect hook handles:
-    // setIsFileUploaded(false);
-    // setExcelData(null);
-    // setFoundColumnIndex(null);
-    // setFoundCellValue(null);
-    // setCurrentPaxCount(null);
-    // setFileSearchStatus("idle");
-    // form.reset({ fileNumber: "", guideName: "" });
-    // setGeneratedReports([]);
+    setSelectedFile(null); 
+    setIsFileMissingError(false); // Clear missing file error on manual clear
     
     toast({
       title: "Archivo Limpiado",
@@ -181,28 +171,30 @@ export default function GeneratorPage() {
   };
   
   const getFileNumberInputClasses = (): string => {
-    let baseClasses = ""; // bg-muted is removed from base Input component
     if (fileSearchStatus === "idle" || fileSearchStatus === "searching") {
-      baseClasses = "bg-muted";
+      return "bg-muted";
     } else if (fileSearchStatus === "found") {
       return "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
     } else if (fileSearchStatus === "not_found" || fileSearchStatus === "error") {
       return "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
     }
-    return baseClasses;
+    return "bg-muted"; // Default fallback
   };
   
 
   const handleSearchFile = async () => {
     const fileNumberToSearch = form.getValues("fileNumber");
     if (!selectedFile || !excelData) {
+      setIsFileMissingError(true); // Set error if no file is selected
       toast({ title: "Error de Búsqueda", description: "Sube y procesa un archivo de programa primero.", variant: "destructive" });
       setFileSearchStatus("error");
       return;
     }
+    setIsFileMissingError(false); // Clear error if file is present
+
     if (!fileNumberToSearch) {
       toast({ title: "Error de Búsqueda", description: "Ingresa un número de file para buscar.", variant: "destructive" });
-      setFileSearchStatus("error");
+      setFileSearchStatus("error"); 
       return;
     }
 
@@ -264,9 +256,12 @@ export default function GeneratorPage() {
   
   async function onSubmit(values: FormValues) {
     if (!selectedFile || !excelData) {
+      setIsFileMissingError(true);
       toast({ title: "Error", description: "Sube un archivo de programa.", variant: "destructive" });
       return;
     }
+    setIsFileMissingError(false);
+
     if (fileSearchStatus !== "found" || !foundCellValue || !currentPaxCount) {
        toast({ title: "Error", description: "Busca y confirma el file antes de generar. Asegúrate que se extrajo el nombre.", variant: "destructive" });
       return;
@@ -301,9 +296,6 @@ export default function GeneratorPage() {
     
     form.reset({ fileNumber: "", guideName: "" }); 
     setFileSearchStatus("idle");
-    // No limpiar foundCellValue ni currentPaxCount aquí,
-    // para que el usuario pueda generar múltiples reportes para el mismo file buscado si lo desea.
-    // Se limpiarán si se sube un nuevo archivo o se limpia el actual.
     
     toast({
       title: "Reporte Añadido",
@@ -390,94 +382,89 @@ export default function GeneratorPage() {
                   />
                 </div>
                 {isFileMissingError && !selectedFile && (
-                     <p className="text-sm font-medium text-destructive">Por favor, selecciona un archivo.</p>
+                     <p className="text-sm font-medium text-destructive mt-1">Por favor, selecciona un archivo para buscar.</p>
                 )}
               </FormItem>
 
-              {isFileUploaded && (
-                <div className="space-y-6"> 
-                  <FormField
-                    control={form.control}
-                    name="fileNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>2. Número de File (ej: CTFI107098)</FormLabel>
-                        <div className="flex items-center gap-2">
-                          <FormControl>
-                            <Input 
-                              placeholder="Ingresa número de file" 
-                              {...field}
-                              className={getFileNumberInputClasses()}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                if (fileSearchStatus !== "idle" && fileSearchStatus !== "searching") {
-                                  setFileSearchStatus("idle");
-                                  setFoundCellValue(null); 
-                                  setCurrentPaxCount(null);
-                                }
-                              }}
-                            />
-                          </FormControl>
-                          <Button 
-                            type="button" 
-                            onClick={handleSearchFile} 
-                            variant="default" 
-                            size="icon" 
-                            disabled={!selectedFile || !field.value || isProcessingSearch}
-                            aria-label="Buscar File"
-                            className="bg-primary text-primary-foreground hover:bg-primary/90"
-                          >
-                            {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                          </Button>
-                        </div>
-                        <FormMessage />
-                        {fileSearchStatus === "found" && foundCellValue && (
-                          <div className="mt-2 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm">
-                            <CheckCircle2 className="inline-block mr-2 h-4 w-4 align-middle text-green-700 dark:text-green-300" />
-                            File Encontrado: <strong>{foundCellValue}</strong> (Pax: {currentPaxCount})
-                          </div>
-                        )}
-                        {fileSearchStatus === "not_found" && (
-                          <div className="flex items-center text-sm text-destructive mt-1">
-                            <XCircle className="mr-1 h-4 w-4" /> File no encontrado.
-                          </div>
-                        )}
-                         {fileSearchStatus === "error" && !selectedFile && ( // Show only if no file is selected
-                          <div className="flex items-center text-sm text-destructive mt-1">
-                            <XCircle className="mr-1 h-4 w-4" /> Sube y procesa un archivo primero.
-                          </div>
-                        )}
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="guideName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>3. Nombre del Guía</FormLabel>
+              {/* Fields are now always visible */}
+              <div className="space-y-6"> 
+                <FormField
+                  control={form.control}
+                  name="fileNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>2. Número de File (ej: CTFI107098)</FormLabel>
+                      <div className="flex items-center gap-2">
                         <FormControl>
-                          <Input placeholder="Ingresa nombre del guía" {...field} className="bg-muted"/>
+                          <Input 
+                            placeholder="Ingresa número de file" 
+                            {...field}
+                            className={getFileNumberInputClasses()}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              if (fileSearchStatus !== "idle" && fileSearchStatus !== "searching") {
+                                setFileSearchStatus("idle");
+                                setFoundCellValue(null); 
+                                setCurrentPaxCount(null);
+                              }
+                            }}
+                          />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                        <Button 
+                          type="button" 
+                          onClick={handleSearchFile} 
+                          variant="default" 
+                          size="icon" 
+                          disabled={!selectedFile || !field.value || isProcessingSearch}
+                          aria-label="Buscar File"
+                          className="bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                          {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      <FormMessage />
+                      {fileSearchStatus === "found" && foundCellValue && (
+                        <div className="mt-2 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm">
+                          <CheckCircle2 className="inline-block mr-2 h-4 w-4 align-middle text-green-700 dark:text-green-300" />
+                          File Encontrado: <strong>{foundCellValue}</strong> (Pax: {currentPaxCount})
+                        </div>
+                      )}
+                      {fileSearchStatus === "not_found" && (
+                        <div className="flex items-center text-sm text-destructive mt-1">
+                          <XCircle className="mr-1 h-4 w-4" /> File no encontrado.
+                        </div>
+                      )}
+                        {/* This specific error (error && !selectedFile) is handled by isFileMissingError above */}
+                    </FormItem>
+                  )}
+                />
 
-                  <Button 
-                    type="submit"
-                    className="w-full" 
-                    disabled={isProcessingGeneration || fileSearchStatus !== 'found' || !form.formState.isValid}
-                  >
-                    {isProcessingGeneration ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generando...</>
-                    ) : (
-                      "Generar" 
-                    )}
-                  </Button>
-                </div>
-              )}
+                <FormField
+                  control={form.control}
+                  name="guideName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>3. Nombre del Guía</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ingresa nombre del guía" {...field} className="bg-muted"/>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button 
+                  type="submit"
+                  className="w-full" 
+                  disabled={isProcessingGeneration || !selectedFile || fileSearchStatus !== 'found' || !form.formState.isValid}
+                >
+                  {isProcessingGeneration ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generando...</>
+                  ) : (
+                    "Generar" 
+                  )}
+                </Button>
+              </div>
             </form>
           </Form>
         </CardContent>
@@ -547,3 +534,6 @@ export default function GeneratorPage() {
 
   
 
+
+
+    
