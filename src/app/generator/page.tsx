@@ -4,7 +4,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx'; 
 
@@ -19,29 +19,47 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, FileText } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, FileText, Eye, FileDown, Trash2, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
-  fileNumber: z.string().min(1, "File number is required."),
-  guideName: z.string().min(1, "Guide name is required."),
+  fileNumber: z.string().min(1, "El número de file es requerido."),
+  guideName: z.string().min(1, "El nombre del guía es requerido."),
 });
 
 type FormValues = z.infer<typeof formSchema>;
-
 type FileSearchStatus = "idle" | "searching" | "found" | "not_found" | "error";
+
+interface GeneratedReportInfo {
+  id: string;
+  fileNumber: string;
+  guideName: string;
+  originalProgramFileName: string;
+  groupName: string;
+  paxCount: string;
+  generationDate: Date;
+}
 
 export default function GeneratorPage() {
   const { toast } = useToast();
   const router = useRouter();
+  
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [excelData, setExcelData] = useState<any[][] | null>(null); 
+  const [isFileUploaded, setIsFileUploaded] = useState(false);
+
   const [foundColumnIndex, setFoundColumnIndex] = useState<number | null>(null);
-  const [foundCellValue, setFoundCellValue] = useState<string | null>(null); 
-  const [isFileMissingError, setIsFileMissingError] = useState(false);
+  const [foundCellValue, setFoundCellValue] = useState<string | null>(null); // This will store the group name
+  const [currentPaxCount, setCurrentPaxCount] = useState<string | null>(null);
+
+  const [isFileMissingError, setIsFileMissingError] = useState(false); // For initial file upload
+  const [isProcessingSearch, setIsProcessingSearch] = useState(false);
   const [isProcessingGeneration, setIsProcessingGeneration] = useState(false);
   const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
+  
+  const [generatedReports, setGeneratedReports] = useState<GeneratedReportInfo[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormValues>({
@@ -52,320 +70,395 @@ export default function GeneratorPage() {
     },
   });
 
+  useEffect(() => {
+    if (selectedFile) {
+      setIsFileUploaded(true);
+    } else {
+      setIsFileUploaded(false);
+      setExcelData(null);
+      setFoundColumnIndex(null);
+      setFoundCellValue(null);
+      setCurrentPaxCount(null);
+      setFileSearchStatus("idle");
+      form.reset({ fileNumber: "", guideName: "" });
+    }
+  }, [selectedFile, form]);
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       setSelectedFile(file);
       setIsFileMissingError(false);
-      setFileSearchStatus("idle"); 
-      form.setValue("fileNumber", ""); 
+      // Reset states related to search and form for the new file
       setExcelData(null); 
       setFoundColumnIndex(null);
       setFoundCellValue(null);
+      setCurrentPaxCount(null);
+      setFileSearchStatus("idle");
+      form.reset({ fileNumber: "", guideName: "" }); 
+      // Optionally clear previous generated reports if a new program file implies a new context
+      // setGeneratedReports([]); 
+
       toast({
         title: "Archivo Seleccionado",
         description: file.name,
         variant: "default",
       });
+
+      // Process the new file to get excelData
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const arrayBuffer = e.target?.result;
+          if (!arrayBuffer) throw new Error("Error al leer el archivo.");
+          const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
+          setExcelData(data);
+        } catch (error) {
+          console.error("Error al procesar el archivo Excel:", error);
+          toast({
+            title: "Error de Procesamiento",
+            description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
+            variant: "destructive",
+          });
+          setSelectedFile(null); // Reset if processing fails
+        }
+      };
+      reader.onerror = (e) => {
+        console.error("Error al leer el archivo:", e);
+        toast({ title: "Error de Lectura", description: "Hubo un problema al leer el archivo.", variant: "destructive" });
+        setSelectedFile(null);
+      };
+      reader.readAsArrayBuffer(file);
+
     } else {
       setSelectedFile(null);
-      setExcelData(null);
-      setFoundColumnIndex(null);
-      setFoundCellValue(null);
-      setFileSearchStatus("idle");
     }
   };
 
   const handleSearchFile = async () => {
-    const fileNumber = form.getValues("fileNumber").trim();
-    if (!selectedFile) {
-      toast({
-        title: "Error de Búsqueda",
-        description: "Por favor, primero sube un archivo de programa.",
-        variant: "destructive",
-      });
+    const fileNumberToSearch = form.getValues("fileNumber").trim();
+    if (!selectedFile || !excelData) {
+      toast({ title: "Error de Búsqueda", description: "Sube y procesa un archivo de programa primero.", variant: "destructive" });
       setFileSearchStatus("error");
       return;
     }
-    if (!fileNumber) {
-      toast({
-        title: "Error de Búsqueda",
-        description: "Por favor, ingresa un número de file para buscar.",
-        variant: "destructive",
-      });
-      setFileSearchStatus("error"); // Or "idle" if preferred to clear red highlight on empty input search
+    if (!fileNumberToSearch) {
+      toast({ title: "Error de Búsqueda", description: "Ingresa un número de file para buscar.", variant: "destructive" });
+      setFileSearchStatus("error");
       return;
     }
 
+    setIsProcessingSearch(true);
     setFileSearchStatus("searching");
-    setExcelData(null); 
-    setFoundColumnIndex(null);
     setFoundCellValue(null);
+    setCurrentPaxCount(null);
+    setFoundColumnIndex(null);
+    
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate search delay
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const arrayBuffer = e.target?.result;
-        if (!arrayBuffer) {
-          throw new Error("Error al leer el archivo.");
-        }
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
-        
-        setExcelData(data); 
+    let found = false;
+    let colIdx = -1;
+    let rowIdxWhereFileNumberFound = -1;
 
-        let found = false;
-        let colIdx = -1;
-        let cellValueForName = null;
-
-        if (data && data.length > 0) {
-          const numCols = data.reduce((max, row) => Math.max(max, row.length), 0);
-
-          for (let j = 0; j < numCols; j++) { 
-            for (let i = 0; i < data.length; i++) { 
-              if (data[i] && data[i][j] !== undefined && data[i][j] !== null) {
-                // Exact match for file number
-                if (String(data[i][j]).trim() === fileNumber) {
-                  colIdx = j;
-                  // Get the value from the cell below for "Nombre del File"
-                  if (i + 1 < data.length && data[i+1] && data[i+1][j] !== undefined && data[i+1][j] !== null) {
-                    cellValueForName = String(data[i+1][j]).trim();
-                  } else {
-                    cellValueForName = "No se encontró nombre debajo del file.";
-                  }
-                  found = true;
-                  break; 
-                }
-              }
+    if (excelData && excelData.length > 0) {
+      const numCols = excelData.reduce((max, row) => Math.max(max, row.length), 0);
+      for (let j = 0; j < numCols; j++) { 
+        for (let i = 0; i < excelData.length; i++) { 
+          if (excelData[i] && excelData[i][j] !== undefined && excelData[i][j] !== null) {
+            if (String(excelData[i][j]).trim() === fileNumberToSearch) {
+              colIdx = j;
+              rowIdxWhereFileNumberFound = i;
+              found = true;
+              break; 
             }
-            if (found) break; 
           }
         }
-
-        if (found) {
-          setFoundColumnIndex(colIdx);
-          setFoundCellValue(cellValueForName);
-          setFileSearchStatus("found");
-          toast({
-            title: "Búsqueda Exitosa",
-            description: `File "${fileNumber}" encontrado.`,
-            variant: "default",
-            className: "bg-green-100 dark:bg-green-900 border-green-500",
-          });
-        } else {
-          setFileSearchStatus("not_found");
-          toast({
-            title: "Búsqueda Fallida",
-            description: `File "${fileNumber}" no encontrado en el archivo.`,
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        console.error("Error al procesar el archivo Excel:", error);
-        setFileSearchStatus("error");
-        toast({
-          title: "Error de Procesamiento",
-          description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
-          variant: "destructive",
-        });
+        if (found) break; 
       }
-    };
-    reader.onerror = (e) => {
-      console.error("Error al leer el archivo:", e);
-      setFileSearchStatus("error");
+    }
+
+    if (found && colIdx !== -1 && rowIdxWhereFileNumberFound !== -1) {
+      setFoundColumnIndex(colIdx);
+      
+      // Extract Group Name (cell below the found file number)
+      const groupName = (excelData[rowIdxWhereFileNumberFound + 1] && excelData[rowIdxWhereFileNumberFound + 1][colIdx] !== undefined) 
+                        ? String(excelData[rowIdxWhereFileNumberFound + 1][colIdx]).trim() 
+                        : "Nombre no encontrado";
+      setFoundCellValue(groupName);
+
+      // Extract Pax Count (cell at row index 4 of the found column, assuming 0-indexed like Python iloc[4])
+      // This assumes the program structure is consistent.
+      const pax = (excelData[4] && excelData[4][colIdx] !== undefined) 
+                  ? String(excelData[4][colIdx]).trim() 
+                  : "N/A";
+      setCurrentPaxCount(pax);
+
+      setFileSearchStatus("found");
       toast({
-        title: "Error de Lectura",
-        description: "Hubo un problema al leer el archivo.",
-        variant: "destructive",
+        title: "Búsqueda Exitosa",
+        description: `File "${fileNumberToSearch}" encontrado. Grupo: ${groupName}, Pax: ${pax}.`,
+        variant: "default",
+        className: "bg-green-100 dark:bg-green-900 border-green-500",
       });
-    };
-    reader.readAsArrayBuffer(selectedFile);
+    } else {
+      setFileSearchStatus("not_found");
+      toast({ title: "Búsqueda Fallida", description: `File "${fileNumberToSearch}" no encontrado.`, variant: "destructive" });
+    }
+    setIsProcessingSearch(false);
+  };
+  
+  const resetSearchState = () => {
+    setFileSearchStatus("idle");
+    setFoundCellValue(null);
+    setCurrentPaxCount(null);
+    setFoundColumnIndex(null);
   };
 
   async function onSubmit(values: FormValues) {
-    if (!selectedFile) {
-      setIsFileMissingError(true);
-      toast({
-        title: "Error de Generación",
-        description: "Por favor, sube un archivo de programa de turismo.",
-        variant: "destructive",
-      });
+    if (!selectedFile || !excelData) {
+      toast({ title: "Error", description: "Sube un archivo de programa.", variant: "destructive" });
       return;
     }
-    if (fileSearchStatus !== "found" || excelData === null || foundColumnIndex === null) {
-       toast({
-        title: "Error de Generación",
-        description: "Por favor, busca y confirma el número de file antes de generar. Asegúrate que el file fue encontrado en el archivo.",
-        variant: "destructive",
-      });
+    if (fileSearchStatus !== "found" || !foundCellValue || !currentPaxCount) {
+       toast({ title: "Error", description: "Busca y confirma el file antes de generar. Asegúrate que se extrajo el nombre y pax.", variant: "destructive" });
       return;
     }
 
-    setIsFileMissingError(false);
     setIsProcessingGeneration(true);
-    
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 700)); // Simulate generation
 
-    const queryParams = new URLSearchParams({
+    const newReport: GeneratedReportInfo = {
+      id: new Date().toISOString() + Math.random().toString(36).substring(2, 9), // More unique ID
       fileNumber: values.fileNumber,
       guideName: values.guideName,
-      fileName: selectedFile.name, 
-      groupName: foundCellValue || "Grupo Ejemplo (Error al extraer)", 
-      paxCount: "10 (desde Excel)", 
-    });
+      originalProgramFileName: selectedFile.name,
+      groupName: foundCellValue,
+      paxCount: currentPaxCount,
+      generationDate: new Date(),
+    };
+
+    setGeneratedReports(prev => [newReport, ...prev]);
     
-    router.push(`/results?${queryParams.toString()}`);
-    setIsProcessingGeneration(false); 
+    form.reset({ fileNumber: "", guideName: "" });
+    resetSearchState();
+    
+    toast({
+      title: "Reporte Añadido",
+      description: `Se añadió el reporte para el file ${newReport.fileNumber} a la lista.`,
+    });
+    setIsProcessingGeneration(false);
   }
+
+  const handleViewReport = (report: GeneratedReportInfo) => {
+    const queryParams = new URLSearchParams({
+      fileNumber: report.fileNumber,
+      guideName: report.guideName,
+      fileName: report.originalProgramFileName, 
+      groupName: report.groupName, 
+      paxCount: report.paxCount,
+    });
+    router.push(`/results?${queryParams.toString()}`);
+  };
+
+  const handleDeleteReport = (reportId: string) => {
+    setGeneratedReports(prev => prev.filter(report => report.id !== reportId));
+    toast({
+      title: "Reporte Eliminado",
+      description: "El reporte ha sido eliminado de la lista.",
+      variant: "default",
+    });
+  };
+
+  const handleDownloadPlaceholder = (format: string) => {
+    toast({
+        title: "Próximamente",
+        description: `La descarga en formato ${format} estará disponible pronto.`,
+        variant: "default",
+    });
+  };
+
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
-      <div className="w-full max-w-lg mb-4">
+      <div className="w-full max-w-2xl mb-4">
         <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back" className="hover:bg-primary/90">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
-      <Card className="w-full max-w-lg shadow-lg">
+      <Card className="w-full max-w-2xl shadow-lg">
         <CardHeader>
-          <CardTitle className="text-3xl font-headline text-center text-primary">Generador de Cajas Chicas</CardTitle>
+          <CardTitle className="text-3xl font-headline text-center text-primary">Generador de Cajas Chicas (La Paz)</CardTitle>
           <CardDescription className="text-center">
             Sube tu archivo de programa, ingresa los detalles y genera tu reporte.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormItem>
-                <FormLabel>Archivo de Programa de Turismo Mensual</FormLabel>
-                <div className="flex items-center gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      selectedFile && "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200"
-                    )}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {selectedFile ? selectedFile.name : "Seleccionar archivo (.xlsx, .xls)"}
-                  </Button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                  />
-                </div>
-                {isFileMissingError && (
-                     <p className="text-sm font-medium text-destructive">Por favor, selecciona un archivo.</p>
-                )}
-              </FormItem>
+          <div className="space-y-6">
+            {/* Sección de Carga de Archivo - Siempre Visible */}
+            <FormItem>
+              <FormLabel>1. Archivo de Programa de Turismo Mensual</FormLabel>
+              <div className="flex items-center gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    selectedFile && "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200"
+                  )}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {selectedFile ? selectedFile.name : "Seleccionar archivo (.xlsx, .xls)"}
+                </Button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                />
+              </div>
+              {isFileMissingError && !selectedFile && (
+                   <p className="text-sm font-medium text-destructive">Por favor, selecciona un archivo.</p>
+              )}
+            </FormItem>
 
-              <FormField
-                control={form.control}
-                name="fileNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número de File (ej: CTFI107098)</FormLabel>
-                    <div className="flex items-center gap-2">
-                      <FormControl>
-                        <Input 
-                          placeholder="Ingresa número de file" 
-                          {...field} 
-                          className={cn({
-                            "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500": fileSearchStatus === "found",
-                            "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive": fileSearchStatus === "not_found" || fileSearchStatus === "error",
-                          })}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            if (fileSearchStatus !== "idle") {
-                                setFileSearchStatus("idle"); // Reset status on input change
-                            }
-                            if (foundCellValue) {
-                                setFoundCellValue(null); // Clear found cell value on input change
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <Button 
-                        type="button" 
-                        onClick={handleSearchFile} 
-                        variant="default"
-                        size="icon" 
-                        disabled={!selectedFile || !field.value || fileSearchStatus === "searching"}
-                        aria-label="Buscar File"
-                      >
-                        {fileSearchStatus === "searching" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                    <FormMessage />
-                    {fileSearchStatus === "found" && foundCellValue && (
-                      <div className="mt-2">
-                        <FormLabel htmlFor="foundValueDisplay" className="text-sm">Nombre del File:</FormLabel>
-                        <div 
-                          id="foundValueDisplay"
-                          className="mt-1 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm"
-                        >
-                          <FileText className="inline-block mr-2 h-4 w-4 align-middle" />
-                          {foundCellValue}
+            {/* Secciones Condicionales - Visibles solo si hay archivo cargado */}
+            {isFileUploaded && (
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="fileNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>2. Número de File del Programa (ej: CTFI107098)</FormLabel>
+                        <div className="flex items-center gap-2">
+                          <FormControl>
+                            <Input 
+                              placeholder="Ingresa número de file" 
+                              {...field} 
+                              className={cn({
+                                "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500": fileSearchStatus === "found",
+                                "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive": fileSearchStatus === "not_found" || fileSearchStatus === "error",
+                              })}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                resetSearchState();
+                              }}
+                            />
+                          </FormControl>
+                          <Button 
+                            type="button" 
+                            onClick={handleSearchFile} 
+                            variant="default" // Usa el color primario
+                            size="icon" 
+                            disabled={!selectedFile || !field.value || isProcessingSearch}
+                            aria-label="Buscar File"
+                          >
+                            {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                          </Button>
                         </div>
-                      </div>
+                        <FormMessage />
+                        {fileSearchStatus === "found" && foundCellValue && (
+                          <div className="mt-2 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm">
+                            <FileText className="inline-block mr-2 h-4 w-4 align-middle" />
+                            Nombre del File: <strong>{foundCellValue}</strong> <br />
+                            Pax: <strong>{currentPaxCount}</strong>
+                          </div>
+                        )}
+                        {fileSearchStatus === "not_found" && (
+                          <div className="flex items-center text-sm text-destructive mt-1">
+                            <XCircle className="mr-1 h-4 w-4" /> File no encontrado.
+                          </div>
+                        )}
+                         {fileSearchStatus === "error" && (
+                          <div className="flex items-center text-sm text-destructive mt-1">
+                            <XCircle className="mr-1 h-4 w-4" /> Error al buscar.
+                          </div>
+                        )}
+                      </FormItem>
                     )}
-                    {fileSearchStatus === "found" && !foundCellValue && (
-                       <div className="flex items-center text-sm text-green-600 dark:text-green-400 mt-1">
-                        <CheckCircle2 className="mr-1 h-4 w-4" />
-                        File encontrado. No se encontró nombre debajo.
-                      </div>
-                    )}
-                    {fileSearchStatus === "not_found" && (
-                      <div className="flex items-center text-sm text-destructive mt-1">
-                        <XCircle className="mr-1 h-4 w-4" />
-                        File no encontrado. Verifica el número o el archivo.
-                      </div>
-                    )}
-                     {fileSearchStatus === "error" && (
-                      <div className="flex items-center text-sm text-destructive mt-1">
-                        <XCircle className="mr-1 h-4 w-4" />
-                        Error al buscar el file. Intenta con otro archivo o verifica el formato.
-                      </div>
-                    )}
-                  </FormItem>
-                )}
-              />
+                  />
 
-              <FormField
-                control={form.control}
-                name="guideName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nombre del Guía Turístico</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ingresa nombre del guía" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="guideName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>3. Nombre del Guía Turístico</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ingresa nombre del guía" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <Button type="submit" className="w-full" disabled={isProcessingGeneration || fileSearchStatus !== 'found'}>
-                {isProcessingGeneration ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generando...
-                  </>
-                ) : (
-                  "Generate File"
-                )}
-              </Button>
-            </form>
-          </Form>
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={isProcessingGeneration || fileSearchStatus !== 'found' || !form.formState.isValid}
+                  >
+                    {isProcessingGeneration ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Añadiendo...</>
+                    ) : (
+                      "Añadir a Lista de Reportes"
+                    )}
+                  </Button>
+                </form>
+              </Form>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* Lista de Archivos Generados */}
+      {generatedReports.length > 0 && (
+        <Card className="w-full max-w-2xl shadow-lg mt-8">
+          <CardHeader>
+            <CardTitle className="text-xl font-headline text-center text-primary">Reportes Generados</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>File N°</TableHead>
+                  <TableHead>Guía</TableHead>
+                  <TableHead>Grupo</TableHead>
+                  <TableHead className="text-center">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {generatedReports.map((report) => (
+                  <TableRow key={report.id}>
+                    <TableCell>{report.fileNumber}</TableCell>
+                    <TableCell>{report.guideName}</TableCell>
+                    <TableCell>{report.groupName} ({report.paxCount} pax)</TableCell>
+                    <TableCell className="text-center space-x-1">
+                      <Button variant="outline" size="icon" onClick={() => handleViewReport(report)} title="Visualizar">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="icon" onClick={() => handleDownloadPlaceholder('Excel')} title="Descargar Excel">
+                        <FileDown className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="icon" onClick={() => handleDownloadPlaceholder('PDF')} title="Descargar PDF">
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                      <Button variant="destructive" size="icon" onClick={() => handleDeleteReport(report.id)} title="Eliminar">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
-

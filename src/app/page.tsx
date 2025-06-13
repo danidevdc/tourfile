@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileSpreadsheet, ArrowRight } from "lucide-react";
+import { FileSpreadsheet, ArrowRight, MapPin } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -23,41 +23,23 @@ export default function HomePage() {
 
           {/* Action Buttons Section */}
           <div className="grid grid-cols-1 gap-6">
-            <Link href="/generator" passHref>
+            <Link href="/city-selection" passHref>
               <Button
                 variant="default"
                 className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
               >
-                <FileSpreadsheet className="h-12 w-12 mr-6 text-primary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                <MapPin className="h-12 w-12 mr-6 text-primary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
                 <div className="text-left flex-grow">
                   <span className="block text-2xl font-bold text-primary-foreground">
-                    Generador de Cajas Chicas
+                    Seleccionar Destino
                   </span>
                   <span className="block text-md text-primary-foreground/80 mt-1">
-                    Accede a la herramienta para crear tus reportes.
+                    Elige la ciudad para generar reportes.
                   </span>
                 </div>
                 <ArrowRight className="h-8 w-8 ml-auto text-primary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
               </Button>
             </Link>
-            {/* 
-            Example of a second button if features expand:
-            <Button
-              variant="secondary" // Or "outline"
-              className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
-            >
-              <Grid3X3 className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
-              <div className="text-left flex-grow">
-                <span className="block text-2xl font-bold text-secondary-foreground">
-                  Otra Funcionalidad
-                </span>
-                <span className="block text-md text-secondary-foreground/80 mt-1">
-                  Descripción de la otra sección.
-                </span>
-              </div>
-               <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-            </Button>
-            */}
           </div>
         </CardContent>
       </Card>
