@@ -290,7 +290,7 @@ export default function GeneratorPage() {
         </CardHeader>
         <CardContent>
           <Form {...form}> 
-            <div className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormItem>
                 <FormLabel>1. Archivo de Programa de Turismo Mensual</FormLabel>
                 <div className="flex items-center gap-4">
@@ -320,7 +320,7 @@ export default function GeneratorPage() {
               </FormItem>
 
               {isFileUploaded && (
-                <div className="space-y-6"> {/* Changed from form to div for conceptual separation, form tag remains onSubmit={form.handleSubmit(onSubmit)} */}
+                <div className="space-y-6"> 
                   <FormField
                     control={form.control}
                     name="fileNumber"
@@ -331,14 +331,10 @@ export default function GeneratorPage() {
                           <FormControl>
                             <Input 
                               placeholder="Ingresa número de file" 
-                              {...field} 
-                               className={cn({
-                                "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500": fileSearchStatus === "found",
-                                "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive": fileSearchStatus === "not_found" || fileSearchStatus === "error",
-                              })}
+                              {...field}
                               onChange={(e) => {
                                 field.onChange(e);
-                                if (fileSearchStatus !== "idle") {
+                                if (fileSearchStatus !== "idle" || foundCellValue) {
                                   resetSearchStateAndValue();
                                 }
                               }}
@@ -392,8 +388,7 @@ export default function GeneratorPage() {
                   />
 
                   <Button 
-                    type="button" // Changed from submit to button
-                    onClick={form.handleSubmit(onSubmit)} // Manually trigger submit
+                    type="submit"
                     className="w-full" 
                     disabled={isProcessingGeneration || fileSearchStatus !== 'found' || !form.formState.isValid}
                   >
@@ -405,7 +400,7 @@ export default function GeneratorPage() {
                   </Button>
                 </div>
               )}
-            </div>
+            </form>
           </Form>
         </CardContent>
       </Card>
@@ -457,6 +452,3 @@ export default function GeneratorPage() {
     </div>
   );
 }
-
-
-    
