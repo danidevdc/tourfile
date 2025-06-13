@@ -77,6 +77,7 @@ export default function GeneratorPage() {
     if (selectedFile) {
       setIsFileUploaded(true);
     } else {
+      // This block runs when selectedFile is set to null (e.g., by handleClearFile)
       setIsFileUploaded(false);
       setExcelData(null);
       setFoundColumnIndex(null);
@@ -84,22 +85,28 @@ export default function GeneratorPage() {
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
       form.reset({ fileNumber: "", guideName: "" });
-      setGeneratedReports([]); 
+      setGeneratedReports([]);
     }
   }, [selectedFile, form]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      setSelectedFile(file);
-      setIsFileMissingError(false);
-      setExcelData(null); 
+      
+      // Reset everything before processing the new file
+      setSelectedFile(null); // Temporarily set to null to trigger useEffect for full reset if needed
+      
+      // Explicitly reset states related to the old file and search
+      setExcelData(null);
       setFoundColumnIndex(null);
       setFoundCellValue(null);
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
       form.reset({ fileNumber: "", guideName: "" }); 
-      setGeneratedReports([]); 
+      setGeneratedReports([]);
+      setIsFileMissingError(false);
+
+      setSelectedFile(file); // Now set the new file, which will trigger useEffect to set isFileUploaded = true
 
       toast({
         title: "Archivo Seleccionado",
@@ -124,29 +131,65 @@ export default function GeneratorPage() {
             description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
             variant: "destructive",
           });
-          setSelectedFile(null); 
+          if (fileInputRef.current) {
+            fileInputRef.current.value = ""; // Clear native input on error
+          }
+          setSelectedFile(null); // Reset selected file on error
         }
       };
       reader.onerror = (e) => {
         console.error("Error al leer el archivo:", e);
         toast({ title: "Error de Lectura", description: "Hubo un problema al leer el archivo.", variant: "destructive" });
-        setSelectedFile(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ""; // Clear native input on error
+        }
+        setSelectedFile(null); // Reset selected file on error
       };
       reader.readAsArrayBuffer(file);
 
     } else {
-      setSelectedFile(null);
+      // No file selected (e.g., user cancels file dialog)
+      // If there was a file previously, handleClearFile should be used.
+      // If they just opened dialog and closed, selectedFile might already be null or unchanged.
+      // To be safe, if they somehow clear it this way and a file WAS selected, treat it as a clear.
+      if (selectedFile) {
+        handleClearFile();
+      }
     }
+  };
+
+  const handleClearFile = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Clear the native file input
+    }
+    setSelectedFile(null); // This will trigger the useEffect to reset other states
+    // The useEffect hook handles:
+    // setIsFileUploaded(false);
+    // setExcelData(null);
+    // setFoundColumnIndex(null);
+    // setFoundCellValue(null);
+    // setCurrentPaxCount(null);
+    // setFileSearchStatus("idle");
+    // form.reset({ fileNumber: "", guideName: "" });
+    // setGeneratedReports([]);
+    
+    toast({
+      title: "Archivo Limpiado",
+      description: "Se ha quitado el archivo de programa seleccionado.",
+      variant: "default",
+    });
   };
   
   const getFileNumberInputClasses = (): string => {
-    if (fileSearchStatus === "found") {
+    let baseClasses = ""; // bg-muted is removed from base Input component
+    if (fileSearchStatus === "idle" || fileSearchStatus === "searching") {
+      baseClasses = "bg-muted";
+    } else if (fileSearchStatus === "found") {
       return "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
     } else if (fileSearchStatus === "not_found" || fileSearchStatus === "error") {
       return "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
     }
-    // Default for idle or searching
-    return "bg-muted"; 
+    return baseClasses;
   };
   
 
@@ -208,7 +251,7 @@ export default function GeneratorPage() {
       setFileSearchStatus("found");
       toast({
         title: "Búsqueda Exitosa",
-        description: `File "${fileNumberToSearch}" encontrado.`,
+        description: `File "${fileNumberToSearch}" encontrado. Nombre: ${groupName}`,
         variant: "default",
         className: "bg-green-100 dark:bg-green-900 border-green-500",
       });
@@ -258,8 +301,9 @@ export default function GeneratorPage() {
     
     form.reset({ fileNumber: "", guideName: "" }); 
     setFileSearchStatus("idle");
-    setFoundCellValue(null); 
-    setCurrentPaxCount(null);
+    // No limpiar foundCellValue ni currentPaxCount aquí,
+    // para que el usuario pueda generar múltiples reportes para el mismo file buscado si lo desea.
+    // Se limpiarán si se sube un nuevo archivo o se limpia el actual.
     
     toast({
       title: "Reporte Añadido",
@@ -292,14 +336,6 @@ export default function GeneratorPage() {
     });
   };
 
-  const handleDownloadPlaceholder = (format: string) => {
-    toast({
-        title: "Próximamente",
-        description: `La descarga en formato ${format} estará disponible pronto.`,
-        variant: "default",
-    });
-  };
-
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
       <div className="w-full max-w-3xl mb-4"> 
@@ -319,13 +355,13 @@ export default function GeneratorPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormItem>
                 <FormLabel>1. Archivo de Programa Mensual</FormLabel>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "flex-grow justify-start text-left font-normal",
                       selectedFile 
                         ? "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200" 
                         : "bg-muted" 
@@ -334,6 +370,17 @@ export default function GeneratorPage() {
                     <Upload className="mr-2 h-4 w-4" />
                     {selectedFile ? selectedFile.name : "Seleccionar archivo (.xlsx, .xls)"}
                   </Button>
+                  {selectedFile && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      onClick={handleClearFile}
+                      title="Limpiar archivo seleccionado"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -386,8 +433,8 @@ export default function GeneratorPage() {
                         <FormMessage />
                         {fileSearchStatus === "found" && foundCellValue && (
                           <div className="mt-2 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm">
-                            <FileText className="inline-block mr-2 h-4 w-4 align-middle" />
-                            Nombre del File: <strong>{foundCellValue}</strong>
+                            <CheckCircle2 className="inline-block mr-2 h-4 w-4 align-middle text-green-700 dark:text-green-300" />
+                            File Encontrado: <strong>{foundCellValue}</strong> (Pax: {currentPaxCount})
                           </div>
                         )}
                         {fileSearchStatus === "not_found" && (
@@ -395,9 +442,9 @@ export default function GeneratorPage() {
                             <XCircle className="mr-1 h-4 w-4" /> File no encontrado.
                           </div>
                         )}
-                         {fileSearchStatus === "error" && (
+                         {fileSearchStatus === "error" && !selectedFile && ( // Show only if no file is selected
                           <div className="flex items-center text-sm text-destructive mt-1">
-                            <XCircle className="mr-1 h-4 w-4" /> Error al buscar.
+                            <XCircle className="mr-1 h-4 w-4" /> Sube y procesa un archivo primero.
                           </div>
                         )}
                       </FormItem>
@@ -473,7 +520,7 @@ export default function GeneratorPage() {
                       <Button variant="default" size="icon" onClick={() => handleViewReport(report)} title="Visualizar" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" onClick={() => handleDownloadPlaceholder('Excel')} title="Descargar" className="bg-green-600 hover:bg-green-700 text-white border-green-600 px-3 py-2 h-auto text-sm">
+                      <Button variant="outline" onClick={() => toast({ title: "Próximamente", description: "La descarga estará disponible pronto.", variant: "default" })} title="Descargar" className="bg-green-600 hover:bg-green-700 text-white border-green-600 px-3 py-2 h-auto text-sm">
                         <FileDown className="mr-2 h-4 w-4" /> Descargar
                       </Button>
                       <Button variant="destructive" size="icon" onClick={() => handleDeleteReport(report.id)} title="Eliminar">
@@ -499,3 +546,4 @@ export default function GeneratorPage() {
     
 
   
+
