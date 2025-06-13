@@ -81,7 +81,7 @@ export default function GeneratorPage() {
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
       form.reset({ fileNumber: "", guideName: "" });
-      setGeneratedReports([]); // Limpiar reportes si se quita el archivo
+      setGeneratedReports([]); 
     }
   }, [selectedFile, form]);
 
@@ -134,6 +134,12 @@ export default function GeneratorPage() {
     } else {
       setSelectedFile(null);
     }
+  };
+
+  const resetSearchStateAndValue = () => {
+    setFileSearchStatus("idle");
+    setFoundCellValue(null);
+    setFoundColumnIndex(null);
   };
 
   const handleSearchFile = async () => {
@@ -205,13 +211,6 @@ export default function GeneratorPage() {
     setIsProcessingSearch(false);
   };
   
-  const resetSearchStateAndValue = () => {
-    setFileSearchStatus("idle");
-    setFoundCellValue(null);
-    setCurrentPaxCount(null);
-    setFoundColumnIndex(null);
-  };
-
   async function onSubmit(values: FormValues) {
     if (!selectedFile || !excelData) {
       toast({ title: "Error", description: "Sube un archivo de programa.", variant: "destructive" });
@@ -302,7 +301,8 @@ export default function GeneratorPage() {
                     onClick={() => fileInputRef.current?.click()}
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      {"bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200": selectedFile}
+                       // Si hay un archivo seleccionado, se pinta de verde, sino, usa el color de fondo por defecto (muted)
+                      selectedFile ? "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200" : "bg-muted"
                     )}
                   >
                     <Upload className="mr-2 h-4 w-4" />
@@ -335,10 +335,9 @@ export default function GeneratorPage() {
                               placeholder="Ingresa número de file" 
                               {...field}
                               className={cn(
-                                {
-                                  "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500": fileSearchStatus === "found",
-                                  "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive": fileSearchStatus === "not_found" || fileSearchStatus === "error",
-                                }
+                                (fileSearchStatus !== "found" && fileSearchStatus !== "not_found" && fileSearchStatus !== "error") && "bg-muted", // bg-muted para estado idle
+                                fileSearchStatus === "found" && "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500",
+                                (fileSearchStatus === "not_found" || fileSearchStatus === "error") && "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive"
                               )}
                               onChange={(e) => {
                                 field.onChange(e);
@@ -388,7 +387,7 @@ export default function GeneratorPage() {
                       <FormItem>
                         <FormLabel>3. Nombre del Guía Turístico</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ingresa nombre del guía" {...field} />
+                          <Input placeholder="Ingresa nombre del guía" {...field} className="bg-muted"/>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -460,5 +459,3 @@ export default function GeneratorPage() {
     </div>
   );
 }
-
-    
