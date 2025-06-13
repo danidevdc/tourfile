@@ -35,11 +35,13 @@ type FileSearchStatus = "idle" | "searching" | "found" | "not_found" | "error";
 interface GeneratedReportInfo {
   id: string;
   fileNumber: string;
-  guideName: string;
+  guideName: string; // Stored in uppercase
   originalProgramFileName: string;
   groupName: string;
   paxCount: string;
   generationDate: Date;
+  occurrenceCount: number;
+  isDuplicateInstance: boolean;
 }
 
 export default function GeneratorPage() {
@@ -218,22 +220,36 @@ export default function GeneratorPage() {
     setIsProcessingGeneration(true);
     await new Promise(resolve => setTimeout(resolve, 700)); 
 
+    const currentInputFileNumber = values.fileNumber;
+    const currentInputGuideName = values.guideName.toUpperCase();
+
+    const existingOccurrences = generatedReports.filter(
+      report => report.fileNumber === currentInputFileNumber && report.guideName === currentInputGuideName
+    ).length;
+    
+    const occurrenceCount = existingOccurrences + 1;
+    const isDuplicateInstance = occurrenceCount > 1;
+
     const newReport: GeneratedReportInfo = {
       id: new Date().toISOString() + Math.random().toString(36).substring(2, 9), 
-      fileNumber: values.fileNumber,
-      guideName: values.guideName.toUpperCase(),
+      fileNumber: currentInputFileNumber,
+      guideName: currentInputGuideName,
       originalProgramFileName: selectedFile.name,
       groupName: foundCellValue, 
       paxCount: currentPaxCount,
       generationDate: new Date(),
+      occurrenceCount: occurrenceCount,
+      isDuplicateInstance: isDuplicateInstance,
     };
 
     setGeneratedReports(prev => [...prev, newReport]);
     
     form.reset({ fileNumber: "", guideName: "" }); 
     setFileSearchStatus("idle");
-    setFoundCellValue(null);
-    setFoundColumnIndex(null);
+    // Keep foundCellValue, foundColumnIndex, and currentPaxCount as they are for the next potential generation from the same file program
+    // setFoundCellValue(null);
+    // setFoundColumnIndex(null);
+    // setCurrentPaxCount(null);
     
     toast({
       title: "Reporte Añadido",
@@ -247,7 +263,7 @@ export default function GeneratorPage() {
       fileNumber: report.fileNumber,
       guideName: report.guideName,
       fileName: report.originalProgramFileName, 
-      groupName: report.groupName, 
+      groupName: `${report.groupName} (${report.occurrenceCount})`, // Pass group name with occurrence for results page
       paxCount: report.paxCount,
     });
     router.push(`/results?${queryParams.toString()}`);
@@ -271,7 +287,7 @@ export default function GeneratorPage() {
   };
 
   const getFileNumberInputClasses = (): string => {
-    let baseClasses = "bg-background"; // Default if no bg-muted is in base Input
+    let baseClasses = ""; 
     if (fileSearchStatus === "idle" || fileSearchStatus === "searching") {
       baseClasses = "bg-muted";
     } else if (fileSearchStatus === "found") {
@@ -309,10 +325,9 @@ export default function GeneratorPage() {
                     onClick={() => fileInputRef.current?.click()}
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                       // Explicitly set bg-muted here for default state since it was removed from base Input
                       selectedFile 
                         ? "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200" 
-                        : "bg-muted"
+                        : "bg-muted" 
                     )}
                   >
                     <Upload className="mr-2 h-4 w-4" />
@@ -349,9 +364,10 @@ export default function GeneratorPage() {
                                 field.onChange(e);
                                 if (fileSearchStatus !== "idle" && fileSearchStatus !== "searching") {
                                   setFileSearchStatus("idle");
-                                  setFoundCellValue(null);
-                                  setFoundColumnIndex(null);
-                                  setCurrentPaxCount(null);
+                                  // No limpiar foundCellValue aquí para que el usuario vea qué file se había encontrado
+                                  // setFoundCellValue(null); 
+                                  // setFoundColumnIndex(null);
+                                  // setCurrentPaxCount(null);
                                 }
                               }}
                             />
@@ -439,12 +455,19 @@ export default function GeneratorPage() {
               </TableHeader>
               <TableBody>
                 {generatedReports.map((report, index) => (
-                  <TableRow key={report.id}>
+                  <TableRow 
+                    key={report.id}
+                    className={cn(
+                      report.isDuplicateInstance 
+                        ? "bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800" 
+                        : "hover:bg-muted/50"
+                    )}
+                  >
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{report.fileNumber}</TableCell>
                     <TableCell>{report.guideName}</TableCell>
-                    <TableCell>{report.groupName}</TableCell>
-                    <TableCell className="text-center space-x-1 whitespace-nowrap">
+                    <TableCell className="w-[30%]">{report.groupName} ({report.occurrenceCount})</TableCell>
+                    <TableCell className="w-[200px] text-center space-x-1 whitespace-nowrap">
                       <Button variant="default" size="icon" onClick={() => handleViewReport(report)} title="Visualizar" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -468,7 +491,5 @@ export default function GeneratorPage() {
     </div>
   );
 }
-
-    
 
     
