@@ -135,7 +135,7 @@ export default function GeneratorPage() {
   };
 
   const handleSearchFile = async () => {
-    const fileNumberToSearch = form.getValues("fileNumber").trim();
+    const fileNumberToSearch = form.getValues("fileNumber");
     if (!selectedFile || !excelData) {
       toast({ title: "Error de Búsqueda", description: "Sube y procesa un archivo de programa primero.", variant: "destructive" });
       setFileSearchStatus("error");
@@ -192,7 +192,7 @@ export default function GeneratorPage() {
       setFileSearchStatus("found");
       toast({
         title: "Búsqueda Exitosa",
-        description: `File "${fileNumberToSearch}" encontrado. Grupo: ${groupName}, Pax: ${pax}.`,
+        description: `File "${fileNumberToSearch}" encontrado. Grupo: ${groupName}.`,
         variant: "default",
         className: "bg-green-100 dark:bg-green-900 border-green-500",
       });
@@ -208,6 +208,7 @@ export default function GeneratorPage() {
     setFoundCellValue(null);
     setCurrentPaxCount(null);
     setFoundColumnIndex(null);
+    // form.resetField("fileNumber"); // Optionally reset fileNumber as well if it shouldn't persist after adding
   };
 
   async function onSubmit(values: FormValues) {
@@ -216,7 +217,7 @@ export default function GeneratorPage() {
       return;
     }
     if (fileSearchStatus !== "found" || !foundCellValue || !currentPaxCount) {
-       toast({ title: "Error", description: "Busca y confirma el file antes de generar. Asegúrate que se extrajo el nombre y pax.", variant: "destructive" });
+       toast({ title: "Error", description: "Busca y confirma el file antes de generar. Asegúrate que se extrajo el nombre.", variant: "destructive" });
       return;
     }
 
@@ -228,16 +229,15 @@ export default function GeneratorPage() {
       fileNumber: values.fileNumber,
       guideName: values.guideName,
       originalProgramFileName: selectedFile.name,
-      groupName: foundCellValue,
+      groupName: foundCellValue, // This is the "Nombre del File"
       paxCount: currentPaxCount,
       generationDate: new Date(),
     };
 
     setGeneratedReports(prev => [newReport, ...prev]);
     
-    form.reset({ fileNumber: "", guideName: "" }); // Reset only form fields managed by react-hook-form
-    resetSearchState(); // Reset the search status and related values
-    // selectedFile and excelData remain for further use
+    form.reset({ fileNumber: "", guideName: "" }); 
+    resetSearchState(); 
     
     toast({
       title: "Reporte Añadido",
@@ -277,12 +277,12 @@ export default function GeneratorPage() {
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
-      <div className="w-full max-w-2xl mb-4">
+      <div className="w-full max-w-3xl mb-4"> {/* Aumentado max-w-2xl a max-w-3xl */}
         <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back" className="hover:bg-primary/90">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
-      <Card className="w-full max-w-2xl shadow-lg">
+      <Card className="w-full max-w-3xl shadow-lg"> {/* Aumentado max-w-2xl a max-w-3xl */}
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center text-primary">Generador de Cajas Chicas (La Paz)</CardTitle>
           <CardDescription className="text-center">
@@ -290,9 +290,8 @@ export default function GeneratorPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}> {/* Moved FormProvider to wrap the entire content */}
+          <Form {...form}> 
             <div className="space-y-6">
-              {/* Sección de Carga de Archivo - Siempre Visible */}
               <FormItem>
                 <FormLabel>1. Archivo de Programa de Turismo Mensual</FormLabel>
                 <div className="flex items-center gap-4">
@@ -302,7 +301,7 @@ export default function GeneratorPage() {
                     onClick={() => fileInputRef.current?.click()}
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      selectedFile && "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200"
+                      {"bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200": selectedFile}
                     )}
                   >
                     <Upload className="mr-2 h-4 w-4" />
@@ -321,7 +320,6 @@ export default function GeneratorPage() {
                 )}
               </FormItem>
 
-              {/* Secciones Condicionales - Visibles solo si hay archivo cargado */}
               {isFileUploaded && (
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
@@ -341,7 +339,6 @@ export default function GeneratorPage() {
                               })}
                               onChange={(e) => {
                                 field.onChange(e);
-                                // Reset search status when user types in the file number field
                                 if (fileSearchStatus !== "idle") {
                                   resetSearchState();
                                 }
@@ -364,8 +361,7 @@ export default function GeneratorPage() {
                         {fileSearchStatus === "found" && foundCellValue && (
                           <div className="mt-2 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm">
                             <FileText className="inline-block mr-2 h-4 w-4 align-middle" />
-                            Nombre del File: <strong>{foundCellValue}</strong> <br />
-                            Pax: <strong>{currentPaxCount}</strong>
+                            Nombre del File: <strong>{foundCellValue}</strong>
                           </div>
                         )}
                         {fileSearchStatus === "not_found" && (
@@ -402,9 +398,9 @@ export default function GeneratorPage() {
                     disabled={isProcessingGeneration || fileSearchStatus !== 'found' || !form.formState.isValid}
                   >
                     {isProcessingGeneration ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Añadiendo...</>
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generando...</>
                     ) : (
-                      "Añadir a Lista de Reportes"
+                      "Generar" 
                     )}
                   </Button>
                 </form>
@@ -414,9 +410,8 @@ export default function GeneratorPage() {
         </CardContent>
       </Card>
 
-      {/* Lista de Archivos Generados */}
       {generatedReports.length > 0 && (
-        <Card className="w-full max-w-2xl shadow-lg mt-8">
+        <Card className="w-full max-w-3xl shadow-lg mt-8"> {/* Aumentado max-w-2xl a max-w-3xl */}
           <CardHeader>
             <CardTitle className="text-xl font-headline text-center text-primary">Reportes Generados</CardTitle>
           </CardHeader>
@@ -437,14 +432,14 @@ export default function GeneratorPage() {
                     <TableCell>{report.guideName}</TableCell>
                     <TableCell>{report.groupName} ({report.paxCount} pax)</TableCell>
                     <TableCell className="text-center space-x-1">
-                      <Button variant="outline" size="icon" onClick={() => handleViewReport(report)} title="Visualizar">
+                      <Button variant="default" size="icon" onClick={() => handleViewReport(report)} title="Visualizar" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="icon" onClick={() => handleDownloadPlaceholder('Excel')} title="Descargar Excel">
+                      <Button variant="outline" size="icon" onClick={() => handleDownloadPlaceholder('Excel')} title="Descargar Excel" className="bg-green-600 hover:bg-green-700 text-white border-green-600">
                         <FileDown className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="icon" onClick={() => handleDownloadPlaceholder('PDF')} title="Descargar PDF">
-                        <Printer className="h-4 w-4" />
+                      <Button variant="outline" size="icon" onClick={() => handleDownloadPlaceholder('PDF')} title="Descargar PDF" className="bg-red-600 hover:bg-red-700 text-white border-red-600">
+                        <FileText className="h-4 w-4" /> {/* Icono cambiado para PDF */}
                       </Button>
                       <Button variant="destructive" size="icon" onClick={() => handleDeleteReport(report.id)} title="Eliminar">
                         <Trash2 className="h-4 w-4" />

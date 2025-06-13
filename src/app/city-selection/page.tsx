@@ -22,18 +22,16 @@ export default function CitySelectionPage() {
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
-      <div className="w-full max-w-md mb-4">
+      <div className="w-full max-w-xl mb-4"> {/* Aumentado max-w-md a max-w-xl */}
         <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go to home" className="hover:bg-primary/90">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
-      <Card className="w-full max-w-md shadow-lg">
+      <Card className="w-full max-w-xl shadow-lg"> {/* Aumentado max-w-md a max-w-xl */}
         <CardHeader className="text-center">
           <MapPin className="h-16 w-16 mx-auto text-primary mb-4" />
-          <CardTitle className="text-3xl font-headline text-primary">Selecciona un Destino</CardTitle>
-          <CardDescription>
-            Elige la ciudad para la cual deseas generar la caja chica.
-          </CardDescription>
+          <CardTitle className="text-3xl font-headline text-primary">Selecciona Lugar</CardTitle> {/* Texto cambiado */}
+          {/* CardDescription eliminada */}
         </CardHeader>
         <CardContent className="space-y-6 p-8">
           <Link href="/generator" passHref>
