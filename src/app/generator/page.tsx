@@ -91,6 +91,7 @@ export default function GeneratorPage() {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       
+      // Clear all previous states and form before processing new file
       setSelectedFile(null); 
       setExcelData(null);
       setFoundColumnIndex(null);
@@ -143,6 +144,8 @@ export default function GeneratorPage() {
       reader.readAsArrayBuffer(file);
 
     } else {
+      // This case handles if the user cancels the file dialog after having a file selected
+      // Or if somehow event.target.files is null/empty when it shouldn't be
       if (selectedFile) { 
         handleClearFile();
       }
@@ -153,7 +156,7 @@ export default function GeneratorPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = ""; 
     }
-    setSelectedFile(null); 
+    setSelectedFile(null); // This will trigger the useEffect to clear other states
     setIsFileMissingError(false); 
     
     toast({
@@ -196,35 +199,45 @@ export default function GeneratorPage() {
     setCurrentPaxCount(null);
     setFoundColumnIndex(null);
     
+    // Simulate search delay
+    // await new Promise(resolve => setTimeout(resolve, 500)); 
+
     let found = false;
     let colIdx = -1;
-    let rowIdxWhereFileNumberFound = -1;
+    let rowIdxWhereFileNumberFound = -1; // The row index where the file number itself was found
 
+    // Search for the fileNumber in the excelData
     if (excelData && excelData.length > 0) {
+      // Iterate through columns first, then rows for efficiency if files are usually in specific columns
       const numCols = excelData.reduce((max, row) => Math.max(max, row.length), 0);
-      for (let j = 0; j < numCols; j++) { 
-        for (let i = 0; i < excelData.length; i++) { 
+      for (let j = 0; j < numCols; j++) { // Iterate columns
+        for (let i = 0; i < excelData.length; i++) { // Iterate rows
           if (excelData[i] && excelData[i][j] !== undefined && excelData[i][j] !== null) {
+             // Ensure comparison is string-to-string and trim whitespace
              if (String(excelData[i][j]).trim() === fileNumberToSearch.trim()) {
               colIdx = j;
-              rowIdxWhereFileNumberFound = i;
+              rowIdxWhereFileNumberFound = i; // Store the row where the file number was found
               found = true;
-              break; 
+              break; // Exit inner loop (rows)
             }
           }
         }
-        if (found) break; 
+        if (found) break; // Exit outer loop (columns)
       }
     }
 
     if (found && colIdx !== -1 && rowIdxWhereFileNumberFound !== -1) {
       setFoundColumnIndex(colIdx);
       
+      // Extract group name: typically one row below the file number
+      // Ensure the row below exists and the cell at colIdx is defined
       const groupName = (excelData[rowIdxWhereFileNumberFound + 1] && excelData[rowIdxWhereFileNumberFound + 1][colIdx] !== undefined) 
                         ? String(excelData[rowIdxWhereFileNumberFound + 1][colIdx]).trim() 
                         : "No se encontró nombre debajo del file.";
       setFoundCellValue(groupName);
 
+      // Extract Pax count: typically from row 5 (index 4) of the found column
+      // Ensure row 5 (index 4) exists and the cell at colIdx is defined
       const pax = (excelData[4] && excelData[4][colIdx] !== undefined) 
                   ? String(excelData[4][colIdx]).trim() 
                   : "N/A";
@@ -258,24 +271,25 @@ export default function GeneratorPage() {
     }
 
     setIsProcessingGeneration(true);
-    await new Promise(resolve => setTimeout(resolve, 300)); 
+    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate generation delay
 
     const currentInputFileNumber = values.fileNumber;
-    const currentInputGuideName = values.guideName.toUpperCase();
+    const currentInputGuideName = values.guideName.toUpperCase(); // Standardize guide name for comparison
 
+    // Calculate occurrence count for the current fileNumber & guideName combination
     const existingOccurrences = generatedReports.filter(
       report => report.fileNumber === currentInputFileNumber && report.guideName.toUpperCase() === currentInputGuideName
     ).length;
     
     const occurrenceCount = existingOccurrences + 1;
-    const isDuplicateInstance = occurrenceCount > 1;
+    const isDuplicateInstance = occurrenceCount > 1; // True if this is the 2nd, 3rd, etc. instance
 
     const newReport: GeneratedReportInfo = {
-      id: new Date().toISOString() + Math.random().toString(36).substring(2, 9), 
+      id: new Date().toISOString() + Math.random().toString(36).substring(2, 9), // Unique ID for the report instance
       fileNumber: currentInputFileNumber,
-      guideName: currentInputGuideName,
+      guideName: currentInputGuideName, // Store the standardized guide name
       originalProgramFileName: selectedFile.name,
-      groupName: foundCellValue, 
+      groupName: foundCellValue, // The raw group name found
       paxCount: currentPaxCount,
       generationDate: new Date(),
       occurrenceCount: occurrenceCount,
@@ -284,8 +298,9 @@ export default function GeneratorPage() {
 
     setGeneratedReports(prev => [...prev, newReport]);
     
-    form.reset({ fileNumber: "", guideName: form.getValues("guideName") }); 
-    setFileSearchStatus("idle");
+    // Reset fileNumber, keep guideName for potentially generating another report for the same guide
+    form.reset({ fileNumber: "", guideName: "" }); 
+    setFileSearchStatus("idle"); // Reset search status for the next file number
     
     toast({
       title: "Reporte Añadido",
@@ -295,6 +310,7 @@ export default function GeneratorPage() {
   }
 
   const handleViewReport = (report: GeneratedReportInfo) => {
+    // Display group name with occurrence count only if it's greater than 1
     const displayGroupName = report.occurrenceCount > 1 
       ? `${report.groupName} (${report.occurrenceCount})` 
       : report.groupName;
@@ -392,6 +408,7 @@ export default function GeneratorPage() {
                             className={getFileNumberInputClasses()}
                             onChange={(e) => {
                               field.onChange(e);
+                              // Reset search status if user types in the input after a search
                               if (fileSearchStatus !== "idle" && fileSearchStatus !== "searching") {
                                 setFileSearchStatus("idle");
                                 setFoundCellValue(null); 
@@ -424,7 +441,7 @@ export default function GeneratorPage() {
                           <XCircle className="mr-1 h-4 w-4" /> File no encontrado.
                         </div>
                       )}
-                       {fileSearchStatus === "error" && !isFileMissingError && form.getValues("fileNumber") && ( 
+                       {fileSearchStatus === "error" && !isFileMissingError && form.getValues("fileNumber") && ( // Only show this if error is not due to missing file, but file number is present
                         <div className="flex items-center text-sm text-destructive mt-1">
                           <XCircle className="mr-1 h-4 w-4" /> Error en la búsqueda.
                         </div>
@@ -501,7 +518,12 @@ export default function GeneratorPage() {
                       <Button variant="default" size="icon" onClick={() => handleViewReport(report)} title="Visualizar" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" onClick={() => toast({ title: "Próximamente", description: "La descarga estará disponible pronto.", variant: "default" })} title="Descargar" className="bg-green-600 hover:bg-green-700 text-white border-green-600 px-3 py-2 h-auto text-sm">
+                      <Button 
+                        variant="default" 
+                        onClick={() => toast({ title: "Próximamente", description: "La descarga estará disponible pronto.", variant: "default" })} 
+                        title="Descargar" 
+                        className="bg-green-600 text-white hover:bg-green-700 px-3 py-2 h-auto text-sm"
+                      >
                         <FileDown className="mr-2 h-4 w-4" /> Descargar
                       </Button>
                       <Button variant="destructive" size="icon" onClick={() => handleDeleteReport(report.id)} title="Eliminar">
