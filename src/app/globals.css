@@ -12,10 +12,10 @@ body {
     --background: 190 33% 97%; /* Más claro, tendiendo a blanco, aprox #f5fafa */
     --foreground: 220 15% 25%; /* Un gris azulado oscuro para el texto principal */
 
-    --card: 190 35% 98%; /* Ajustado, muy claro, ligeramente diferente al nuevo fondo */
+    --card: 0 0% 100%; /* Blanco para mayor contraste */
     --card-foreground: 220 15% 25%;
 
-    --popover: 190 35% 98%; /* Ajustado */
+    --popover: 0 0% 100%; /* Blanco para mayor contraste */
     --popover-foreground: 220 15% 25%;
 
     --primary: 204 92% 48%; /* #0991ea */
@@ -24,7 +24,7 @@ body {
     --secondary: 204 80% 75%; /* Un azul más claro derivado del primario */
     --secondary-foreground: 204 92% 25%; /* Texto oscuro para el secundario claro */
 
-    --muted: 190 25% 92%; /* Ajustado, más claro que antes pero diferenciado del nuevo fondo */
+    --muted: 190 25% 92%; 
     --muted-foreground: 190 10% 45%; 
 
     --accent: 187 79% 71%; /* #78e3f0 */
@@ -33,8 +33,8 @@ body {
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 190 30% 90%; /* Ajustado */
-    --input: 190 30% 90%; /* Ajustado para mayor contraste del borde del input */
+    --border: 190 30% 90%; 
+    --input: 190 30% 90%; /* Borde de input un poco más oscuro */
     --ring: 187 79% 71%; /* #78e3f0 - usando el acento para los anillos */
     
     --chart-1: 204 92% 55%;
@@ -45,13 +45,13 @@ body {
     --radius: 0.5rem;
 
     /* Sidebar colors for light theme */
-    --sidebar-background: 190 33% 98%; /* Ajustado */
+    --sidebar-background: 0 0% 100%; 
     --sidebar-foreground: 220 15% 25%;
     --sidebar-primary: 204 92% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 187 79% 71%;
     --sidebar-accent-foreground: 187 80% 20%;
-    --sidebar-border: 190 30% 90%; /* Ajustado */
+    --sidebar-border: 190 30% 90%; 
     --sidebar-ring: 187 79% 71%;
   }
 
