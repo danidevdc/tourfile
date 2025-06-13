@@ -208,7 +208,6 @@ export default function GeneratorPage() {
     setFoundCellValue(null);
     setCurrentPaxCount(null);
     setFoundColumnIndex(null);
-    form.resetField("fileNumber"); 
   };
 
   async function onSubmit(values: FormValues) {
@@ -321,7 +320,7 @@ export default function GeneratorPage() {
               </FormItem>
 
               {isFileUploaded && (
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="space-y-6"> {/* Changed from form to div for conceptual separation, form tag remains onSubmit={form.handleSubmit(onSubmit)} */}
                   <FormField
                     control={form.control}
                     name="fileNumber"
@@ -340,10 +339,7 @@ export default function GeneratorPage() {
                               onChange={(e) => {
                                 field.onChange(e);
                                 if (fileSearchStatus !== "idle") {
-                                  setFileSearchStatus("idle");
-                                  setFoundCellValue(null);
-                                  setCurrentPaxCount(null);
-                                  setFoundColumnIndex(null);
+                                  resetSearchStateAndValue();
                                 }
                               }}
                             />
@@ -396,7 +392,8 @@ export default function GeneratorPage() {
                   />
 
                   <Button 
-                    type="submit" 
+                    type="button" // Changed from submit to button
+                    onClick={form.handleSubmit(onSubmit)} // Manually trigger submit
                     className="w-full" 
                     disabled={isProcessingGeneration || fileSearchStatus !== 'found' || !form.formState.isValid}
                   >
@@ -406,7 +403,7 @@ export default function GeneratorPage() {
                       "Generar" 
                     )}
                   </Button>
-                </form>
+                </div>
               )}
             </div>
           </Form>
@@ -425,8 +422,8 @@ export default function GeneratorPage() {
                   <TableHead className="w-[50px]">N°</TableHead>
                   <TableHead>File N°</TableHead>
                   <TableHead>Guía</TableHead>
-                  <TableHead>Grupo</TableHead>
-                  <TableHead className="text-center">Acciones</TableHead>
+                  <TableHead className="w-[30%]">Grupo</TableHead>
+                  <TableHead className="w-[200px] text-center">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -436,7 +433,7 @@ export default function GeneratorPage() {
                     <TableCell>{report.fileNumber}</TableCell>
                     <TableCell>{report.guideName}</TableCell>
                     <TableCell>{report.groupName}</TableCell>
-                    <TableCell className="text-center space-x-1">
+                    <TableCell className="text-center space-x-1 whitespace-nowrap">
                       <Button variant="default" size="icon" onClick={() => handleViewReport(report)} title="Visualizar" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -460,3 +457,6 @@ export default function GeneratorPage() {
     </div>
   );
 }
+
+
+    
