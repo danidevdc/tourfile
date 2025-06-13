@@ -166,7 +166,7 @@ export default function GeneratorPage() {
       for (let j = 0; j < numCols; j++) { 
         for (let i = 0; i < excelData.length; i++) { 
           if (excelData[i] && excelData[i][j] !== undefined && excelData[i][j] !== null) {
-            if (String(excelData[i][j]).trim() === fileNumberToSearch.trim()) {
+             if (String(excelData[i][j]).trim() === fileNumberToSearch.trim()) {
               colIdx = j;
               rowIdxWhereFileNumberFound = i;
               found = true;
@@ -270,14 +270,16 @@ export default function GeneratorPage() {
     });
   };
 
-  const getFileNumberInputClasses = () => {
-    if (fileSearchStatus === "found") {
+  const getFileNumberInputClasses = (): string => {
+    let baseClasses = "bg-background"; // Default if no bg-muted is in base Input
+    if (fileSearchStatus === "idle" || fileSearchStatus === "searching") {
+      baseClasses = "bg-muted";
+    } else if (fileSearchStatus === "found") {
       return "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
-    }
-    if (fileSearchStatus === "not_found" || fileSearchStatus === "error") {
+    } else if (fileSearchStatus === "not_found" || fileSearchStatus === "error") {
       return "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
     }
-    return "bg-muted"; // Default for "idle" or "searching"
+    return baseClasses;
   };
 
 
@@ -299,7 +301,7 @@ export default function GeneratorPage() {
           <Form {...form}> 
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormItem>
-                <FormLabel>1. Archivo de Programa de Turismo Mensual</FormLabel>
+                <FormLabel>1. Archivo de Programa Mensual</FormLabel>
                 <div className="flex items-center gap-4">
                   <Button
                     type="button"
@@ -307,6 +309,7 @@ export default function GeneratorPage() {
                     onClick={() => fileInputRef.current?.click()}
                     className={cn(
                       "w-full justify-start text-left font-normal",
+                       // Explicitly set bg-muted here for default state since it was removed from base Input
                       selectedFile 
                         ? "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200" 
                         : "bg-muted"
@@ -335,7 +338,7 @@ export default function GeneratorPage() {
                     name="fileNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>2. Número de File del Programa (ej: CTFI107098)</FormLabel>
+                        <FormLabel>2. Número de File (ej: CTFI107098)</FormLabel>
                         <div className="flex items-center gap-2">
                           <FormControl>
                             <Input 
@@ -348,6 +351,7 @@ export default function GeneratorPage() {
                                   setFileSearchStatus("idle");
                                   setFoundCellValue(null);
                                   setFoundColumnIndex(null);
+                                  setCurrentPaxCount(null);
                                 }
                               }}
                             />
@@ -390,7 +394,7 @@ export default function GeneratorPage() {
                     name="guideName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>3. Nombre del Guía Turístico</FormLabel>
+                        <FormLabel>3. Nombre del Guía</FormLabel>
                         <FormControl>
                           <Input placeholder="Ingresa nombre del guía" {...field} className="bg-muted"/>
                         </FormControl>
@@ -464,5 +468,7 @@ export default function GeneratorPage() {
     </div>
   );
 }
+
+    
 
     
