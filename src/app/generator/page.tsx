@@ -51,7 +51,6 @@ export default function GeneratorPage() {
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [excelData, setExcelData] = useState<any[][] | null>(null); 
-  const [isFileUploaded, setIsFileUploaded] = useState(false);
 
 
   const [foundColumnIndex, setFoundColumnIndex] = useState<number | null>(null);
@@ -76,17 +75,16 @@ export default function GeneratorPage() {
 
   useEffect(() => {
     if (selectedFile) {
-      setIsFileUploaded(true);
       setIsFileMissingError(false); 
     } else {
-      setIsFileUploaded(false);
+      // This else block handles reset when selectedFile becomes null (e.g., via handleClearFile)
       setExcelData(null);
       setFoundColumnIndex(null);
       setFoundCellValue(null);
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
       form.reset({ fileNumber: "", guideName: "" });
-      setGeneratedReports([]);
+      setGeneratedReports([]); // Clear reports when the main file is cleared
     }
   }, [selectedFile, form]);
 
@@ -95,7 +93,7 @@ export default function GeneratorPage() {
       const file = event.target.files[0];
       
       // Reset all relevant states before processing the new file
-      setSelectedFile(null); 
+      setSelectedFile(null); // Temporarily set to null to trigger useEffect if the same file is re-selected
       setExcelData(null);
       setFoundColumnIndex(null);
       setFoundCellValue(null);
@@ -170,13 +168,12 @@ export default function GeneratorPage() {
   };
   
   const getFileNumberInputClasses = (): string => {
-    let baseClasses = "bg-muted"; // Default background if no other state applies
     if (fileSearchStatus === "found") {
       return "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
     } else if (fileSearchStatus === "not_found" || fileSearchStatus === "error") {
       return "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
     }
-    return baseClasses; // For "idle" or "searching"
+    return "bg-muted"; // For "idle" or "searching"
   };
   
 
@@ -202,9 +199,6 @@ export default function GeneratorPage() {
     setCurrentPaxCount(null);
     setFoundColumnIndex(null);
     
-    // Simulating a small delay for search, if needed for UX, otherwise remove.
-    // await new Promise(resolve => setTimeout(resolve, 100)); // Reduced or remove for faster search
-
     let found = false;
     let colIdx = -1;
     let rowIdxWhereFileNumberFound = -1;
@@ -242,7 +236,7 @@ export default function GeneratorPage() {
       setFileSearchStatus("found");
       toast({
         title: "Búsqueda Exitosa",
-        description: `File "${fileNumberToSearch}" encontrado. Nombre: ${groupName}, Pax: ${pax}`,
+        description: `Nombre de file: ${groupName}`,
         variant: "default",
         className: "bg-green-100 dark:bg-green-900 border-green-500",
       });
@@ -267,7 +261,6 @@ export default function GeneratorPage() {
     }
 
     setIsProcessingGeneration(true);
-    // Simulating generation delay, adjust or remove as needed
     await new Promise(resolve => setTimeout(resolve, 300)); 
 
     const currentInputFileNumber = values.fileNumber;
@@ -426,12 +419,17 @@ export default function GeneratorPage() {
                       {fileSearchStatus === "found" && foundCellValue && (
                         <div className="mt-2 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm">
                           <CheckCircle2 className="inline-block mr-2 h-4 w-4 align-middle text-green-700 dark:text-green-300" />
-                          File Encontrado: <strong>{foundCellValue}</strong> (Pax: {currentPaxCount})
+                          Nombre de file: <strong>{foundCellValue}</strong>
                         </div>
                       )}
                       {fileSearchStatus === "not_found" && (
                         <div className="flex items-center text-sm text-destructive mt-1">
                           <XCircle className="mr-1 h-4 w-4" /> File no encontrado.
+                        </div>
+                      )}
+                       {fileSearchStatus === "error" && !isFileMissingError && ( // Only show if not file missing error
+                        <div className="flex items-center text-sm text-destructive mt-1">
+                          <XCircle className="mr-1 h-4 w-4" /> Error en la búsqueda.
                         </div>
                       )}
                     </FormItem>
