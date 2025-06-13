@@ -25,14 +25,14 @@ export default function Header() {
       <div className="flex items-center gap-1 sm:gap-2">
         <ThemeToggle />
         <Link href="/" passHref>
-          <Button variant="ghost" className="hover:bg-muted hover:text-primary">
+          <Button variant="ghost" className="text-primary hover:bg-muted">
             <Home className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
             Inicio
           </Button>
         </Link>
         <Button
           variant="ghost"
-          className="hover:bg-muted hover:text-primary"
+          className="text-primary hover:bg-muted"
           onClick={() => alert('Log Out functionality is not yet implemented.')}
         >
           <LogOut className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
