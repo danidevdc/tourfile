@@ -140,11 +140,13 @@ export default function GeneratorPage() {
   };
   
   const getFileNumberInputClasses = (): string => {
-    let baseClasses = "bg-muted"; // Default
+    let baseClasses = "";
     if (fileSearchStatus === "found") {
       baseClasses = "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
     } else if (fileSearchStatus === "not_found" || fileSearchStatus === "error") {
       baseClasses = "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
+    } else {
+      baseClasses = "bg-muted"; // Default for idle or searching
     }
     return baseClasses;
   };
@@ -473,8 +475,8 @@ export default function GeneratorPage() {
                       <Button variant="default" size="icon" onClick={() => handleViewReport(report)} title="Visualizar" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" onClick={() => handleDownloadPlaceholder('Excel')} title="Descargar Excel" className="bg-green-600 hover:bg-green-700 text-white border-green-600 px-3 py-2 h-auto text-sm">
-                        <FileDown className="mr-2 h-4 w-4" /> Descargar Excel
+                      <Button variant="outline" onClick={() => handleDownloadPlaceholder('Excel')} title="Descargar" className="bg-green-600 hover:bg-green-700 text-white border-green-600 px-3 py-2 h-auto text-sm">
+                        <FileDown className="mr-2 h-4 w-4" /> Descargar
                       </Button>
                       <Button variant="destructive" size="icon" onClick={() => handleDeleteReport(report.id)} title="Eliminar">
                         <Trash2 className="h-4 w-4" />
@@ -495,3 +497,5 @@ export default function GeneratorPage() {
     
 
       
+
+    
