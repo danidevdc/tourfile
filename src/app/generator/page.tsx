@@ -81,6 +81,7 @@ export default function GeneratorPage() {
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
       form.reset({ fileNumber: "", guideName: "" });
+      setGeneratedReports([]); // Limpiar reportes si se quita el archivo
     }
   }, [selectedFile, form]);
 
@@ -95,6 +96,7 @@ export default function GeneratorPage() {
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
       form.reset({ fileNumber: "", guideName: "" }); 
+      setGeneratedReports([]); 
 
       toast({
         title: "Archivo Seleccionado",
@@ -192,7 +194,7 @@ export default function GeneratorPage() {
       setFileSearchStatus("found");
       toast({
         title: "Búsqueda Exitosa",
-        description: `File "${fileNumberToSearch}" encontrado. Grupo: ${groupName}.`,
+        description: `File "${fileNumberToSearch}" encontrado.`,
         variant: "default",
         className: "bg-green-100 dark:bg-green-900 border-green-500",
       });
@@ -332,9 +334,15 @@ export default function GeneratorPage() {
                             <Input 
                               placeholder="Ingresa número de file" 
                               {...field}
+                              className={cn(
+                                {
+                                  "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500": fileSearchStatus === "found",
+                                  "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive": fileSearchStatus === "not_found" || fileSearchStatus === "error",
+                                }
+                              )}
                               onChange={(e) => {
                                 field.onChange(e);
-                                if (fileSearchStatus !== "idle" || foundCellValue) {
+                                if (fileSearchStatus !== "idle") {
                                   resetSearchStateAndValue();
                                 }
                               }}
@@ -452,3 +460,5 @@ export default function GeneratorPage() {
     </div>
   );
 }
+
+    
