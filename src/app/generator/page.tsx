@@ -72,6 +72,7 @@ export default function GeneratorPage() {
       setExcelData(null);
       setFoundColumnIndex(null);
       setFoundCellValue(null);
+      setFileSearchStatus("idle");
     }
   };
 
@@ -83,6 +84,7 @@ export default function GeneratorPage() {
         description: "Por favor, primero sube un archivo de programa.",
         variant: "destructive",
       });
+      setFileSearchStatus("error");
       return;
     }
     if (!fileNumber) {
@@ -91,6 +93,7 @@ export default function GeneratorPage() {
         description: "Por favor, ingresa un número de file para buscar.",
         variant: "destructive",
       });
+      setFileSearchStatus("error"); // Or "idle" if preferred to clear red highlight on empty input search
       return;
     }
 
@@ -123,8 +126,10 @@ export default function GeneratorPage() {
           for (let j = 0; j < numCols; j++) { 
             for (let i = 0; i < data.length; i++) { 
               if (data[i] && data[i][j] !== undefined && data[i][j] !== null) {
-                if (String(data[i][j]).trim().includes(fileNumber)) {
+                // Exact match for file number
+                if (String(data[i][j]).trim() === fileNumber) {
                   colIdx = j;
+                  // Get the value from the cell below for "Nombre del File"
                   if (i + 1 < data.length && data[i+1] && data[i+1][j] !== undefined && data[i+1][j] !== null) {
                     cellValueForName = String(data[i+1][j]).trim();
                   } else {
@@ -277,6 +282,12 @@ export default function GeneratorPage() {
                           })}
                           onChange={(e) => {
                             field.onChange(e);
+                            if (fileSearchStatus !== "idle") {
+                                setFileSearchStatus("idle"); // Reset status on input change
+                            }
+                            if (foundCellValue) {
+                                setFoundCellValue(null); // Clear found cell value on input change
+                            }
                           }}
                         />
                       </FormControl>
@@ -357,3 +368,4 @@ export default function GeneratorPage() {
     </div>
   );
 }
+
