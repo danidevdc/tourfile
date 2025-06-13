@@ -475,7 +475,7 @@ export default function GeneratorPage() {
                 <TableRow>
                   <TableHead className="w-[50px]">N°</TableHead>
                   <TableHead className="w-[120px]">File N°</TableHead>
-                  <TableHead>Guía</TableHead>
+                  <TableHead className="w-[130px]">Guía</TableHead>
                   <TableHead className="w-[30%]">Grupo</TableHead>
                   <TableHead className="w-[200px] text-center">Acciones</TableHead>
                 </TableRow>
@@ -529,6 +529,8 @@ export default function GeneratorPage() {
   
 
 
+
+    
 
     
 
