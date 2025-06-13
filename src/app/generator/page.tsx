@@ -35,14 +35,15 @@ type FileSearchStatus = "idle" | "searching" | "found" | "not_found" | "error";
 interface GeneratedReportInfo {
   id: string;
   fileNumber: string;
-  guideName: string; // Stored in uppercase
+  guideName: string; 
   originalProgramFileName: string;
-  groupName: string;
+  groupName: string; // Nombre base del grupo
   paxCount: string;
   generationDate: Date;
   occurrenceCount: number;
   isDuplicateInstance: boolean;
 }
+
 
 export default function GeneratorPage() {
   const { toast } = useToast();
@@ -138,6 +139,18 @@ export default function GeneratorPage() {
     }
   };
 
+  const getFileNumberInputClasses = (): string => {
+    if (fileSearchStatus === "idle" || fileSearchStatus === "searching") {
+      return "bg-muted";
+    } else if (fileSearchStatus === "found") {
+      return "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
+    } else if (fileSearchStatus === "not_found" || fileSearchStatus === "error") {
+      return "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
+    }
+    return "bg-muted"; // Default if none of the above
+  };
+  
+
   const handleSearchFile = async () => {
     const fileNumberToSearch = form.getValues("fileNumber");
     if (!selectedFile || !excelData) {
@@ -224,7 +237,7 @@ export default function GeneratorPage() {
     const currentInputGuideName = values.guideName.toUpperCase();
 
     const existingOccurrences = generatedReports.filter(
-      report => report.fileNumber === currentInputFileNumber && report.guideName === currentInputGuideName
+      report => report.fileNumber === currentInputFileNumber && report.guideName.toUpperCase() === currentInputGuideName
     ).length;
     
     const occurrenceCount = existingOccurrences + 1;
@@ -246,10 +259,6 @@ export default function GeneratorPage() {
     
     form.reset({ fileNumber: "", guideName: "" }); 
     setFileSearchStatus("idle");
-    // Keep foundCellValue, foundColumnIndex, and currentPaxCount as they are for the next potential generation from the same file program
-    // setFoundCellValue(null);
-    // setFoundColumnIndex(null);
-    // setCurrentPaxCount(null);
     
     toast({
       title: "Reporte Añadido",
@@ -259,11 +268,15 @@ export default function GeneratorPage() {
   }
 
   const handleViewReport = (report: GeneratedReportInfo) => {
+    const displayGroupName = report.occurrenceCount > 1 
+      ? `${report.groupName} (${report.occurrenceCount})` 
+      : report.groupName;
+
     const queryParams = new URLSearchParams({
       fileNumber: report.fileNumber,
       guideName: report.guideName,
       fileName: report.originalProgramFileName, 
-      groupName: `${report.groupName} (${report.occurrenceCount})`, // Pass group name with occurrence for results page
+      groupName: displayGroupName,
       paxCount: report.paxCount,
     });
     router.push(`/results?${queryParams.toString()}`);
@@ -285,19 +298,6 @@ export default function GeneratorPage() {
         variant: "default",
     });
   };
-
-  const getFileNumberInputClasses = (): string => {
-    let baseClasses = ""; 
-    if (fileSearchStatus === "idle" || fileSearchStatus === "searching") {
-      baseClasses = "bg-muted";
-    } else if (fileSearchStatus === "found") {
-      return "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
-    } else if (fileSearchStatus === "not_found" || fileSearchStatus === "error") {
-      return "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
-    }
-    return baseClasses;
-  };
-
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
@@ -364,10 +364,6 @@ export default function GeneratorPage() {
                                 field.onChange(e);
                                 if (fileSearchStatus !== "idle" && fileSearchStatus !== "searching") {
                                   setFileSearchStatus("idle");
-                                  // No limpiar foundCellValue aquí para que el usuario vea qué file se había encontrado
-                                  // setFoundCellValue(null); 
-                                  // setFoundColumnIndex(null);
-                                  // setCurrentPaxCount(null);
                                 }
                               }}
                             />
@@ -466,7 +462,10 @@ export default function GeneratorPage() {
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{report.fileNumber}</TableCell>
                     <TableCell>{report.guideName}</TableCell>
-                    <TableCell className="w-[30%]">{report.groupName} ({report.occurrenceCount})</TableCell>
+                    <TableCell className="w-[30%]">
+                      {report.groupName}
+                      {report.occurrenceCount > 1 ? ` (${report.occurrenceCount})` : ''}
+                    </TableCell>
                     <TableCell className="w-[200px] text-center space-x-1 whitespace-nowrap">
                       <Button variant="default" size="icon" onClick={() => handleViewReport(report)} title="Visualizar" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                         <Eye className="h-4 w-4" />
@@ -491,5 +490,6 @@ export default function GeneratorPage() {
     </div>
   );
 }
+    
 
     
