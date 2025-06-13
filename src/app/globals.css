@@ -9,96 +9,96 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 82.7%; /* Light Gray #D3D3D3 */
-    --foreground: 240 10% 3.9%; /* Default dark text for contrast */
+    --background: 172 44% 89%; /* #d9efed */
+    --foreground: 220 15% 25%; /* Un gris azulado oscuro para el texto principal */
 
-    --card: 0 0% 100%; /* White for cards */
-    --card-foreground: 240 10% 3.9%;
+    --card: 172 40% 95%; /* Un poco más claro y saturado que el fondo */
+    --card-foreground: 220 15% 25%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover: 172 40% 95%;
+    --popover-foreground: 220 15% 25%;
 
-    --primary: 262 51% 63%; /* Muted Violet #9575CD */
-    --primary-foreground: 0 0% 98%; /* Almost White for contrast on Muted Violet */
+    --primary: 204 92% 48%; /* #0991ea */
+    --primary-foreground: 0 0% 100%; /* Blanco para contraste */
 
-    --secondary: 0 0% 92%; /* A slightly lighter gray for secondary elements */
-    --secondary-foreground: 240 10% 3.9%;
+    --secondary: 204 80% 75%; /* Un azul más claro derivado del primario */
+    --secondary-foreground: 204 92% 25%; /* Texto oscuro para el secundario claro */
 
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 240 5% 35%;
+    --muted: 172 30% 92%; /* Más grisaceo que el fondo */
+    --muted-foreground: 172 10% 45%; 
 
-    --accent: 219 79% 66%; /* Cornflower Blue #6495ED */
-    --accent-foreground: 0 0% 100%; /* White for contrast on Blue */
+    --accent: 187 79% 71%; /* #78e3f0 */
+    --accent-foreground: 187 80% 20%; /* Texto oscuro para contraste con acento claro */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 75%;
-    --input: 0 0% 90%;
-    --ring: 219 79% 66%; /* Cornflower Blue for focus rings */
+    --border: 172 30% 80%; /* Derivado del fondo, más oscuro */
+    --input: 172 30% 85%; /* Derivado del fondo, un poco más claro que el borde */
+    --ring: 187 79% 71%; /* #78e3f0 - usando el acento para los anillos */
     
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --chart-1: 204 92% 55%;
+    --chart-2: 187 79% 60%;
+    --chart-3: 200 50% 50%;
+    --chart-4: 190 60% 55%;
+    --chart-5: 210 70% 65%;
     --radius: 0.5rem;
 
-    /* Default sidebar colors, can be customized if sidebar is used */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar colors for light theme */
+    --sidebar-background: 172 44% 94%; 
+    --sidebar-foreground: 220 15% 25%;
+    --sidebar-primary: 204 92% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 187 79% 71%;
+    --sidebar-accent-foreground: 187 80% 20%;
+    --sidebar-border: 172 30% 80%;
+    --sidebar-ring: 187 79% 71%;
   }
 
   .dark {
-    --background: 240 10% 10%; 
-    --foreground: 0 0% 98%; 
+    --background: 204 50% 12%; /* Azul muy oscuro */
+    --foreground: 180 20% 90%; /* Cian muy claro para texto */
 
-    --card: 240 10% 12%;
-    --card-foreground: 0 0% 98%;
+    --card: 204 45% 18%; /* Ligeramente más claro que el fondo oscuro */
+    --card-foreground: 180 20% 90%;
 
-    --popover: 240 10% 12%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 204 45% 18%;
+    --popover-foreground: 180 20% 90%;
 
-    --primary: 262 51% 63%; /* Muted Violet #9575CD */
-    --primary-foreground: 0 0% 98%; /* Almost White for contrast on Muted Violet */
+    --primary: 204 92% 55%; /* #0991ea, ligeramente más brillante para modo oscuro */
+    --primary-foreground: 0 0% 100%; 
 
-    --secondary: 240 10% 18%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 204 80% 35%; /* Un azul medio para secundario en dark mode */
+    --secondary-foreground: 180 20% 90%;
 
-    --muted: 240 10% 20%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted: 204 40% 22%;
+    --muted-foreground: 180 15% 65%;
 
-    --accent: 219 79% 66%; /* Cornflower Blue #6495ED */
-    --accent-foreground: 0 0% 100%; /* White for contrast on Blue */
+    --accent: 187 79% 65%; /* #78e3f0, ligeramente menos brillante para acento en dark */
+    --accent-foreground: 187 80% 15%; /* Texto oscuro para contraste */
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 10% 20%;
-    --input: 240 10% 18%;
-    --ring: 219 79% 66%; /* Cornflower Blue for focus rings */
+    --border: 204 40% 25%;
+    --input: 204 40% 22%;
+    --ring: 187 79% 65%; /* Usando el acento para los anillos */
     
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --chart-1: 204 92% 60%;
+    --chart-2: 187 79% 55%;
+    --chart-3: 200 50% 60%;
+    --chart-4: 190 60% 60%;
+    --chart-5: 210 70% 70%;
 
-    /* Default sidebar dark colors */
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    /* Sidebar colors for dark theme */
+    --sidebar-background: 204 50% 10%; 
+    --sidebar-foreground: 180 20% 90%;
+    --sidebar-primary: 204 92% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 187 79% 65%;
+    --sidebar-accent-foreground: 187 80% 15%;
+    --sidebar-border: 204 40% 25%;
+    --sidebar-ring: 187 79% 65%;
   }
 }
 
