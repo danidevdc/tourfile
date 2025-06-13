@@ -140,15 +140,13 @@ export default function GeneratorPage() {
   };
   
   const getFileNumberInputClasses = (): string => {
-    let baseClasses = "";
     if (fileSearchStatus === "found") {
-      baseClasses = "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
+      return "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
     } else if (fileSearchStatus === "not_found" || fileSearchStatus === "error") {
-      baseClasses = "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
-    } else {
-      baseClasses = "bg-muted"; // Default for idle or searching
+      return "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
     }
-    return baseClasses;
+    // Default for idle or searching
+    return "bg-muted"; 
   };
   
 
@@ -439,7 +437,7 @@ export default function GeneratorPage() {
       </Card>
 
       {generatedReports.length > 0 && (
-        <Card className="w-full max-w-3xl shadow-lg mt-8"> 
+        <Card className="w-full shadow-lg mt-8"> 
           <CardHeader>
             <CardTitle className="text-xl font-headline text-center text-primary">Reportes Generados</CardTitle>
           </CardHeader>
@@ -499,3 +497,5 @@ export default function GeneratorPage() {
       
 
     
+
+  
