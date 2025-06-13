@@ -20,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, FileText, Eye, FileDown, Trash2 } from "lucide-react";
+import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, Eye, FileDown, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -51,8 +51,6 @@ export default function GeneratorPage() {
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [excelData, setExcelData] = useState<any[][] | null>(null); 
-  // isFileUploaded is no longer used to control form visibility, but can be kept for other conditional logic if needed.
-  // For now, its direct control over form visibility is removed.
   const [isFileUploaded, setIsFileUploaded] = useState(false);
 
 
@@ -79,7 +77,7 @@ export default function GeneratorPage() {
   useEffect(() => {
     if (selectedFile) {
       setIsFileUploaded(true);
-      setIsFileMissingError(false); // Clear missing file error when a file is selected
+      setIsFileMissingError(false); 
     } else {
       setIsFileUploaded(false);
       setExcelData(null);
@@ -89,7 +87,6 @@ export default function GeneratorPage() {
       setFileSearchStatus("idle");
       form.reset({ fileNumber: "", guideName: "" });
       setGeneratedReports([]);
-      // isFileMissingError is handled by search/clear actions, not directly here
     }
   }, [selectedFile, form]);
 
@@ -97,8 +94,8 @@ export default function GeneratorPage() {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       
+      // Reset all relevant states before processing the new file
       setSelectedFile(null); 
-      
       setExcelData(null);
       setFoundColumnIndex(null);
       setFoundCellValue(null);
@@ -106,9 +103,9 @@ export default function GeneratorPage() {
       setFileSearchStatus("idle");
       form.reset({ fileNumber: "", guideName: "" }); 
       setGeneratedReports([]);
-      setIsFileMissingError(false); // Clear error as a new file is being processed
+      setIsFileMissingError(false); 
 
-      setSelectedFile(file);
+      setSelectedFile(file); // Set the new file
 
       toast({
         title: "Archivo Seleccionado",
@@ -150,7 +147,9 @@ export default function GeneratorPage() {
       reader.readAsArrayBuffer(file);
 
     } else {
-      if (selectedFile) {
+      // This case handles if the user cancels the file dialog after a file was already selected.
+      // Or if no file is selected from the dialog.
+      if (selectedFile) { // If a file was previously selected, clear it.
         handleClearFile();
       }
     }
@@ -160,8 +159,8 @@ export default function GeneratorPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = ""; 
     }
-    setSelectedFile(null); 
-    setIsFileMissingError(false); // Clear missing file error on manual clear
+    setSelectedFile(null); // This will trigger the useEffect to reset other states.
+    setIsFileMissingError(false); 
     
     toast({
       title: "Archivo Limpiado",
@@ -171,26 +170,25 @@ export default function GeneratorPage() {
   };
   
   const getFileNumberInputClasses = (): string => {
-    if (fileSearchStatus === "idle" || fileSearchStatus === "searching") {
-      return "bg-muted";
-    } else if (fileSearchStatus === "found") {
+    let baseClasses = "bg-muted"; // Default background if no other state applies
+    if (fileSearchStatus === "found") {
       return "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
     } else if (fileSearchStatus === "not_found" || fileSearchStatus === "error") {
       return "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
     }
-    return "bg-muted"; // Default fallback
+    return baseClasses; // For "idle" or "searching"
   };
   
 
   const handleSearchFile = async () => {
     const fileNumberToSearch = form.getValues("fileNumber");
     if (!selectedFile || !excelData) {
-      setIsFileMissingError(true); // Set error if no file is selected
+      setIsFileMissingError(true); 
       toast({ title: "Error de Búsqueda", description: "Sube y procesa un archivo de programa primero.", variant: "destructive" });
       setFileSearchStatus("error");
       return;
     }
-    setIsFileMissingError(false); // Clear error if file is present
+    setIsFileMissingError(false); 
 
     if (!fileNumberToSearch) {
       toast({ title: "Error de Búsqueda", description: "Ingresa un número de file para buscar.", variant: "destructive" });
@@ -204,7 +202,8 @@ export default function GeneratorPage() {
     setCurrentPaxCount(null);
     setFoundColumnIndex(null);
     
-    await new Promise(resolve => setTimeout(resolve, 500)); 
+    // Simulating a small delay for search, if needed for UX, otherwise remove.
+    // await new Promise(resolve => setTimeout(resolve, 100)); // Reduced or remove for faster search
 
     let found = false;
     let colIdx = -1;
@@ -243,7 +242,7 @@ export default function GeneratorPage() {
       setFileSearchStatus("found");
       toast({
         title: "Búsqueda Exitosa",
-        description: `File "${fileNumberToSearch}" encontrado. Nombre: ${groupName}`,
+        description: `File "${fileNumberToSearch}" encontrado. Nombre: ${groupName}, Pax: ${pax}`,
         variant: "default",
         className: "bg-green-100 dark:bg-green-900 border-green-500",
       });
@@ -268,7 +267,8 @@ export default function GeneratorPage() {
     }
 
     setIsProcessingGeneration(true);
-    await new Promise(resolve => setTimeout(resolve, 700)); 
+    // Simulating generation delay, adjust or remove as needed
+    await new Promise(resolve => setTimeout(resolve, 300)); 
 
     const currentInputFileNumber = values.fileNumber;
     const currentInputGuideName = values.guideName.toUpperCase();
@@ -356,7 +356,8 @@ export default function GeneratorPage() {
                       "flex-grow justify-start text-left font-normal",
                       selectedFile 
                         ? "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200" 
-                        : "bg-muted" 
+                        : "bg-muted", 
+                      isFileMissingError && !selectedFile ? "border-destructive" : ""
                     )}
                   >
                     <Upload className="mr-2 h-4 w-4" />
@@ -386,7 +387,6 @@ export default function GeneratorPage() {
                 )}
               </FormItem>
 
-              {/* Fields are now always visible */}
               <div className="space-y-6"> 
                 <FormField
                   control={form.control}
@@ -434,7 +434,6 @@ export default function GeneratorPage() {
                           <XCircle className="mr-1 h-4 w-4" /> File no encontrado.
                         </div>
                       )}
-                        {/* This specific error (error && !selectedFile) is handled by isFileMissingError above */}
                     </FormItem>
                   )}
                 />
@@ -535,5 +534,7 @@ export default function GeneratorPage() {
   
 
 
+
+    
 
     
