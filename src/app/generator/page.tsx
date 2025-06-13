@@ -77,13 +77,14 @@ export default function GeneratorPage() {
     if (selectedFile) {
       setIsFileMissingError(false); 
     } else {
+      // This else block handles when selectedFile becomes null (e.g., cleared)
       setExcelData(null);
       setFoundColumnIndex(null);
       setFoundCellValue(null);
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
-      form.reset({ fileNumber: "", guideName: "" });
-      setGeneratedReports([]); 
+      form.reset({ fileNumber: "", guideName: "" }); // Ensure form is reset
+      setGeneratedReports([]); // Clear generated reports as well
     }
   }, [selectedFile, form]);
 
@@ -92,17 +93,14 @@ export default function GeneratorPage() {
       const file = event.target.files[0];
       
       // Clear all previous states and form before processing new file
-      setSelectedFile(null); 
-      setExcelData(null);
-      setFoundColumnIndex(null);
-      setFoundCellValue(null);
-      setCurrentPaxCount(null);
-      setFileSearchStatus("idle");
-      form.reset({ fileNumber: "", guideName: "" }); 
-      setGeneratedReports([]);
-      setIsFileMissingError(false); 
-
+      if (fileInputRef.current) {
+          fileInputRef.current.value = ""; // Clear the native input first to allow re-selection of the same file
+      }
+      setSelectedFile(null); // This will trigger the useEffect above to clear states
+      
+      // Explicitly re-set selectedFile *after* states have been cleared by the effect or direct calls
       setSelectedFile(file); 
+      setIsFileMissingError(false);
 
       toast({
         title: "Archivo Seleccionado",
@@ -127,26 +125,20 @@ export default function GeneratorPage() {
             description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
             variant: "destructive",
           });
-          if (fileInputRef.current) {
-            fileInputRef.current.value = ""; 
-          }
-          setSelectedFile(null); 
+          handleClearFile(); // Use handleClearFile to ensure everything is reset
         }
       };
       reader.onerror = (e) => {
         console.error("Error al leer el archivo:", e);
         toast({ title: "Error de Lectura", description: "Hubo un problema al leer el archivo.", variant: "destructive" });
-        if (fileInputRef.current) {
-            fileInputRef.current.value = ""; 
-        }
-        setSelectedFile(null); 
+        handleClearFile(); // Use handleClearFile to ensure everything is reset
       };
       reader.readAsArrayBuffer(file);
 
     } else {
       // This case handles if the user cancels the file dialog after having a file selected
-      // Or if somehow event.target.files is null/empty when it shouldn't be
-      if (selectedFile) { 
+      // Or if somehow event.target.files is null/empty
+      if (selectedFile) { // If a file was previously selected and now it's gone
         handleClearFile();
       }
     }
@@ -157,7 +149,8 @@ export default function GeneratorPage() {
       fileInputRef.current.value = ""; 
     }
     setSelectedFile(null); // This will trigger the useEffect to clear other states
-    setIsFileMissingError(false); 
+    // Note: useEffect handles resetting form, excelData, fileSearchStatus, generatedReports etc.
+    setIsFileMissingError(false); // Also clear this specific error state
     
     toast({
       title: "Archivo Limpiado",
@@ -167,10 +160,10 @@ export default function GeneratorPage() {
   };
   
   const getFileNumberInputClasses = (): string => {
-    let baseClasses = "bg-muted"; // For "idle" or "searching"
+    let baseClasses = "bg-muted"; 
     if (fileSearchStatus === "found") {
       baseClasses = "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
-    } else if (fileSearchStatus === "not_found" || (fileSearchStatus === "error" && form.getValues("fileNumber"))) { // Only red if error is related to search, not missing file
+    } else if (fileSearchStatus === "not_found" || (fileSearchStatus === "error" && form.getValues("fileNumber"))) { 
       baseClasses = "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
     }
     return baseClasses;
@@ -189,6 +182,7 @@ export default function GeneratorPage() {
 
     if (!fileNumberToSearch) {
       setFileSearchStatus("error"); 
+      form.setError("fileNumber", { type: "manual", message: "Ingresa un número de file para buscar."});
       toast({ title: "Error de Búsqueda", description: "Ingresa un número de file para buscar.", variant: "destructive" });
       return;
     }
@@ -199,45 +193,35 @@ export default function GeneratorPage() {
     setCurrentPaxCount(null);
     setFoundColumnIndex(null);
     
-    // Simulate search delay
-    // await new Promise(resolve => setTimeout(resolve, 500)); 
-
     let found = false;
     let colIdx = -1;
-    let rowIdxWhereFileNumberFound = -1; // The row index where the file number itself was found
+    let rowIdxWhereFileNumberFound = -1; 
 
-    // Search for the fileNumber in the excelData
     if (excelData && excelData.length > 0) {
-      // Iterate through columns first, then rows for efficiency if files are usually in specific columns
       const numCols = excelData.reduce((max, row) => Math.max(max, row.length), 0);
-      for (let j = 0; j < numCols; j++) { // Iterate columns
-        for (let i = 0; i < excelData.length; i++) { // Iterate rows
+      for (let j = 0; j < numCols; j++) { 
+        for (let i = 0; i < excelData.length; i++) { 
           if (excelData[i] && excelData[i][j] !== undefined && excelData[i][j] !== null) {
-             // Ensure comparison is string-to-string and trim whitespace
              if (String(excelData[i][j]).trim() === fileNumberToSearch.trim()) {
               colIdx = j;
-              rowIdxWhereFileNumberFound = i; // Store the row where the file number was found
+              rowIdxWhereFileNumberFound = i; 
               found = true;
-              break; // Exit inner loop (rows)
+              break; 
             }
           }
         }
-        if (found) break; // Exit outer loop (columns)
+        if (found) break; 
       }
     }
 
     if (found && colIdx !== -1 && rowIdxWhereFileNumberFound !== -1) {
       setFoundColumnIndex(colIdx);
       
-      // Extract group name: typically one row below the file number
-      // Ensure the row below exists and the cell at colIdx is defined
       const groupName = (excelData[rowIdxWhereFileNumberFound + 1] && excelData[rowIdxWhereFileNumberFound + 1][colIdx] !== undefined) 
                         ? String(excelData[rowIdxWhereFileNumberFound + 1][colIdx]).trim() 
                         : "No se encontró nombre debajo del file.";
       setFoundCellValue(groupName);
 
-      // Extract Pax count: typically from row 5 (index 4) of the found column
-      // Ensure row 5 (index 4) exists and the cell at colIdx is defined
       const pax = (excelData[4] && excelData[4][colIdx] !== undefined) 
                   ? String(excelData[4][colIdx]).trim() 
                   : "N/A";
@@ -271,25 +255,24 @@ export default function GeneratorPage() {
     }
 
     setIsProcessingGeneration(true);
-    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate generation delay
+    await new Promise(resolve => setTimeout(resolve, 300)); 
 
     const currentInputFileNumber = values.fileNumber;
-    const currentInputGuideName = values.guideName.toUpperCase(); // Standardize guide name for comparison
+    const currentInputGuideName = values.guideName.toUpperCase(); 
 
-    // Calculate occurrence count for the current fileNumber & guideName combination
     const existingOccurrences = generatedReports.filter(
       report => report.fileNumber === currentInputFileNumber && report.guideName.toUpperCase() === currentInputGuideName
     ).length;
     
     const occurrenceCount = existingOccurrences + 1;
-    const isDuplicateInstance = occurrenceCount > 1; // True if this is the 2nd, 3rd, etc. instance
+    const isDuplicateInstance = occurrenceCount > 1; 
 
     const newReport: GeneratedReportInfo = {
-      id: new Date().toISOString() + Math.random().toString(36).substring(2, 9), // Unique ID for the report instance
+      id: new Date().toISOString() + Math.random().toString(36).substring(2, 9), 
       fileNumber: currentInputFileNumber,
-      guideName: currentInputGuideName, // Store the standardized guide name
+      guideName: currentInputGuideName, 
       originalProgramFileName: selectedFile.name,
-      groupName: foundCellValue, // The raw group name found
+      groupName: foundCellValue, 
       paxCount: currentPaxCount,
       generationDate: new Date(),
       occurrenceCount: occurrenceCount,
@@ -298,9 +281,8 @@ export default function GeneratorPage() {
 
     setGeneratedReports(prev => [...prev, newReport]);
     
-    // Reset fileNumber, keep guideName for potentially generating another report for the same guide
     form.reset({ fileNumber: "", guideName: "" }); 
-    setFileSearchStatus("idle"); // Reset search status for the next file number
+    setFileSearchStatus("idle"); 
     
     toast({
       title: "Reporte Añadido",
@@ -310,7 +292,6 @@ export default function GeneratorPage() {
   }
 
   const handleViewReport = (report: GeneratedReportInfo) => {
-    // Display group name with occurrence count only if it's greater than 1
     const displayGroupName = report.occurrenceCount > 1 
       ? `${report.groupName} (${report.occurrenceCount})` 
       : report.groupName;
@@ -408,7 +389,6 @@ export default function GeneratorPage() {
                             className={getFileNumberInputClasses()}
                             onChange={(e) => {
                               field.onChange(e);
-                              // Reset search status if user types in the input after a search
                               if (fileSearchStatus !== "idle" && fileSearchStatus !== "searching") {
                                 setFileSearchStatus("idle");
                                 setFoundCellValue(null); 
@@ -441,7 +421,7 @@ export default function GeneratorPage() {
                           <XCircle className="mr-1 h-4 w-4" /> File no encontrado.
                         </div>
                       )}
-                       {fileSearchStatus === "error" && !isFileMissingError && form.getValues("fileNumber") && ( // Only show this if error is not due to missing file, but file number is present
+                       {fileSearchStatus === "error" && !isFileMissingError && form.getValues("fileNumber") && ( 
                         <div className="flex items-center text-sm text-destructive mt-1">
                           <XCircle className="mr-1 h-4 w-4" /> Error en la búsqueda.
                         </div>
@@ -520,9 +500,10 @@ export default function GeneratorPage() {
                       </Button>
                       <Button 
                         variant="default" 
+                        size="default"
                         onClick={() => toast({ title: "Próximamente", description: "La descarga estará disponible pronto.", variant: "default" })} 
                         title="Descargar" 
-                        className="bg-green-600 text-white hover:bg-green-700 px-3 py-2 h-auto text-sm"
+                        className="bg-green-600 text-white hover:bg-green-700 focus-visible:ring-green-500"
                       >
                         <FileDown className="mr-2 h-4 w-4" /> Descargar
                       </Button>
@@ -557,3 +538,4 @@ export default function GeneratorPage() {
     
 
     
+
