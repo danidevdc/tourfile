@@ -77,14 +77,13 @@ export default function GeneratorPage() {
     if (selectedFile) {
       setIsFileMissingError(false); 
     } else {
-      // This else block handles reset when selectedFile becomes null (e.g., via handleClearFile)
       setExcelData(null);
       setFoundColumnIndex(null);
       setFoundCellValue(null);
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
       form.reset({ fileNumber: "", guideName: "" });
-      setGeneratedReports([]); // Clear reports when the main file is cleared
+      setGeneratedReports([]); 
     }
   }, [selectedFile, form]);
 
@@ -92,8 +91,7 @@ export default function GeneratorPage() {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       
-      // Reset all relevant states before processing the new file
-      setSelectedFile(null); // Temporarily set to null to trigger useEffect if the same file is re-selected
+      setSelectedFile(null); 
       setExcelData(null);
       setFoundColumnIndex(null);
       setFoundCellValue(null);
@@ -103,7 +101,7 @@ export default function GeneratorPage() {
       setGeneratedReports([]);
       setIsFileMissingError(false); 
 
-      setSelectedFile(file); // Set the new file
+      setSelectedFile(file); 
 
       toast({
         title: "Archivo Seleccionado",
@@ -145,9 +143,7 @@ export default function GeneratorPage() {
       reader.readAsArrayBuffer(file);
 
     } else {
-      // This case handles if the user cancels the file dialog after a file was already selected.
-      // Or if no file is selected from the dialog.
-      if (selectedFile) { // If a file was previously selected, clear it.
+      if (selectedFile) { 
         handleClearFile();
       }
     }
@@ -157,7 +153,7 @@ export default function GeneratorPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = ""; 
     }
-    setSelectedFile(null); // This will trigger the useEffect to reset other states.
+    setSelectedFile(null); 
     setIsFileMissingError(false); 
     
     toast({
@@ -168,12 +164,13 @@ export default function GeneratorPage() {
   };
   
   const getFileNumberInputClasses = (): string => {
+    let baseClasses = "bg-muted"; // For "idle" or "searching"
     if (fileSearchStatus === "found") {
-      return "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
-    } else if (fileSearchStatus === "not_found" || fileSearchStatus === "error") {
-      return "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
+      baseClasses = "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
+    } else if (fileSearchStatus === "not_found" || (fileSearchStatus === "error" && form.getValues("fileNumber"))) { // Only red if error is related to search, not missing file
+      baseClasses = "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
     }
-    return "bg-muted"; // For "idle" or "searching"
+    return baseClasses;
   };
   
 
@@ -181,15 +178,15 @@ export default function GeneratorPage() {
     const fileNumberToSearch = form.getValues("fileNumber");
     if (!selectedFile || !excelData) {
       setIsFileMissingError(true); 
-      toast({ title: "Error de Búsqueda", description: "Sube y procesa un archivo de programa primero.", variant: "destructive" });
       setFileSearchStatus("error");
+      toast({ title: "Error de Búsqueda", description: "Sube y procesa un archivo de programa primero.", variant: "destructive" });
       return;
     }
     setIsFileMissingError(false); 
 
     if (!fileNumberToSearch) {
-      toast({ title: "Error de Búsqueda", description: "Ingresa un número de file para buscar.", variant: "destructive" });
       setFileSearchStatus("error"); 
+      toast({ title: "Error de Búsqueda", description: "Ingresa un número de file para buscar.", variant: "destructive" });
       return;
     }
 
@@ -287,7 +284,7 @@ export default function GeneratorPage() {
 
     setGeneratedReports(prev => [...prev, newReport]);
     
-    form.reset({ fileNumber: "", guideName: "" }); 
+    form.reset({ fileNumber: "", guideName: form.getValues("guideName") }); 
     setFileSearchStatus("idle");
     
     toast({
@@ -427,7 +424,7 @@ export default function GeneratorPage() {
                           <XCircle className="mr-1 h-4 w-4" /> File no encontrado.
                         </div>
                       )}
-                       {fileSearchStatus === "error" && !isFileMissingError && ( // Only show if not file missing error
+                       {fileSearchStatus === "error" && !isFileMissingError && form.getValues("fileNumber") && ( 
                         <div className="flex items-center text-sm text-destructive mt-1">
                           <XCircle className="mr-1 h-4 w-4" /> Error en la búsqueda.
                         </div>
@@ -477,7 +474,7 @@ export default function GeneratorPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[50px]">N°</TableHead>
-                  <TableHead>File N°</TableHead>
+                  <TableHead className="w-[120px]">File N°</TableHead>
                   <TableHead>Guía</TableHead>
                   <TableHead className="w-[30%]">Grupo</TableHead>
                   <TableHead className="w-[200px] text-center">Acciones</TableHead>
