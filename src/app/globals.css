@@ -4,7 +4,7 @@
 @tailwind utilities;
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Roboto', Arial, Helvetica, sans-serif;
 }
 
 @layer base {
@@ -34,7 +34,7 @@ body {
     --destructive-foreground: 0 0% 98%;
 
     --border: 190 30% 90%; /* Ajustado */
-    --input: 190 30% 94%; /* Ajustado */
+    --input: 190 30% 90%; /* Ajustado para mayor contraste del borde del input */
     --ring: 187 79% 71%; /* #78e3f0 - usando el acento para los anillos */
     
     --chart-1: 204 92% 55%;
@@ -81,7 +81,7 @@ body {
     --destructive-foreground: 0 0% 98%;
 
     --border: 204 40% 25%;
-    --input: 204 40% 22%;
+    --input: 204 40% 22%; /* Input border color for dark theme */
     --ring: 187 79% 65%; /* Usando el acento para los anillos */
     
     --chart-1: 204 92% 60%;
