@@ -203,12 +203,12 @@ export default function GeneratorPage() {
     setIsProcessingSearch(false);
   };
   
-  const resetSearchState = () => {
+  const resetSearchStateAndValue = () => {
     setFileSearchStatus("idle");
     setFoundCellValue(null);
     setCurrentPaxCount(null);
     setFoundColumnIndex(null);
-    // form.resetField("fileNumber"); // Optionally reset fileNumber as well if it shouldn't persist after adding
+    form.resetField("fileNumber"); 
   };
 
   async function onSubmit(values: FormValues) {
@@ -229,15 +229,15 @@ export default function GeneratorPage() {
       fileNumber: values.fileNumber,
       guideName: values.guideName,
       originalProgramFileName: selectedFile.name,
-      groupName: foundCellValue, // This is the "Nombre del File"
+      groupName: foundCellValue, 
       paxCount: currentPaxCount,
       generationDate: new Date(),
     };
 
-    setGeneratedReports(prev => [newReport, ...prev]);
+    setGeneratedReports(prev => [...prev, newReport]);
     
-    form.reset({ fileNumber: "", guideName: "" }); 
-    resetSearchState(); 
+    form.reset({ fileNumber: "", guideName: values.guideName }); 
+    resetSearchStateAndValue(); 
     
     toast({
       title: "Reporte Añadido",
@@ -277,12 +277,12 @@ export default function GeneratorPage() {
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
-      <div className="w-full max-w-3xl mb-4"> {/* Aumentado max-w-2xl a max-w-3xl */}
+      <div className="w-full max-w-3xl mb-4"> 
         <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back" className="hover:bg-primary/90">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
-      <Card className="w-full max-w-3xl shadow-lg"> {/* Aumentado max-w-2xl a max-w-3xl */}
+      <Card className="w-full max-w-3xl shadow-lg"> 
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center text-primary">Generador de Cajas Chicas (La Paz)</CardTitle>
           <CardDescription className="text-center">
@@ -340,7 +340,10 @@ export default function GeneratorPage() {
                               onChange={(e) => {
                                 field.onChange(e);
                                 if (fileSearchStatus !== "idle") {
-                                  resetSearchState();
+                                  setFileSearchStatus("idle");
+                                  setFoundCellValue(null);
+                                  setCurrentPaxCount(null);
+                                  setFoundColumnIndex(null);
                                 }
                               }}
                             />
@@ -411,7 +414,7 @@ export default function GeneratorPage() {
       </Card>
 
       {generatedReports.length > 0 && (
-        <Card className="w-full max-w-3xl shadow-lg mt-8"> {/* Aumentado max-w-2xl a max-w-3xl */}
+        <Card className="w-full max-w-3xl shadow-lg mt-8"> 
           <CardHeader>
             <CardTitle className="text-xl font-headline text-center text-primary">Reportes Generados</CardTitle>
           </CardHeader>
@@ -419,6 +422,7 @@ export default function GeneratorPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">N°</TableHead>
                   <TableHead>File N°</TableHead>
                   <TableHead>Guía</TableHead>
                   <TableHead>Grupo</TableHead>
@@ -426,8 +430,9 @@ export default function GeneratorPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {generatedReports.map((report) => (
+                {generatedReports.map((report, index) => (
                   <TableRow key={report.id}>
+                    <TableCell>{index + 1}</TableCell>
                     <TableCell>{report.fileNumber}</TableCell>
                     <TableCell>{report.guideName}</TableCell>
                     <TableCell>{report.groupName} ({report.paxCount} pax)</TableCell>
@@ -439,7 +444,7 @@ export default function GeneratorPage() {
                         <FileDown className="h-4 w-4" />
                       </Button>
                       <Button variant="outline" size="icon" onClick={() => handleDownloadPlaceholder('PDF')} title="Descargar PDF" className="bg-red-600 hover:bg-red-700 text-white border-red-600">
-                        <FileText className="h-4 w-4" /> {/* Icono cambiado para PDF */}
+                        <FileText className="h-4 w-4" />
                       </Button>
                       <Button variant="destructive" size="icon" onClick={() => handleDeleteReport(report.id)} title="Eliminar">
                         <Trash2 className="h-4 w-4" />
