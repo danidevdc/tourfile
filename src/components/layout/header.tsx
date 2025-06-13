@@ -15,8 +15,8 @@ export default function Header() {
       <div className="flex items-center gap-2">
         <Link href="/" passHref>
           <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
-            <FileSpreadsheet className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-            <h1 className="text-lg sm:text-xl font-bold text-primary">
+            <FileSpreadsheet className="h-5 w-5 sm:h-6 sm:w-6 text-primary dark:text-primary-foreground" />
+            <h1 className="text-lg sm:text-xl font-bold text-primary dark:text-primary-foreground">
               TourFile Generator
             </h1>
           </div>
@@ -25,14 +25,14 @@ export default function Header() {
       <div className="flex items-center gap-1 sm:gap-2">
         <ThemeToggle />
         <Link href="/" passHref>
-          <Button variant="ghost" className="text-primary hover:bg-muted">
+          <Button variant="ghost" className="text-primary dark:text-primary-foreground hover:bg-muted hover:text-primary dark:hover:text-primary">
             <Home className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
             Inicio
           </Button>
         </Link>
         <Button
           variant="ghost"
-          className="text-primary hover:bg-muted"
+          className="text-primary dark:text-primary-foreground hover:bg-muted hover:text-primary dark:hover:text-primary"
           onClick={() => alert('Log Out functionality is not yet implemented.')}
         >
           <LogOut className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />

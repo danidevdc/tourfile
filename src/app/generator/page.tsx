@@ -125,7 +125,6 @@ export default function GeneratorPage() {
               if (data[i] && data[i][j] !== undefined && data[i][j] !== null) {
                 if (String(data[i][j]).trim().includes(fileNumber)) {
                   colIdx = j;
-                  // Try to get the value from the cell below
                   if (i + 1 < data.length && data[i+1] && data[i+1][j] !== undefined && data[i+1][j] !== null) {
                     cellValueForName = String(data[i+1][j]).trim();
                   } else {
@@ -146,7 +145,7 @@ export default function GeneratorPage() {
           setFileSearchStatus("found");
           toast({
             title: "Búsqueda Exitosa",
-            description: `File "${fileNumber}" encontrado en la columna ${colIdx + 1}.`,
+            description: `File "${fileNumber}" encontrado.`,
             variant: "default",
             className: "bg-green-100 dark:bg-green-900 border-green-500",
           });
@@ -288,7 +287,7 @@ export default function GeneratorPage() {
                       <Button 
                         type="button" 
                         onClick={handleSearchFile} 
-                        variant="outline" 
+                        variant="default" 
                         size="icon" 
                         disabled={!selectedFile || !field.value || fileSearchStatus === "searching"}
                         aria-label="Buscar File"
@@ -362,5 +361,3 @@ export default function GeneratorPage() {
     </div>
   );
 }
-
-    
