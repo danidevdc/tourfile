@@ -23,6 +23,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, Eye, FileDown, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Dialog } from "@/components/ui/dialog"; // ShadCN Dialog
+import { ResultsDialogContent } from "@/components/report/ResultsDialogContent"; // Nuevo componente
 
 const formSchema = z.object({
   fileNumber: z.string().min(1, "El número de file es requerido."),
@@ -32,7 +34,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 type FileSearchStatus = "idle" | "searching" | "found" | "not_found" | "error";
 
-interface GeneratedReportInfo {
+export interface GeneratedReportInfo { // Exportar para que ResultsDialogContent pueda usarlo
   id: string;
   fileNumber: string;
   guideName: string; 
@@ -65,6 +67,9 @@ export default function GeneratorPage() {
   const [generatedReports, setGeneratedReports] = useState<GeneratedReportInfo[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isResultsDialogOpen, setIsResultsDialogOpen] = useState(false);
+  const [currentReportInDialog, setCurrentReportInDialog] = useState<GeneratedReportInfo | null>(null);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -77,28 +82,26 @@ export default function GeneratorPage() {
     if (selectedFile) {
       setIsFileMissingError(false); 
     } else {
-      // This else block handles when selectedFile becomes null (e.g., cleared)
       setExcelData(null);
       setFoundColumnIndex(null);
       setFoundCellValue(null);
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
-      form.reset({ fileNumber: "", guideName: "" }); // Ensure form is reset
-      setGeneratedReports([]); // Clear generated reports as well
+      form.reset({ fileNumber: "", guideName: "" });
+      setGeneratedReports([]); 
     }
   }, [selectedFile, form]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-      
-      // Clear all previous states and form before processing new file
-      if (fileInputRef.current) {
-          fileInputRef.current.value = ""; // Clear the native input first to allow re-selection of the same file
-      }
-      setSelectedFile(null); // This will trigger the useEffect above to clear states
-      
-      // Explicitly re-set selectedFile *after* states have been cleared by the effect or direct calls
+    const file = event.target.files && event.target.files[0];
+
+    // Limpiar estados antes de cargar un nuevo archivo
+    if (fileInputRef.current) {
+        fileInputRef.current.value = ""; 
+    }
+    setSelectedFile(null); // Esto dispara el useEffect de arriba para limpiar todo
+
+    if (file) {
       setSelectedFile(file); 
       setIsFileMissingError(false);
 
@@ -125,22 +128,18 @@ export default function GeneratorPage() {
             description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
             variant: "destructive",
           });
-          handleClearFile(); // Use handleClearFile to ensure everything is reset
+          handleClearFile(); 
         }
       };
       reader.onerror = (e) => {
         console.error("Error al leer el archivo:", e);
         toast({ title: "Error de Lectura", description: "Hubo un problema al leer el archivo.", variant: "destructive" });
-        handleClearFile(); // Use handleClearFile to ensure everything is reset
+        handleClearFile(); 
       };
       reader.readAsArrayBuffer(file);
-
     } else {
-      // This case handles if the user cancels the file dialog after having a file selected
-      // Or if somehow event.target.files is null/empty
-      if (selectedFile) { // If a file was previously selected and now it's gone
-        handleClearFile();
-      }
+      // Si no se selecciona archivo o se cancela el diálogo
+      handleClearFile(); // Asegura limpieza si había algo antes
     }
   };
 
@@ -148,9 +147,8 @@ export default function GeneratorPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = ""; 
     }
-    setSelectedFile(null); // This will trigger the useEffect to clear other states
-    // Note: useEffect handles resetting form, excelData, fileSearchStatus, generatedReports etc.
-    setIsFileMissingError(false); // Also clear this specific error state
+    setSelectedFile(null); 
+    setIsFileMissingError(false); 
     
     toast({
       title: "Archivo Limpiado",
@@ -292,18 +290,8 @@ export default function GeneratorPage() {
   }
 
   const handleViewReport = (report: GeneratedReportInfo) => {
-    const displayGroupName = report.occurrenceCount > 1 
-      ? `${report.groupName} (${report.occurrenceCount})` 
-      : report.groupName;
-
-    const queryParams = new URLSearchParams({
-      fileNumber: report.fileNumber,
-      guideName: report.guideName,
-      fileName: report.originalProgramFileName, 
-      groupName: displayGroupName,
-      paxCount: report.paxCount,
-    });
-    router.push(`/results?${queryParams.toString()}`);
+    setCurrentReportInDialog(report);
+    setIsResultsDialogOpen(true);
   };
 
   const handleDeleteReport = (reportId: string) => {
@@ -517,6 +505,15 @@ export default function GeneratorPage() {
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {currentReportInDialog && (
+        <Dialog open={isResultsDialogOpen} onOpenChange={setIsResultsDialogOpen}>
+          <ResultsDialogContent
+            report={currentReportInDialog}
+            onClose={() => setIsResultsDialogOpen(false)} 
+          />
+        </Dialog>
       )}
     </div>
   );
