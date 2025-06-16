@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   DialogContent,
   DialogHeader,
@@ -14,8 +14,41 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { FileSpreadsheet, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { GeneratedReportInfo, ExpenseItem } from "@/app/generator/page"; // Importar ExpenseItem también
-import { format } from 'date-fns'; // Para formatear la fecha de generación del reporte
+import type { GeneratedReportInfo, ExpenseItem } from "@/app/generator/page"; 
+import { format } from 'date-fns';
+import { cn } from "@/lib/utils";
+
+// Helper function to resolve quantity strings like "=$G$3+1" or "17"
+// Copied from generator/page.tsx to be used locally
+function resolveQuantity(quantityStr: string, paxNumber: number): number {
+  if (!isNaN(Number(quantityStr))) {
+    return Number(quantityStr);
+  }
+
+  const cleanedQuantity = quantityStr.toUpperCase().replace(/\s/g, '');
+  const formulaWithPax = cleanedQuantity.replace(/(?<![A-Z])G3(?![0-9A-Z])|\$G\$3/g, String(paxNumber));
+
+  if (formulaWithPax.startsWith('=')) {
+    try {
+      const expression = formulaWithPax.substring(1);
+      if (/^[\d\s()+\-*/.]+$/.test(expression)) {
+        // Ensure the expression is safe to evaluate
+        // This basic regex allows numbers, operators, parentheses, and decimal points.
+        // For more complex scenarios, a more robust parsing/evaluation library would be needed.
+        return new Function(`return ${expression}`)() as number;
+      } else {
+        console.warn(`Fórmula de cantidad no segura o no válida: ${expression} (original: ${quantityStr})`);
+        return 1; // Fallback
+      }
+    } catch (e) {
+      console.error(`Error evaluando cantidad "${quantityStr}" con expresión "${formulaWithPax.substring(1)}":`, e);
+      return 1; // Fallback
+    }
+  }
+  console.warn(`Cantidad no reconocida: ${quantityStr}`);
+  return 1; // Fallback si no es número ni fórmula simple
+}
+
 
 const calculateGrandTotal = (expenseItems: ExpenseItem[]): number => {
   return expenseItems.reduce((sum, item) => sum + item.total, 0);
@@ -30,36 +63,30 @@ export function ResultsDialogContent({ report, onClose }: ResultsDialogContentPr
   const { toast } = useToast();
   const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
   
-  // La fecha del tour ya está en report.startDate (formateada dd/MM/yy)
-  // La fecha de generación del reporte se puede tomar de report.generationDate
-  const generationReportDateFormatted = format(report.generationDate, 'dd.MM.yyyy'); // ej: 23.07.2024
+  const generationReportDateFormatted = format(report.generationDate, 'dd.MM.yyyy'); 
 
   const expenseDataToDisplay = report.expenseItems; 
   const grandTotal = calculateGrandTotal(expenseDataToDisplay);
+  const paxCountNumber = parseInt(report.paxCount, 10) || 0;
 
   const handleDownloadExcel = async () => {
     setIsDownloadingExcel(true);
     await new Promise(resolve => setTimeout(resolve, 1000)); 
 
-    // Usar report.startDate que ya está formateada como dd/MM/yy
-    // pero el nombre del archivo Excel usa dd.mm.yyyy
-    // así que necesitamos reformatear report.startDate o usar una nueva variable para el nombre del archivo
-    let startDateForFileName = report.startDate; // es dd/MM/yy
+    let startDateForFileName = report.startDate; 
     try {
         const [d, m, y] = report.startDate.split('/');
-        startDateForFileName = `${d}.${m}.${y.length === 2 ? '20'+y : y}`; // Convertir a dd.mm.yy o dd.mm.yyyy
+        startDateForFileName = `${d}.${m}.${y.length === 2 ? '20'+y : y}`; 
     } catch (e) {
         console.error("Error formateando startDate para nombre de archivo", e);
-        // Usar la fecha de generación si falla
         startDateForFileName = generationReportDateFormatted;
     }
-
 
     const excelHeader = [
       ["CAJA CHICA GUIA"],
       ["FILE:", report.fileNumber, "", "NOMBRE GUIA:", report.guideName.toUpperCase()],
       ["NOMBRE Y Nº DE PAX:", report.groupName, "", "", "Nº", report.paxCount],
-      ["FECHA", "CANT", "DETALLE DEL GASTO", "PREC. UNIT Bs.", "TOTAL Bs.", "VoB OPS"] // Añadido Bs.
+      ["FECHA", "CANT", "DETALLE DEL GASTO", "PREC. UNIT Bs.", "TOTAL Bs.", "VoB OPS"] 
     ];
 
     const excelBody = expenseDataToDisplay.map(item =>
@@ -74,8 +101,6 @@ export function ResultsDialogContent({ report, onClose }: ResultsDialogContentPr
     csvContent += "\\n" + excelBody.map(row => row.join(",")).join("\\n");
     csvContent += "\\n" + excelFooter.map(row => row.join(",")).join("\\n");
     
-    // G.O. FECHA_INICIO_TOUR - NOMBRE_GRUPO - NOMBRE_GUIA - ID_FILE.csv
-    // Ejemplo del Python: G.O. 20.07.2024 - GTA SANTA CRUZ X 25 - VICTOR HUGO - CTFI107585.xlsx
     const fileName = `G.O. ${startDateForFileName} - ${report.groupName.replace(/[/\s()]/g, '_')} - ${report.guideName.toUpperCase().replace(/\s/g, '_')} - ${report.fileNumber}.csv`;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -142,9 +167,14 @@ export function ResultsDialogContent({ report, onClose }: ResultsDialogContentPr
             </TableHeader>
             <TableBody>
               {expenseDataToDisplay.map((item, index) => (
-                <TableRow key={index}>
+                <TableRow 
+                  key={index}
+                  className={cn(
+                    item.detail === "AGUAS" && "text-sky-600 dark:text-sky-400 font-medium"
+                  )}
+                >
                   <TableCell>{item.date}</TableCell>
-                  <TableCell className="text-right">{String(item.quantity)}</TableCell>
+                  <TableCell className="text-right">{resolveQuantity(item.quantity, paxCountNumber)}</TableCell>
                   <TableCell>{item.detail}</TableCell>
                   <TableCell className="text-right">{item.unitPrice.toFixed(2)}</TableCell>
                   <TableCell className="text-right font-medium">{item.total.toFixed(2)}</TableCell>
