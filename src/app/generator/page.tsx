@@ -26,6 +26,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Dialog } from "@/components/ui/dialog";
 import { ResultsDialogContent } from "@/components/report/ResultsDialogContent";
+import { downloadReportAsExcel } from "@/lib/excel-export";
+
 
 const formSchema = z.object({
   fileNumber: z.string().min(1, "El número de file es requerido."),
@@ -37,10 +39,10 @@ type FileSearchStatus = "idle" | "searching" | "found" | "not_found" | "error";
 
 export interface ExpenseItem {
   date: string;
-  quantity: string; // Para mostrar la fórmula o número original
+  quantity: string; 
   detail: string;
   unitPrice: number;
-  total: number; // Total calculado
+  total: number; 
   vobOps?: string;
 }
 
@@ -55,7 +57,7 @@ export interface GeneratedReportInfo {
   occurrenceCount: number;
   isDuplicateInstance: boolean;
   expenseItems: ExpenseItem[];
-  startDate: string; // Fecha de inicio del tour formateada dd/MM/yy
+  startDate: string; 
 }
 
 interface FileDataProps {
@@ -63,35 +65,33 @@ interface FileDataProps {
   columnIndex: number | null;
 }
 
-// Helper function to resolve quantity strings like "=$G$3+1" or "17"
 function resolveQuantity(quantityStr: string, paxNumber: number): number {
+  if (paxNumber === 0 && quantityStr.toUpperCase().includes("G3")) return 0;
   if (!isNaN(Number(quantityStr))) {
     return Number(quantityStr);
   }
 
   const cleanedQuantity = quantityStr.toUpperCase().replace(/\s/g, '');
-  // Reemplazar $G$3 o G3 con el valor de pax
-  // Asegurarse de que G3 no sea parte de otra palabra como "GUIDE"
   const formulaWithPax = cleanedQuantity.replace(/(?<![A-Z])G3(?![0-9A-Z])|\$G\$3/g, String(paxNumber));
 
 
   if (formulaWithPax.startsWith('=')) {
     try {
       const expression = formulaWithPax.substring(1);
-      // Permitir solo números, +, -, *, /, (, ) y el valor de pax ya insertado.
       if (/^[\d\s()+\-*/.]+$/.test(expression)) {
-        return new Function(`return ${expression}`)() as number;
+        const result = new Function(`return ${expression}`)() as number;
+        return isNaN(result) ? 1 : result;
       } else {
         console.warn(`Fórmula de cantidad no segura o no válida: ${expression} (original: ${quantityStr})`);
-        return 1; // Fallback
+        return 1; 
       }
     } catch (e) {
       console.error(`Error evaluando cantidad "${quantityStr}" con expresión "${formulaWithPax.substring(1)}":`, e);
-      return 1; // Fallback
+      return 1; 
     }
   }
   console.warn(`Cantidad no reconocida: ${quantityStr}`);
-  return 1; // Fallback si no es número ni fórmula simple
+  return 1; 
 }
 
 
@@ -113,17 +113,17 @@ function generateExpenseDetails(
   const paxNum = parseInt(paxCountString, 10);
   if (isNaN(paxNum)) {
     console.error("Número de PAX no válido:", paxCountString);
-    // Considerar lanzar un error o devolver un estado de error aquí
     return { expenses: [], tourStartDate: "N/A" };
   }
 
   const guia = 1;
 
   let tourStartDate = "N/A";
-  const fechaInicioRaw = excelData[fileIdRowIndex + 3]?.[columnIndex];
+  const fechaInicioRaw = excelData[fileIdRowIndex + 3]?.[columnIndex]; // Ajuste: Python usa iloc[3] que es la 4ta fila, si FileID es fila 0, entonces 0+3=3.
+  
   if (fechaInicioRaw instanceof Date) {
     tourStartDate = format(fechaInicioRaw, 'dd/MM/yy');
-  } else if (typeof fechaInicioRaw === 'number') { // Excel serial date
+  } else if (typeof fechaInicioRaw === 'number') { 
      const dateObj = XLSX.SSF.parse_date_code(fechaInicioRaw);
      if (dateObj) {
         tourStartDate = format(new Date(dateObj.y, dateObj.m - 1, dateObj.d, dateObj.H || 0, dateObj.M || 0, dateObj.S || 0), 'dd/MM/yy');
@@ -132,11 +132,10 @@ function generateExpenseDetails(
      }
   } else if (typeof fechaInicioRaw === 'string') {
     try {
-        const parsedDate = new Date(fechaInicioRaw); // Intentar parseo directo
+        const parsedDate = new Date(fechaInicioRaw); 
         if (!isNaN(parsedDate.valueOf())) {
             tourStartDate = format(parsedDate, 'dd/MM/yy');
         } else {
-             // Podríamos intentar más formatos si es necesario. ej: date-fns parse
             console.warn("String de fecha no reconocido:", fechaInicioRaw);
         }
     } catch(e){
@@ -154,15 +153,14 @@ function generateExpenseDetails(
   const contiene_isla = contiene("I.Sol");
   const contiene_trf_in = contiene("CT-Private transfer from airport to hotel");
   const contiene_tiwa = contiene("Tiwanaku");
-  const contiene_teleferico = contiene("Cable Car") || contiene("teleferico"); // Added teleferico
-  const contiene_valle = contiene("Moon Valley") || contiene("valle de la luna"); // Added valle de la luna
-  const contiene_city_continuado = contiene("AM"); // Asume que "AM" indica almuerzo guía en city tour continuado
+  const contiene_teleferico = contiene("Cable Car") || contiene("teleferico");
+  const contiene_valle = contiene("Moon Valley") || contiene("valle de la luna");
+  const contiene_city_continuado_am = contiene("AM"); // Indica almuerzo guía en city tour continuado
   const contiene_kasani = contiene("Kasani/Puno");
   const contiene_trf_out = contiene("CT-Private transfer from hotel to airport");
-  const contiene_aguas_keyword_directa = contiene("CT-City Tour"); // Esta es la que activa AGUAS en el script original por "City Tour"
-  const contiene_city_tour_general = contiene("City Tour"); // Para la condición especial de AGUAS (CT y Tiwa)
+  const contiene_aguas_ct_city_tour = contiene("CT-City Tour"); 
+  const contiene_city_tour_general = contiene("City Tour"); 
 
-  // Lógica de gastos (adaptada de Python)
   if (contiene_desaguadero) {
     const quantityStr = "=$G$3";
     expenseItems.push({ date: tourStartDate, quantity: quantityStr, detail: "MALETAS FRONTERA", unitPrice: 3.00, total: resolveQuantity(quantityStr, paxNum) * 3.00 });
@@ -179,7 +177,7 @@ function generateExpenseDetails(
 
   if (contiene_isla) {
     const itemsIsla = [
-      { quantityStr: String(guia), detail: "TAXI DOM - HOTEL", unitPrice: 30.00 }, // Asumo que es para el guía
+      { quantityStr: String(guia), detail: "TAXI DOM - HOTEL", unitPrice: 30.00 }, 
       { quantityStr: "=$G$3", detail: "ISLA DEL SOL", unitPrice: 10.00 },
       { quantityStr: "=$G$3", detail: "ISLA DE LA LUNA", unitPrice: 10.00 },
     ];
@@ -210,9 +208,7 @@ function generateExpenseDetails(
     expenseItems.push({ date: tourStartDate, quantity: quantityStr, detail: "VALLE", unitPrice: 20.00, total: resolveQuantity(quantityStr, paxNum) * 20.00 });
   }
   
-  // Almuerzo Guia por "AM" (asumiendo City Tour continuado)
-  // El script original dice: if contiene_city_continuado (que es "AM")
-  if (contiene_city_continuado && contiene_city_tour_general) { // Condición más precisa: AM y City Tour
+  if (contiene_city_continuado_am && contiene_city_tour_general) { 
     const quantityStr = String(guia);
     expenseItems.push({ date: tourStartDate, quantity: quantityStr, detail: "ALMUERZO GUIA", unitPrice: 35.00, total: resolveQuantity(quantityStr, paxNum) * 35.00 });
   }
@@ -230,21 +226,18 @@ function generateExpenseDetails(
     const itemsTrfOut = [
       { quantityStr: String(guia), detail: "TAXI DOM - HOTEL", unitPrice: 30.00 },
       { quantityStr: "=$G$3", detail: "MALETAS AEROPUERTO", unitPrice: 3.00 },
-      { quantityStr: String(guia), detail: "TAXI CENTRO - DOM", unitPrice: 30.00 }, // El script python dice TAXI CENTRO - DOM
+      { quantityStr: String(guia), detail: "TAXI CENTRO - DOM", unitPrice: 30.00 }, 
     ];
     itemsTrfOut.forEach(item => expenseItems.push({ date: tourStartDate, quantity: item.quantityStr, detail: item.detail, unitPrice: item.unitPrice, total: resolveQuantity(item.quantityStr, paxNum) * item.unitPrice }));
   }
   
-  // AGUAS: la lógica original es 'contiene_aguas' que se activa por "CT-City Tour"
-  if (contiene_aguas_keyword_directa) { // Si "CT-City Tour" está presente
-    let cantidadFormulaAguas = "=$G$3+2"; // Pax + Guia + Chofer
-    // Condición especial del script python: si es City Tour Y Tiwanaku, la cantidad se duplica.
-    // "contiene_city_tour" es la keyword general "City Tour", "contiene_tiwa" ya está definida.
+  if (contiene_aguas_ct_city_tour) { 
+    let cantidadFormulaAguas = "=$G$3+2"; 
     if (contiene_city_tour_general && contiene_tiwa) {
         cantidadFormulaAguas = "=($G$3+2)*2";
     }
     expenseItems.push({
-        date: "", // Fecha vacía para AGUAS
+        date: "", 
         quantity: cantidadFormulaAguas,
         detail: "AGUAS",
         unitPrice: 6.00,
@@ -277,6 +270,8 @@ export default function GeneratorPage() {
 
   const [isResultsDialogOpen, setIsResultsDialogOpen] = useState(false);
   const [currentReportInDialog, setCurrentReportInDialog] = useState<GeneratedReportInfo | null>(null);
+  const [isDownloadingReportId, setIsDownloadingReportId] = useState<string | null>(null);
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -287,71 +282,81 @@ export default function GeneratorPage() {
   });
 
   useEffect(() => {
+    // This effect now ONLY clears states if no file is selected (e.g., after 'handleClearFile')
     if (!selectedFile) {
       setExcelData(null);
       setFoundCellValue(null);
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
       setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
-      form.reset({ fileNumber: "", guideName: "" });
-      setGeneratedReports([]); 
+      form.reset({ fileNumber: "", guideName: "" }); // Clear form fields
+      setGeneratedReports([]); // Clear reports
     }
   }, [selectedFile, form]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files && event.target.files[0];
-
-    // Limpiar estados antes de cargar un nuevo archivo
+    // Clear previous file selection and related states FIRST
     if (fileInputRef.current) {
-        fileInputRef.current.value = ""; 
+      fileInputRef.current.value = ""; // Clear the native file input
     }
-    setSelectedFile(null); 
-    // El useEffect de arriba se encargará de limpiar el resto.
+    setSelectedFile(null); // This will trigger the useEffect above to clear other states
+    setIsFileMissingError(false);
+    
+    // Wait for states to clear via useEffect, then process new file
+    // Using a microtask to allow state updates from useEffect to process
+    Promise.resolve().then(() => {
+      const file = event.target.files && event.target.files[0];
+      if (file) {
+        setSelectedFile(file); // Set the new file
+        setIsFileMissingError(false); // Ensure this is false for the new file
 
-    if (file) {
-      setSelectedFile(file); 
-      setIsFileMissingError(false);
+        toast({
+          title: "Archivo Seleccionado",
+          description: file.name,
+          variant: "default",
+        });
 
-      toast({
-        title: "Archivo Seleccionado",
-        description: file.name,
-        variant: "default",
-      });
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const arrayBuffer = e.target?.result;
+            if (!arrayBuffer) throw new Error("Error al leer el archivo.");
+            const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
+            setExcelData(data);
+            // Do NOT reset form fields here, user might be typing
+            setFileSearchStatus("idle"); // Reset search status for new file
+            setFoundCellValue(null);
+            setCurrentPaxCount(null);
+            setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const arrayBuffer = e.target?.result;
-          if (!arrayBuffer) throw new Error("Error al leer el archivo.");
-          const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true }); // cellDates: true
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
-          setExcelData(data);
-        } catch (error) {
-          console.error("Error al procesar el archivo Excel:", error);
-          toast({
-            title: "Error de Procesamiento",
-            description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
-            variant: "destructive",
-          });
+          } catch (error) {
+            console.error("Error al procesar el archivo Excel:", error);
+            toast({
+              title: "Error de Procesamiento",
+              description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
+              variant: "destructive",
+            });
+            handleClearFile(); // Clear everything if processing fails
+          }
+        };
+        reader.onerror = (e) => {
+          console.error("Error al leer el archivo:", e);
+          toast({ title: "Error de Lectura", description: "Hubo un problema al leer el archivo.", variant: "destructive" });
           handleClearFile(); 
-        }
-      };
-      reader.onerror = (e) => {
-        console.error("Error al leer el archivo:", e);
-        toast({ title: "Error de Lectura", description: "Hubo un problema al leer el archivo.", variant: "destructive" });
-        handleClearFile(); 
-      };
-      reader.readAsArrayBuffer(file);
-    }
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    });
   };
 
   const handleClearFile = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = ""; 
     }
-    setSelectedFile(null); 
+    setSelectedFile(null); // This will trigger the useEffect to clear everything
     setIsFileMissingError(false); 
     
     toast({
@@ -395,6 +400,8 @@ export default function GeneratorPage() {
     setCurrentPaxCount(null);
     setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
     
+    await new Promise(resolve => setTimeout(resolve, 300)); 
+
     let found = false;
     let colIdx = -1;
     let rowIdxWhereFileNumberFound = -1; 
@@ -404,7 +411,7 @@ export default function GeneratorPage() {
       for (let j = 0; j < numCols; j++) { 
         for (let i = 0; i < excelData.length; i++) { 
           if (excelData[i] && excelData[i][j] !== undefined && excelData[i][j] !== null) {
-             if (String(excelData[i][j]).trim() === fileNumberToSearch.trim()) {
+             if (String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch.trim().toUpperCase()) {
               colIdx = j;
               rowIdxWhereFileNumberFound = i; 
               found = true;
@@ -419,15 +426,12 @@ export default function GeneratorPage() {
     if (found && colIdx !== -1 && rowIdxWhereFileNumberFound !== -1) {
       setFileDataProps({ fileIdRowIndex: rowIdxWhereFileNumberFound, columnIndex: colIdx });
       
-      const groupName = (excelData[rowIdxWhereFileNumberFound + 1]?.[colIdx] !== undefined) 
-                        ? String(excelData[rowIdxWhereFileNumberFound + 1][colIdx]).trim() 
-                        : "No se encontró nombre de grupo.";
+      const groupNameRaw = excelData[rowIdxWhereFileNumberFound + 1]?.[colIdx];
+      const groupName = groupNameRaw !== undefined ? String(groupNameRaw).trim() : "No encontrado";
       setFoundCellValue(groupName);
-
-      // PAX se espera en la fila FilaFileID + 4 (índice original 4 si FileID es 0)
-      const pax = (excelData[rowIdxWhereFileNumberFound + 4]?.[colIdx] !== undefined) 
-                  ? String(excelData[rowIdxWhereFileNumberFound + 4][colIdx]).trim() 
-                  : "N/A";
+      
+      const paxRaw = excelData[rowIdxWhereFileNumberFound + 4]?.[colIdx];
+      const pax = paxRaw !== undefined ? String(paxRaw).trim() : "N/A";
       setCurrentPaxCount(pax);
 
       setFileSearchStatus("found");
@@ -510,7 +514,7 @@ export default function GeneratorPage() {
     setFileSearchStatus("idle"); 
     setFoundCellValue(null);
     setCurrentPaxCount(null);
-    setFileDataProps({ fileIdRowIndex: null, columnIndex: null }); // Limpiar fileDataProps
+    setFileDataProps({ fileIdRowIndex: null, columnIndex: null }); 
     
     toast({
       title: "Reporte Añadido",
@@ -532,6 +536,33 @@ export default function GeneratorPage() {
       variant: "default",
     });
   };
+
+  const handleDirectDownloadReport = async (reportToDownload: GeneratedReportInfo) => {
+    if (!reportToDownload || reportToDownload.expenseItems.length === 0) {
+      toast({
+        title: "No hay datos",
+        description: "No hay gastos para exportar en este reporte.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsDownloadingReportId(reportToDownload.id);
+    // Short delay for UI to update, actual download is synchronous
+    await new Promise(resolve => setTimeout(resolve, 100)); 
+
+    try {
+        downloadReportAsExcel(reportToDownload);
+        toast({
+            title: "Descarga Iniciada",
+            description: `El archivo para ${reportToDownload.fileNumber} ha comenzado a descargarse.`,
+        });
+    } catch (error) {
+        console.error("Error descargando Excel:", error);
+        toast({ title: "Error de Descarga", description: "No se pudo generar el archivo Excel.", variant: "destructive" });
+    }
+    setIsDownloadingReportId(null);
+  };
+
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
@@ -632,7 +663,7 @@ export default function GeneratorPage() {
                       {fileSearchStatus === "found" && foundCellValue && (
                         <div className="mt-2 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm">
                           <CheckCircle2 className="inline-block mr-2 h-4 w-4 align-middle text-green-700 dark:text-green-300" />
-                          Nombre de file: <strong>{foundCellValue}</strong>
+                           Nombre de file: <strong>{foundCellValue}</strong>
                         </div>
                       )}
                       {fileSearchStatus === "not_found" && (
@@ -681,7 +712,7 @@ export default function GeneratorPage() {
       </Card>
 
       {generatedReports.length > 0 && (
-        <Card className="w-full shadow-lg mt-8"> 
+        <Card className="w-full shadow-lg mt-8 max-w-3xl"> 
           <CardHeader>
             <CardTitle className="text-xl font-headline text-center text-primary">Reportes Generados</CardTitle>
           </CardHeader>
@@ -720,22 +751,17 @@ export default function GeneratorPage() {
                       <Button 
                         variant="default" 
                         size="default"
-                        onClick={() => {
-                            if (currentReportInDialog && currentReportInDialog.id === report.id) {
-                                // Si el diálogo está abierto para este reporte, intentar descargar desde ahí
-                                // Esto es un placeholder, la descarga real está en el diálogo
-                               const dialogDownloadButton = document.getElementById('dialog-download-excel');
-                               if(dialogDownloadButton) dialogDownloadButton.click();
-                               else toast({ title: "Próximamente", description: "Abre el reporte para descargar.", variant: "default" });
-                            } else {
-                                // Si no, mostrar "Próximamente" o manejar descarga directa si se implementa aquí
-                                toast({ title: "Próximamente", description: "Abre el reporte para descargar o la descarga directa estará disponible pronto.", variant: "default" });
-                            }
-                        }}
-                        title="Descargar" 
+                        onClick={() => handleDirectDownloadReport(report)}
+                        disabled={isDownloadingReportId === report.id}
+                        title="Descargar Excel" 
                         className="bg-green-600 text-white hover:bg-green-700 focus-visible:ring-green-500"
                       >
-                        <FileDown className="mr-2 h-4 w-4" /> Descargar
+                        {isDownloadingReportId === report.id ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <FileDown className="mr-2 h-4 w-4" />
+                        )}
+                         Descargar
                       </Button>
                       <Button variant="destructive" size="icon" onClick={() => handleDeleteReport(report.id)} title="Eliminar">
                         <Trash2 className="h-4 w-4" />

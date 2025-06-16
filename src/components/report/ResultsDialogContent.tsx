@@ -17,25 +17,28 @@ import { useToast } from "@/hooks/use-toast";
 import type { GeneratedReportInfo, ExpenseItem } from "@/app/generator/page"; 
 import { format } from 'date-fns';
 import { cn } from "@/lib/utils";
+import { downloadReportAsExcel } from '@/lib/excel-export';
 
-// Helper function to resolve quantity strings like "=$G$3+1" or "17"
 // Copied from generator/page.tsx to be used locally
 function resolveQuantity(quantityStr: string, paxNumber: number): number {
+  if (paxNumber === 0 && quantityStr.toUpperCase().includes("G3")) return 0; // Avoid division by zero or NaN if pax is 0 and formula uses it
   if (!isNaN(Number(quantityStr))) {
     return Number(quantityStr);
   }
 
   const cleanedQuantity = quantityStr.toUpperCase().replace(/\s/g, '');
+  // Ensure G3 is not part of another word like GUIDE
   const formulaWithPax = cleanedQuantity.replace(/(?<![A-Z])G3(?![0-9A-Z])|\$G\$3/g, String(paxNumber));
+
 
   if (formulaWithPax.startsWith('=')) {
     try {
       const expression = formulaWithPax.substring(1);
       if (/^[\d\s()+\-*/.]+$/.test(expression)) {
-        // Ensure the expression is safe to evaluate
         // This basic regex allows numbers, operators, parentheses, and decimal points.
         // For more complex scenarios, a more robust parsing/evaluation library would be needed.
-        return new Function(`return ${expression}`)() as number;
+        const result = new Function(`return ${expression}`)() as number;
+        return isNaN(result) ? 1 : result; // Fallback if evaluated result is NaN
       } else {
         console.warn(`Fórmula de cantidad no segura o no válida: ${expression} (original: ${quantityStr})`);
         return 1; // Fallback
@@ -70,57 +73,32 @@ export function ResultsDialogContent({ report, onClose }: ResultsDialogContentPr
   const paxCountNumber = parseInt(report.paxCount, 10) || 0;
 
   const handleDownloadExcel = async () => {
+    if (!report || expenseDataToDisplay.length === 0) {
+      toast({
+        title: "No hay datos",
+        description: "No hay gastos para exportar en este reporte.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsDownloadingExcel(true);
-    await new Promise(resolve => setTimeout(resolve, 1000)); 
-
-    let startDateForFileName = report.startDate; 
+    // Short delay for UI to update, actual download is synchronous
+    await new Promise(resolve => setTimeout(resolve, 100)); 
+  
     try {
-        const [d, m, y] = report.startDate.split('/');
-        startDateForFileName = `${d}.${m}.${y.length === 2 ? '20'+y : y}`; 
-    } catch (e) {
-        console.error("Error formateando startDate para nombre de archivo", e);
-        startDateForFileName = generationReportDateFormatted;
+      downloadReportAsExcel(report);
+      toast({
+        title: "Descarga Iniciada",
+        description: `El archivo para ${report.fileNumber} ha comenzado a descargarse.`,
+      });
+    } catch (error) {
+      console.error("Error descargando Excel:", error);
+      toast({
+        title: "Error de Descarga",
+        description: "No se pudo generar el archivo Excel.",
+        variant: "destructive",
+      });
     }
-
-    const excelHeader = [
-      ["CAJA CHICA GUIA"],
-      ["FILE:", report.fileNumber, "", "NOMBRE GUIA:", report.guideName.toUpperCase()],
-      ["NOMBRE Y Nº DE PAX:", report.groupName, "", "", "Nº", report.paxCount],
-      ["FECHA", "CANT", "DETALLE DEL GASTO", "PREC. UNIT Bs.", "TOTAL Bs.", "VoB OPS"] 
-    ];
-
-    const excelBody = expenseDataToDisplay.map(item =>
-      [item.date, item.quantity, item.detail, item.unitPrice.toFixed(2), item.total.toFixed(2), item.vobOps || ""]
-    );
-
-    const excelFooter = [
-      ["", "", "GASTO TOTAL", "", grandTotal.toFixed(2)]
-    ];
-
-    let csvContent = excelHeader.map(row => row.join(",")).join("\\n");
-    csvContent += "\\n" + excelBody.map(row => row.join(",")).join("\\n");
-    csvContent += "\\n" + excelFooter.map(row => row.join(",")).join("\\n");
-    
-    const fileName = `G.O. ${startDateForFileName} - ${report.groupName.replace(/[/\s()]/g, '_')} - ${report.guideName.toUpperCase().replace(/\s/g, '_')} - ${report.fileNumber}.csv`;
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    
-    const link = document.createElement("a");
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      link.setAttribute("download", fileName);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }
-
-    toast({
-      title: "Descarga Iniciada",
-      description: `Descargando ${fileName}`,
-    });
     setIsDownloadingExcel(false);
   };
 
@@ -204,7 +182,7 @@ export function ResultsDialogContent({ report, onClose }: ResultsDialogContentPr
           className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
         >
           {isDownloadingExcel ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
-          Descargar Excel (.csv)
+          Descargar Excel
         </Button>
         <DialogClose asChild>
           <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cerrar</Button>
@@ -213,4 +191,3 @@ export function ResultsDialogContent({ report, onClose }: ResultsDialogContentPr
     </DialogContent>
   );
 }
-
