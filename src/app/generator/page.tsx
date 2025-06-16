@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import * as XLSX from 'xlsx'; 
+import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 
 import { Button } from "@/components/ui/button";
@@ -39,25 +39,25 @@ type FileSearchStatus = "idle" | "searching" | "found" | "not_found" | "error";
 
 export interface ExpenseItem {
   date: string;
-  quantity: string; 
+  quantity: string;
   detail: string;
   unitPrice: number;
-  total: number; 
+  total: number;
   vobOps?: string;
 }
 
 export interface GeneratedReportInfo {
   id: string;
   fileNumber: string;
-  guideName: string; 
+  guideName: string;
   originalProgramFileName: string;
-  groupName: string; 
+  groupName: string;
   paxCount: string;
   generationDate: Date;
   occurrenceCount: number;
   isDuplicateInstance: boolean;
   expenseItems: ExpenseItem[];
-  startDate: string; 
+  startDate: string;
 }
 
 interface FileDataProps {
@@ -83,15 +83,15 @@ function resolveQuantity(quantityStr: string, paxNumber: number): number {
         return isNaN(result) ? 1 : result;
       } else {
         console.warn(`Fórmula de cantidad no segura o no válida: ${expression} (original: ${quantityStr})`);
-        return 1; 
+        return 1;
       }
     } catch (e) {
       console.error(`Error evaluando cantidad "${quantityStr}" con expresión "${formulaWithPax.substring(1)}":`, e);
-      return 1; 
+      return 1;
     }
   }
   console.warn(`Cantidad no reconocida: ${quantityStr}`);
-  return 1; 
+  return 1;
 }
 
 
@@ -101,7 +101,7 @@ function generateExpenseDetails(
   paxCountString: string,
   groupName: string
 ): { expenses: ExpenseItem[], tourStartDate: string } {
-  
+
   const expenseItems: ExpenseItem[] = [];
   if (!excelData || fileData.columnIndex === null || fileData.fileIdRowIndex === null) {
     return { expenses: [], tourStartDate: "N/A" };
@@ -119,11 +119,11 @@ function generateExpenseDetails(
   const guia = 1;
 
   let tourStartDate = "N/A";
-  const fechaInicioRaw = excelData[fileIdRowIndex + 3]?.[columnIndex]; // Ajuste: Python usa iloc[3] que es la 4ta fila, si FileID es fila 0, entonces 0+3=3.
-  
+  const fechaInicioRaw = excelData[fileIdRowIndex + 3]?.[columnIndex];
+
   if (fechaInicioRaw instanceof Date) {
     tourStartDate = format(fechaInicioRaw, 'dd/MM/yy');
-  } else if (typeof fechaInicioRaw === 'number') { 
+  } else if (typeof fechaInicioRaw === 'number') {
      const dateObj = XLSX.SSF.parse_date_code(fechaInicioRaw);
      if (dateObj) {
         tourStartDate = format(new Date(dateObj.y, dateObj.m - 1, dateObj.d, dateObj.H || 0, dateObj.M || 0, dateObj.S || 0), 'dd/MM/yy');
@@ -132,7 +132,7 @@ function generateExpenseDetails(
      }
   } else if (typeof fechaInicioRaw === 'string') {
     try {
-        const parsedDate = new Date(fechaInicioRaw); 
+        const parsedDate = new Date(fechaInicioRaw);
         if (!isNaN(parsedDate.valueOf())) {
             tourStartDate = format(parsedDate, 'dd/MM/yy');
         } else {
@@ -155,11 +155,11 @@ function generateExpenseDetails(
   const contiene_tiwa = contiene("Tiwanaku");
   const contiene_teleferico = contiene("Cable Car") || contiene("teleferico");
   const contiene_valle = contiene("Moon Valley") || contiene("valle de la luna");
-  const contiene_city_continuado_am = contiene("AM"); // Indica almuerzo guía en city tour continuado
+  const contiene_city_continuado_am = contiene("AM");
   const contiene_kasani = contiene("Kasani/Puno");
   const contiene_trf_out = contiene("CT-Private transfer from hotel to airport");
-  const contiene_aguas_ct_city_tour = contiene("CT-City Tour"); 
-  const contiene_city_tour_general = contiene("City Tour"); 
+  const contiene_aguas_ct_city_tour = contiene("CT-City Tour");
+  const contiene_city_tour_general = contiene("City Tour");
 
   if (contiene_desaguadero) {
     const quantityStr = "=$G$3";
@@ -177,7 +177,7 @@ function generateExpenseDetails(
 
   if (contiene_isla) {
     const itemsIsla = [
-      { quantityStr: String(guia), detail: "TAXI DOM - HOTEL", unitPrice: 30.00 }, 
+      { quantityStr: String(guia), detail: "TAXI DOM - HOTEL", unitPrice: 30.00 },
       { quantityStr: "=$G$3", detail: "ISLA DEL SOL", unitPrice: 10.00 },
       { quantityStr: "=$G$3", detail: "ISLA DE LA LUNA", unitPrice: 10.00 },
     ];
@@ -207,8 +207,8 @@ function generateExpenseDetails(
     const quantityStr = "=$G$3";
     expenseItems.push({ date: tourStartDate, quantity: quantityStr, detail: "VALLE", unitPrice: 20.00, total: resolveQuantity(quantityStr, paxNum) * 20.00 });
   }
-  
-  if (contiene_city_continuado_am && contiene_city_tour_general) { 
+
+  if (contiene_city_continuado_am && contiene_city_tour_general) {
     const quantityStr = String(guia);
     expenseItems.push({ date: tourStartDate, quantity: quantityStr, detail: "ALMUERZO GUIA", unitPrice: 35.00, total: resolveQuantity(quantityStr, paxNum) * 35.00 });
   }
@@ -226,25 +226,25 @@ function generateExpenseDetails(
     const itemsTrfOut = [
       { quantityStr: String(guia), detail: "TAXI DOM - HOTEL", unitPrice: 30.00 },
       { quantityStr: "=$G$3", detail: "MALETAS AEROPUERTO", unitPrice: 3.00 },
-      { quantityStr: String(guia), detail: "TAXI CENTRO - DOM", unitPrice: 30.00 }, 
+      { quantityStr: String(guia), detail: "TAXI CENTRO - DOM", unitPrice: 30.00 },
     ];
     itemsTrfOut.forEach(item => expenseItems.push({ date: tourStartDate, quantity: item.quantityStr, detail: item.detail, unitPrice: item.unitPrice, total: resolveQuantity(item.quantityStr, paxNum) * item.unitPrice }));
   }
-  
-  if (contiene_aguas_ct_city_tour) { 
-    let cantidadFormulaAguas = "=$G$3+2"; 
+
+  if (contiene_aguas_ct_city_tour) {
+    let cantidadFormulaAguas = "=$G$3+2";
     if (contiene_city_tour_general && contiene_tiwa) {
         cantidadFormulaAguas = "=($G$3+2)*2";
     }
     expenseItems.push({
-        date: "", 
+        date: "",
         quantity: cantidadFormulaAguas,
         detail: "AGUAS",
         unitPrice: 6.00,
         total: resolveQuantity(cantidadFormulaAguas, paxNum) * 6.00
     });
   }
-  
+
   return { expenses: expenseItems, tourStartDate };
 }
 
@@ -252,19 +252,19 @@ function generateExpenseDetails(
 export default function GeneratorPage() {
   const { toast } = useToast();
   const router = useRouter();
-  
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [excelData, setExcelData] = useState<any[][] | null>(null); 
+  const [excelData, setExcelData] = useState<any[][] | null>(null);
   const [fileDataProps, setFileDataProps] = useState<FileDataProps>({ fileIdRowIndex: null, columnIndex: null });
 
-  const [foundCellValue, setFoundCellValue] = useState<string | null>(null); 
+  const [foundCellValue, setFoundCellValue] = useState<string | null>(null);
   const [currentPaxCount, setCurrentPaxCount] = useState<string | null>(null);
 
-  const [isFileMissingError, setIsFileMissingError] = useState(false); 
+  const [isFileMissingError, setIsFileMissingError] = useState(false);
   const [isProcessingSearch, setIsProcessingSearch] = useState(false);
   const [isProcessingGeneration, setIsProcessingGeneration] = useState(false);
   const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
-  
+
   const [generatedReports, setGeneratedReports] = useState<GeneratedReportInfo[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -281,35 +281,29 @@ export default function GeneratorPage() {
     },
   });
 
+  // useEffect for cleanup when selectedFile becomes null
   useEffect(() => {
-    // This effect now ONLY clears states if no file is selected (e.g., after 'handleClearFile')
     if (!selectedFile) {
       setExcelData(null);
       setFoundCellValue(null);
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
       setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
-      form.reset({ fileNumber: "", guideName: "" }); // Clear form fields
-      setGeneratedReports([]); // Clear reports
+      form.reset({ fileNumber: "", guideName: "" });
+      setGeneratedReports([]); 
     }
   }, [selectedFile, form]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    // Clear previous file selection and related states FIRST
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Clear the native file input
-    }
-    setSelectedFile(null); // This will trigger the useEffect above to clear other states
-    setIsFileMissingError(false);
-    
-    // Wait for states to clear via useEffect, then process new file
-    // Using a microtask to allow state updates from useEffect to process
-    Promise.resolve().then(() => {
-      const file = event.target.files && event.target.files[0];
-      if (file) {
-        setSelectedFile(file); // Set the new file
-        setIsFileMissingError(false); // Ensure this is false for the new file
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files && event.target.files[0];
+
+    if (file) {
+      setSelectedFile(null);
+      setIsFileMissingError(false);
+
+      Promise.resolve().then(() => {
+        setSelectedFile(file);
         toast({
           title: "Archivo Seleccionado",
           description: file.name,
@@ -324,14 +318,12 @@ export default function GeneratorPage() {
             const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
-            const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
+            const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: null });
             setExcelData(data);
-            // Do NOT reset form fields here, user might be typing
-            setFileSearchStatus("idle"); // Reset search status for new file
+            setFileSearchStatus("idle");
             setFoundCellValue(null);
             setCurrentPaxCount(null);
             setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
-
           } catch (error) {
             console.error("Error al procesar el archivo Excel:", error);
             toast({
@@ -339,56 +331,61 @@ export default function GeneratorPage() {
               description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
               variant: "destructive",
             });
-            handleClearFile(); // Clear everything if processing fails
+            handleClearFile();
           }
         };
         reader.onerror = (e) => {
           console.error("Error al leer el archivo:", e);
           toast({ title: "Error de Lectura", description: "Hubo un problema al leer el archivo.", variant: "destructive" });
-          handleClearFile(); 
+          handleClearFile();
         };
         reader.readAsArrayBuffer(file);
-      }
-    });
+      });
+    } else {
+      handleClearFile();
+    }
+
+    if (event.target) {
+      event.target.value = ""; // Allow re-selecting the same file
+    }
   };
 
   const handleClearFile = () => {
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; 
+      fileInputRef.current.value = "";
     }
-    setSelectedFile(null); // This will trigger the useEffect to clear everything
-    setIsFileMissingError(false); 
-    
+    setSelectedFile(null); // This triggers the useEffect for comprehensive cleanup
+    setIsFileMissingError(false);
     toast({
       title: "Archivo Limpiado",
       description: "Se ha quitado el archivo de programa seleccionado.",
       variant: "default",
     });
   };
-  
+
   const getFileNumberInputClasses = (): string => {
-    let baseClasses = "bg-muted"; 
+    let baseClasses = "bg-muted";
     if (fileSearchStatus === "found") {
       baseClasses = "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
-    } else if (fileSearchStatus === "not_found" || (fileSearchStatus === "error" && form.getValues("fileNumber"))) { 
+    } else if (fileSearchStatus === "not_found" || (fileSearchStatus === "error" && form.getValues("fileNumber"))) {
       baseClasses = "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
     }
     return baseClasses;
   };
-  
+
 
   const handleSearchFile = async () => {
     const fileNumberToSearch = form.getValues("fileNumber");
     if (!selectedFile || !excelData) {
-      setIsFileMissingError(true); 
+      setIsFileMissingError(true);
       setFileSearchStatus("error");
       toast({ title: "Error de Búsqueda", description: "Sube y procesa un archivo de programa primero.", variant: "destructive" });
       return;
     }
-    setIsFileMissingError(false); 
+    setIsFileMissingError(false);
 
     if (!fileNumberToSearch) {
-      setFileSearchStatus("error"); 
+      setFileSearchStatus("error");
       form.setError("fileNumber", { type: "manual", message: "Ingresa un número de file para buscar."});
       toast({ title: "Error de Búsqueda", description: "Ingresa un número de file para buscar.", variant: "destructive" });
       return;
@@ -399,37 +396,37 @@ export default function GeneratorPage() {
     setFoundCellValue(null);
     setCurrentPaxCount(null);
     setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
-    
-    await new Promise(resolve => setTimeout(resolve, 300)); 
+
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     let found = false;
     let colIdx = -1;
-    let rowIdxWhereFileNumberFound = -1; 
+    let rowIdxWhereFileNumberFound = -1;
 
     if (excelData && excelData.length > 0) {
       const numCols = excelData.reduce((max, row) => Math.max(max, row.length), 0);
-      for (let j = 0; j < numCols; j++) { 
-        for (let i = 0; i < excelData.length; i++) { 
+      for (let j = 0; j < numCols; j++) {
+        for (let i = 0; i < excelData.length; i++) {
           if (excelData[i] && excelData[i][j] !== undefined && excelData[i][j] !== null) {
              if (String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch.trim().toUpperCase()) {
               colIdx = j;
-              rowIdxWhereFileNumberFound = i; 
+              rowIdxWhereFileNumberFound = i;
               found = true;
-              break; 
+              break;
             }
           }
         }
-        if (found) break; 
+        if (found) break;
       }
     }
 
     if (found && colIdx !== -1 && rowIdxWhereFileNumberFound !== -1) {
       setFileDataProps({ fileIdRowIndex: rowIdxWhereFileNumberFound, columnIndex: colIdx });
-      
+
       const groupNameRaw = excelData[rowIdxWhereFileNumberFound + 1]?.[colIdx];
       const groupName = groupNameRaw !== undefined ? String(groupNameRaw).trim() : "No encontrado";
       setFoundCellValue(groupName);
-      
+
       const paxRaw = excelData[rowIdxWhereFileNumberFound + 4]?.[colIdx];
       const pax = paxRaw !== undefined ? String(paxRaw).trim() : "N/A";
       setCurrentPaxCount(pax);
@@ -447,7 +444,7 @@ export default function GeneratorPage() {
     }
     setIsProcessingSearch(false);
   };
-  
+
   async function onSubmit(values: FormValues) {
     if (!selectedFile || !excelData) {
       setIsFileMissingError(true);
@@ -457,10 +454,10 @@ export default function GeneratorPage() {
     setIsFileMissingError(false);
 
     if (fileSearchStatus !== "found" || !foundCellValue || !currentPaxCount || fileDataProps.fileIdRowIndex === null || fileDataProps.columnIndex === null) {
-       toast({ title: "Error", description: "Busca y confirma el file antes de generar. Asegúrate que se extrajo el nombre y PAX.", variant: "destructive" });
+       toast({ title: "Error", description: "Busca y confirma el file antes de generar. Asegúrate que se extrajo el nombre.", variant: "destructive" });
       return;
     }
-    
+
     if (currentPaxCount === "N/A" || isNaN(parseInt(currentPaxCount, 10))) {
         toast({ title: "Error de Datos", description: "El número de PAX no es válido. Verifica el archivo Excel.", variant: "destructive" });
         return;
@@ -468,7 +465,7 @@ export default function GeneratorPage() {
 
 
     setIsProcessingGeneration(true);
-    await new Promise(resolve => setTimeout(resolve, 300)); 
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     const { expenses, tourStartDate } = generateExpenseDetails(
       excelData,
@@ -477,7 +474,7 @@ export default function GeneratorPage() {
       foundCellValue
     );
 
-    if (tourStartDate === "N/A" && expenses.length === 0) {
+    if (tourStartDate === "N/A" && expenses.length === 0 && !excelData.some(row => row.some(cell => String(cell).toLowerCase().includes("ct-city tour")))) { // Allow empty expenses if it's not a specific type of tour needing them
          toast({ title: "Error de Generación", description: "No se pudo determinar la fecha de inicio o no se generaron gastos. Verifica el archivo Excel.", variant: "destructive" });
          setIsProcessingGeneration(false);
          return;
@@ -485,21 +482,21 @@ export default function GeneratorPage() {
 
 
     const currentInputFileNumber = values.fileNumber;
-    const currentInputGuideName = values.guideName.toUpperCase(); 
+    const currentInputGuideName = values.guideName.toUpperCase();
 
     const existingOccurrences = generatedReports.filter(
       report => report.fileNumber === currentInputFileNumber && report.guideName.toUpperCase() === currentInputGuideName
     ).length;
-    
+
     const occurrenceCount = existingOccurrences + 1;
-    const isDuplicateInstance = occurrenceCount > 1; 
+    const isDuplicateInstance = occurrenceCount > 1;
 
     const newReport: GeneratedReportInfo = {
-      id: new Date().toISOString() + Math.random().toString(36).substring(2, 9), 
+      id: new Date().toISOString() + Math.random().toString(36).substring(2, 9),
       fileNumber: currentInputFileNumber,
-      guideName: currentInputGuideName, 
+      guideName: currentInputGuideName,
       originalProgramFileName: selectedFile.name,
-      groupName: foundCellValue, 
+      groupName: foundCellValue,
       paxCount: currentPaxCount,
       generationDate: new Date(),
       occurrenceCount: occurrenceCount,
@@ -509,13 +506,13 @@ export default function GeneratorPage() {
     };
 
     setGeneratedReports(prev => [...prev, newReport]);
-    
-    form.reset({ fileNumber: "", guideName: "" }); 
-    setFileSearchStatus("idle"); 
+
+    form.reset({ fileNumber: "", guideName: "" });
+    setFileSearchStatus("idle");
     setFoundCellValue(null);
     setCurrentPaxCount(null);
-    setFileDataProps({ fileIdRowIndex: null, columnIndex: null }); 
-    
+    setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
+
     toast({
       title: "Reporte Añadido",
       description: `Se añadió el reporte para el file ${newReport.fileNumber} a la lista.`,
@@ -539,16 +536,18 @@ export default function GeneratorPage() {
 
   const handleDirectDownloadReport = async (reportToDownload: GeneratedReportInfo) => {
     if (!reportToDownload || reportToDownload.expenseItems.length === 0) {
-      toast({
-        title: "No hay datos",
-        description: "No hay gastos para exportar en este reporte.",
-        variant: "destructive",
-      });
-      return;
+      // Allow download even if expenses are empty, as header info might still be useful.
+      // But, warn if the file is truly minimal.
+      if (reportToDownload.startDate === "N/A" && reportToDownload.paxCount === "N/A") {
+        toast({
+            title: "Datos mínimos",
+            description: "El reporte tiene información muy limitada. Se procederá con la descarga.",
+            variant: "default", 
+        });
+      }
     }
     setIsDownloadingReportId(reportToDownload.id);
-    // Short delay for UI to update, actual download is synchronous
-    await new Promise(resolve => setTimeout(resolve, 100)); 
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
         downloadReportAsExcel(reportToDownload);
@@ -566,12 +565,12 @@ export default function GeneratorPage() {
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
-      <div className="w-full max-w-3xl mb-4"> 
+      <div className="w-full max-w-3xl mb-4">
         <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back" className="hover:bg-primary/90">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
-      <Card className="w-full max-w-3xl shadow-lg"> 
+      <Card className="w-full max-w-3xl shadow-lg">
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center text-primary">Generador de Cajas Chicas (La Paz)</CardTitle>
           <CardDescription className="text-center">
@@ -579,7 +578,7 @@ export default function GeneratorPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}> 
+          <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormItem>
                 <FormLabel>1. Archivo de Programa Mensual</FormLabel>
@@ -590,9 +589,9 @@ export default function GeneratorPage() {
                     onClick={() => fileInputRef.current?.click()}
                     className={cn(
                       "flex-grow justify-start text-left font-normal",
-                      selectedFile 
-                        ? "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200" 
-                        : "bg-muted", 
+                      selectedFile
+                        ? "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200"
+                        : "bg-muted",
                       isFileMissingError && !selectedFile ? "border-destructive" : ""
                     )}
                   >
@@ -623,7 +622,7 @@ export default function GeneratorPage() {
                 )}
               </FormItem>
 
-              <div className="space-y-6"> 
+              <div className="space-y-6">
                 <FormField
                   control={form.control}
                   name="fileNumber"
@@ -632,26 +631,26 @@ export default function GeneratorPage() {
                       <FormLabel>2. Número de File (ej: CTFI107098)</FormLabel>
                       <div className="flex items-center gap-2">
                         <FormControl>
-                          <Input 
-                            placeholder="Ingresa número de file" 
+                          <Input
+                            placeholder="Ingresa número de file"
                             {...field}
                             className={getFileNumberInputClasses()}
                             onChange={(e) => {
                               field.onChange(e);
                               if (fileSearchStatus !== "idle" && fileSearchStatus !== "searching") {
                                 setFileSearchStatus("idle");
-                                setFoundCellValue(null); 
+                                setFoundCellValue(null);
                                 setCurrentPaxCount(null);
                                 setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
                               }
                             }}
                           />
                         </FormControl>
-                        <Button 
-                          type="button" 
-                          onClick={handleSearchFile} 
-                          variant="default" 
-                          size="icon" 
+                        <Button
+                          type="button"
+                          onClick={handleSearchFile}
+                          variant="default"
+                          size="icon"
                           disabled={!selectedFile || !field.value || isProcessingSearch}
                           aria-label="Buscar File"
                           className="bg-primary text-primary-foreground hover:bg-primary/90"
@@ -671,7 +670,7 @@ export default function GeneratorPage() {
                           <XCircle className="mr-1 h-4 w-4" /> File no encontrado.
                         </div>
                       )}
-                       {fileSearchStatus === "error" && !isFileMissingError && form.getValues("fileNumber") && ( 
+                       {fileSearchStatus === "error" && !isFileMissingError && form.getValues("fileNumber") && (
                         <div className="flex items-center text-sm text-destructive mt-1">
                           <XCircle className="mr-1 h-4 w-4" /> Error en la búsqueda.
                         </div>
@@ -694,15 +693,15 @@ export default function GeneratorPage() {
                   )}
                 />
 
-                <Button 
+                <Button
                   type="submit"
-                  className="w-full" 
+                  className="w-full"
                   disabled={isProcessingGeneration || !selectedFile || fileSearchStatus !== 'found' || !form.formState.isValid || !currentPaxCount || currentPaxCount === "N/A"}
                 >
                   {isProcessingGeneration ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generando...</>
                   ) : (
-                    "Generar" 
+                    "Generar"
                   )}
                 </Button>
               </div>
@@ -712,7 +711,7 @@ export default function GeneratorPage() {
       </Card>
 
       {generatedReports.length > 0 && (
-        <Card className="w-full shadow-lg mt-8 max-w-3xl"> 
+        <Card className="w-full shadow-lg mt-8 max-w-3xl">
           <CardHeader>
             <CardTitle className="text-xl font-headline text-center text-primary">Reportes Generados</CardTitle>
           </CardHeader>
@@ -729,11 +728,11 @@ export default function GeneratorPage() {
               </TableHeader>
               <TableBody>
                 {generatedReports.map((report, index) => (
-                  <TableRow 
+                  <TableRow
                     key={report.id}
                     className={cn(
-                      report.isDuplicateInstance 
-                        ? "bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800" 
+                      report.isDuplicateInstance
+                        ? "bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800"
                         : "hover:bg-muted/50"
                     )}
                   >
@@ -748,12 +747,12 @@ export default function GeneratorPage() {
                       <Button variant="default" size="icon" onClick={() => handleViewReport(report)} title="Visualizar" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="default" 
+                      <Button
+                        variant="default"
                         size="default"
                         onClick={() => handleDirectDownloadReport(report)}
                         disabled={isDownloadingReportId === report.id}
-                        title="Descargar Excel" 
+                        title="Descargar Excel"
                         className="bg-green-600 text-white hover:bg-green-700 focus-visible:ring-green-500"
                       >
                         {isDownloadingReportId === report.id ? (
@@ -779,10 +778,11 @@ export default function GeneratorPage() {
         <Dialog open={isResultsDialogOpen} onOpenChange={setIsResultsDialogOpen}>
           <ResultsDialogContent
             report={currentReportInDialog}
-            onClose={() => setIsResultsDialogOpen(false)} 
+            onClose={() => setIsResultsDialogOpen(false)}
           />
         </Dialog>
       )}
     </div>
   );
 }
+
