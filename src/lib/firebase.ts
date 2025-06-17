@@ -42,6 +42,25 @@ if (missingKeys.length > 0) {
     try {
       db = getFirestore(app);
       console.log("Firestore instance obtained successfully.");
+      // --- IMPORTANT ---
+      // If you see "Missing or insufficient permissions" errors in your app,
+      // it's very likely due to your Firestore Security Rules.
+      // You need to configure them in the Firebase Console:
+      // Firestore Database > Rules tab.
+      // For development, you might use open rules like:
+      //
+      // rules_version = '2';
+      // service cloud.firestore {
+      //   match /databases/{database}/documents {
+      //     match /{document=**} { // Or be more specific, e.g., match /users/{userId}
+      //       allow read, write: if true;
+      //     }
+      //   }
+      // }
+      //
+      // WARNING: Such open rules are insecure for production.
+      // Define proper security rules before deploying your app.
+      // --- END IMPORTANT ---
     } catch (error: any) {
       console.error("Firestore instance initialization error:", error.message, error.code);
       // db will remain undefined if Firestore initialization fails
