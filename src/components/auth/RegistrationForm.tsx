@@ -205,7 +205,7 @@ export default function RegistrationForm() {
             </div>
             {password && (
               <div className="mt-1">
-                 <Progress value={passwordStrength} className={`h-2 [&>div]:${getStrengthColor(passwordStrength)}`} />
+                 <Progress value={passwordStrength} className="h-2" indicatorClassName={getStrengthColor(passwordStrength)} />
                 <p className="text-xs mt-1 text-muted-foreground">
                   Fortaleza: {passwordStrength < 30 ? "Muy débil" : passwordStrength < 60 ? "Débil" : passwordStrength < 85 ? "Buena" : "Fuerte"}
                   {passwordStrength < 50 && " (Mínimo: Buena)"}
