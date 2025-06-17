@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Dialog } from "@/components/ui/dialog";
 import { ResultsDialogContent } from "@/components/report/ResultsDialogContent";
-import { downloadReportAsExcel } from "@/lib/excel-export";
+// import { downloadReportAsExcel } from "@/lib/excel-export"; // Removed
 
 
 const formSchema = z.object({
@@ -39,10 +39,10 @@ type FileSearchStatus = "idle" | "searching" | "found" | "not_found" | "error";
 
 export interface ExpenseItem {
   date: string;
-  quantity: string;
+  quantity: string; // Keep as string to hold formulas like "=$G$3" or numbers
   detail: string;
   unitPrice: number;
-  total: number;
+  total: number; // This will be calculated in JS for display, Excel formula will handle final calculation
   vobOps?: string;
 }
 
@@ -136,7 +136,19 @@ function generateExpenseDetails(
         if (!isNaN(parsedDate.valueOf())) {
             tourStartDate = format(parsedDate, 'dd/MM/yy');
         } else {
-            console.warn("String de fecha no reconocido:", fechaInicioRaw);
+             // Attempt to parse dd.mm.yyyy or dd/mm/yyyy
+            const parts = fechaInicioRaw.match(/(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/);
+            if (parts) {
+                const year = parts[3].length === 2 ? `20${parts[3]}` : parts[3];
+                const parsedFromParts = new Date(`${year}-${parts[2]}-${parts[1]}`);
+                 if (!isNaN(parsedFromParts.valueOf())) {
+                    tourStartDate = format(parsedFromParts, 'dd/MM/yy');
+                } else {
+                    console.warn("String de fecha no reconocido (formato especial):", fechaInicioRaw);
+                }
+            } else {
+                 console.warn("String de fecha no reconocido:", fechaInicioRaw);
+            }
         }
     } catch(e){
         console.warn("Error parseando string de fecha:", fechaInicioRaw, e);
@@ -237,7 +249,7 @@ function generateExpenseDetails(
         cantidadFormulaAguas = "=($G$3+2)*2";
     }
     expenseItems.push({
-        date: "",
+        date: "", // AGUAS has no date in Excel
         quantity: cantidadFormulaAguas,
         detail: "AGUAS",
         unitPrice: 6.00,
@@ -281,7 +293,6 @@ export default function GeneratorPage() {
     },
   });
 
-  // useEffect for cleanup when selectedFile becomes null
   useEffect(() => {
     if (!selectedFile) {
       setExcelData(null);
@@ -289,21 +300,34 @@ export default function GeneratorPage() {
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
       setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
+      // form.reset({ fileNumber: "", guideName: form.getValues("guideName") }); // Keep guide name if file cleared
+      // Let's clear all form fields including guideName if file is cleared
+      // And clear reports only if file becomes null (not just changed)
+      if (generatedReports.length > 0) { // Check if there are reports to potentially preserve
+          // If user explicitly clears the file, then clear reports too.
+          // If they select a new file, the old reports remain until new generation.
+          // The current logic: if `selectedFile` is null (e.g. user clicks "Clear File"), reset reports.
+          // This seems reasonable.
+      }
+      setGeneratedReports([]);
       form.reset({ fileNumber: "", guideName: "" });
-      setGeneratedReports([]); 
     }
-  }, [selectedFile, form]);
+  }, [selectedFile, form, generatedReports.length]); // Added generatedReports.length to dependencies for more precise control if needed.
 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files && event.target.files[0];
+    
+    // Reset previous file state immediately if a new file is being selected OR if no file is selected
+    if (selectedFile || !file) {
+        setSelectedFile(null); // This will trigger the useEffect for cleanup
+    }
 
     if (file) {
-      setSelectedFile(null);
-      setIsFileMissingError(false);
-
+      // Wrap in a promise to ensure state updates from setSelectedFile(null) are processed
       Promise.resolve().then(() => {
         setSelectedFile(file);
+        setIsFileMissingError(false);
         toast({
           title: "Archivo Seleccionado",
           description: file.name,
@@ -315,15 +339,21 @@ export default function GeneratorPage() {
           try {
             const arrayBuffer = e.target?.result;
             if (!arrayBuffer) throw new Error("Error al leer el archivo.");
+            // Use cellDates: true to parse Excel dates as JS Date objects
             const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: null });
+            
             setExcelData(data);
+            // Reset search-related states as a new file is loaded
             setFileSearchStatus("idle");
             setFoundCellValue(null);
             setCurrentPaxCount(null);
             setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
+            // Potentially reset fileNumber field too, or keep it if user wants to search same number in new file
+            // form.reset({ fileNumber: "", guideName: form.getValues("guideName") });
+            
           } catch (error) {
             console.error("Error al procesar el archivo Excel:", error);
             toast({
@@ -331,22 +361,24 @@ export default function GeneratorPage() {
               description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
               variant: "destructive",
             });
-            handleClearFile();
+            handleClearFile(); // Clear all related states
           }
         };
         reader.onerror = (e) => {
           console.error("Error al leer el archivo:", e);
           toast({ title: "Error de Lectura", description: "Hubo un problema al leer el archivo.", variant: "destructive" });
-          handleClearFile();
+          handleClearFile(); // Clear all related states
         };
         reader.readAsArrayBuffer(file);
       });
     } else {
-      handleClearFile();
+      // No file selected (e.g., user cancelled dialog)
+      // setSelectedFile(null) was already called, useEffect will handle full cleanup
     }
 
+    // Reset the input value to allow re-selecting the same file
     if (event.target) {
-      event.target.value = ""; // Allow re-selecting the same file
+      event.target.value = "";
     }
   };
 
@@ -356,11 +388,14 @@ export default function GeneratorPage() {
     }
     setSelectedFile(null); // This triggers the useEffect for comprehensive cleanup
     setIsFileMissingError(false);
-    toast({
-      title: "Archivo Limpiado",
-      description: "Se ha quitado el archivo de programa seleccionado.",
-      variant: "default",
-    });
+    // Do not show toast if already showing missing file error
+    if (!isFileMissingError) {
+      toast({
+        title: "Archivo Limpiado",
+        description: "Se ha quitado el archivo de programa seleccionado.",
+        variant: "default",
+      });
+    }
   };
 
   const getFileNumberInputClasses = (): string => {
@@ -410,7 +445,7 @@ export default function GeneratorPage() {
           if (excelData[i] && excelData[i][j] !== undefined && excelData[i][j] !== null) {
              if (String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch.trim().toUpperCase()) {
               colIdx = j;
-              rowIdxWhereFileNumberFound = i;
+              rowIdxWhereFileNumberFound = i; // This is the row where the file ID itself was found
               found = true;
               break;
             }
@@ -421,14 +456,17 @@ export default function GeneratorPage() {
     }
 
     if (found && colIdx !== -1 && rowIdxWhereFileNumberFound !== -1) {
+      // Store the row index of the File ID and the column index
       setFileDataProps({ fileIdRowIndex: rowIdxWhereFileNumberFound, columnIndex: colIdx });
 
+      // Group name is expected to be in the row below the File ID, same column
       const groupNameRaw = excelData[rowIdxWhereFileNumberFound + 1]?.[colIdx];
-      const groupName = groupNameRaw !== undefined ? String(groupNameRaw).trim() : "No encontrado";
+      const groupName = groupNameRaw !== undefined && groupNameRaw !== null ? String(groupNameRaw).trim() : "No encontrado";
       setFoundCellValue(groupName);
 
+      // Pax count is expected to be 4 rows below the File ID, same column
       const paxRaw = excelData[rowIdxWhereFileNumberFound + 4]?.[colIdx];
-      const pax = paxRaw !== undefined ? String(paxRaw).trim() : "N/A";
+      const pax = paxRaw !== undefined && paxRaw !== null ? String(paxRaw).trim() : "N/A";
       setCurrentPaxCount(pax);
 
       setFileSearchStatus("found");
@@ -454,12 +492,12 @@ export default function GeneratorPage() {
     setIsFileMissingError(false);
 
     if (fileSearchStatus !== "found" || !foundCellValue || !currentPaxCount || fileDataProps.fileIdRowIndex === null || fileDataProps.columnIndex === null) {
-       toast({ title: "Error", description: "Busca y confirma el file antes de generar. Asegúrate que se extrajo el nombre.", variant: "destructive" });
+       toast({ title: "Error", description: "Busca y confirma el file antes de generar. Asegúrate que se extrajo el nombre y el número de PAX.", variant: "destructive" });
       return;
     }
 
     if (currentPaxCount === "N/A" || isNaN(parseInt(currentPaxCount, 10))) {
-        toast({ title: "Error de Datos", description: "El número de PAX no es válido. Verifica el archivo Excel.", variant: "destructive" });
+        toast({ title: "Error de Datos", description: "El número de PAX no es válido o no fue encontrado. Verifica el archivo Excel y la búsqueda del file.", variant: "destructive" });
         return;
     }
 
@@ -469,15 +507,24 @@ export default function GeneratorPage() {
 
     const { expenses, tourStartDate } = generateExpenseDetails(
       excelData,
-      fileDataProps,
+      fileDataProps, // Pass the object containing columnIndex and fileIdRowIndex
       currentPaxCount,
       foundCellValue
     );
 
-    if (tourStartDate === "N/A" && expenses.length === 0 && !excelData.some(row => row.some(cell => String(cell).toLowerCase().includes("ct-city tour")))) { // Allow empty expenses if it's not a specific type of tour needing them
-         toast({ title: "Error de Generación", description: "No se pudo determinar la fecha de inicio o no se generaron gastos. Verifica el archivo Excel.", variant: "destructive" });
-         setIsProcessingGeneration(false);
-         return;
+    if (tourStartDate === "N/A") {
+         if (expenses.length === 0 && !excelData[fileDataProps.fileIdRowIndex!].some((cell: any) => String(cell).toLowerCase().includes("ct-city tour"))) {
+             toast({ title: "Error de Generación", description: "No se pudo determinar la fecha de inicio del tour. Verifica el archivo Excel.", variant: "destructive" });
+             setIsProcessingGeneration(false);
+             return;
+         }
+         // If tourStartDate is N/A but expenses were generated (e.g. for some specific cases or if default date is used), proceed but warn.
+         toast({ title: "Advertencia de Generación", description: "No se pudo determinar la fecha de inicio del tour, se usará una fecha por defecto o estará vacía donde sea aplicable.", variant: "default" });
+    }
+    if (expenses.length === 0) {
+        // Allow empty expenses IF it's not a tour type that MUST have expenses (e.g. a simple transfer with no cash advance)
+        // For now, we'll show a warning for empty expenses but proceed.
+        toast({ title: "Advertencia de Generación", description: "No se generaron detalles de gastos. El reporte estará vacío o solo con cabeceras.", variant: "default" });
     }
 
 
@@ -505,7 +552,7 @@ export default function GeneratorPage() {
       startDate: tourStartDate,
     };
 
-    setGeneratedReports(prev => [...prev, newReport]);
+    setGeneratedReports(prev => [newReport, ...prev]); // Add new report to the beginning
 
     form.reset({ fileNumber: "", guideName: "" });
     setFileSearchStatus("idle");
@@ -534,30 +581,76 @@ export default function GeneratorPage() {
     });
   };
 
-  const handleDirectDownloadReport = async (reportToDownload: GeneratedReportInfo) => {
-    if (!reportToDownload || reportToDownload.expenseItems.length === 0) {
-      // Allow download even if expenses are empty, as header info might still be useful.
-      // But, warn if the file is truly minimal.
-      if (reportToDownload.startDate === "N/A" && reportToDownload.paxCount === "N/A") {
-        toast({
-            title: "Datos mínimos",
-            description: "El reporte tiene información muy limitada. Se procederá con la descarga.",
-            variant: "default", 
-        });
-      }
+  const handleApiExcelDownload = async (reportToDownload: GeneratedReportInfo) => {
+    if (!reportToDownload) {
+      toast({ title: "Error", description: "No hay información del reporte para descargar.", variant: "destructive" });
+      return;
     }
+    
+    // Basic check: if no start date AND no pax AND no expenses, it's too minimal.
+    if (reportToDownload.startDate === "N/A" && reportToDownload.paxCount === "N/A" && reportToDownload.expenseItems.length === 0) {
+      toast({
+          title: "Datos insuficientes",
+          description: "El reporte no contiene suficiente información para generar un archivo útil.",
+          variant: "destructive", 
+      });
+      return;
+    }
+    
     setIsDownloadingReportId(reportToDownload.id);
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 100)); // For UI update
 
     try {
-        downloadReportAsExcel(reportToDownload);
+      const response = await fetch('/api/generate-excel-python', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reportToDownload),
+      });
+
+      if (!response.ok) {
+        let errorBody;
+        try {
+            errorBody = await response.json();
+        } catch (e) {
+            errorBody = { error: "Error desconocido al procesar la respuesta del servidor." };
+        }
+        console.error("Error from API:", errorBody);
         toast({
-            title: "Descarga Iniciada",
-            description: `El archivo para ${reportToDownload.fileNumber} ha comenzado a descargarse.`,
+          title: `Error de Descarga (${response.status})`,
+          description: errorBody.details || errorBody.error || "No se pudo generar el archivo Excel desde el servidor.",
+          variant: "destructive",
         });
+        setIsDownloadingReportId(null);
+        return;
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let fileName = "reporte_caja_chica.xlsx"; // Default filename
+
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+        if (fileNameMatch && fileNameMatch.length === 2)
+          fileName = decodeURIComponent(fileNameMatch[1]);
+      }
+      
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      toast({
+        title: "Descarga Iniciada",
+        description: `El archivo ${fileName} ha comenzado a descargarse.`,
+      });
     } catch (error) {
-        console.error("Error descargando Excel:", error);
-        toast({ title: "Error de Descarga", description: "No se pudo generar el archivo Excel.", variant: "destructive" });
+      console.error("Error descargando Excel vía API:", error);
+      toast({ title: "Error de Descarga", description: "No se pudo conectar con el servidor para generar el archivo Excel.", variant: "destructive" });
     }
     setIsDownloadingReportId(null);
   };
@@ -663,6 +756,7 @@ export default function GeneratorPage() {
                         <div className="mt-2 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm">
                           <CheckCircle2 className="inline-block mr-2 h-4 w-4 align-middle text-green-700 dark:text-green-300" />
                            Nombre de file: <strong>{foundCellValue}</strong>
+                           {currentPaxCount && currentPaxCount !== "N/A" && <span className="ml-2"> (PAX: <strong>{currentPaxCount}</strong>)</span>}
                         </div>
                       )}
                       {fileSearchStatus === "not_found" && (
@@ -701,7 +795,7 @@ export default function GeneratorPage() {
                   {isProcessingGeneration ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generando...</>
                   ) : (
-                    "Generar"
+                    "Generar y Añadir a Lista"
                   )}
                 </Button>
               </div>
@@ -750,7 +844,7 @@ export default function GeneratorPage() {
                       <Button
                         variant="default"
                         size="default"
-                        onClick={() => handleDirectDownloadReport(report)}
+                        onClick={() => handleApiExcelDownload(report)}
                         disabled={isDownloadingReportId === report.id}
                         title="Descargar Excel"
                         className="bg-green-600 text-white hover:bg-green-700 focus-visible:ring-green-500"
@@ -779,6 +873,7 @@ export default function GeneratorPage() {
           <ResultsDialogContent
             report={currentReportInDialog}
             onClose={() => setIsResultsDialogOpen(false)}
+            onDownloadExcel={handleApiExcelDownload}
           />
         </Dialog>
       )}
@@ -786,3 +881,4 @@ export default function GeneratorPage() {
   );
 }
 
+    

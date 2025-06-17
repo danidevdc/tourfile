@@ -17,17 +17,16 @@ import { useToast } from "@/hooks/use-toast";
 import type { GeneratedReportInfo, ExpenseItem } from "@/app/generator/page"; 
 import { format } from 'date-fns';
 import { cn } from "@/lib/utils";
-import { downloadReportAsExcel } from '@/lib/excel-export';
+// import { downloadReportAsExcel } from '@/lib/excel-export'; // Removed
 
-// Copied from generator/page.tsx to be used locally
+// Copied from generator/page.tsx to be used locally for display purposes
 function resolveQuantity(quantityStr: string, paxNumber: number): number {
-  if (paxNumber === 0 && quantityStr.toUpperCase().includes("G3")) return 0; // Avoid division by zero or NaN if pax is 0 and formula uses it
+  if (paxNumber === 0 && quantityStr.toUpperCase().includes("G3")) return 0;
   if (!isNaN(Number(quantityStr))) {
     return Number(quantityStr);
   }
 
   const cleanedQuantity = quantityStr.toUpperCase().replace(/\s/g, '');
-  // Ensure G3 is not part of another word like GUIDE
   const formulaWithPax = cleanedQuantity.replace(/(?<![A-Z])G3(?![0-9A-Z])|\$G\$3/g, String(paxNumber));
 
 
@@ -35,71 +34,55 @@ function resolveQuantity(quantityStr: string, paxNumber: number): number {
     try {
       const expression = formulaWithPax.substring(1);
       if (/^[\d\s()+\-*/.]+$/.test(expression)) {
-        // This basic regex allows numbers, operators, parentheses, and decimal points.
-        // For more complex scenarios, a more robust parsing/evaluation library would be needed.
         const result = new Function(`return ${expression}`)() as number;
-        return isNaN(result) ? 1 : result; // Fallback if evaluated result is NaN
+        return isNaN(result) ? 1 : result; 
       } else {
-        console.warn(`Fórmula de cantidad no segura o no válida: ${expression} (original: ${quantityStr})`);
-        return 1; // Fallback
+        // console.warn(`Fórmula de cantidad no segura o no válida: ${expression} (original: ${quantityStr})`);
+        return 1; 
       }
     } catch (e) {
-      console.error(`Error evaluando cantidad "${quantityStr}" con expresión "${formulaWithPax.substring(1)}":`, e);
-      return 1; // Fallback
+      // console.error(`Error evaluando cantidad "${quantityStr}" con expresión "${formulaWithPax.substring(1)}":`, e);
+      return 1; 
     }
   }
-  console.warn(`Cantidad no reconocida: ${quantityStr}`);
-  return 1; // Fallback si no es número ni fórmula simple
+  // console.warn(`Cantidad no reconocida: ${quantityStr}`);
+  return 1; 
 }
 
 
-const calculateGrandTotal = (expenseItems: ExpenseItem[]): number => {
-  return expenseItems.reduce((sum, item) => sum + item.total, 0);
+const calculateGrandTotal = (expenseItems: ExpenseItem[], paxCount: number): number => {
+  return expenseItems.reduce((sum, item) => {
+    // Recalculate total for display based on resolved quantity
+    const resolvedQty = resolveQuantity(item.quantity, paxCount);
+    const itemTotal = resolvedQty * item.unitPrice;
+    return sum + itemTotal;
+  }, 0);
 };
 
 interface ResultsDialogContentProps {
   report: GeneratedReportInfo;
   onClose: () => void; 
+  onDownloadExcel: (report: GeneratedReportInfo) => Promise<void>;
 }
 
-export function ResultsDialogContent({ report, onClose }: ResultsDialogContentProps) {
-  const { toast } = useToast();
+export function ResultsDialogContent({ report, onClose, onDownloadExcel }: ResultsDialogContentProps) {
+  const { toast } = useToast(); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
   
-  const generationReportDateFormatted = format(report.generationDate, 'dd.MM.yyyy'); 
-
-  const expenseDataToDisplay = report.expenseItems; 
-  const grandTotal = calculateGrandTotal(expenseDataToDisplay);
   const paxCountNumber = parseInt(report.paxCount, 10) || 0;
+  const expenseDataToDisplay = report.expenseItems; 
+  const grandTotal = calculateGrandTotal(expenseDataToDisplay, paxCountNumber);
 
-  const handleDownloadExcel = async () => {
-    if (!report || expenseDataToDisplay.length === 0) {
-      toast({
-        title: "No hay datos",
-        description: "No hay gastos para exportar en este reporte.",
-        variant: "destructive",
-      });
-      return;
-    }
+
+  const handleDownloadClick = async () => {
     setIsDownloadingExcel(true);
-    // Short delay for UI to update, actual download is synchronous
-    await new Promise(resolve => setTimeout(resolve, 100)); 
-  
     try {
-      downloadReportAsExcel(report);
-      toast({
-        title: "Descarga Iniciada",
-        description: `El archivo para ${report.fileNumber} ha comenzado a descargarse.`,
-      });
+      await onDownloadExcel(report);
     } catch (error) {
-      console.error("Error descargando Excel:", error);
-      toast({
-        title: "Error de Descarga",
-        description: "No se pudo generar el archivo Excel.",
-        variant: "destructive",
-      });
+      // Error handling is done by the caller (onDownloadExcel)
+    } finally {
+      setIsDownloadingExcel(false);
     }
-    setIsDownloadingExcel(false);
   };
 
 
@@ -144,21 +127,25 @@ export function ResultsDialogContent({ report, onClose }: ResultsDialogContentPr
               </TableRow>
             </TableHeader>
             <TableBody>
-              {expenseDataToDisplay.map((item, index) => (
-                <TableRow 
-                  key={index}
-                  className={cn(
-                    item.detail === "AGUAS" && "text-sky-600 dark:text-sky-400 font-medium"
-                  )}
-                >
-                  <TableCell>{item.date}</TableCell>
-                  <TableCell className="text-right">{resolveQuantity(item.quantity, paxCountNumber)}</TableCell>
-                  <TableCell>{item.detail}</TableCell>
-                  <TableCell className="text-right">{item.unitPrice.toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-medium">{item.total.toFixed(2)}</TableCell>
-                  <TableCell>{item.vobOps || ''}</TableCell>
-                </TableRow>
-              ))}
+              {expenseDataToDisplay.map((item, index) => {
+                const displayQuantity = resolveQuantity(item.quantity, paxCountNumber);
+                const displayTotal = displayQuantity * item.unitPrice;
+                return (
+                  <TableRow 
+                    key={index}
+                    className={cn(
+                      item.detail.toUpperCase() === "AGUAS" && "text-sky-600 dark:text-sky-400 font-medium"
+                    )}
+                  >
+                    <TableCell>{item.date}</TableCell>
+                    <TableCell className="text-right">{displayQuantity}</TableCell>
+                    <TableCell>{item.detail}</TableCell>
+                    <TableCell className="text-right">{item.unitPrice.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-medium">{displayTotal.toFixed(2)}</TableCell>
+                    <TableCell>{item.vobOps || ''}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
             <TableFooter>
               <TableRow>
@@ -177,7 +164,7 @@ export function ResultsDialogContent({ report, onClose }: ResultsDialogContentPr
       <DialogFooter className="p-6 pt-4 mt-auto border-t">
         <Button 
           id="dialog-download-excel"
-          onClick={handleDownloadExcel} 
+          onClick={handleDownloadClick} 
           disabled={isDownloadingExcel || expenseDataToDisplay.length === 0} 
           className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
         >
@@ -191,3 +178,5 @@ export function ResultsDialogContent({ report, onClose }: ResultsDialogContentPr
     </DialogContent>
   );
 }
+
+    
