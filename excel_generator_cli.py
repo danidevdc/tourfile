@@ -30,17 +30,24 @@ def generate_excel(data, output_path):
         pax_count = int(data.get("paxCount", 0))
         expense_items = data.get("expenseItems", [])
 
-        title_font = Font(name='Calibri', size=14, bold=True)
-        header_font = Font(name='Calibri', size=11, bold=True)
+        # Fonts
+        # title_font used for A1 was originally size 14, changed to header_font for size 11
+        header_font = Font(name='Calibri', size=11, bold=True) 
+        # General font for data cells, if needed (not explicitly defined before for data)
+        # data_font = Font(name='Calibri', size=11, bold=False) 
+
+        # Alignments
         center_alignment = Alignment(horizontal="center", vertical="center")
         right_alignment = Alignment(horizontal="right", vertical="center")
+        left_alignment = Alignment(horizontal="left", vertical="center") # New alignment for A1
+        
         currency_format = '#,##0.00'
 
         # --- Row 1: CAJA CHICA GUIA ---
         ws['A1'] = "CAJA CHICA GUIA"
-        ws['A1'].font = title_font
-        ws['A1'].alignment = center_alignment
-        ws.merge_cells('A1:G1')
+        ws['A1'].font = header_font # Changed from title_font (size 14) to header_font (size 11)
+        ws['A1'].alignment = left_alignment # Changed from center_alignment
+        ws.merge_cells('A1:G1') # Merging remains the same, but content inside A1 is left aligned
 
         # --- Row 2: FILE & NOMBRE GUIA ---
         ws['A2'] = "FILE:"
@@ -86,7 +93,6 @@ def generate_excel(data, output_path):
             
             quantity_str = str(item.get("quantity", "1"))
             if quantity_str.startswith("="):
-                # openpyxl handles $G$3 style references directly
                 ws.cell(row=current_row, column=2, value=quantity_str).alignment = center_alignment
             else:
                 try:
@@ -101,14 +107,12 @@ def generate_excel(data, output_path):
             try:
                 unit_price_val = float(unit_price_val)
             except ValueError:
-                unit_price_val = 0 # Default if not a valid float
+                unit_price_val = 0 
             
             unit_price_cell = ws.cell(row=current_row, column=5, value=unit_price_val)
             unit_price_cell.number_format = currency_format
             unit_price_cell.alignment = right_alignment
 
-            # Formula for total: Quantity (B<row>) * Unit Price (E<row>)
-            # G3 is in cell G3 for PAX count.
             total_formula = f"=B{current_row}*E{current_row}"
             total_cell = ws.cell(row=current_row, column=6, value=total_formula)
             total_cell.number_format = currency_format
@@ -129,13 +133,27 @@ def generate_excel(data, output_path):
         grand_total_cell.alignment = right_alignment
         
         # --- Column Widths ---
-        ws.column_dimensions['A'].width = 12
-        ws.column_dimensions['B'].width = 8
-        ws.column_dimensions['C'].width = 35 
+        # (Original widths commented out for clarity of change)
+        # ws.column_dimensions['A'].width = 12
+        # ws.column_dimensions['B'].width = 8
+        # ws.column_dimensions['C'].width = 35 
         # ws.column_dimensions['D'].width = 0.1 # Effectively hide column D if merged
-        ws.column_dimensions['E'].width = 15
-        ws.column_dimensions['F'].width = 15
-        ws.column_dimensions['G'].width = 10
+        # ws.column_dimensions['E'].width = 15
+        # ws.column_dimensions['F'].width = 15
+        # ws.column_dimensions['G'].width = 10
+
+        pixel_width_target = 9.14 # Approx 64 pixels (64px / ~7px_per_char)
+
+        ws.column_dimensions['A'].width = 12 # A remains unchanged as per request
+        ws.column_dimensions['B'].width = pixel_width_target
+        ws.column_dimensions['C'].width = pixel_width_target 
+        # Column D is merged often, its width setting might not be critical if C covers it.
+        # If C's width is 9.14, D is part of merged cells with C.
+        # ws.column_dimensions['D'].width = # Not explicitly requested to change, let's leave it as openpyxl default or as affected by merge
+        ws.column_dimensions['E'].width = pixel_width_target
+        ws.column_dimensions['F'].width = pixel_width_target
+        ws.column_dimensions['G'].width = pixel_width_target
+
 
         # --- Apply Borders to the main table content ---
         max_data_row = current_row 
@@ -146,33 +164,33 @@ def generate_excel(data, output_path):
         wb.save(output_path)
 
     except Exception as e:
-        sys.stderr.write(f"Python script error during Excel generation: {str(e)}\n")
+        sys.stderr.write(f"Python script error during Excel generation: {str(e)}\\n")
+        # import traceback
+        # sys.stderr.write(traceback.format_exc() + "\\n") # More detailed traceback
         sys.exit(1) 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2: # Expects 1 argument now: output_xlsx_path
-        sys.stderr.write("Usage: python excel_generator_cli.py <output_xlsx_path>\n")
-        sys.stderr.write(f"Received arguments: {sys.argv}\n")
+    if len(sys.argv) != 2: 
+        sys.stderr.write("Usage: python excel_generator_cli.py <output_xlsx_path>\\n")
+        sys.stderr.write(f"Received arguments: {sys.argv}\\n")
         sys.exit(1)
 
     output_xlsx_path = sys.argv[1]
     
     try:
-        # Read JSON data from stdin
         data_to_process = json.load(sys.stdin)
     except json.JSONDecodeError as e:
-        sys.stderr.write(f"Error: Invalid JSON received on stdin: {str(e)}\n")
+        sys.stderr.write(f"Error: Invalid JSON received on stdin: {str(e)}\\n")
         sys.exit(1)
     except Exception as e:
-        sys.stderr.write(f"Error reading or parsing JSON from stdin: {str(e)}\n")
+        sys.stderr.write(f"Error reading or parsing JSON from stdin: {str(e)}\\n")
         sys.exit(1)
     
     if not output_xlsx_path:
-        sys.stderr.write("Error: Output XLSX path not provided or empty.\n")
+        sys.stderr.write("Error: Output XLSX path not provided or empty.\\n")
         sys.exit(1)
 
     generate_excel(data_to_process, output_xlsx_path)
-    # If successful, Python script will exit with 0.
     # print(f"Excel file generated successfully at {output_xlsx_path}") # Optional: for debugging
     
     
