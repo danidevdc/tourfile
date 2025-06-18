@@ -78,11 +78,11 @@ def generate_excel(data, output_path):
         ws['G3'].alignment = right_alignment
 
         # --- Row 4: Table Headers ---
-        headers = ["FECHA", "CANT", "DETALLE DEL GASTO", "", "PREC. UNIT Bs.", "TOTAL Bs.", "VoB OPS"]
+        headers = ["FECHA", "CANT", "DETALLE DEL GASTO", "", "P. UNIT", "TOTAL Bs.", "VoB OPS"]
         for col_num, header_text in enumerate(headers, 1):
             cell = ws.cell(row=4, column=col_num, value=header_text)
             cell.font = header_font
-            cell.alignment = center_alignment
+            cell.alignment = left_alignment # Changed to left_alignment
         ws.merge_cells('C4:D4')
 
         # --- Expense Items ---
@@ -203,4 +203,5 @@ if __name__ == "__main__":
     
 
     
+
 
