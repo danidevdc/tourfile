@@ -39,22 +39,17 @@ export async function POST(request: NextRequest) {
 
     await fs.writeFile(inputJsonPath, JSON.stringify(reportData, null, 2), 'utf-8');
 
-    // IMPORTANT: The Python script must be in the root of the deployed application,
-    // or this path needs to be adjusted accordingly.
     const pythonScriptPath = path.resolve(process.cwd(), 'excel_generator_cli.py');
     
     try {
         await fs.access(pythonScriptPath, fs.constants.F_OK);
     } catch (err) {
         console.error('Python script not found at:', pythonScriptPath);
-        return NextResponse.json({ error: 'Excel generation script not found on server.', details: `Script expected at ${pythonScriptPath}` }, { status: 500 });
+        const errorPayload = { error: 'Excel generation script not found on server.', details: `Script expected at ${pythonScriptPath}` };
+        console.error("API Error Response (Server-side):", JSON.stringify(errorPayload));
+        return NextResponse.json(errorPayload, { status: 500 });
     }
 
-    // This Promise wraps the Python script execution.
-    // It attempts to run 'python3' first, then 'python' as a fallback.
-    // For this to work, Python (either as 'python3' or 'python') must be
-    // installed and in the PATH of the environment where this Node.js code is executing
-    // (e.g., your local machine, or the Firebase App Hosting container).
     return new Promise((resolve) => {
       const tryPythonCommand = (command: 'python3' | 'python') => {
         const pythonProcess = spawn(command, [pythonScriptPath, inputJsonPath, outputXlsxPath]);
@@ -81,45 +76,60 @@ export async function POST(request: NextRequest) {
             } catch (err) {
               const fileReadError = err as Error;
               console.error('Error reading generated Excel file:', fileReadError.message);
-              resolve(NextResponse.json({ error: 'Failed to read generated Excel file.', details: fileReadError.message }, { status: 500 }));
+              const errorPayload = { error: 'Failed to read generated Excel file.', details: fileReadError.message };
+              console.error("API Error Response (Server-side):", JSON.stringify(errorPayload));
+              resolve(NextResponse.json(errorPayload, { status: 500 }));
             }
           } else {
             const commonErrorMsg = `Python script exited with code ${code}.`;
-            const detailedError = scriptError || scriptOutput || "No specific error message from script.";
-            console.error(`${commonErrorMsg} Command: ${command}. Error: ${detailedError}`);
-
-            if (command === 'python3' && (scriptError.includes('command not found') || scriptError.includes('not recognized') || scriptError.includes('No such file or directory') || scriptError.toLowerCase().includes('enoent'))) {
-              console.warn("python3 not found or script path issue, trying with 'python'");
-              tryPythonCommand('python');
-            } else {
-              resolve(NextResponse.json({ error: 'Excel generation failed via Python script.', details: detailedError, output: scriptOutput, exitCode: code, commandUsed: command }, { status: 500 }));
+            let detailedError = (scriptError || scriptOutput || "No specific error message from script.").trim();
+            if (!detailedError) { // Ensure detailedError is never truly empty for the JSON
+              detailedError = "Python script finished with an error, but provided no specific output.";
             }
+            
+            console.error(`Server-side: ${commonErrorMsg} Command: ${command}. Full Error Details: ${detailedError}. Script Output (if any): ${scriptOutput}`);
+            
+            const errorPayload = { 
+              error: 'Excel generation failed via Python script.', 
+              details: detailedError,
+              output: scriptOutput.trim(), 
+              exitCode: code, 
+              commandUsed: command 
+            };
+            console.error("API Error Response (Server-side):", JSON.stringify(errorPayload));
+            resolve(NextResponse.json(errorPayload, { status: 500 }));
           }
         });
 
         pythonProcess.on('error', (err) => { 
            const spawnErrorMsg = `Failed to start Python script with command '${command}'.`;
            const spawnErrDetails = (err as NodeJS.ErrnoException).code === 'ENOENT' ? `${err.message}. Ensure Python is installed and in PATH.` : err.message;
-           console.error(`${spawnErrorMsg} Error: ${spawnErrDetails}`);
+           console.error(`Server-side: ${spawnErrorMsg} Error: ${spawnErrDetails}`);
            
            if (command === 'python3') {
               console.warn("Attempting fallback to 'python' command.");
               tryPythonCommand('python');
            } else {
-            resolve(NextResponse.json({ error: 'Failed to start Excel generation process.', details: `${spawnErrorMsg} ${spawnErrDetails}` }, { status: 500 }));
+            const errorPayload = { 
+              error: 'Failed to start Excel generation process.', 
+              details: `${spawnErrorMsg} ${spawnErrDetails}`
+            };
+            console.error("API Error Response (Server-side):", JSON.stringify(errorPayload));
+            resolve(NextResponse.json(errorPayload, { status: 500 }));
            }
         });
       };
       
-      tryPythonCommand('python3'); // Start with python3
+      tryPythonCommand('python3'); 
     });
 
   } catch (error) {
     const apiError = error as Error;
     console.error('API Error in POST /api/generate-excel-python:', apiError.message, apiError.stack);
-    return NextResponse.json({ error: 'An unexpected error occurred in the API handler.', details: apiError.message }, { status: 500 });
+    const errorPayload = { error: 'An unexpected error occurred in the API handler.', details: apiError.message };
+    console.error("API Error Response (Server-side):", JSON.stringify(errorPayload));
+    return NextResponse.json(errorPayload, { status: 500 });
   } finally {
-    // Clean up temporary files
     if (inputJsonPath) {
       fs.unlink(inputJsonPath).catch(err => console.warn('Error deleting temp input JSON file:', (err as Error).message));
     }

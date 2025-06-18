@@ -38,10 +38,10 @@ type FileSearchStatus = "idle" | "searching" | "found" | "not_found" | "error";
 
 export interface ExpenseItem {
   date: string;
-  quantity: string; // Keep as string to hold formulas like "=$G$3" or numbers
+  quantity: string; 
   detail: string;
   unitPrice: number;
-  total: number; // This will be calculated in JS for display, Excel formula will handle final calculation
+  total: number; 
   vobOps?: string;
 }
 
@@ -135,7 +135,6 @@ function generateExpenseDetails(
         if (!isNaN(parsedDate.valueOf())) {
             tourStartDate = format(parsedDate, 'dd/MM/yy');
         } else {
-             // Attempt to parse dd.mm.yyyy or dd/mm/yyyy
             const parts = fechaInicioRaw.match(/(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/);
             if (parts) {
                 const year = parts[3].length === 2 ? `20${parts[3]}` : parts[3];
@@ -248,7 +247,7 @@ function generateExpenseDetails(
         cantidadFormulaAguas = "=($G$3+2)*2";
     }
     expenseItems.push({
-        date: "", // AGUAS has no date in Excel
+        date: "", 
         quantity: cantidadFormulaAguas,
         detail: "AGUAS",
         unitPrice: 6.00,
@@ -584,40 +583,66 @@ export default function GeneratorPage() {
       });
 
       if (!response.ok) {
-        let errorDisplayMessage = "No se pudo generar el archivo Excel desde el servidor. Intenta de nuevo o contacta a soporte si el problema persiste.";
-        let rawErrorDataForConsole: any = `Error: ${response.status} ${response.statusText}`;
+        let errorDisplayMessage = "No se pudo generar el archivo Excel desde el servidor.";
+        let rawErrorDataForConsole: any = { status: response.status, statusText: response.statusText };
+        let responseText = '';
+
+        console.error(`API Error Response: Status ${response.status}, StatusText: ${response.statusText}`);
 
         try {
-          const contentType = response.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
-            const jsonError = await response.json();
-            rawErrorDataForConsole = jsonError; 
-            
-            const details = jsonError.details;
-            const errorMsg = jsonError.error;
-            const scriptOutput = jsonError.output;
+          responseText = await response.text();
+          rawErrorDataForConsole.rawResponseText = responseText;
+          console.log("API Error Response Text:", responseText);
 
-            if (details || errorMsg || scriptOutput) {
-                errorDisplayMessage = [details, errorMsg, scriptOutput ? `Salida del script: ${scriptOutput}` : null]
-                                      .filter(Boolean).join(' \n ') || "Error desconocido desde el API.";
-            } else if (Object.keys(jsonError).length === 0) {
-                errorDisplayMessage = `El API devolvió una respuesta de error vacía (estado ${response.status}).`;
-            } else {
-                errorDisplayMessage = `Error del API: ${JSON.stringify(jsonError)}. Estado: ${response.status}.`;
+          try {
+            const jsonData = JSON.parse(responseText);
+            rawErrorDataForConsole.parsedJson = jsonData;
+            
+            const details = jsonData.details;
+            const errorMsg = jsonData.error; 
+            const scriptOutput = jsonData.output;
+            const commandUsed = jsonData.commandUsed;
+            const exitCode = jsonData.exitCode;
+
+            let messageParts = [];
+            if (errorMsg) messageParts.push(errorMsg);
+            if (details && details !== "No specific error message from script.") messageParts.push(`Detalles: ${details}`);
+            else if (details) messageParts.push("Detalles del script no disponibles o genéricos.");
+            if (scriptOutput) messageParts.push(`Salida Script: ${scriptOutput}`);
+            if (commandUsed) messageParts.push(`Comando: ${commandUsed}`);
+            if (exitCode !== undefined) messageParts.push(`Código Salida: ${exitCode}`);
+            
+            if (messageParts.length > 0) {
+              errorDisplayMessage = messageParts.join(' \n');
+            } else if (responseText.trim() === '{}' && response.statusText) {
+              errorDisplayMessage = `Error del API (estado ${response.status}): ${response.statusText}. El servidor devolvió un objeto JSON vacío.`;
+            } else if (responseText.trim() === '{}') {
+              errorDisplayMessage = `El API devolvió un error (estado ${response.status}) con un objeto JSON vacío.`;
+            } else if (responseText.trim()) {
+               errorDisplayMessage = `Error del API (estado ${response.status}): ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`;
+            } else if (response.statusText) {
+              errorDisplayMessage = `Error del API (estado ${response.status}): ${response.statusText}.`;
             }
 
-          } else {
-            const textError = await response.text();
-            rawErrorDataForConsole = textError;
-            errorDisplayMessage = textError || `Respuesta no JSON del servidor (estado ${response.status})`;
+          } catch (jsonParseError) {
+            // Failed to parse as JSON, use the raw text if available
+            console.warn("Failed to parse API error response as JSON:", jsonParseError);
+            rawErrorDataForConsole.jsonParseError = (jsonParseError as Error).message;
+            if (responseText.trim()) {
+              errorDisplayMessage = `Respuesta de error no JSON del servidor (estado ${response.status}): ${responseText.substring(0,200)}${responseText.length > 200 ? '...' : ''}`;
+            } else if (response.statusText) {
+              errorDisplayMessage = `Error del API (estado ${response.status}): ${response.statusText}. Respuesta vacía.`;
+            }
           }
-        } catch (e) {
-          // This catch is for if .json() or .text() fails
-          rawErrorDataForConsole = (e as Error).message;
-          errorDisplayMessage = `Error al procesar la respuesta de error del servidor. Estado: ${response.status}.`;
+        } catch (textReadError) {
+          // Failed to even read as text
+          console.error("Failed to read API error response as text:", textReadError);
+          rawErrorDataForConsole.textReadError = (textReadError as Error).message;
+          errorDisplayMessage = `Error al leer la respuesta de error del servidor. Estado: ${response.status} ${response.statusText}.`;
         }
         
-        console.error("Error from API - Raw Data:", rawErrorDataForConsole);
+        // This is the line from the user's error log, now rawErrorDataForConsole should be more populated.
+        console.error("Error from API - Raw Data:", rawErrorDataForConsole); 
 
         toast({
           title: `Error de Descarga (${response.status})`,
@@ -629,6 +654,7 @@ export default function GeneratorPage() {
         return;
       }
 
+      // Success case
       const blob = await response.blob();
       const contentDisposition = response.headers.get('Content-Disposition');
       let fileName = "reporte_caja_chica.xlsx"; 
@@ -883,3 +909,4 @@ export default function GeneratorPage() {
     </div>
   );
 }
+
