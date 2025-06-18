@@ -26,7 +26,6 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Dialog } from "@/components/ui/dialog";
 import { ResultsDialogContent } from "@/components/report/ResultsDialogContent";
-// import { downloadReportAsExcel } from "@/lib/excel-export"; // Removed
 
 
 const formSchema = z.object({
@@ -300,31 +299,22 @@ export default function GeneratorPage() {
       setCurrentPaxCount(null);
       setFileSearchStatus("idle");
       setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
-      // form.reset({ fileNumber: "", guideName: form.getValues("guideName") }); // Keep guide name if file cleared
-      // Let's clear all form fields including guideName if file is cleared
-      // And clear reports only if file becomes null (not just changed)
-      if (generatedReports.length > 0) { // Check if there are reports to potentially preserve
-          // If user explicitly clears the file, then clear reports too.
-          // If they select a new file, the old reports remain until new generation.
-          // The current logic: if `selectedFile` is null (e.g. user clicks "Clear File"), reset reports.
-          // This seems reasonable.
+      if (generatedReports.length > 0) {
       }
       setGeneratedReports([]);
       form.reset({ fileNumber: "", guideName: "" });
     }
-  }, [selectedFile, form, generatedReports.length]); // Added generatedReports.length to dependencies for more precise control if needed.
+  }, [selectedFile, form, generatedReports.length]);
 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files && event.target.files[0];
     
-    // Reset previous file state immediately if a new file is being selected OR if no file is selected
     if (selectedFile || !file) {
-        setSelectedFile(null); // This will trigger the useEffect for cleanup
+        setSelectedFile(null); 
     }
 
     if (file) {
-      // Wrap in a promise to ensure state updates from setSelectedFile(null) are processed
       Promise.resolve().then(() => {
         setSelectedFile(file);
         setIsFileMissingError(false);
@@ -339,20 +329,16 @@ export default function GeneratorPage() {
           try {
             const arrayBuffer = e.target?.result;
             if (!arrayBuffer) throw new Error("Error al leer el archivo.");
-            // Use cellDates: true to parse Excel dates as JS Date objects
             const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: null });
             
             setExcelData(data);
-            // Reset search-related states as a new file is loaded
             setFileSearchStatus("idle");
             setFoundCellValue(null);
             setCurrentPaxCount(null);
             setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
-            // Potentially reset fileNumber field too, or keep it if user wants to search same number in new file
-            // form.reset({ fileNumber: "", guideName: form.getValues("guideName") });
             
           } catch (error) {
             console.error("Error al procesar el archivo Excel:", error);
@@ -361,22 +347,18 @@ export default function GeneratorPage() {
               description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
               variant: "destructive",
             });
-            handleClearFile(); // Clear all related states
+            handleClearFile(); 
           }
         };
         reader.onerror = (e) => {
           console.error("Error al leer el archivo:", e);
           toast({ title: "Error de Lectura", description: "Hubo un problema al leer el archivo.", variant: "destructive" });
-          handleClearFile(); // Clear all related states
+          handleClearFile(); 
         };
         reader.readAsArrayBuffer(file);
       });
-    } else {
-      // No file selected (e.g., user cancelled dialog)
-      // setSelectedFile(null) was already called, useEffect will handle full cleanup
     }
 
-    // Reset the input value to allow re-selecting the same file
     if (event.target) {
       event.target.value = "";
     }
@@ -386,9 +368,8 @@ export default function GeneratorPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    setSelectedFile(null); // This triggers the useEffect for comprehensive cleanup
+    setSelectedFile(null); 
     setIsFileMissingError(false);
-    // Do not show toast if already showing missing file error
     if (!isFileMissingError) {
       toast({
         title: "Archivo Limpiado",
@@ -445,7 +426,7 @@ export default function GeneratorPage() {
           if (excelData[i] && excelData[i][j] !== undefined && excelData[i][j] !== null) {
              if (String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch.trim().toUpperCase()) {
               colIdx = j;
-              rowIdxWhereFileNumberFound = i; // This is the row where the file ID itself was found
+              rowIdxWhereFileNumberFound = i; 
               found = true;
               break;
             }
@@ -456,15 +437,12 @@ export default function GeneratorPage() {
     }
 
     if (found && colIdx !== -1 && rowIdxWhereFileNumberFound !== -1) {
-      // Store the row index of the File ID and the column index
       setFileDataProps({ fileIdRowIndex: rowIdxWhereFileNumberFound, columnIndex: colIdx });
 
-      // Group name is expected to be in the row below the File ID, same column
       const groupNameRaw = excelData[rowIdxWhereFileNumberFound + 1]?.[colIdx];
       const groupName = groupNameRaw !== undefined && groupNameRaw !== null ? String(groupNameRaw).trim() : "No encontrado";
       setFoundCellValue(groupName);
 
-      // Pax count is expected to be 4 rows below the File ID, same column
       const paxRaw = excelData[rowIdxWhereFileNumberFound + 4]?.[colIdx];
       const pax = paxRaw !== undefined && paxRaw !== null ? String(paxRaw).trim() : "N/A";
       setCurrentPaxCount(pax);
@@ -507,7 +485,7 @@ export default function GeneratorPage() {
 
     const { expenses, tourStartDate } = generateExpenseDetails(
       excelData,
-      fileDataProps, // Pass the object containing columnIndex and fileIdRowIndex
+      fileDataProps, 
       currentPaxCount,
       foundCellValue
     );
@@ -518,12 +496,9 @@ export default function GeneratorPage() {
              setIsProcessingGeneration(false);
              return;
          }
-         // If tourStartDate is N/A but expenses were generated (e.g. for some specific cases or if default date is used), proceed but warn.
          toast({ title: "Advertencia de Generación", description: "No se pudo determinar la fecha de inicio del tour, se usará una fecha por defecto o estará vacía donde sea aplicable.", variant: "default" });
     }
     if (expenses.length === 0) {
-        // Allow empty expenses IF it's not a tour type that MUST have expenses (e.g. a simple transfer with no cash advance)
-        // For now, we'll show a warning for empty expenses but proceed.
         toast({ title: "Advertencia de Generación", description: "No se generaron detalles de gastos. El reporte estará vacío o solo con cabeceras.", variant: "default" });
     }
 
@@ -552,7 +527,7 @@ export default function GeneratorPage() {
       startDate: tourStartDate,
     };
 
-    setGeneratedReports(prev => [newReport, ...prev]); // Add new report to the beginning
+    setGeneratedReports(prev => [newReport, ...prev]); 
 
     form.reset({ fileNumber: "", guideName: "" });
     setFileSearchStatus("idle");
@@ -587,7 +562,6 @@ export default function GeneratorPage() {
       return;
     }
     
-    // Basic check: if no start date AND no pax AND no expenses, it's too minimal.
     if (reportToDownload.startDate === "N/A" && reportToDownload.paxCount === "N/A" && reportToDownload.expenseItems.length === 0) {
       toast({
           title: "Datos insuficientes",
@@ -598,7 +572,7 @@ export default function GeneratorPage() {
     }
     
     setIsDownloadingReportId(reportToDownload.id);
-    await new Promise(resolve => setTimeout(resolve, 100)); // For UI update
+    await new Promise(resolve => setTimeout(resolve, 100)); 
 
     try {
       const response = await fetch('/api/generate-excel-python', {
@@ -610,17 +584,46 @@ export default function GeneratorPage() {
       });
 
       if (!response.ok) {
-        let errorBody;
+        let errorDisplayMessage = "No se pudo generar el archivo Excel desde el servidor. Intenta de nuevo o contacta a soporte si el problema persiste.";
+        let rawErrorDataForConsole: any = `Error: ${response.status} ${response.statusText}`;
+
         try {
-            errorBody = await response.json();
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const jsonError = await response.json();
+            rawErrorDataForConsole = jsonError; 
+            
+            const details = jsonError.details;
+            const errorMsg = jsonError.error;
+            const scriptOutput = jsonError.output;
+
+            if (details || errorMsg || scriptOutput) {
+                errorDisplayMessage = [details, errorMsg, scriptOutput ? `Salida del script: ${scriptOutput}` : null]
+                                      .filter(Boolean).join(' \n ') || "Error desconocido desde el API.";
+            } else if (Object.keys(jsonError).length === 0) {
+                errorDisplayMessage = `El API devolvió una respuesta de error vacía (estado ${response.status}).`;
+            } else {
+                errorDisplayMessage = `Error del API: ${JSON.stringify(jsonError)}. Estado: ${response.status}.`;
+            }
+
+          } else {
+            const textError = await response.text();
+            rawErrorDataForConsole = textError;
+            errorDisplayMessage = textError || `Respuesta no JSON del servidor (estado ${response.status})`;
+          }
         } catch (e) {
-            errorBody = { error: "Error desconocido al procesar la respuesta del servidor." };
+          // This catch is for if .json() or .text() fails
+          rawErrorDataForConsole = (e as Error).message;
+          errorDisplayMessage = `Error al procesar la respuesta de error del servidor. Estado: ${response.status}.`;
         }
-        console.error("Error from API:", errorBody);
+        
+        console.error("Error from API - Raw Data:", rawErrorDataForConsole);
+
         toast({
           title: `Error de Descarga (${response.status})`,
-          description: errorBody.details || errorBody.error || "No se pudo generar el archivo Excel desde el servidor.",
+          description: errorDisplayMessage,
           variant: "destructive",
+          duration: 10000, 
         });
         setIsDownloadingReportId(null);
         return;
@@ -628,7 +631,7 @@ export default function GeneratorPage() {
 
       const blob = await response.blob();
       const contentDisposition = response.headers.get('Content-Disposition');
-      let fileName = "reporte_caja_chica.xlsx"; // Default filename
+      let fileName = "reporte_caja_chica.xlsx"; 
 
       if (contentDisposition) {
         const fileNameMatch = contentDisposition.match(/filename="?(.+)"?/i);
@@ -880,5 +883,3 @@ export default function GeneratorPage() {
     </div>
   );
 }
-
-    
