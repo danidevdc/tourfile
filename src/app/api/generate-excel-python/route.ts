@@ -8,187 +8,139 @@ import os from 'os';
 import type { GeneratedReportInfo } from '@/app/generator/page';
 
 export async function POST(request: NextRequest) {
-  let tempOutputXlsxPath = ''; // Renamed to avoid confusion with user-facing paths
+  let tempOutputXlsxPath = '';
 
   try {
+    // Validación del request
     if (!request.body) {
       return NextResponse.json({ error: 'Request body is missing' }, { status: 400 });
     }
+
     const reportData = await request.json() as GeneratedReportInfo;
-
     if (!reportData || typeof reportData !== 'object') {
-        return NextResponse.json({ error: 'Invalid report data' }, { status: 400 });
-    }
-    
-    const uniqueId = Date.now() + Math.random().toString(36).substring(2, 9);
-    const tempDir = os.tmpdir();
-    tempOutputXlsxPath = path.join(tempDir, `report_output_temp_${uniqueId}.xlsx`);
-    
-    // --- Start Filename Construction and Sanitization ---
-    const startDateForFileName = (reportData.startDate || new Date().toISOString().split('T')[0]).replace(/[/\\]/g, '.');
-    
-    let groupNameForFileName = reportData.groupName || "report";
-    // Replace # with space first for groupName, then other problem chars with underscore
-    groupNameForFileName = groupNameForFileName.replace(/#/g, ' ');
-    groupNameForFileName = groupNameForFileName.replace(/[/:*?"<>|\\]/g, '_'); // Common problematic chars for filenames
-    groupNameForFileName = groupNameForFileName.replace(/\s+/g, ' ').replace(/__+/g, '_').trim();
-    if (groupNameForFileName.endsWith("_")) {
-        groupNameForFileName = groupNameForFileName.slice(0, -1);
-    }
-    if (!groupNameForFileName) groupNameForFileName = "report";
-
-    let guideNameForFileName = (reportData.guideName || "GUIDE").toUpperCase();
-    guideNameForFileName = guideNameForFileName.replace(/[/:*?"<>|\\]/g, '_');
-    guideNameForFileName = guideNameForFileName.replace(/\s+/g, '_').replace(/__+/g, '_').trim();
-    if (guideNameForFileName.endsWith("_")) {
-        guideNameForFileName = guideNameForFileName.slice(0, -1);
-    }
-    if (!guideNameForFileName) guideNameForFileName = "GUIDE";
-
-    let fileNumberForFileName = (reportData.fileNumber || "filenumber");
-    fileNumberForFileName = fileNumberForFileName.replace(/[/:*?"<>|\s\\]/g, '_').replace(/__+/g, '_').trim();
-    if (fileNumberForFileName.endsWith("_")) {
-        fileNumberForFileName = fileNumberForFileName.slice(0, -1);
-    }
-    if (!fileNumberForFileName) fileNumberForFileName = "filenumber";
-
-    // 1. Assemble the base filename (everything before .xlsx)
-    let baseFileName = `G.O. ${startDateForFileName} - ${groupNameForFileName} - ${guideNameForFileName} - ${fileNumberForFileName}`;
-
-    // 2. Remove any trailing underscores from this assembled base name
-    while (baseFileName.endsWith("_") || baseFileName.endsWith(" ") || baseFileName.endsWith("-")) {
-      baseFileName = baseFileName.slice(0, -1);
-    }
-    baseFileName = baseFileName.trim(); // Final trim
-
-    // 3. Add the .xlsx extension
-    let finalConstructedFileName = baseFileName + ".xlsx";
-
-    // 4. Ensure it ends with .xlsx and not .xlsx_ (this is a very defensive check)
-    if (finalConstructedFileName.endsWith(".xlsx_")) {
-      finalConstructedFileName = finalConstructedFileName.slice(0, -1); // Remove trailing underscore
-    }
-    // Ensure it actually ends with .xlsx if somehow it was lost or altered
-    if (!finalConstructedFileName.endsWith(".xlsx")) {
-      const dotIndex = finalConstructedFileName.lastIndexOf('.');
-      if (dotIndex > 0) { // if there is a dot and it's not the first char
-        finalConstructedFileName = finalConstructedFileName.substring(0, dotIndex);
-      }
-      finalConstructedFileName += ".xlsx";
-    }
-    // --- End Filename Construction and Sanitization ---
-
-
-    // For filename="..."; replace double quotes, which are problematic in unencoded form
-    // IMPORTANT: Base this on the *final, cleaned* finalConstructedFileName
-    let legacyFilenamePart = finalConstructedFileName.replace(/"/g, "'");
-    // Explicitly ensure this part doesn't end with .xlsx_ if somehow it got re-introduced
-    if (legacyFilenamePart.endsWith(".xlsx_")) {
-        legacyFilenamePart = legacyFilenamePart.slice(0, -1);
+      return NextResponse.json({ error: 'Invalid report data' }, { status: 400 });
     }
 
-
-    // For filename*=UTF-8''... ; RFC5987 encode.
-    // Base this on the *final, cleaned* finalConstructedFileName
-    const rfc5987EncodedFilename = encodeURIComponent(finalConstructedFileName)
-                                      .replace(/['()]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase()) // More robustly escape ' ( )
-                                      .replace(/\*/g, '%2A');   // Escape *
-
-    const pythonScriptPath = path.resolve(process.cwd(), 'excel_generator_cli.py');
-    
-    try {
-        await fs.access(pythonScriptPath, fs.constants.F_OK);
-    } catch (err) {
-        return NextResponse.json({ error: 'Excel generation script not found on server.', details: `Script expected at ${pythonScriptPath}` }, { status: 500 });
-    }
-
-    return new Promise((resolve) => {
-      const tryPythonCommand = (command: 'python3' | 'python') => {
-        const pythonProcess = spawn(command, [pythonScriptPath, tempOutputXlsxPath]);
+    // Generación del nombre de archivo seguro
+    const generateSafeFilename = () => {
+      const clean = (str: string = '', keepSpaces = false) => {
+        // Permite alfanuméricos, espacios (si keepSpaces es true), puntos, guiones y guiones bajos.
+        // Remueve otros caracteres que podrían ser problemáticos en nombres de archivo.
+        let cleaned = str.replace(keepSpaces ? /[^\w\s.-]/g : /[^\w.-]/g, '');
         
-        let scriptOutput = '';
-        let scriptError = '';
+        // Si no se mantienen espacios, reemplaza múltiples espacios/puntos/guiones por un solo guion bajo.
+        // Si se mantienen espacios, solo consolida múltiples espacios a uno.
+        cleaned = keepSpaces 
+          ? cleaned.replace(/\s+/g, ' ').trim()
+          : cleaned.replace(/[\s._-]+/g, '_').trim();
+        
+        // Elimina guiones bajos o puntos al inicio o al final si no se mantienen espacios
+        if (!keepSpaces) {
+            cleaned = cleaned.replace(/^[_.-]+|[_.-]+$/g, '');
+        }
+        return cleaned || "component"; // Devuelve "component" si la limpieza resulta en string vacío
+      };
 
-        try {
-            const jsonDataString = JSON.stringify(reportData);
-            pythonProcess.stdin.write(jsonDataString);
-            pythonProcess.stdin.end();
-        } catch (stdinError) {
-            resolve(NextResponse.json({ error: 'Server failed to send data to Excel generation script.', details: (stdinError as Error).message }, { status: 500 }));
-            return;
+      const date = (reportData.startDate || new Date().toISOString().split('T')[0])
+        .replace(/[\/\s-]/g, '.'); // Reemplaza /, espacio, - con .
+
+      const groupName = clean(reportData.groupName, true); // Mantener espacios
+      const guideName = clean(reportData.guideName).toUpperCase(); // Sin espacios, a mayúsculas
+      const fileNumber = clean(reportData.fileNumber); // Sin espacios
+
+      return `G.O. ${date} - ${groupName} - ${guideName} - ${fileNumber}.xlsx`;
+    };
+
+    const filename = generateSafeFilename();
+    
+    // Archivo temporal
+    const uniqueId = Date.now() + Math.random().toString(36).substring(2, 9);
+    tempOutputXlsxPath = path.join(os.tmpdir(), `report_output_temp_${uniqueId}.xlsx`);
+
+    // Verificar script Python
+    const pythonScriptPath = path.join(process.cwd(), 'excel_generator_cli.py');
+    try {
+      await fs.access(pythonScriptPath);
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Excel generator script not found on server.', details: `Script expected at ${pythonScriptPath}` },
+        { status: 500 }
+      );
+    }
+
+    // Ejecutar Python
+    const result = await new Promise<NextResponse>((resolve) => {
+      // Intenta con 'python3', si falla, podría intentarse con 'python' o manejar el error.
+      // Por ahora, se asume 'python3'.
+      const pythonProcess = spawn('python3', [pythonScriptPath, tempOutputXlsxPath]);
+
+      let stdout = '';
+      let stderr = '';
+
+      pythonProcess.stdout.on('data', (data) => stdout += data.toString());
+      pythonProcess.stderr.on('data', (data) => stderr += data.toString());
+
+      try {
+        pythonProcess.stdin.write(JSON.stringify(reportData));
+        pythonProcess.stdin.end();
+      } catch (stdinError) {
+        resolve(NextResponse.json({ error: 'Server failed to send data to Excel generation script.', details: (stdinError as Error).message }, { status: 500 }));
+        return;
+      }
+      
+      pythonProcess.on('close', async (code) => {
+        if (code !== 0) {
+          return resolve(NextResponse.json(
+            { error: 'Excel generation failed via Python script.', details: (stderr || stdout || "No specific error message from script.").trim(), exitCode: code },
+            { status: 500 }
+          ));
         }
 
-        pythonProcess.stdout.on('data', (data) => {
-          scriptOutput += data.toString();
-        });
+        try {
+          await fs.access(tempOutputXlsxPath); // Verifica si el archivo existe antes de leerlo
+          const fileBuffer = await fs.readFile(tempOutputXlsxPath);
+          
+          const headers = new Headers();
+          headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          // Uso de filename simple, reemplazando comillas dobles en el nombre por simples para el valor del header.
+          headers.set('Content-Disposition', `attachment; filename="${filename.replace(/"/g, "'")}"`);
 
-        pythonProcess.stderr.on('data', (data) => {
-          scriptError += data.toString();
-        });
+          resolve(new NextResponse(fileBuffer, { headers }));
+        } catch (error) {
+          resolve(NextResponse.json(
+            { error: 'Failed to read generated Excel file.', details: `Error accessing ${tempOutputXlsxPath}: ${(error as Error).message}` },
+            { status: 500 }
+          ));
+        }
+      });
 
-        pythonProcess.on('close', async (code) => {
-          if (code === 0) {
-            try {
-              await fs.access(tempOutputXlsxPath, fs.constants.F_OK);
-              const fileBuffer = await fs.readFile(tempOutputXlsxPath);
-              
-              const headers = new Headers();
-              headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-              headers.set('Content-Disposition', `attachment; filename="${legacyFilenamePart}"; filename*=UTF-8''${rfc5987EncodedFilename}`);
-              
-              resolve(new NextResponse(fileBuffer, { status: 200, headers }));
-            } catch (err) {
-              const fileReadError = err as Error;
-              resolve(NextResponse.json({ error: 'Failed to read generated Excel file.', details: `Error accessing ${tempOutputXlsxPath}: ${fileReadError.message}` }, { status: 500 }));
-            }
-          } else {
-            const commonErrorMsg = `Python script exited with code ${code}.`;
-            let detailedError = (scriptError || scriptOutput || "No specific error message from script.").trim();
-            if (!detailedError) { 
-              detailedError = "Python script finished with an error, but provided no specific output.";
-            }
-            resolve(NextResponse.json({ 
-              error: 'Excel generation failed via Python script.', 
-              details: detailedError,
-              output: scriptOutput.trim(), 
-              exitCode: code, 
-              commandUsed: command 
-            }, { status: 500 }));
-          }
-        });
-
-        pythonProcess.on('error', (err) => { 
-           const spawnErrorMsg = `Failed to start Python script with command '${command}'.`;
-           const spawnErrDetails = (err as NodeJS.ErrnoException).code === 'ENOENT' ? `${err.message}. Ensure Python is installed and in PATH.` : err.message;
-           
-           if (command === 'python3') {
-              tryPythonCommand('python');
-           } else {
-            resolve(NextResponse.json({ 
-              error: 'Failed to start Excel generation process.', 
-              details: `${spawnErrorMsg} ${spawnErrDetails}. This often means Python is not installed or not in the system's PATH.`
-            }, { status: 500 }));
-           }
-        });
-      };
-      
-      tryPythonCommand('python3'); 
+      pythonProcess.on('error', (error) => { // Error al iniciar el proceso Python
+        resolve(NextResponse.json(
+          { error: 'Failed to start Python script execution.', details: `${error.message}. Ensure Python 3 is installed and in PATH.` },
+          { status: 500 }
+        ));
+      });
     });
 
+    return result;
+
   } catch (error) {
-    const apiError = error as Error;
-    return NextResponse.json({ error: 'An unexpected error occurred in the API handler.', details: apiError.message }, { status: 500 });
+    // Captura de errores generales en el handler POST
+    return NextResponse.json(
+      { error: 'An unexpected error occurred in the API handler.', details: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
   } finally {
+    // Limpieza del archivo temporal
     if (tempOutputXlsxPath) {
-       fs.access(tempOutputXlsxPath)
-        .then(() => fs.unlink(tempOutputXlsxPath))
-        .catch(err => {
-            if ((err as NodeJS.ErrnoException).code !== 'ENOENT') { 
-            }
-        });
+      fs.unlink(tempOutputXlsxPath).catch(err => {
+        // Solo loguear si el error no es porque el archivo no existe (ya fue borrado o nunca se creó)
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          console.warn(`Could not delete temp file ${tempOutputXlsxPath}:`, err);
+        }
+      });
     }
   }
 }
 
 export const dynamic = 'force-dynamic';
-    
