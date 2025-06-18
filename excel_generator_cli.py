@@ -5,6 +5,8 @@ import os
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from datetime import datetime # Añadido para el manejo de fechas
+
 # import traceback # For more detailed Python error logging if needed
 
 def apply_borders(ws, min_row, max_row, min_col, max_col):
@@ -31,23 +33,21 @@ def generate_excel(data, output_path):
         expense_items = data.get("expenseItems", [])
 
         # Fonts
-        # title_font used for A1 was originally size 14, changed to header_font for size 11
         header_font = Font(name='Calibri', size=11, bold=True) 
-        # General font for data cells, if needed (not explicitly defined before for data)
-        # data_font = Font(name='Calibri', size=11, bold=False) 
-
+        
         # Alignments
         center_alignment = Alignment(horizontal="center", vertical="center")
         right_alignment = Alignment(horizontal="right", vertical="center")
-        left_alignment = Alignment(horizontal="left", vertical="center") # New alignment for A1
+        left_alignment = Alignment(horizontal="left", vertical="center")
         
         currency_format = '#,##0.00'
+        date_format_ddmmyy = 'dd/mm/yy' # Formato de fecha deseado
 
         # --- Row 1: CAJA CHICA GUIA ---
         ws['A1'] = "CAJA CHICA GUIA"
-        ws['A1'].font = header_font # Changed from title_font (size 14) to header_font (size 11)
-        ws['A1'].alignment = left_alignment # Changed from center_alignment
-        ws.merge_cells('A1:G1') # Merging remains the same, but content inside A1 is left aligned
+        ws['A1'].font = header_font 
+        ws['A1'].alignment = left_alignment 
+        ws.merge_cells('A1:G1')
 
         # --- Row 2: FILE & NOMBRE GUIA ---
         ws['A2'] = "FILE:"
@@ -88,9 +88,22 @@ def generate_excel(data, output_path):
         # --- Expense Items ---
         current_row = 5
         for item in expense_items:
-            date_val = item.get("date", "")
-            ws.cell(row=current_row, column=1, value=date_val).alignment = center_alignment
+            # Date processing (Column A)
+            date_cell = ws.cell(row=current_row, column=1)
+            date_val_str = item.get("date", "")
+            if date_val_str: # Only process if date string is not empty
+                try:
+                    # Assuming date_val_str is "dd/MM/yy" from frontend
+                    date_obj = datetime.strptime(date_val_str, "%d/%m/%y")
+                    date_cell.value = date_obj
+                    date_cell.number_format = date_format_ddmmyy
+                except ValueError:
+                    date_cell.value = date_val_str # Fallback to string if parsing fails
+            else:
+                date_cell.value = "" # For items like "AGUAS" that might have empty date
+            date_cell.alignment = center_alignment
             
+            # Quantity (Column B)
             quantity_str = str(item.get("quantity", "1"))
             if quantity_str.startswith("="):
                 ws.cell(row=current_row, column=2, value=quantity_str).alignment = center_alignment
@@ -100,9 +113,11 @@ def generate_excel(data, output_path):
                 except ValueError:
                     ws.cell(row=current_row, column=2, value=quantity_str).alignment = center_alignment
 
+            # Detail (Column C, merged with D)
             ws.cell(row=current_row, column=3, value=item.get("detail", "")).alignment = center_alignment
             ws.merge_cells(start_row=current_row, start_column=3, end_row=current_row, end_column=4)
             
+            # Unit Price (Column E)
             unit_price_val = item.get("unitPrice", 0)
             try:
                 unit_price_val = float(unit_price_val)
@@ -113,11 +128,13 @@ def generate_excel(data, output_path):
             unit_price_cell.number_format = currency_format
             unit_price_cell.alignment = right_alignment
 
+            # Total (Column F)
             total_formula = f"=B{current_row}*E{current_row}"
             total_cell = ws.cell(row=current_row, column=6, value=total_formula)
             total_cell.number_format = currency_format
             total_cell.alignment = right_alignment
             
+            # VOB Ops (Column G)
             ws.cell(row=current_row, column=7, value=item.get("vobOps", "")).alignment = center_alignment
             current_row += 1
 
@@ -133,26 +150,16 @@ def generate_excel(data, output_path):
         grand_total_cell.alignment = right_alignment
         
         # --- Column Widths ---
-        # (Original widths commented out for clarity of change)
-        # ws.column_dimensions['A'].width = 12
-        # ws.column_dimensions['B'].width = 8
-        # ws.column_dimensions['C'].width = 35 
-        # ws.column_dimensions['D'].width = 0.1 # Effectively hide column D if merged
-        # ws.column_dimensions['E'].width = 15
-        # ws.column_dimensions['F'].width = 15
-        # ws.column_dimensions['G'].width = 10
+        pixel_width_target_64px = 9.14 # Approx 64 pixels
+        pixel_width_target_104px = 14.85 # Approx 104 pixels
 
-        pixel_width_target = 9.14 # Approx 64 pixels (64px / ~7px_per_char)
-
-        ws.column_dimensions['A'].width = 12 # A remains unchanged as per request
-        ws.column_dimensions['B'].width = pixel_width_target
-        ws.column_dimensions['C'].width = pixel_width_target 
-        # Column D is merged often, its width setting might not be critical if C covers it.
-        # If C's width is 9.14, D is part of merged cells with C.
-        # ws.column_dimensions['D'].width = # Not explicitly requested to change, let's leave it as openpyxl default or as affected by merge
-        ws.column_dimensions['E'].width = pixel_width_target
-        ws.column_dimensions['F'].width = pixel_width_target
-        ws.column_dimensions['G'].width = pixel_width_target
+        ws.column_dimensions['A'].width = 12 
+        ws.column_dimensions['B'].width = pixel_width_target_64px
+        ws.column_dimensions['C'].width = pixel_width_target_64px 
+        ws.column_dimensions['D'].width = pixel_width_target_104px # Nuevo ancho para columna D
+        ws.column_dimensions['E'].width = pixel_width_target_64px
+        ws.column_dimensions['F'].width = pixel_width_target_64px
+        ws.column_dimensions['G'].width = pixel_width_target_64px
 
 
         # --- Apply Borders to the main table content ---
@@ -196,3 +203,4 @@ if __name__ == "__main__":
     
 
     
+
