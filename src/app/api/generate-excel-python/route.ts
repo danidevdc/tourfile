@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
   let tempOutputXlsxPath = '';
 
   try {
+    // Validación del request
     if (!request.body) {
       return NextResponse.json({ error: 'Request body is missing' }, { status: 400 });
     }
@@ -20,58 +21,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid report data' }, { status: 400 });
     }
 
+    // Generación del nombre de archivo seguro
     const generateSafeFilename = () => {
-      const clean = (str: string = '', keepSpaces = false): string => {
-        if (typeof str !== 'string') str = String(str);
-
-        let cleaned = str;
-        // Primero, reemplazar explícitamente los caracteres que causan problemas de codificación o son inválidos en nombres de archivo.
-        cleaned = cleaned.replace(/[\/:\*\?"<>\|#]/g, '_'); // # también se reemplaza por _
-
-        // Si no se mantienen los espacios, reemplazarlos por guiones bajos.
-        if (!keepSpaces) {
-          cleaned = cleaned.replace(/\s+/g, '_');
-        } else {
-          // Si se mantienen los espacios, consolidar múltiples espacios a uno solo.
-          cleaned = cleaned.replace(/\s+/g, ' ');
-        }
-        
-        // Reemplazar cualquier carácter que no sea alfanumérico, espacio (si se permite), punto, guion o guion bajo, con un guion bajo.
-        cleaned = cleaned.replace(keepSpaces ? /[^a-zA-Z0-9\s._-]/g : /[^a-zA-Z0-9._-]/g, '_');
-        
-        // Consolidar múltiples guiones bajos a uno solo.
-        cleaned = cleaned.replace(/_+/g, '_');
-        
-        cleaned = cleaned.trim();
-
-        // Eliminar guiones bajos, puntos o guiones que hayan quedado al principio o al final.
-        cleaned = cleaned.replace(/^[_.-]+|[_.-]+$/g, '');
-        
-        return cleaned;
+      const clean = (str: string = '', keepSpaces = false) => {
+        // Modificación: Se añade '#' a la lista de caracteres permitidos en la regex.
+        // Esto evitará que '#' sea eliminado.
+        let cleaned = str.replace(/[^\w\s.#-]/g, ''); 
+        return keepSpaces 
+          ? cleaned.replace(/\s+/g, ' ').trim()
+          : cleaned.replace(/\s+/g, '_').trim();
       };
 
       const date = (reportData.startDate || new Date().toISOString().split('T')[0])
         .replace(/\//g, '.').replace(/-/g, '.');
       
-      const groupNamePart = clean(reportData.groupName, true); // Mantener espacios
-      const guideNamePart = clean(reportData.guideName, false);   // Reemplazar espacios con _
-      const fileNumberPart = clean(reportData.fileNumber, false); // Reemplazar espacios con _
+      let groupNamePart = clean(reportData.groupName, true);
+      let guideNamePart = clean(reportData.guideName, false); // keepSpaces = false
+      let fileNumberPart = clean(reportData.fileNumber, false); // keepSpaces = false
 
-      let baseName = `G.O. ${date} - ${groupNamePart} - ${guideNamePart} - ${fileNumberPart}`;
+      // Asegurar que no haya múltiples guiones bajos seguidos si se generaron por espacios
+      groupNamePart = groupNamePart.replace(/__+/g, '_');
+      guideNamePart = guideNamePart.replace(/__+/g, '_');
+      fileNumberPart = fileNumberPart.replace(/__+/g, '_');
       
-      // Limpieza final de la cadena base ensamblada
-      baseName = baseName.replace(/\s*-\s*/g, ' - '); // Normalizar espaciado alrededor de guiones
-      baseName = baseName.replace(/__+/g, '_'); // Consolidar guiones bajos nuevamente
-      baseName = baseName.trim().replace(/[_.-]+$/g, ''); // MUY IMPORTANTE: Eliminar CUALQUIER _, ., - al FINAL de la base
+      // Construir el nombre base
+      let baseFileName = `G.O. ${date} - ${groupNamePart} - ${guideNamePart} - ${fileNumberPart}`;
       
-      return baseName + ".xlsx";
+      // Limpieza final de la base del nombre de archivo
+      // Eliminar caracteres que no queremos al final de la parte base
+      baseFileName = baseFileName.replace(/[_.-]+$/, '');
+
+      return `${baseFileName}.xlsx`;
     };
 
-    const filename = generateSafeFilename();
-    // console.log('[API DEBUG] Backend generated filename:', filename); // Puedes descomentar esto temporalmente para depurar
+    const finalConstructedFileName = generateSafeFilename();
+    
+    // Para el header Content-Disposition, versión simplificada
+    const safeFilenameForHeader = finalConstructedFileName
+      .replace(/"/g, '') // Elimina comillas dobles si las hubiera por error
+      .replace(/\s+/g, ' ') // Normaliza múltiples espacios a uno solo
+      .trim();
 
-    tempOutputXlsxPath = path.join(os.tmpdir(), `temp_${Date.now()}_${filename}`);
+    // Archivo temporal
+    // Usar una parte del nombre de archivo final para el temporal, pero asegurar unicidad.
+    const tempBase = finalConstructedFileName.replace('.xlsx', '').replace(/[^a-zA-Z0-9_.-]/g, '_');
+    tempOutputXlsxPath = path.join(os.tmpdir(), `temp_${Date.now()}_${tempBase.substring(0,50)}.xlsx`);
 
+
+    // Verificar script Python
     const pythonScriptPath = path.join(process.cwd(), 'excel_generator_cli.py');
     try {
       await fs.access(pythonScriptPath);
@@ -83,6 +80,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Ejecutar Python
     const result = await new Promise<NextResponse>((resolve) => {
       const pythonProcess = spawn('python3', [pythonScriptPath, tempOutputXlsxPath]);
 
@@ -90,7 +88,10 @@ export async function POST(request: NextRequest) {
       let stderr = '';
 
       pythonProcess.stdout.on('data', (data) => stdout += data.toString());
-      pythonProcess.stderr.on('data', (data) => stderr += data.toString());
+      pythonProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+        // console.error(`Python stderr: ${data.toString()}`); // Log stderr as it comes
+      });
 
       pythonProcess.stdin.write(JSON.stringify(reportData));
       pythonProcess.stdin.end();
@@ -109,12 +110,15 @@ export async function POST(request: NextRequest) {
           
           const headers = new Headers();
           headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-          // Usar el nombre de archivo 'filename' ya limpio. Reemplazar " por ' para el valor del atributo.
-          headers.set('Content-Disposition', `attachment; filename="${filename.replace(/"/g, "'")}"`);
+          // Usar el nombre de archivo ya limpio y seguro para el header
+          headers.set('Content-Disposition', `attachment; filename="${safeFilenameForHeader}"`);
+          
+          // Headers adicionales para robustez
           headers.set('X-Content-Type-Options', 'nosniff');
           headers.set('Content-Transfer-Encoding', 'binary');
 
-          resolve(new NextResponse(fileBuffer, { headers }));
+          resolve(new NextResponse(fileBuffer, { status: 200, headers }));
+
         } catch (readError) {
           console.error('Failed to read generated Excel file:', readError);
           resolve(NextResponse.json(
@@ -144,7 +148,6 @@ export async function POST(request: NextRequest) {
   } finally {
     if (tempOutputXlsxPath) {
       fs.unlink(tempOutputXlsxPath).catch((unlinkError) => {
-        // No es crítico si falla, pero loguear si ocurre
         // console.warn(`Could not delete temp file ${tempOutputXlsxPath}:`, unlinkError);
       });
     }
