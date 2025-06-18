@@ -8,24 +8,23 @@ import os from 'os';
 import type { GeneratedReportInfo } from '@/app/generator/page';
 
 export async function POST(request: NextRequest) {
-  let inputJsonPath = '';
-  let outputXlsxPath = '';
+  let outputXlsxPath = ''; // Input JSON path is no longer needed
 
   try {
     if (!request.body) {
-      console.error('API Error: Request body is missing');
+      console.error('[API] Error: Request body is missing');
       return NextResponse.json({ error: 'Request body is missing' }, { status: 400 });
     }
     const reportData = await request.json() as GeneratedReportInfo;
 
     if (!reportData || typeof reportData !== 'object') {
-        console.error('API Error: Invalid report data received:', reportData);
+        console.error('[API] Error: Invalid report data received:', reportData);
         return NextResponse.json({ error: 'Invalid report data' }, { status: 400 });
     }
     
     const uniqueId = Date.now() + Math.random().toString(36).substring(2, 9);
     const tempDir = os.tmpdir();
-    inputJsonPath = path.join(tempDir, `report_data_${uniqueId}.json`);
+    // inputJsonPath is removed
     outputXlsxPath = path.join(tempDir, `report_output_${uniqueId}.xlsx`);
     
     let sanitizedGroupName = reportData.groupName || "report";
@@ -39,25 +38,15 @@ export async function POST(request: NextRequest) {
     const startDateForFileName = reportData.startDate ? reportData.startDate.replace(/\//g, '.') : new Date().toISOString().split('T')[0];
     const fileName = `G.O. ${startDateForFileName} - ${sanitizedGroupName} - ${reportData.guideName.toUpperCase().replace(/\s/g, '_')} - ${reportData.fileNumber}.xlsx`;
 
-    try {
-      console.log(`[API] Attempting to write input JSON to: ${inputJsonPath}`);
-      await fs.writeFile(inputJsonPath, JSON.stringify(reportData, null, 2), 'utf-8');
-      console.log(`[API] Successfully wrote input JSON to: ${inputJsonPath}`);
-    } catch (writeError) {
-      const writeErr = writeError as Error;
-      console.error(`[API] CRITICAL: Failed to write input JSON file to ${inputJsonPath}:`, writeErr.message, writeErr.stack);
-      return NextResponse.json({
-        error: 'Server failed to prepare input data for Excel generation.',
-        details: `Error writing temporary JSON file: ${writeErr.message}`,
-      }, { status: 500 });
-    }
+    // The input JSON file writing is removed. Data will be passed via stdin.
 
     const pythonScriptPath = path.resolve(process.cwd(), 'excel_generator_cli.py');
     
     try {
         await fs.access(pythonScriptPath, fs.constants.F_OK);
+        console.log(`[API] Python script found at: ${pythonScriptPath}`);
     } catch (err) {
-        console.error('[API] Python script not found at:', pythonScriptPath, err);
+        console.error('[API] CRITICAL: Python script not found at:', pythonScriptPath, err);
         const errorPayload = { error: 'Excel generation script not found on server.', details: `Script expected at ${pythonScriptPath}` };
         console.error("[API] Error Response (Server-side):", JSON.stringify(errorPayload));
         return NextResponse.json(errorPayload, { status: 500 });
@@ -65,10 +54,25 @@ export async function POST(request: NextRequest) {
 
     return new Promise((resolve) => {
       const tryPythonCommand = (command: 'python3' | 'python') => {
-        console.log(`[API] Attempting to spawn Python script with command: ${command} ${pythonScriptPath} ${inputJsonPath} ${outputXlsxPath}`);
-        const pythonProcess = spawn(command, [pythonScriptPath, inputJsonPath, outputXlsxPath]);
+        // Python script now only takes outputXlsxPath as argument
+        console.log(`[API] Attempting to spawn Python script with command: ${command} ${pythonScriptPath} ${outputXlsxPath}`);
+        const pythonProcess = spawn(command, [pythonScriptPath, outputXlsxPath]);
+        
         let scriptOutput = '';
         let scriptError = '';
+
+        // Write reportData to Python script's stdin
+        try {
+            const jsonDataString = JSON.stringify(reportData);
+            pythonProcess.stdin.write(jsonDataString);
+            pythonProcess.stdin.end(); // Close stdin to signal end of input
+            console.log("[API] Successfully wrote data to Python script stdin.");
+        } catch (stdinError) {
+            console.error("[API] CRITICAL: Failed to write data to Python script stdin:", stdinError);
+            const errorPayload = { error: 'Server failed to send data to Excel generation script.', details: (stdinError as Error).message };
+            resolve(NextResponse.json(errorPayload, { status: 500 }));
+            return;
+        }
 
         pythonProcess.stdout.on('data', (data) => {
           scriptOutput += data.toString();
@@ -85,6 +89,7 @@ export async function POST(request: NextRequest) {
 
           if (code === 0) {
             try {
+              await fs.access(outputXlsxPath, fs.constants.F_OK); // Check if output file exists
               const fileBuffer = await fs.readFile(outputXlsxPath);
               const headers = new Headers();
               headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -94,8 +99,8 @@ export async function POST(request: NextRequest) {
               resolve(new NextResponse(fileBuffer, { status: 200, headers }));
             } catch (err) {
               const fileReadError = err as Error;
-              console.error('[API] Error reading generated Excel file:', fileReadError.message, fileReadError.stack);
-              const errorPayload = { error: 'Failed to read generated Excel file.', details: fileReadError.message };
+              console.error('[API] Error reading or accessing generated Excel file:', fileReadError.message, fileReadError.stack);
+              const errorPayload = { error: 'Failed to read generated Excel file.', details: `Error accessing ${outputXlsxPath}: ${fileReadError.message}` };
               console.error("[API] Error Response (Server-side):", JSON.stringify(errorPayload));
               resolve(NextResponse.json(errorPayload, { status: 500 }));
             }
@@ -126,12 +131,12 @@ export async function POST(request: NextRequest) {
            console.error(`[API] Server-side: ${spawnErrorMsg} Error: ${spawnErrDetails}`, err);
            
            if (command === 'python3') {
-              console.warn("[API] Attempting fallback to 'python' command.");
+              console.warn("[API] Python3 command failed, attempting fallback to 'python' command.");
               tryPythonCommand('python');
            } else {
             const errorPayload = { 
               error: 'Failed to start Excel generation process.', 
-              details: `${spawnErrorMsg} ${spawnErrDetails}`
+              details: `${spawnErrorMsg} ${spawnErrDetails}. This often means Python is not installed or not in the system's PATH.`
             };
             console.error("[API] Error Response (Server-side):", JSON.stringify(errorPayload));
             resolve(NextResponse.json(errorPayload, { status: 500 }));
@@ -149,9 +154,7 @@ export async function POST(request: NextRequest) {
     console.error("[API] Error Response (Server-side):", JSON.stringify(errorPayload));
     return NextResponse.json(errorPayload, { status: 500 });
   } finally {
-    if (inputJsonPath) {
-      fs.unlink(inputJsonPath).then(() => console.log(`[API] Deleted temp input JSON: ${inputJsonPath}`)).catch(err => console.warn('[API] Error deleting temp input JSON file:', (err as Error).message));
-    }
+    // No inputJsonPath to delete
     if (outputXlsxPath) {
        fs.access(outputXlsxPath)
         .then(() => fs.unlink(outputXlsxPath).then(() => console.log(`[API] Deleted temp output XLSX: ${outputXlsxPath}`)))
@@ -165,4 +168,6 @@ export async function POST(request: NextRequest) {
 }
 
 export const dynamic = 'force-dynamic';
+    
+
     

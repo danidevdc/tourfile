@@ -146,33 +146,35 @@ def generate_excel(data, output_path):
         wb.save(output_path)
 
     except Exception as e:
-        # Print detailed error to stderr for Node.js to capture
-        # traceback.print_exc(file=sys.stderr) # For full traceback
         sys.stderr.write(f"Python script error during Excel generation: {str(e)}\n")
-        sys.exit(1) # Exit with a non-zero code to indicate failure
+        sys.exit(1) 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.stderr.write("Usage: python excel_generator_cli.py <input_json_path> <output_xlsx_path>\n")
+    if len(sys.argv) != 2: # Expects 1 argument now: output_xlsx_path
+        sys.stderr.write("Usage: python excel_generator_cli.py <output_xlsx_path>\n")
+        sys.stderr.write(f"Received arguments: {sys.argv}\n")
         sys.exit(1)
 
-    input_json_path = sys.argv[1]
-    output_xlsx_path = sys.argv[2]
-
-    if not os.path.exists(input_json_path):
-        sys.stderr.write(f"Error: Input JSON file not found at {input_json_path}\n")
-        sys.exit(1)
+    output_xlsx_path = sys.argv[1]
     
     try:
-        with open(input_json_path, 'r', encoding='utf-8') as f:
-            data_to_process = json.load(f)
+        # Read JSON data from stdin
+        data_to_process = json.load(sys.stdin)
+    except json.JSONDecodeError as e:
+        sys.stderr.write(f"Error: Invalid JSON received on stdin: {str(e)}\n")
+        sys.exit(1)
     except Exception as e:
-        sys.stderr.write(f"Error reading or parsing JSON input file: {str(e)}\n")
+        sys.stderr.write(f"Error reading or parsing JSON from stdin: {str(e)}\n")
         sys.exit(1)
     
+    if not output_xlsx_path:
+        sys.stderr.write("Error: Output XLSX path not provided or empty.\n")
+        sys.exit(1)
+
     generate_excel(data_to_process, output_xlsx_path)
     # If successful, Python script will exit with 0.
-    # Node.js will see stdout for successful messages if any (currently none from this script on success).
     # print(f"Excel file generated successfully at {output_xlsx_path}") # Optional: for debugging
     
+    
+
     
