@@ -8,67 +8,92 @@ import os from 'os';
 import type { GeneratedReportInfo } from '@/app/generator/page';
 
 export async function POST(request: NextRequest) {
-  let outputXlsxPath = ''; // Input JSON path is no longer needed
+  let outputXlsxPath = '';
 
   try {
     if (!request.body) {
-      console.error('[API] Error: Request body is missing');
       return NextResponse.json({ error: 'Request body is missing' }, { status: 400 });
     }
     const reportData = await request.json() as GeneratedReportInfo;
 
     if (!reportData || typeof reportData !== 'object') {
-        console.error('[API] Error: Invalid report data received:', reportData);
         return NextResponse.json({ error: 'Invalid report data' }, { status: 400 });
     }
     
     const uniqueId = Date.now() + Math.random().toString(36).substring(2, 9);
     const tempDir = os.tmpdir();
-    // inputJsonPath is removed
     outputXlsxPath = path.join(tempDir, `report_output_${uniqueId}.xlsx`);
     
+    // Sanitize individual filename components
+    const startDateForFileName = (reportData.startDate || new Date().toISOString().split('T')[0]).replace(/\//g, '.');
+    
     let sanitizedGroupName = reportData.groupName || "report";
-    const charsToReplace = ['/', ':', '\\*', '\\?', '\\[', '\\]', '\\s', '\\(', '\\)'];
-    charsToReplace.forEach(char => {
+    sanitizedGroupName = sanitizedGroupName.replace(/#/g, ' '); // Replace # with space
+    const groupCharsToReplace = ['/', ':', '\\*', '\\?', '\\[', '\\]', '\\(', '\\)'];
+    groupCharsToReplace.forEach(char => {
         const regex = new RegExp(char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
         sanitizedGroupName = sanitizedGroupName.replace(regex, '_');
     });
-    sanitizedGroupName = sanitizedGroupName.replace(/__+/g, '_');
+    sanitizedGroupName = sanitizedGroupName.replace(/\s+/g, ' ').replace(/__+/g, '_').trim();
+    while (sanitizedGroupName.endsWith("_")) {
+        sanitizedGroupName = sanitizedGroupName.slice(0, -1);
+    }
+    if (!sanitizedGroupName) sanitizedGroupName = "report";
 
-    const startDateForFileName = reportData.startDate ? reportData.startDate.replace(/\//g, '.') : new Date().toISOString().split('T')[0];
-    const fileName = `G.O. ${startDateForFileName} - ${sanitizedGroupName} - ${reportData.guideName.toUpperCase().replace(/\s/g, '_')} - ${reportData.fileNumber}.xlsx`;
+    let sanitizedGuideName = (reportData.guideName || "GUIDE").toUpperCase().replace(/\s+/g, '_').replace(/__+/g, '_').trim();
+    while (sanitizedGuideName.endsWith("_")) {
+        sanitizedGuideName = sanitizedGuideName.slice(0, -1);
+    }
+    if (!sanitizedGuideName) sanitizedGuideName = "GUIDE";
 
-    // The input JSON file writing is removed. Data will be passed via stdin.
+    let cleanFileNumber = (reportData.fileNumber || "filenumber").replace(/[^a-zA-Z0-9-]/g, '_').replace(/__+/g, '_').trim();
+    while (cleanFileNumber.endsWith("_")) {
+        cleanFileNumber = cleanFileNumber.slice(0, -1);
+    }
+    if (!cleanFileNumber) cleanFileNumber = "filenumber";
+
+    // 1. Assemble the base filename (everything before .xlsx)
+    let baseFileName = `G.O. ${startDateForFileName} - ${sanitizedGroupName} - ${sanitizedGuideName} - ${cleanFileNumber}`;
+
+    // 2. Remove any trailing underscores from this assembled base name
+    while (baseFileName.endsWith("_")) {
+      baseFileName = baseFileName.slice(0, -1);
+    }
+    
+    // 3. Add the .xlsx extension
+    const finalConstructedFileName = baseFileName + ".xlsx";
+
+    // Prepare filename parts for Content-Disposition
+    // For filename="..."; replace double quotes, which are problematic in unencoded form
+    const legacyFilenamePart = finalConstructedFileName.replace(/"/g, "'");
+
+    // For filename*=UTF-8''... ; RFC5987 encode.
+    // encodeURIComponent handles most characters. Then replace specific ones not covered by it but problematic in headers.
+    const rfc5987EncodedFilename = encodeURIComponent(finalConstructedFileName)
+                                      .replace(/['()]/g, escape) // Escape ' ( )
+                                      .replace(/\*/g, '%2A');   // Escape *
 
     const pythonScriptPath = path.resolve(process.cwd(), 'excel_generator_cli.py');
     
     try {
         await fs.access(pythonScriptPath, fs.constants.F_OK);
-        console.log(`[API] Python script found at: ${pythonScriptPath}`);
     } catch (err) {
-        console.error('[API] CRITICAL: Python script not found at:', pythonScriptPath, err);
         const errorPayload = { error: 'Excel generation script not found on server.', details: `Script expected at ${pythonScriptPath}` };
-        console.error("[API] Error Response (Server-side):", JSON.stringify(errorPayload));
         return NextResponse.json(errorPayload, { status: 500 });
     }
 
     return new Promise((resolve) => {
       const tryPythonCommand = (command: 'python3' | 'python') => {
-        // Python script now only takes outputXlsxPath as argument
-        console.log(`[API] Attempting to spawn Python script with command: ${command} ${pythonScriptPath} ${outputXlsxPath}`);
         const pythonProcess = spawn(command, [pythonScriptPath, outputXlsxPath]);
         
         let scriptOutput = '';
         let scriptError = '';
 
-        // Write reportData to Python script's stdin
         try {
             const jsonDataString = JSON.stringify(reportData);
             pythonProcess.stdin.write(jsonDataString);
-            pythonProcess.stdin.end(); // Close stdin to signal end of input
-            console.log("[API] Successfully wrote data to Python script stdin.");
+            pythonProcess.stdin.end();
         } catch (stdinError) {
-            console.error("[API] CRITICAL: Failed to write data to Python script stdin:", stdinError);
             const errorPayload = { error: 'Server failed to send data to Excel generation script.', details: (stdinError as Error).message };
             resolve(NextResponse.json(errorPayload, { status: 500 }));
             return;
@@ -83,25 +108,20 @@ export async function POST(request: NextRequest) {
         });
 
         pythonProcess.on('close', async (code) => {
-          console.log(`[API] Python script (${command}) finished with exit code ${code}.`);
-          if (scriptOutput) console.log(`[API] Python script stdout: ${scriptOutput}`);
-          if (scriptError) console.error(`[API] Python script stderr: ${scriptError}`);
-
           if (code === 0) {
             try {
-              await fs.access(outputXlsxPath, fs.constants.F_OK); // Check if output file exists
+              await fs.access(outputXlsxPath, fs.constants.F_OK);
               const fileBuffer = await fs.readFile(outputXlsxPath);
+              
               const headers = new Headers();
               headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-              headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+              // Correctly formatted Content-Disposition with both filename and filename*
+              headers.set('Content-Disposition', `attachment; filename="${legacyFilenamePart}"; filename*=UTF-8''${rfc5987EncodedFilename}`);
               
-              console.log(`[API] Successfully generated Excel. Sending file: ${fileName}`);
               resolve(new NextResponse(fileBuffer, { status: 200, headers }));
             } catch (err) {
               const fileReadError = err as Error;
-              console.error('[API] Error reading or accessing generated Excel file:', fileReadError.message, fileReadError.stack);
               const errorPayload = { error: 'Failed to read generated Excel file.', details: `Error accessing ${outputXlsxPath}: ${fileReadError.message}` };
-              console.error("[API] Error Response (Server-side):", JSON.stringify(errorPayload));
               resolve(NextResponse.json(errorPayload, { status: 500 }));
             }
           } else {
@@ -110,9 +130,6 @@ export async function POST(request: NextRequest) {
             if (!detailedError) { 
               detailedError = "Python script finished with an error, but provided no specific output.";
             }
-            
-            console.error(`[API] Server-side: ${commonErrorMsg} Command: ${command}. Full Error Details: ${detailedError}. Script Output (if any): ${scriptOutput}`);
-            
             const errorPayload = { 
               error: 'Excel generation failed via Python script.', 
               details: detailedError,
@@ -120,7 +137,6 @@ export async function POST(request: NextRequest) {
               exitCode: code, 
               commandUsed: command 
             };
-            console.error("[API] Error Response (Server-side):", JSON.stringify(errorPayload));
             resolve(NextResponse.json(errorPayload, { status: 500 }));
           }
         });
@@ -128,17 +144,14 @@ export async function POST(request: NextRequest) {
         pythonProcess.on('error', (err) => { 
            const spawnErrorMsg = `Failed to start Python script with command '${command}'.`;
            const spawnErrDetails = (err as NodeJS.ErrnoException).code === 'ENOENT' ? `${err.message}. Ensure Python is installed and in PATH.` : err.message;
-           console.error(`[API] Server-side: ${spawnErrorMsg} Error: ${spawnErrDetails}`, err);
            
            if (command === 'python3') {
-              console.warn("[API] Python3 command failed, attempting fallback to 'python' command.");
               tryPythonCommand('python');
            } else {
             const errorPayload = { 
               error: 'Failed to start Excel generation process.', 
               details: `${spawnErrorMsg} ${spawnErrDetails}. This often means Python is not installed or not in the system's PATH.`
             };
-            console.error("[API] Error Response (Server-side):", JSON.stringify(errorPayload));
             resolve(NextResponse.json(errorPayload, { status: 500 }));
            }
         });
@@ -149,18 +162,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     const apiError = error as Error;
-    console.error('[API] CRITICAL: Unhandled error in POST /api/generate-excel-python:', apiError.message, apiError.stack);
     const errorPayload = { error: 'An unexpected error occurred in the API handler.', details: apiError.message };
-    console.error("[API] Error Response (Server-side):", JSON.stringify(errorPayload));
     return NextResponse.json(errorPayload, { status: 500 });
   } finally {
-    // No inputJsonPath to delete
     if (outputXlsxPath) {
        fs.access(outputXlsxPath)
-        .then(() => fs.unlink(outputXlsxPath).then(() => console.log(`[API] Deleted temp output XLSX: ${outputXlsxPath}`)))
+        .then(() => fs.unlink(outputXlsxPath))
         .catch(err => {
             if ((err as NodeJS.ErrnoException).code !== 'ENOENT') { 
-                 console.warn('[API] Error deleting temp output XLSX file:', (err as Error).message);
             }
         });
     }
@@ -168,6 +177,4 @@ export async function POST(request: NextRequest) {
 }
 
 export const dynamic = 'force-dynamic';
-    
-
     
