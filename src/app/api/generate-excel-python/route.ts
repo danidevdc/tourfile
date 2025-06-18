@@ -8,7 +8,7 @@ import os from 'os';
 import type { GeneratedReportInfo } from '@/app/generator/page';
 
 export async function POST(request: NextRequest) {
-  let outputXlsxPath = '';
+  let tempOutputXlsxPath = ''; // Renamed to avoid confusion with user-facing paths
 
   try {
     if (!request.body) {
@@ -22,55 +22,76 @@ export async function POST(request: NextRequest) {
     
     const uniqueId = Date.now() + Math.random().toString(36).substring(2, 9);
     const tempDir = os.tmpdir();
-    outputXlsxPath = path.join(tempDir, `report_output_${uniqueId}.xlsx`);
+    tempOutputXlsxPath = path.join(tempDir, `report_output_temp_${uniqueId}.xlsx`);
     
-    // Sanitize individual filename components
-    const startDateForFileName = (reportData.startDate || new Date().toISOString().split('T')[0]).replace(/\//g, '.');
+    // --- Start Filename Construction and Sanitization ---
+    const startDateForFileName = (reportData.startDate || new Date().toISOString().split('T')[0]).replace(/[/\\]/g, '.');
     
-    let sanitizedGroupName = reportData.groupName || "report";
-    sanitizedGroupName = sanitizedGroupName.replace(/#/g, ' '); // Replace # with space
-    const groupCharsToReplace = ['/', ':', '\\*', '\\?', '\\[', '\\]', '\\(', '\\)'];
-    groupCharsToReplace.forEach(char => {
-        const regex = new RegExp(char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-        sanitizedGroupName = sanitizedGroupName.replace(regex, '_');
-    });
-    sanitizedGroupName = sanitizedGroupName.replace(/\s+/g, ' ').replace(/__+/g, '_').trim();
-    while (sanitizedGroupName.endsWith("_")) {
-        sanitizedGroupName = sanitizedGroupName.slice(0, -1);
+    let groupNameForFileName = reportData.groupName || "report";
+    // Replace # with space first for groupName, then other problem chars with underscore
+    groupNameForFileName = groupNameForFileName.replace(/#/g, ' ');
+    groupNameForFileName = groupNameForFileName.replace(/[/:*?"<>|\\]/g, '_'); // Common problematic chars for filenames
+    groupNameForFileName = groupNameForFileName.replace(/\s+/g, ' ').replace(/__+/g, '_').trim();
+    if (groupNameForFileName.endsWith("_")) {
+        groupNameForFileName = groupNameForFileName.slice(0, -1);
     }
-    if (!sanitizedGroupName) sanitizedGroupName = "report";
+    if (!groupNameForFileName) groupNameForFileName = "report";
 
-    let sanitizedGuideName = (reportData.guideName || "GUIDE").toUpperCase().replace(/\s+/g, '_').replace(/__+/g, '_').trim();
-    while (sanitizedGuideName.endsWith("_")) {
-        sanitizedGuideName = sanitizedGuideName.slice(0, -1);
+    let guideNameForFileName = (reportData.guideName || "GUIDE").toUpperCase();
+    guideNameForFileName = guideNameForFileName.replace(/[/:*?"<>|\\]/g, '_');
+    guideNameForFileName = guideNameForFileName.replace(/\s+/g, '_').replace(/__+/g, '_').trim();
+    if (guideNameForFileName.endsWith("_")) {
+        guideNameForFileName = guideNameForFileName.slice(0, -1);
     }
-    if (!sanitizedGuideName) sanitizedGuideName = "GUIDE";
+    if (!guideNameForFileName) guideNameForFileName = "GUIDE";
 
-    let cleanFileNumber = (reportData.fileNumber || "filenumber").replace(/[^a-zA-Z0-9-]/g, '_').replace(/__+/g, '_').trim();
-    while (cleanFileNumber.endsWith("_")) {
-        cleanFileNumber = cleanFileNumber.slice(0, -1);
+    let fileNumberForFileName = (reportData.fileNumber || "filenumber");
+    fileNumberForFileName = fileNumberForFileName.replace(/[/:*?"<>|\s\\]/g, '_').replace(/__+/g, '_').trim();
+    if (fileNumberForFileName.endsWith("_")) {
+        fileNumberForFileName = fileNumberForFileName.slice(0, -1);
     }
-    if (!cleanFileNumber) cleanFileNumber = "filenumber";
+    if (!fileNumberForFileName) fileNumberForFileName = "filenumber";
 
     // 1. Assemble the base filename (everything before .xlsx)
-    let baseFileName = `G.O. ${startDateForFileName} - ${sanitizedGroupName} - ${sanitizedGuideName} - ${cleanFileNumber}`;
+    let baseFileName = `G.O. ${startDateForFileName} - ${groupNameForFileName} - ${guideNameForFileName} - ${fileNumberForFileName}`;
 
     // 2. Remove any trailing underscores from this assembled base name
-    while (baseFileName.endsWith("_")) {
+    while (baseFileName.endsWith("_") || baseFileName.endsWith(" ") || baseFileName.endsWith("-")) {
       baseFileName = baseFileName.slice(0, -1);
     }
-    
-    // 3. Add the .xlsx extension
-    const finalConstructedFileName = baseFileName + ".xlsx";
+    baseFileName = baseFileName.trim(); // Final trim
 
-    // Prepare filename parts for Content-Disposition
+    // 3. Add the .xlsx extension
+    let finalConstructedFileName = baseFileName + ".xlsx";
+
+    // 4. Ensure it ends with .xlsx and not .xlsx_ (this is a very defensive check)
+    if (finalConstructedFileName.endsWith(".xlsx_")) {
+      finalConstructedFileName = finalConstructedFileName.slice(0, -1); // Remove trailing underscore
+    }
+    // Ensure it actually ends with .xlsx if somehow it was lost or altered
+    if (!finalConstructedFileName.endsWith(".xlsx")) {
+      const dotIndex = finalConstructedFileName.lastIndexOf('.');
+      if (dotIndex > 0) { // if there is a dot and it's not the first char
+        finalConstructedFileName = finalConstructedFileName.substring(0, dotIndex);
+      }
+      finalConstructedFileName += ".xlsx";
+    }
+    // --- End Filename Construction and Sanitization ---
+
+
     // For filename="..."; replace double quotes, which are problematic in unencoded form
-    const legacyFilenamePart = finalConstructedFileName.replace(/"/g, "'");
+    // IMPORTANT: Base this on the *final, cleaned* finalConstructedFileName
+    let legacyFilenamePart = finalConstructedFileName.replace(/"/g, "'");
+    // Explicitly ensure this part doesn't end with .xlsx_ if somehow it got re-introduced
+    if (legacyFilenamePart.endsWith(".xlsx_")) {
+        legacyFilenamePart = legacyFilenamePart.slice(0, -1);
+    }
+
 
     // For filename*=UTF-8''... ; RFC5987 encode.
-    // encodeURIComponent handles most characters. Then replace specific ones not covered by it but problematic in headers.
+    // Base this on the *final, cleaned* finalConstructedFileName
     const rfc5987EncodedFilename = encodeURIComponent(finalConstructedFileName)
-                                      .replace(/['()]/g, escape) // Escape ' ( )
+                                      .replace(/['()]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase()) // More robustly escape ' ( )
                                       .replace(/\*/g, '%2A');   // Escape *
 
     const pythonScriptPath = path.resolve(process.cwd(), 'excel_generator_cli.py');
@@ -78,13 +99,12 @@ export async function POST(request: NextRequest) {
     try {
         await fs.access(pythonScriptPath, fs.constants.F_OK);
     } catch (err) {
-        const errorPayload = { error: 'Excel generation script not found on server.', details: `Script expected at ${pythonScriptPath}` };
-        return NextResponse.json(errorPayload, { status: 500 });
+        return NextResponse.json({ error: 'Excel generation script not found on server.', details: `Script expected at ${pythonScriptPath}` }, { status: 500 });
     }
 
     return new Promise((resolve) => {
       const tryPythonCommand = (command: 'python3' | 'python') => {
-        const pythonProcess = spawn(command, [pythonScriptPath, outputXlsxPath]);
+        const pythonProcess = spawn(command, [pythonScriptPath, tempOutputXlsxPath]);
         
         let scriptOutput = '';
         let scriptError = '';
@@ -94,8 +114,7 @@ export async function POST(request: NextRequest) {
             pythonProcess.stdin.write(jsonDataString);
             pythonProcess.stdin.end();
         } catch (stdinError) {
-            const errorPayload = { error: 'Server failed to send data to Excel generation script.', details: (stdinError as Error).message };
-            resolve(NextResponse.json(errorPayload, { status: 500 }));
+            resolve(NextResponse.json({ error: 'Server failed to send data to Excel generation script.', details: (stdinError as Error).message }, { status: 500 }));
             return;
         }
 
@@ -110,19 +129,17 @@ export async function POST(request: NextRequest) {
         pythonProcess.on('close', async (code) => {
           if (code === 0) {
             try {
-              await fs.access(outputXlsxPath, fs.constants.F_OK);
-              const fileBuffer = await fs.readFile(outputXlsxPath);
+              await fs.access(tempOutputXlsxPath, fs.constants.F_OK);
+              const fileBuffer = await fs.readFile(tempOutputXlsxPath);
               
               const headers = new Headers();
               headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-              // Correctly formatted Content-Disposition with both filename and filename*
               headers.set('Content-Disposition', `attachment; filename="${legacyFilenamePart}"; filename*=UTF-8''${rfc5987EncodedFilename}`);
               
               resolve(new NextResponse(fileBuffer, { status: 200, headers }));
             } catch (err) {
               const fileReadError = err as Error;
-              const errorPayload = { error: 'Failed to read generated Excel file.', details: `Error accessing ${outputXlsxPath}: ${fileReadError.message}` };
-              resolve(NextResponse.json(errorPayload, { status: 500 }));
+              resolve(NextResponse.json({ error: 'Failed to read generated Excel file.', details: `Error accessing ${tempOutputXlsxPath}: ${fileReadError.message}` }, { status: 500 }));
             }
           } else {
             const commonErrorMsg = `Python script exited with code ${code}.`;
@@ -130,14 +147,13 @@ export async function POST(request: NextRequest) {
             if (!detailedError) { 
               detailedError = "Python script finished with an error, but provided no specific output.";
             }
-            const errorPayload = { 
+            resolve(NextResponse.json({ 
               error: 'Excel generation failed via Python script.', 
               details: detailedError,
               output: scriptOutput.trim(), 
               exitCode: code, 
               commandUsed: command 
-            };
-            resolve(NextResponse.json(errorPayload, { status: 500 }));
+            }, { status: 500 }));
           }
         });
 
@@ -148,11 +164,10 @@ export async function POST(request: NextRequest) {
            if (command === 'python3') {
               tryPythonCommand('python');
            } else {
-            const errorPayload = { 
+            resolve(NextResponse.json({ 
               error: 'Failed to start Excel generation process.', 
               details: `${spawnErrorMsg} ${spawnErrDetails}. This often means Python is not installed or not in the system's PATH.`
-            };
-            resolve(NextResponse.json(errorPayload, { status: 500 }));
+            }, { status: 500 }));
            }
         });
       };
@@ -162,12 +177,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     const apiError = error as Error;
-    const errorPayload = { error: 'An unexpected error occurred in the API handler.', details: apiError.message };
-    return NextResponse.json(errorPayload, { status: 500 });
+    return NextResponse.json({ error: 'An unexpected error occurred in the API handler.', details: apiError.message }, { status: 500 });
   } finally {
-    if (outputXlsxPath) {
-       fs.access(outputXlsxPath)
-        .then(() => fs.unlink(outputXlsxPath))
+    if (tempOutputXlsxPath) {
+       fs.access(tempOutputXlsxPath)
+        .then(() => fs.unlink(tempOutputXlsxPath))
         .catch(err => {
             if ((err as NodeJS.ErrnoException).code !== 'ENOENT') { 
             }
