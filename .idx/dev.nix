@@ -1,35 +1,32 @@
-# To learn more about how to use Nix to configure your environment
-# see: https://firebase.google.com/docs/studio/customize-workspace
 {pkgs}: {
-  # Which nixpkgs channel to use.
-  channel = "stable-24.11"; # or "unstable"
-  # Use https://search.nixos.org/packages to find packages
+  channel = "stable-24.11"; # o "unstable"
+
   packages = [
     pkgs.nodejs_20
     pkgs.zulu
+    # Añade Python con openpyxl como un único paquete integrado
+    (pkgs.python3.withPackages (ps: [ ps.openpyxl ]))
   ];
-  # Sets environment variables in the workspace
-  env = {};
-  # This adds a file watcher to startup the firebase emulators. The emulators will only start if
-  # a firebase.json file is written into the user's directory
+
+  env = {
+    # Fuerza el Python de Nix como el predeterminado
+    PYTHONPATH = "${pkgs.python3.withPackages (ps: [ ps.openpyxl ])}/${pkgs.python3.sitePackages}";
+  };
+
+  # Resto de tu configuración existente...
   services.firebase.emulators = {
     detect = true;
     projectId = "demo-app";
     services = ["auth" "firestore"];
   };
+  
   idx = {
-    # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
-    extensions = [
-      # "vscodevim.vim"
-    ];
+    extensions = [];
     workspace = {
       onCreate = {
-        default.openFiles = [
-          "src/app/page.tsx"
-        ];
+        default.openFiles = ["src/app/page.tsx"];
       };
     };
-    # Enable previews and customize configuration
     previews = {
       enable = true;
       previews = {
