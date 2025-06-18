@@ -148,8 +148,8 @@ export default function ForgotPasswordForm() {
       )}
       <CardFooter className="pt-4">
         <p className="text-center text-sm w-full">
-            <Link href="/login" passHref legacyBehavior>
-                <a className="font-medium text-primary hover:underline">Volver a Iniciar Sesión</a>
+            <Link href="/login" className="font-medium text-primary hover:underline">
+                Volver a Iniciar Sesión
             </Link>
         </p>
       </CardFooter>

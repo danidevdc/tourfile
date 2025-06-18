@@ -81,8 +81,8 @@ export default function LoginForm() {
           </Button>
         </form>
         <p className="mt-4 text-center text-sm">
-          <Link href="/forgot-password" passHref legacyBehavior>
-            <a className="font-medium text-primary hover:underline">¿Olvidaste tu contraseña?</a>
+          <Link href="/forgot-password" className="font-medium text-primary hover:underline">
+            ¿Olvidaste tu contraseña?
           </Link>
         </p>
       </CardContent>
