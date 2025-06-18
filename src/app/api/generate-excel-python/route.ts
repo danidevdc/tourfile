@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
 
     await fs.writeFile(inputJsonPath, JSON.stringify(reportData, null, 2), 'utf-8');
 
+    // IMPORTANT: The Python script must be in the root of the deployed application,
+    // or this path needs to be adjusted accordingly.
     const pythonScriptPath = path.resolve(process.cwd(), 'excel_generator_cli.py');
     
     try {
@@ -48,7 +50,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Excel generation script not found on server.', details: `Script expected at ${pythonScriptPath}` }, { status: 500 });
     }
 
-    return new Promise((resolve) => { // Removed reject, will resolve with NextResponse directly
+    // This Promise wraps the Python script execution.
+    // It attempts to run 'python3' first, then 'python' as a fallback.
+    // For this to work, Python (either as 'python3' or 'python') must be
+    // installed and in the PATH of the environment where this Node.js code is executing
+    // (e.g., your local machine, or the Firebase App Hosting container).
+    return new Promise((resolve) => {
       const tryPythonCommand = (command: 'python3' | 'python') => {
         const pythonProcess = spawn(command, [pythonScriptPath, inputJsonPath, outputXlsxPath]);
         let scriptOutput = '';
@@ -72,15 +79,16 @@ export async function POST(request: NextRequest) {
               
               resolve(new NextResponse(fileBuffer, { status: 200, headers }));
             } catch (err) {
-              console.error('Error reading generated Excel file:', err);
-              resolve(NextResponse.json({ error: 'Failed to read generated Excel file.', details: (err as Error).message }, { status: 500 }));
+              const fileReadError = err as Error;
+              console.error('Error reading generated Excel file:', fileReadError.message);
+              resolve(NextResponse.json({ error: 'Failed to read generated Excel file.', details: fileReadError.message }, { status: 500 }));
             }
           } else {
             const commonErrorMsg = `Python script exited with code ${code}.`;
             const detailedError = scriptError || scriptOutput || "No specific error message from script.";
             console.error(`${commonErrorMsg} Command: ${command}. Error: ${detailedError}`);
 
-            if (command === 'python3' && (scriptError.includes('command not found') || scriptError.includes('not recognized') || scriptError.includes('No such file or directory'))) {
+            if (command === 'python3' && (scriptError.includes('command not found') || scriptError.includes('not recognized') || scriptError.includes('No such file or directory') || scriptError.toLowerCase().includes('enoent'))) {
               console.warn("python3 not found or script path issue, trying with 'python'");
               tryPythonCommand('python');
             } else {
@@ -89,15 +97,16 @@ export async function POST(request: NextRequest) {
           }
         });
 
-        pythonProcess.on('error', (err) => { // This is for spawn errors (e.g., command not found)
+        pythonProcess.on('error', (err) => { 
            const spawnErrorMsg = `Failed to start Python script with command '${command}'.`;
-           console.error(`${spawnErrorMsg} Error: ${err.message}`);
+           const spawnErrDetails = (err as NodeJS.ErrnoException).code === 'ENOENT' ? `${err.message}. Ensure Python is installed and in PATH.` : err.message;
+           console.error(`${spawnErrorMsg} Error: ${spawnErrDetails}`);
+           
            if (command === 'python3') {
               console.warn("Attempting fallback to 'python' command.");
               tryPythonCommand('python');
            } else {
-            // If 'python' also fails, then resolve with the error
-            resolve(NextResponse.json({ error: 'Failed to start Excel generation process.', details: `${spawnErrorMsg} ${err.message}. Ensure Python is installed and in PATH.` }, { status: 500 }));
+            resolve(NextResponse.json({ error: 'Failed to start Excel generation process.', details: `${spawnErrorMsg} ${spawnErrDetails}` }, { status: 500 }));
            }
         });
       };
@@ -106,19 +115,20 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('API Error in POST /api/generate-excel-python:', error);
-    return NextResponse.json({ error: 'An unexpected error occurred in the API handler.', details: (error as Error).message }, { status: 500 });
+    const apiError = error as Error;
+    console.error('API Error in POST /api/generate-excel-python:', apiError.message, apiError.stack);
+    return NextResponse.json({ error: 'An unexpected error occurred in the API handler.', details: apiError.message }, { status: 500 });
   } finally {
     // Clean up temporary files
     if (inputJsonPath) {
-      fs.unlink(inputJsonPath).catch(err => console.warn('Error deleting temp input JSON file:', err.message));
+      fs.unlink(inputJsonPath).catch(err => console.warn('Error deleting temp input JSON file:', (err as Error).message));
     }
     if (outputXlsxPath) {
        fs.access(outputXlsxPath)
         .then(() => fs.unlink(outputXlsxPath))
         .catch(err => {
-            if (err.code !== 'ENOENT') { 
-                 console.warn('Error deleting temp output XLSX file:', err.message);
+            if ((err as NodeJS.ErrnoException).code !== 'ENOENT') { 
+                 console.warn('Error deleting temp output XLSX file:', (err as Error).message);
             }
         });
     }
