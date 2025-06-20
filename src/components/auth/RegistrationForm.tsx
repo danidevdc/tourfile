@@ -8,9 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserPlus, Eye, EyeOff, AlertTriangle, UserCheck, Loader2 } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, AlertTriangle, UserCheck, Loader2, Mail } from 'lucide-react'; // Added Mail icon
 import { useToast } from '@/hooks/use-toast';
-import { Progress } from '@/components/ui/progress'; // Assuming Progress is in ui
+import { Progress } from '@/components/ui/progress';
 
 
 const calculatePasswordStrength = (password: string) => {
@@ -34,6 +34,7 @@ const getStrengthColor = (strength: number) => {
 export default function RegistrationForm() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState(''); // Added email state
   const [generatedUsername, setGeneratedUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,9 +43,11 @@ export default function RegistrationForm() {
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null); // For email availability
+  const [emailCheckLoading, setEmailCheckLoading] = useState(false); // For email check loading
   const [isFormValid, setIsFormValid] = useState(false);
 
-  const { register, isLoading, checkUsernameExists } = useAuth();
+  const { register, isLoading, checkUsernameExists, checkEmailExists } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -60,6 +63,7 @@ export default function RegistrationForm() {
     }
   }, [firstName, lastName]);
 
+  // Debounce username check
   useEffect(() => {
     if (!generatedUsername.trim()) {
       setUsernameAvailable(null);
@@ -72,36 +76,61 @@ export default function RegistrationForm() {
       setUsernameCheckLoading(false);
     }, 700);
 
-    return () => {
-      clearTimeout(handler);
-    };
+    return () => clearTimeout(handler);
   }, [generatedUsername, checkUsernameExists]);
 
+  // Debounce email check
   useEffect(() => {
+    const emailTrimmed = email.trim().toLowerCase();
+    if (!emailTrimmed || !/\S+@\S+\.\S+/.test(emailTrimmed)) { // Basic email format check
+      setEmailAvailable(null);
+      return;
+    }
+    const handler = setTimeout(async () => {
+      setEmailCheckLoading(true);
+      const exists = await checkEmailExists(emailTrimmed);
+      setEmailAvailable(!exists);
+      setEmailCheckLoading(false);
+    }, 700);
+
+    return () => clearTimeout(handler);
+  }, [email, checkEmailExists]);
+
+
+  useEffect(() => {
+    const emailFormatValid = /\S+@\S+\.\S+/.test(email.trim());
     const allFieldsFilled =
       firstName.trim() !== '' &&
       lastName.trim() !== '' &&
+      email.trim() !== '' &&
       password !== '' &&
       confirmPassword !== '';
     const passwordsMatch = password === confirmPassword;
     const usernameIsAvailable = usernameAvailable === true;
+    const emailIsAvailable = emailAvailable === true;
     const passwordIsStrongEnough = passwordStrength >= 50; 
 
     setIsFormValid(
       allFieldsFilled &&
+      emailFormatValid &&
       passwordsMatch &&
       usernameIsAvailable &&
+      emailIsAvailable && // Check email availability
       !usernameCheckLoading &&
+      !emailCheckLoading && // Check email loading state
       passwordIsStrongEnough &&
       !isLoading 
     );
   }, [
     firstName,
     lastName,
+    email, // Added email
     password,
     confirmPassword,
     usernameAvailable,
     usernameCheckLoading,
+    emailAvailable, // Added emailAvailable
+    emailCheckLoading, // Added emailCheckLoading
     passwordStrength,
     isLoading
   ]);
@@ -118,7 +147,7 @@ export default function RegistrationForm() {
       return;
     }
     
-    await register(firstName.trim(), lastName.trim(), generatedUsername.trim(), password);
+    await register(firstName.trim(), lastName.trim(), email.trim(), generatedUsername.trim(), password);
   };
 
   return (
@@ -154,6 +183,32 @@ export default function RegistrationForm() {
                 className="bg-background"
               />
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="email">Correo Electrónico</Label>
+            <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    id="email"
+                    type="email"
+                    placeholder="tu.correo@ejemplo.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="bg-background pl-10"
+                />
+                 {emailCheckLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
+            </div>
+            {email.trim() && !/\S+@\S+\.\S+/.test(email.trim()) && (
+                 <p className="text-xs text-destructive mt-1">Formato de correo inválido.</p>
+            )}
+            {email.trim() && /\S+@\S+\.\S+/.test(email.trim()) && !emailCheckLoading && emailAvailable === true && (
+              <p className="text-xs text-green-600 mt-1">Correo electrónico disponible.</p>
+            )}
+            {email.trim() && /\S+@\S+\.\S+/.test(email.trim()) && !emailCheckLoading && emailAvailable === false && (
+              <p className="text-xs text-destructive mt-1">Este correo electrónico ya está en uso.</p>
+            )}
           </div>
           
           <div className="space-y-1">
@@ -265,3 +320,4 @@ export default function RegistrationForm() {
     </Card>
   );
 }
+

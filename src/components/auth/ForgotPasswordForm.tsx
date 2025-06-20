@@ -11,49 +11,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Send, UserSearch, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-type ForgotPasswordStep = "enterUsername" | "enterEmail";
+type ForgotPasswordStep = "enterUsernameOrEmail" | "confirmation"; // Simplified steps for email-based reset
 
 export default function ForgotPasswordForm() {
-  const [step, setStep] = useState<ForgotPasswordStep>("enterUsername");
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
-
-  const { sendPasswordResetEmail, isLoading: isSendingEmail, checkUsernameExists } = useAuth();
+  const [step, setStep] = useState<ForgotPasswordStep>("enterUsernameOrEmail");
+  const [emailToReset, setEmailToReset] = useState(''); // Changed to emailToReset for clarity
+  
+  const { sendPasswordResetEmail, isLoading: isSendingEmail } = useAuth();
   const { toast } = useToast();
-
-  const handleUsernameSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!username.trim()) {
-      toast({
-        title: "Nombre de Usuario Requerido",
-        description: "Por favor, ingresa tu nombre de usuario.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsCheckingUsername(true);
-    const exists = await checkUsernameExists(username.trim());
-    setIsCheckingUsername(false);
-
-    if (exists) {
-      setStep("enterEmail");
-      toast({
-        title: "Usuario Verificado",
-        description: `Ahora ingresa el correo electrónico asociado a ${username}.`,
-      });
-    } else {
-      toast({
-        title: "Usuario No Encontrado",
-        description: `El usuario "${username}" no fue encontrado en nuestros registros.`,
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleEmailSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!email) {
+    if (!emailToReset.trim()) {
       toast({
         title: "Correo Requerido",
         description: "Por favor, ingresa tu correo electrónico.",
@@ -61,7 +30,7 @@ export default function ForgotPasswordForm() {
       });
       return;
     }
-    if (!/\S+@\S+\.\S+/.test(email)) {
+    if (!/\S+@\S+\.\S+/.test(emailToReset.trim())) {
         toast({
             title: "Correo Inválido",
             description: "Por favor, ingresa un formato de correo electrónico válido.",
@@ -70,82 +39,75 @@ export default function ForgotPasswordForm() {
         return;
     }
 
-    await sendPasswordResetEmail(email, username);
+    // In a real Firebase Auth scenario, you'd directly call Firebase's password reset.
+    // Here, we'll use our existing simulated function.
+    // The username is no longer explicitly asked for in this flow,
+    // sendPasswordResetEmail in useAuth will try to find username by email for logging if needed.
+    await sendPasswordResetEmail(emailToReset.trim()); 
+    
+    // The toast for simulation is handled within sendPasswordResetEmail for now
+    // For a better UX, we can move to a confirmation step
+    setStep("confirmation"); 
   };
 
   return (
     <Card className="shadow-xl w-full max-w-md">
-      {step === "enterUsername" && (
-        <>
-          <CardHeader>
-            <CardTitle className="text-xl text-center flex items-center justify-center">
-              <UserSearch className="mr-2 h-6 w-6 text-primary"/>
-              Verificar Usuario
-            </CardTitle>
-            <CardDescription className="text-center">
-              Primero, ingresa tu nombre de usuario para verificar tu cuenta.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleUsernameSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="username">Nombre de Usuario</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  placeholder="tu.usuario"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  className="bg-background"
-                />
-              </div>
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isCheckingUsername || !username.trim()}>
-                {isCheckingUsername ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ArrowRight className="mr-2 h-5 w-5" />}
-                {isCheckingUsername ? 'Verificando...' : 'Siguiente'}
-              </Button>
-            </form>
-          </CardContent>
-        </>
-      )}
-
-      {step === "enterEmail" && (
+      {step === "enterUsernameOrEmail" && (
         <>
           <CardHeader>
             <CardTitle className="text-xl text-center flex items-center justify-center">
                 <Mail className="mr-2 h-6 w-6 text-primary"/>
-                Correo de Recuperación
+                Recuperar Contraseña
             </CardTitle>
             <CardDescription className="text-center">
-              Ingresa el correo electrónico asociado a la cuenta <strong className="text-foreground">{username}</strong>.
-              Te enviaremos un enlace para restablecer tu contraseña (funcionalidad simulada).
+              Ingresa tu correo electrónico. Te enviaremos un enlace para restablecer tu contraseña (funcionalidad simulada).
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleEmailSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email">Correo Electrónico</Label>
+                <Label htmlFor="emailToReset">Correo Electrónico Registrado</Label>
                 <Input
-                  id="email"
+                  id="emailToReset"
                   type="email"
                   placeholder="tu.correo@ejemplo.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={emailToReset}
+                  onChange={(e) => setEmailToReset(e.target.value)}
                   required
                   className="bg-background"
                 />
               </div>
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isSendingEmail || !email.trim()}>
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isSendingEmail || !emailToReset.trim()}>
                 <Send className="mr-2 h-5 w-5" />
                 {isSendingEmail ? 'Enviando...' : 'Enviar Enlace de Recuperación'}
               </Button>
             </form>
-            <Button variant="link" onClick={() => { setStep("enterUsername"); setEmail(''); }} className="mt-4 w-full text-primary">
-                Volver a ingresar usuario
+          </CardContent>
+        </>
+      )}
+
+      {step === "confirmation" && (
+         <>
+          <CardHeader>
+            <CardTitle className="text-xl text-center flex items-center justify-center">
+                <CheckCircle2 className="mr-2 h-6 w-6 text-green-500"/> {/* Using a more appropriate icon */}
+                Verifica tu Correo
+            </CardTitle>
+            <CardDescription className="text-center">
+              Si una cuenta existe para <strong className="text-foreground">{emailToReset}</strong>, hemos enviado (simulado) un correo con instrucciones para restablecer tu contraseña.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+             <p className="text-sm text-muted-foreground">
+                Por favor, revisa tu bandeja de entrada (y spam).
+             </p>
+            <Button variant="link" onClick={() => { setStep("enterUsernameOrEmail"); setEmailToReset(''); }} className="mt-4 w-full text-primary">
+                Intentar con otro correo
             </Button>
           </CardContent>
         </>
       )}
+
       <CardFooter className="pt-4">
         <p className="text-center text-sm w-full">
             <Link href="/login" className="font-medium text-primary hover:underline">
@@ -156,3 +118,15 @@ export default function ForgotPasswordForm() {
     </Card>
   );
 }
+
+// Need to add CheckCircle2 to lucide-react imports if not already there
+// Assuming it exists, or replace with a suitable icon like MailCheck
+// For this example, I'll assume CheckCircle2 is available or we can add it.
+// If not, a simple MailCheck or similar would work.
+// For now, let's use UserSearch for consistency if CheckCircle2 isn't readily available.
+// Corrected to Mail icon for "Verificar Usuario" in previous step, will use UserSearch if MailCheck is not good
+// Using UserSearch as placeholder if CheckCircle2 is not in lucide-react or if there's an issue.
+// For forgot password confirmation, MailCheck or CheckCircle2 is better.
+// Let's import CheckCircle2 for ForgotPasswordForm's confirmation step.
+import { CheckCircle2 } from 'lucide-react'; // Added for confirmation step
+

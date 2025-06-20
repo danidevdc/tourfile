@@ -21,7 +21,7 @@ import {
   arrayUnion, 
 } from 'firebase/firestore';
 
-const RXLOCAL_CURRENT_USER_USERNAME_KEY = 'tourfilegen_currentUser_username_v1'; // Changed key for this app
+const RXLOCAL_CURRENT_USER_USERNAME_KEY = 'tourfilegen_currentUser_username_v1'; 
 
 export interface ActivityLogEntry {
   timestamp: Timestamp;
@@ -31,7 +31,8 @@ export interface ActivityLogEntry {
 
 export interface UserData {
   username: string;
-  password?: string; // Password should ideally not be stored directly or fetched like this in a real app
+  email?: string; // Added email field
+  password?: string; 
   firstName: string;
   lastName: string;
   isAdmin?: boolean;
@@ -48,9 +49,9 @@ export function useAuth() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const fetchUserDetails = useCallback(async (username: string): Promise<UserData | null> => {
+  const fetchUserDetailsByUsername = useCallback(async (username: string): Promise<UserData | null> => {
     if (!db) {
-      console.error("Firestore instance (db) is not available for fetching user details.");
+      console.error("Firestore instance (db) is not available for fetching user details by username.");
       return null;
     }
     try {
@@ -67,11 +68,40 @@ export function useAuth() {
       }
       return null;
     } catch (error) {
-      console.error('Error fetching user details from Firestore:', error);
+      console.error('Error fetching user details by username from Firestore:', error);
       toast({ title: 'Error de Red', description: 'No se pudieron obtener los detalles del usuario.', variant: 'destructive' });
       return null;
     }
   }, [toast]);
+  
+  const fetchUserDetailsByEmail = useCallback(async (email: string): Promise<UserData | null> => {
+    if (!db) {
+      console.error("Firestore instance (db) is not available for fetching user details by email.");
+      return null;
+    }
+    try {
+      const usersCollectionRef = collection(db, 'users');
+      const q = query(usersCollectionRef, where("email", "==", email.toLowerCase()));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        // Assuming email is unique, take the first match. 
+        // Add more robust handling if emails might not be unique.
+        const userDoc = querySnapshot.docs[0];
+        const data = userDoc.data();
+        return {
+          firestoreId: userDoc.id,
+          ...data,
+          activityLog: data.activityLog || [],
+        } as UserData;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching user details by email from Firestore:', error);
+      toast({ title: 'Error de Red', description: 'No se pudieron obtener los detalles del usuario por correo.', variant: 'destructive' });
+      return null;
+    }
+  }, [toast]);
+
 
   const checkUsernameExists = useCallback(async (username: string): Promise<boolean> => {
     if (!db || !username) return false;
@@ -79,6 +109,16 @@ export function useAuth() {
     const docSnap = await getDoc(userDocRef);
     return docSnap.exists();
   }, []);
+
+  // Optional: Add a function to check if an email already exists if needed for registration validation
+  const checkEmailExists = useCallback(async (email: string): Promise<boolean> => {
+    if (!db || !email) return false;
+    const usersCollectionRef = collection(db, 'users');
+    const q = query(usersCollectionRef, where("email", "==", email.toLowerCase()));
+    const querySnapshot = await getDocs(q);
+    return !querySnapshot.empty;
+  }, []);
+
 
   const initializeDefaultAdmin = useCallback(async () => {
     if (!db) {
@@ -94,13 +134,15 @@ export function useAuth() {
     }
     try {
       const adminUsername = 'admin.admin';
+      const adminEmail = 'admin@example.com'; // Added email for admin
       const adminDocRef = doc(db, 'users', adminUsername);
       const adminSnapshot = await getDoc(adminDocRef);
 
       if (!adminSnapshot.exists()) {
-        const adminUser: Omit<UserData, 'firestoreId' | 'password'> & {password: string} = { 
+        const adminUser: UserData = { 
           username: adminUsername,
-          password: 'admin123', // In a real app, this should be handled more securely
+          email: adminEmail,
+          password: 'admin123', 
           firstName: 'Admin',
           lastName: 'App',
           isAdmin: true,
@@ -135,7 +177,7 @@ export function useAuth() {
     try {
       const storedUsername = localStorage.getItem(RXLOCAL_CURRENT_USER_USERNAME_KEY);
       if (storedUsername) {
-        const userDetails = await fetchUserDetails(storedUsername);
+        const userDetails = await fetchUserDetailsByUsername(storedUsername); // Use by username for session restore
         if (userDetails) {
           setCurrentUser(userDetails);
           setIsAuthenticated(true);
@@ -159,7 +201,7 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchUserDetails, initializeDefaultAdmin, toast]);
+  }, [fetchUserDetailsByUsername, initializeDefaultAdmin, toast]);
 
 
   useEffect(() => {
@@ -167,30 +209,38 @@ export function useAuth() {
   }, [checkUserSessionAndAdmin]);
 
 
-  const login = useCallback(async (usernameInput?: string, passwordInput?: string) => {
+  const login = useCallback(async (usernameOrEmailInput?: string, passwordInput?: string) => {
     setIsLoading(true);
     if (!db) {
       toast({ title: 'Error de Configuración', description: 'La base de datos no está disponible.', variant: 'destructive' });
       setIsLoading(false);
       return;
     }
-    if (!usernameInput || !passwordInput) {
-      toast({ title: "Error", description: "Usuario y contraseña son requeridos.", variant: "destructive" });
+    if (!usernameOrEmailInput || !passwordInput) {
+      toast({ title: "Error", description: "Usuario/Email y contraseña son requeridos.", variant: "destructive" });
       setIsLoading(false);
       return;
     }
 
     try {
-      const userDetails = await fetchUserDetails(usernameInput.toLowerCase());
+      let userDetails: UserData | null = null;
+      const inputTrimmed = usernameOrEmailInput.trim();
 
-      if (userDetails && userDetails.password === passwordInput) { // Password check - very insecure!
-        localStorage.setItem(RXLOCAL_CURRENT_USER_USERNAME_KEY, userDetails.username);
+      if (inputTrimmed.includes('@')) { // Assume it's an email
+        userDetails = await fetchUserDetailsByEmail(inputTrimmed);
+      } else { // Assume it's a username
+        userDetails = await fetchUserDetailsByUsername(inputTrimmed);
+      }
+      
+
+      if (userDetails && userDetails.password === passwordInput) { 
+        localStorage.setItem(RXLOCAL_CURRENT_USER_USERNAME_KEY, userDetails.username); // Store username for session
         setCurrentUser(userDetails);
         setIsAuthenticated(true);
         setIsCurrentUserAdmin(!!userDetails.isAdmin);
         const capitalizedFirstName = userDetails.firstName.charAt(0).toUpperCase() + userDetails.firstName.slice(1).toLowerCase();
         toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${capitalizedFirstName}!` });
-        router.push('/'); // Redirect to home page of TourFile Generator
+        router.push('/'); 
       } else {
         toast({ title: "Error de Inicio de Sesión", description: "Credenciales incorrectas.", variant: "destructive" });
         setCurrentUser(null);
@@ -203,29 +253,40 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
     }
-  }, [router, toast, fetchUserDetails]);
+  }, [router, toast, fetchUserDetailsByUsername, fetchUserDetailsByEmail]);
 
 
-  const register = useCallback(async (firstName?: string, lastName?: string, username?: string, password?: string) => {
+  const register = useCallback(async (firstName?: string, lastName?: string, email?: string, username?: string, password?: string) => {
     setIsLoading(true);
     if (!db) {
       toast({ title: 'Error de Configuración', description: 'La base de datos no está disponible.', variant: 'destructive' });
       setIsLoading(false);
       return;
     }
-    if (!firstName || !lastName || !username || !password) {
+    if (!firstName || !lastName || !email || !username || !password) {
       toast({ title: "Error de Registro", description: "Todos los campos son requeridos.", variant: "destructive" });
       setIsLoading(false);
       return;
     }
 
     const targetUsername = username.trim().toLowerCase();
+    const targetEmail = email.trim().toLowerCase();
+
+    // Optional: Check if email already exists before attempting registration
+    const emailExists = await checkEmailExists(targetEmail);
+    if (emailExists) {
+        toast({ title: "Error de Registro", description: "Este correo electrónico ya está en uso.", variant: "destructive" });
+        setIsLoading(false);
+        return;
+    }
+    // Username existence is already checked by the form's debounced check
 
     try {
       const newUserDocRef = doc(collection(db, 'users'), targetUsername);
-      const newUser: Omit<UserData, 'firestoreId' | 'password'> & { password: string } = {
+      const newUser: UserData = {
         username: targetUsername,
-        password: password, // Storing password directly is very insecure. Use Firebase Auth for real apps.
+        email: targetEmail,
+        password: password, 
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         isAdmin: false,
@@ -245,7 +306,7 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast, router]);
+  }, [toast, router, checkEmailExists]);
 
 
   const logout = useCallback(() => {
@@ -268,10 +329,10 @@ export function useAuth() {
   const getCurrentUserDetails = useCallback(async (): Promise<UserData | null> => {
     const username = getCurrentUserUsername();
     if (username) {
-        return fetchUserDetails(username);
+        return fetchUserDetailsByUsername(username); // Use by username for consistency
     }
     return null;
-  }, [getCurrentUserUsername, fetchUserDetails]);
+  }, [getCurrentUserUsername, fetchUserDetailsByUsername]);
 
 
   const getUsersFromFirestore = useCallback(async (): Promise<UserData[]> => {
@@ -287,6 +348,7 @@ export function useAuth() {
         return {
             firestoreId: docSnapshot.id,
             username: data.username,
+            email: data.email, // Include email
             firstName: data.firstName,
             lastName: data.lastName,
             isAdmin: data.isAdmin || false,
@@ -320,32 +382,41 @@ export function useAuth() {
     }
   };
 
-  const sendPasswordResetEmail = async (email: string, usernameForLog: string): Promise<void> => {
-    console.warn(`Simulating password reset email to: ${email} for user ${usernameForLog}. This requires backend implementation for actual email sending or Firebase Auth.`);
+  const sendPasswordResetEmail = async (emailForReset: string, usernameForLog?: string): Promise<void> => {
+    let userToLog = usernameForLog;
+    // If username is not provided for logging, try to find the user by email to get their username
+    if (!userToLog && db && emailForReset) {
+        const userDetailsByEmail = await fetchUserDetailsByEmail(emailForReset);
+        if (userDetailsByEmail) {
+            userToLog = userDetailsByEmail.username;
+        }
+    }
+
+    console.warn(`Simulating password reset email to: ${emailForReset} for user ${userToLog || '(username not found)'}. This requires backend implementation for actual email sending or Firebase Auth.`);
     toast({
       title: "Simulación de Recuperación",
-      description: `Si ${email} estuviera registrado y asociado a ${usernameForLog}, se enviaría un enlace (funcionalidad simulada).`,
+      description: `Si ${emailForReset} estuviera registrado, se enviaría un enlace (funcionalidad simulada).`,
       duration: 5000,
     });
 
-    if (db && usernameForLog) {
+    if (db && userToLog) {
       try {
-        const userDocRef = doc(db, 'users', usernameForLog.toLowerCase());
+        const userDocRef = doc(db, 'users', userToLog.toLowerCase());
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
            const newLogEntry: ActivityLogEntry = {
             timestamp: serverTimestamp() as Timestamp,
             action: 'Intento de Reseteo de Contraseña',
-            details: `Solicitado para el correo: ${email} (Simulado)`,
+            details: `Solicitado para el correo: ${emailForReset} (Simulado)`,
           };
           await updateDoc(userDocRef, {
             activityLog: arrayUnion(newLogEntry)
           });
         } else {
-          console.warn(`sendPasswordResetEmail: User ${usernameForLog} not found in Firestore to log activity.`);
+          console.warn(`sendPasswordResetEmail: User ${userToLog} not found in Firestore to log activity.`);
         }
       } catch (error) {
-        console.error(`Error logging password reset attempt for ${usernameForLog}:`, error);
+        console.error(`Error logging password reset attempt for ${userToLog}:`, error);
       }
     }
     return Promise.resolve();
@@ -362,10 +433,13 @@ export function useAuth() {
     logout,
     getCurrentUserUsername,
     getCurrentUserDetails,
-    fetchUserDetails,
+    fetchUserDetailsByUsername, // Keep this if needed elsewhere for direct username fetching
+    fetchUserDetailsByEmail,   // Keep this if needed elsewhere for direct email fetching
     getUsersFromFirestore,
     deleteUserFromFirestore,
     checkUsernameExists,
+    checkEmailExists, // Expose if needed by registration form for pre-validation
     sendPasswordResetEmail,
   };
 }
+

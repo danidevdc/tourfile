@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogIn, Eye, EyeOff, Loader2 } from 'lucide-react'; // Added Loader2
+import { LogIn, Eye, EyeOff, Loader2 } from 'lucide-react'; 
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginForm() {
-  const [username, setUsername] = useState('');
+  const [usernameOrEmail, setUsernameOrEmail] = useState(''); // Renamed state
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuth();
@@ -20,15 +20,15 @@ export default function LoginForm() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!username || !password) {
+    if (!usernameOrEmail || !password) {
       toast({
         title: "Error de Inicio de Sesión",
-        description: "Por favor, ingresa usuario y contraseña.",
+        description: "Por favor, ingresa usuario/email y contraseña.",
         variant: "destructive",
       });
       return;
     }
-    await login(username, password);
+    await login(usernameOrEmail, password);
   };
 
   return (
@@ -40,13 +40,13 @@ export default function LoginForm() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="username">Usuario</Label>
+            <Label htmlFor="usernameOrEmail">Usuario o Correo Electrónico</Label> {/* Changed label */}
             <Input
-              id="username"
+              id="usernameOrEmail" // Changed id
               type="text"
-              placeholder="Ingresa tu usuario"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Ingresa tu usuario o email" // Changed placeholder
+              value={usernameOrEmail}
+              onChange={(e) => setUsernameOrEmail(e.target.value)}
               required
               className="bg-background"
             />
@@ -89,3 +89,4 @@ export default function LoginForm() {
     </Card>
   );
 }
+
