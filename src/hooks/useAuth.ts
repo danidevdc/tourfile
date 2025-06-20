@@ -182,6 +182,7 @@ export function useAuth() {
 
     const targetEmail = email.trim().toLowerCase();
     const targetUsername = username.trim().toLowerCase();
+    let firebaseUser; // Declare firebaseUser here to access in catch block if needed for logging
 
     try {
       // Check if username already exists in userProfiles collection
@@ -194,7 +195,7 @@ export function useAuth() {
       }
       
       const userCredential = await createUserWithEmailAndPassword(auth, targetEmail, password);
-      const firebaseUser = userCredential.user;
+      firebaseUser = userCredential.user; // Assign here
 
       const userProfileData: UserProfile = {
         uid: firebaseUser.uid,
@@ -209,23 +210,43 @@ export function useAuth() {
 
       await setDoc(doc(db, 'userProfiles', firebaseUser.uid), userProfileData);
       
-      setCurrentUser({ ...firebaseUser, profile: userProfileData });
-      setIsCurrentUserAdmin(userProfileData.isAdmin || false);
+      // No need to call setCurrentUser here, onAuthStateChanged will handle it.
+      // setIsCurrentUserAdmin(userProfileData.isAdmin || false); // Also handled by onAuthStateChanged
 
       const capitalizedFirstName = userProfileData.firstName.charAt(0).toUpperCase() + userProfileData.firstName.slice(1).toLowerCase();
-      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${capitalizedFirstName}. Usuario: ${userProfileData.username}` });
-      router.push('/login');
+      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${capitalizedFirstName}. Usuario: ${userProfileData.username}. Por favor, inicia sesión.` });
+      router.push('/login'); // Redirect to login after successful registration
 
     } catch (error: any) {
-      console.error('Registration error:', error);
+      console.error('Registration process error:', error);
       let message = "Ocurrió un problema al crear la cuenta.";
-      if (error.code === 'auth/email-already-in-use') {
-        message = "Este correo electrónico ya está registrado.";
-      } else if (error.code === 'auth/invalid-email') {
-        message = "El formato del correo electrónico es inválido.";
-      } else if (error.code === 'auth/weak-password') {
-        message = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";
+      
+      if (error.code) { // Firebase Auth errors often have a 'code' property
+        console.error(`Firebase Auth Error Code: ${error.code}, Message: ${error.message}`);
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            message = "Este correo electrónico ya está registrado.";
+            break;
+          case 'auth/invalid-email':
+            message = "El formato del correo electrónico es inválido.";
+            break;
+          case 'auth/weak-password':
+            message = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";
+            break;
+          default:
+            message = `Error de autenticación: ${error.message}`;
+        }
+      } else if (firebaseUser && error.message && error.message.toLowerCase().includes('firestore')) {
+        // This is a heuristic, Firestore errors might not always contain "firestore" in message
+        // but permission denied errors often do.
+        console.error(`Firestore Error after user ${firebaseUser.uid} created: ${error.message}`);
+        message = "La cuenta de autenticación fue creada, pero hubo un problema al guardar el perfil. Contacta al soporte.";
+        // Consider if you need to delete the Firebase Auth user if profile creation fails critically.
+        // This is complex and depends on your app's recovery strategy.
+      } else {
+        console.error('Non-Firebase error or unknown error structure:', error);
       }
+      
       toast({ title: "Error de Registro", description: message, variant: "destructive" });
     } finally {
       setIsLoading(false);
@@ -285,35 +306,28 @@ export function useAuth() {
       const querySnapshot = await getDocs(q);
       return !querySnapshot.empty;
     } catch (error) {
-      console.error("Error checking username existence in Firestore:", error);
-      // Do not throw, return false to indicate username *might* be available or check failed.
-      // This prevents the registration form from showing a generic "Error de Verificación" toast
-      // if the check fails due to, e.g., Firestore security rules.
-      // The developer should check console for actual Firestore errors.
+      console.error("Error checking username existence in Firestore (likely permissions or config):", error);
       return false;
     }
   }, []);
   
   const checkEmailExists = useCallback(async (email: string): Promise<boolean> => {
     if (!db || !email) return false;
-    // This check is primarily for the UI to give feedback if an email for a *profile* exists.
-    // Firebase Auth itself will handle if an *auth account* with that email exists during createUserWithEmailAndPassword.
     try {
       const profilesRef = collection(db, 'userProfiles');
       const q = query(profilesRef, where("email", "==", email.trim().toLowerCase()));
       const fbAuthUser = auth?.currentUser; 
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
-          // If the found profile belongs to the currently logged-in user (e.g., editing their own profile), it's not a "conflict".
           if (fbAuthUser && querySnapshot.docs[0].id === fbAuthUser.uid) {
               return false; 
           }
-          return true; // Email exists in another user's profile
+          return true; 
       }
-      return false; // Email does not exist in any profile
+      return false; 
     } catch (error) {
         console.error("Error checking email existence in Firestore:", error);
-        return false; // Assume not found if check fails, to avoid blocking UI.
+        return false; 
     }
   }, []);
 
