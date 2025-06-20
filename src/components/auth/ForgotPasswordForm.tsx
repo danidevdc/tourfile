@@ -3,21 +3,21 @@
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth'; // Ensure useAuth is updated for Firebase Auth
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Send, UserSearch, Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { Send, Mail, Loader2, CheckCircle2 } from 'lucide-react'; // UserSearch, ArrowRight removed
 import { useToast } from '@/hooks/use-toast';
 
-type ForgotPasswordStep = "enterUsernameOrEmail" | "confirmation"; // Simplified steps for email-based reset
+type ForgotPasswordStep = "enterEmail" | "confirmation"; // Renamed step
 
 export default function ForgotPasswordForm() {
-  const [step, setStep] = useState<ForgotPasswordStep>("enterUsernameOrEmail");
-  const [emailToReset, setEmailToReset] = useState(''); // Changed to emailToReset for clarity
+  const [step, setStep] = useState<ForgotPasswordStep>("enterEmail");
+  const [emailToReset, setEmailToReset] = useState('');
   
-  const { sendPasswordResetEmail, isLoading: isSendingEmail } = useAuth();
+  const { sendPasswordReset, isLoading: isSendingEmail } = useAuth(); // Renamed to sendPasswordReset
   const { toast } = useToast();
 
   const handleEmailSubmit = async (event: FormEvent) => {
@@ -30,7 +30,7 @@ export default function ForgotPasswordForm() {
       });
       return;
     }
-    if (!/\S+@\S+\.\S+/.test(emailToReset.trim())) {
+    if (!/\S+@\S+\.\S+/.test(emailToReset.trim())) { // Basic email validation
         toast({
             title: "Correo Inválido",
             description: "Por favor, ingresa un formato de correo electrónico válido.",
@@ -39,20 +39,15 @@ export default function ForgotPasswordForm() {
         return;
     }
 
-    // In a real Firebase Auth scenario, you'd directly call Firebase's password reset.
-    // Here, we'll use our existing simulated function.
-    // The username is no longer explicitly asked for in this flow,
-    // sendPasswordResetEmail in useAuth will try to find username by email for logging if needed.
-    await sendPasswordResetEmail(emailToReset.trim()); 
-    
-    // The toast for simulation is handled within sendPasswordResetEmail for now
-    // For a better UX, we can move to a confirmation step
+    await sendPasswordReset(emailToReset.trim()); 
+    // Firebase Auth's sendPasswordResetEmail handles success/error toasts via useAuth
+    // We can still move to a confirmation step for better UX
     setStep("confirmation"); 
   };
 
   return (
     <Card className="shadow-xl w-full max-w-md">
-      {step === "enterUsernameOrEmail" && (
+      {step === "enterEmail" && (
         <>
           <CardHeader>
             <CardTitle className="text-xl text-center flex items-center justify-center">
@@ -60,7 +55,7 @@ export default function ForgotPasswordForm() {
                 Recuperar Contraseña
             </CardTitle>
             <CardDescription className="text-center">
-              Ingresa tu correo electrónico. Te enviaremos un enlace para restablecer tu contraseña (funcionalidad simulada).
+              Ingresa tu correo electrónico. Te enviaremos un enlace para restablecer tu contraseña.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -78,7 +73,7 @@ export default function ForgotPasswordForm() {
                 />
               </div>
               <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isSendingEmail || !emailToReset.trim()}>
-                <Send className="mr-2 h-5 w-5" />
+                {isSendingEmail ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
                 {isSendingEmail ? 'Enviando...' : 'Enviar Enlace de Recuperación'}
               </Button>
             </form>
@@ -90,18 +85,18 @@ export default function ForgotPasswordForm() {
          <>
           <CardHeader>
             <CardTitle className="text-xl text-center flex items-center justify-center">
-                <CheckCircle2 className="mr-2 h-6 w-6 text-green-500"/> {/* Using a more appropriate icon */}
+                <CheckCircle2 className="mr-2 h-6 w-6 text-green-500"/>
                 Verifica tu Correo
             </CardTitle>
             <CardDescription className="text-center">
-              Si una cuenta existe para <strong className="text-foreground">{emailToReset}</strong>, hemos enviado (simulado) un correo con instrucciones para restablecer tu contraseña.
+              Si una cuenta existe para <strong className="text-foreground">{emailToReset}</strong>, hemos enviado un correo con instrucciones para restablecer tu contraseña.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
              <p className="text-sm text-muted-foreground">
-                Por favor, revisa tu bandeja de entrada (y spam).
+                Por favor, revisa tu bandeja de entrada (y la carpeta de spam).
              </p>
-            <Button variant="link" onClick={() => { setStep("enterUsernameOrEmail"); setEmailToReset(''); }} className="mt-4 w-full text-primary">
+            <Button variant="link" onClick={() => { setStep("enterEmail"); setEmailToReset(''); }} className="mt-4 w-full text-primary">
                 Intentar con otro correo
             </Button>
           </CardContent>
@@ -118,15 +113,3 @@ export default function ForgotPasswordForm() {
     </Card>
   );
 }
-
-// Need to add CheckCircle2 to lucide-react imports if not already there
-// Assuming it exists, or replace with a suitable icon like MailCheck
-// For this example, I'll assume CheckCircle2 is available or we can add it.
-// If not, a simple MailCheck or similar would work.
-// For now, let's use UserSearch for consistency if CheckCircle2 isn't readily available.
-// Corrected to Mail icon for "Verificar Usuario" in previous step, will use UserSearch if MailCheck is not good
-// Using UserSearch as placeholder if CheckCircle2 is not in lucide-react or if there's an issue.
-// For forgot password confirmation, MailCheck or CheckCircle2 is better.
-// Let's import CheckCircle2 for ForgotPasswordForm's confirmation step.
-import { CheckCircle2 } from 'lucide-react'; // Added for confirmation step
-

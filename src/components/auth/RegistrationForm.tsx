@@ -8,46 +8,45 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserPlus, Eye, EyeOff, AlertTriangle, UserCheck, Loader2, Mail } from 'lucide-react'; // Added Mail icon
+import { UserPlus, Eye, EyeOff, AlertTriangle, UserCheck, Loader2, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 
 
 const calculatePasswordStrength = (password: string) => {
   let strength = 0;
-  if (password.length >= 8) strength += 25;
+  if (password.length >= 6) strength += 25; // Firebase min is 6
   if (password.match(/[a-z]/)) strength += 15;
   if (password.match(/[A-Z]/)) strength += 15;
   if (password.match(/[0-9]/)) strength += 15;
   if (password.match(/[^a-zA-Z0-9]/)) strength += 15; 
-  if (password.length >= 12) strength += 15;
+  if (password.length >= 10) strength += 15; // Stronger length
   return Math.min(strength, 100);
 };
 
 const getStrengthColor = (strength: number) => {
   if (strength < 30) return "bg-destructive";
-  if (strength < 60) return "bg-orange-500";
-  if (strength < 85) return "bg-yellow-500";
-  return "bg-primary";
+  if (strength < 60) return "bg-orange-500"; // Weak (but meets Firebase min)
+  if (strength < 85) return "bg-yellow-500"; // Good
+  return "bg-primary"; // Strong
 };
 
 export default function RegistrationForm() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState(''); // Added email state
+  const [email, setEmail] = useState('');
   const [generatedUsername, setGeneratedUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null); // For username in Firestore profile
   const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
-  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null); // For email availability
-  const [emailCheckLoading, setEmailCheckLoading] = useState(false); // For email check loading
+  // Email availability is handled by Firebase Auth on submission, pre-check can be complex
   const [isFormValid, setIsFormValid] = useState(false);
 
-  const { register, isLoading, checkUsernameExists, checkEmailExists } = useAuth();
+  const { register, isLoading, checkUsernameExists } = useAuth(); // Removed checkEmailExists as Firebase handles it
   const { toast } = useToast();
 
   useEffect(() => {
@@ -63,7 +62,7 @@ export default function RegistrationForm() {
     }
   }, [firstName, lastName]);
 
-  // Debounce username check
+  // Debounce username check (for Firestore profile)
   useEffect(() => {
     if (!generatedUsername.trim()) {
       setUsernameAvailable(null);
@@ -79,23 +78,6 @@ export default function RegistrationForm() {
     return () => clearTimeout(handler);
   }, [generatedUsername, checkUsernameExists]);
 
-  // Debounce email check
-  useEffect(() => {
-    const emailTrimmed = email.trim().toLowerCase();
-    if (!emailTrimmed || !/\S+@\S+\.\S+/.test(emailTrimmed)) { // Basic email format check
-      setEmailAvailable(null);
-      return;
-    }
-    const handler = setTimeout(async () => {
-      setEmailCheckLoading(true);
-      const exists = await checkEmailExists(emailTrimmed);
-      setEmailAvailable(!exists);
-      setEmailCheckLoading(false);
-    }, 700);
-
-    return () => clearTimeout(handler);
-  }, [email, checkEmailExists]);
-
 
   useEffect(() => {
     const emailFormatValid = /\S+@\S+\.\S+/.test(email.trim());
@@ -103,34 +85,31 @@ export default function RegistrationForm() {
       firstName.trim() !== '' &&
       lastName.trim() !== '' &&
       email.trim() !== '' &&
+      generatedUsername.trim() !== '' && // Ensure username is generated
       password !== '' &&
       confirmPassword !== '';
     const passwordsMatch = password === confirmPassword;
-    const usernameIsAvailable = usernameAvailable === true;
-    const emailIsAvailable = emailAvailable === true;
-    const passwordIsStrongEnough = passwordStrength >= 50; 
+    const usernameIsAvailableForProfile = usernameAvailable === true; // Check for Firestore profile username
+    const passwordIsStrongEnough = passwordStrength >= 25; // Firebase min is 6 chars, so low strength bar
 
     setIsFormValid(
       allFieldsFilled &&
       emailFormatValid &&
       passwordsMatch &&
-      usernameIsAvailable &&
-      emailIsAvailable && // Check email availability
+      usernameIsAvailableForProfile &&
       !usernameCheckLoading &&
-      !emailCheckLoading && // Check email loading state
       passwordIsStrongEnough &&
       !isLoading 
     );
   }, [
     firstName,
     lastName,
-    email, // Added email
+    email,
+    generatedUsername, // Added generatedUsername
     password,
     confirmPassword,
     usernameAvailable,
     usernameCheckLoading,
-    emailAvailable, // Added emailAvailable
-    emailCheckLoading, // Added emailCheckLoading
     passwordStrength,
     isLoading
   ]);
@@ -198,21 +177,15 @@ export default function RegistrationForm() {
                     required
                     className="bg-background pl-10"
                 />
-                 {emailCheckLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
             </div>
             {email.trim() && !/\S+@\S+\.\S+/.test(email.trim()) && (
                  <p className="text-xs text-destructive mt-1">Formato de correo inválido.</p>
             )}
-            {email.trim() && /\S+@\S+\.\S+/.test(email.trim()) && !emailCheckLoading && emailAvailable === true && (
-              <p className="text-xs text-green-600 mt-1">Correo electrónico disponible.</p>
-            )}
-            {email.trim() && /\S+@\S+\.\S+/.test(email.trim()) && !emailCheckLoading && emailAvailable === false && (
-              <p className="text-xs text-destructive mt-1">Este correo electrónico ya está en uso.</p>
-            )}
+            {/* Firebase Auth handles email existence toast on submit */}
           </div>
           
           <div className="space-y-1">
-            <Label htmlFor="generatedUsernameDisplay">Nombre de Usuario Asignado</Label>
+            <Label htmlFor="generatedUsernameDisplay">Nombre de Usuario (para tu perfil)</Label>
             <div 
                 id="generatedUsernameDisplay"
                 className="flex items-center p-3 min-h-[2.5rem] rounded-md border border-input bg-muted"
@@ -228,10 +201,10 @@ export default function RegistrationForm() {
                 )}
             </div>
             {generatedUsername.trim() && !usernameCheckLoading && usernameAvailable === true && (
-              <p className="text-xs text-green-600 mt-1">Nombre de usuario disponible.</p>
+              <p className="text-xs text-green-600 mt-1">Nombre de usuario para perfil disponible.</p>
             )}
             {generatedUsername.trim() && !usernameCheckLoading && usernameAvailable === false && (
-              <p className="text-xs text-destructive mt-1">Este nombre de usuario ya existe. Intenta con otro nombre/apellido.</p>
+              <p className="text-xs text-destructive mt-1">Este nombre de usuario para perfil ya existe.</p>
             )}
           </div>
 
@@ -241,7 +214,7 @@ export default function RegistrationForm() {
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="Crea una contraseña"
+                placeholder="Crea una contraseña (mín. 6 caracteres)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -263,7 +236,7 @@ export default function RegistrationForm() {
                  <Progress value={passwordStrength} className="h-2" indicatorClassName={getStrengthColor(passwordStrength)} />
                 <p className="text-xs mt-1 text-muted-foreground">
                   Fortaleza: {passwordStrength < 30 ? "Muy débil" : passwordStrength < 60 ? "Débil" : passwordStrength < 85 ? "Buena" : "Fuerte"}
-                  {passwordStrength < 50 && " (Mínimo: Buena)"}
+                  {password.length > 0 && password.length < 6 && <span className="text-destructive"> (Mínimo 6 caracteres)</span>}
                 </p>
               </div>
             )}
@@ -296,11 +269,7 @@ export default function RegistrationForm() {
                 <p className="text-xs text-destructive flex items-center mt-1"><AlertTriangle className="h-3 w-3 mr-1"/>Las contraseñas no coinciden.</p>
             )}
           </div>
-
-          <p className="text-xs text-muted-foreground p-2 border rounded-md bg-muted/50">
-            <span className="font-semibold">Nota de seguridad:</span> Este es un sistema de demostración. En una aplicación real, se usaría Firebase Authentication para un manejo seguro de contraseñas. Aquí se almacenan directamente en Firestore para simplificar, lo cual <span className="text-destructive font-medium">no es seguro para producción</span>.
-          </p>
-
+          
           <Button 
             type="submit" 
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" 
@@ -320,4 +289,3 @@ export default function RegistrationForm() {
     </Card>
   );
 }
-

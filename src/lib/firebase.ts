@@ -1,6 +1,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getAuth, type Auth } from 'firebase/auth'; // Import Firebase Auth
 
 // Ensure environment variables are being loaded. You might need to restart your dev server
 // if you've recently created or modified the .env.local file.
@@ -16,6 +17,7 @@ const firebaseConfig = {
 
 let app: FirebaseApp | undefined = undefined;
 let db: Firestore | undefined = undefined;
+let auth: Auth | undefined = undefined; // Declare auth
 
 // Check if all critical Firebase config keys are present
 const requiredConfigKeys: (keyof typeof firebaseConfig)[] = ['apiKey', 'authDomain', 'projectId', 'appId'];
@@ -38,36 +40,23 @@ if (missingKeys.length > 0) {
     console.log("Firebase app already initialized.");
   }
 
-  if (app) { // Only try to get Firestore if app was successfully initialized/obtained
+  if (app) { // Only try to get Firestore and Auth if app was successfully initialized/obtained
     try {
       db = getFirestore(app);
       console.log("Firestore instance obtained successfully.");
-      // --- IMPORTANT ---
-      // If you see "Missing or insufficient permissions" errors in your app,
-      // it's very likely due to your Firestore Security Rules.
-      // You need to configure them in the Firebase Console:
-      // Firestore Database > Rules tab.
-      // For development, you might use open rules like:
-      //
-      // rules_version = '2';
-      // service cloud.firestore {
-      //   match /databases/{database}/documents {
-      //     match /{document=**} { // Or be more specific, e.g., match /users/{userId}
-      //       allow read, write: if true;
-      //     }
-      //   }
-      // }
-      //
-      // WARNING: Such open rules are insecure for production.
-      // Define proper security rules before deploying your app.
-      // --- END IMPORTANT ---
     } catch (error: any) {
       console.error("Firestore instance initialization error:", error.message, error.code);
-      // db will remain undefined if Firestore initialization fails
+    }
+    try {
+      auth = getAuth(app); // Initialize Auth
+      console.log("Firebase Auth instance obtained successfully.");
+    } catch (error: any) {
+      console.error("Firebase Auth instance initialization error:", error.message, error.code);
     }
   } else {
-    console.error("Firebase app is not available, Firestore instance cannot be obtained. This usually means the Firebase config in .env.local is missing or incorrect.");
+    console.error("Firebase app is not available, Firestore and Auth instances cannot be obtained. This usually means the Firebase config in .env.local is missing or incorrect.");
   }
 }
 
-export { db, app };
+export { db, auth, app }; // Export auth
+

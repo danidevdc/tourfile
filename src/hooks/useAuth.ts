@@ -4,24 +4,41 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase'; // Import auth from firebase config
 import {
-  collection,
-  getDocs,
+  type User as FirebaseUser, // Firebase Auth User type
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail as fbSendPasswordResetEmail,
+  onAuthStateChanged,
+} from 'firebase/auth';
+import {
   doc,
   setDoc,
-  query,
-  where,
-  deleteDoc,
+  getDoc,
   serverTimestamp,
   Timestamp,
-  writeBatch,
-  getDoc,
-  updateDoc, 
-  arrayUnion, 
+  updateDoc,
+  arrayUnion,
+  collection, // For admin check and other Firestore operations if needed
+  query,
+  where,
+  getDocs,
+  deleteDoc
 } from 'firebase/firestore';
 
-const RXLOCAL_CURRENT_USER_USERNAME_KEY = 'tourfilegen_currentUser_username_v1'; 
+// TourFileGen specific user profile data stored in Firestore
+export interface UserProfile {
+  uid: string; // Firebase Auth UID
+  email: string; // Normalized email
+  username: string; // Generated username, should be unique in Firestore profiles
+  firstName: string;
+  lastName:string;
+  isAdmin?: boolean;
+  createdAt?: Timestamp;
+  activityLog?: ActivityLogEntry[];
+}
 
 export interface ActivityLogEntry {
   timestamp: Timestamp;
@@ -29,237 +46,104 @@ export interface ActivityLogEntry {
   details?: string;
 }
 
-export interface UserData {
-  username: string;
-  email?: string; // Added email field
-  password?: string; 
-  firstName: string;
-  lastName: string;
-  isAdmin?: boolean;
-  createdAt?: Timestamp;
-  firestoreId?: string; 
-  activityLog?: ActivityLogEntry[];
+// This will be the structure of our currentUser state, combining Auth info and Profile info
+export interface CurrentUser extends FirebaseUser {
+  profile?: UserProfile; // Optional profile, fetched from Firestore
 }
 
+const ADMIN_EMAIL = 'admin@example.com'; // Define the admin email address
+
 export function useAuth() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<UserData | null>(null);
-  const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
-  const fetchUserDetailsByUsername = useCallback(async (username: string): Promise<UserData | null> => {
-    if (!db) {
-      console.error("Firestore instance (db) is not available for fetching user details by username.");
-      return null;
-    }
+  const fetchUserProfile = useCallback(async (uid: string): Promise<UserProfile | null> => {
+    if (!db) return null;
     try {
-      const userDocRef = doc(db, 'users', username.toLowerCase());
-      const userDoc = await getDoc(userDocRef);
-
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        return {
-          firestoreId: userDoc.id,
-          ...data,
-          activityLog: data.activityLog || [], 
-        } as UserData;
+      const userProfileDocRef = doc(db, 'userProfiles', uid);
+      const userProfileDoc = await getDoc(userProfileDocRef);
+      if (userProfileDoc.exists()) {
+        return userProfileDoc.data() as UserProfile;
       }
       return null;
     } catch (error) {
-      console.error('Error fetching user details by username from Firestore:', error);
-      toast({ title: 'Error de Red', description: 'No se pudieron obtener los detalles del usuario.', variant: 'destructive' });
-      return null;
-    }
-  }, [toast]);
-  
-  const fetchUserDetailsByEmail = useCallback(async (email: string): Promise<UserData | null> => {
-    if (!db) {
-      console.error("Firestore instance (db) is not available for fetching user details by email.");
-      return null;
-    }
-    try {
-      const usersCollectionRef = collection(db, 'users');
-      const q = query(usersCollectionRef, where("email", "==", email.toLowerCase()));
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-        // Assuming email is unique, take the first match. 
-        // Add more robust handling if emails might not be unique.
-        const userDoc = querySnapshot.docs[0];
-        const data = userDoc.data();
-        return {
-          firestoreId: userDoc.id,
-          ...data,
-          activityLog: data.activityLog || [],
-        } as UserData;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error fetching user details by email from Firestore:', error);
-      toast({ title: 'Error de Red', description: 'No se pudieron obtener los detalles del usuario por correo.', variant: 'destructive' });
+      console.error("Error fetching user profile:", error);
+      toast({ title: "Error", description: "No se pudo cargar el perfil del usuario.", variant: "destructive" });
       return null;
     }
   }, [toast]);
 
-
-  const checkUsernameExists = useCallback(async (username: string): Promise<boolean> => {
-    if (!db || !username) return false;
-    const userDocRef = doc(db, 'users', username.toLowerCase());
-    const docSnap = await getDoc(userDocRef);
-    return docSnap.exists();
-  }, []);
-
-  // Optional: Add a function to check if an email already exists if needed for registration validation
-  const checkEmailExists = useCallback(async (email: string): Promise<boolean> => {
-    if (!db || !email) return false;
-    const usersCollectionRef = collection(db, 'users');
-    const q = query(usersCollectionRef, where("email", "==", email.toLowerCase()));
-    const querySnapshot = await getDocs(q);
-    return !querySnapshot.empty;
-  }, []);
-
-
-  const initializeDefaultAdmin = useCallback(async () => {
-    if (!db) {
-      console.error("useAuth: Firestore db not ready yet during admin initialization.");
-      toast({
-        title: 'Error Crítico de Configuración',
-        description: 'La conexión con la base de datos no se pudo establecer.',
-        variant: 'destructive',
-        duration: 10000
-      });
-      setIsLoading(false);
-      return;
-    }
-    try {
-      const adminUsername = 'admin.admin';
-      const adminEmail = 'admin@example.com'; // Added email for admin
-      const adminDocRef = doc(db, 'users', adminUsername);
-      const adminSnapshot = await getDoc(adminDocRef);
-
-      if (!adminSnapshot.exists()) {
-        const adminUser: UserData = { 
-          username: adminUsername,
-          email: adminEmail,
-          password: 'admin123', 
-          firstName: 'Admin',
-          lastName: 'App',
-          isAdmin: true,
-          createdAt: serverTimestamp() as Timestamp,
-          activityLog: [],
-        };
-        await setDoc(adminDocRef, adminUser);
-        console.log(`Default admin user "${adminUsername}" created in Firestore.`);
-      }
-    } catch (error) {
-      console.error('Error initializing default admin:', error);
-      toast({ title: 'Error de Inicialización', description: 'No se pudo configurar el administrador.', variant: 'destructive' });
-    }
-  }, [toast]);
-
-
-  const checkUserSessionAndAdmin = useCallback(async () => {
-    setIsLoading(true);
-    if (!db) {
-        console.warn("useAuth: Firestore db not ready yet during session check.");
-        toast({
-          title: 'Error de Conexión con BD',
-          description: 'La base de datos no está disponible.',
-          variant: 'destructive',
-          duration: 7000
-        });
+  useEffect(() => {
+    if (!auth) {
+        console.error("Firebase Auth is not initialized. App will not function correctly.");
+        toast({ title: "Error Crítico", description: "La autenticación de Firebase no está disponible.", variant: "destructive", duration: 10000 });
         setIsLoading(false);
         return;
     }
-    await initializeDefaultAdmin();
 
-    try {
-      const storedUsername = localStorage.getItem(RXLOCAL_CURRENT_USER_USERNAME_KEY);
-      if (storedUsername) {
-        const userDetails = await fetchUserDetailsByUsername(storedUsername); // Use by username for session restore
-        if (userDetails) {
-          setCurrentUser(userDetails);
-          setIsAuthenticated(true);
-          setIsCurrentUserAdmin(!!userDetails.isAdmin);
-        } else {
-          localStorage.removeItem(RXLOCAL_CURRENT_USER_USERNAME_KEY);
-          setCurrentUser(null);
-          setIsAuthenticated(false);
-          setIsCurrentUserAdmin(false);
-        }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsLoading(true);
+      if (firebaseUser) {
+        const profile = await fetchUserProfile(firebaseUser.uid);
+        setCurrentUser({ ...firebaseUser, profile });
+        setIsCurrentUserAdmin(!!profile?.isAdmin);
       } else {
         setCurrentUser(null);
-        setIsAuthenticated(false);
         setIsCurrentUserAdmin(false);
       }
-    } catch (error) {
-      console.error("Error during user session check:", error);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [fetchUserProfile, toast]);
+
+
+  const login = useCallback(async (emailInput?: string, passwordInput?: string) => {
+    setIsLoading(true);
+    if (!auth || !db) {
+      toast({ title: 'Error de Configuración', description: 'Firebase Auth o Firestore no está disponible.', variant: 'destructive' });
+      setIsLoading(false);
+      return;
+    }
+    if (!emailInput || !passwordInput) {
+      toast({ title: "Error", description: "Email y contraseña son requeridos.", variant: "destructive" });
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, emailInput.trim(), passwordInput);
+      const firebaseUser = userCredential.user;
+      const profile = await fetchUserProfile(firebaseUser.uid);
+      
+      setCurrentUser({ ...firebaseUser, profile });
+      setIsCurrentUserAdmin(!!profile?.isAdmin);
+      
+      const capitalizedFirstName = profile?.firstName.charAt(0).toUpperCase() + profile?.firstName.slice(1).toLowerCase() || 'Usuario';
+      toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${capitalizedFirstName}!` });
+      router.push('/');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      let message = "Credenciales incorrectas o error al iniciar sesión.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        message = "Correo electrónico o contraseña incorrectos.";
+      } else if (error.code === 'auth/invalid-email') {
+        message = "El formato del correo electrónico es inválido.";
+      }
+      toast({ title: "Error de Inicio de Sesión", description: message, variant: "destructive" });
       setCurrentUser(null);
-      setIsAuthenticated(false);
       setIsCurrentUserAdmin(false);
     } finally {
       setIsLoading(false);
     }
-  }, [fetchUserDetailsByUsername, initializeDefaultAdmin, toast]);
-
-
-  useEffect(() => {
-    checkUserSessionAndAdmin();
-  }, [checkUserSessionAndAdmin]);
-
-
-  const login = useCallback(async (usernameOrEmailInput?: string, passwordInput?: string) => {
-    setIsLoading(true);
-    if (!db) {
-      toast({ title: 'Error de Configuración', description: 'La base de datos no está disponible.', variant: 'destructive' });
-      setIsLoading(false);
-      return;
-    }
-    if (!usernameOrEmailInput || !passwordInput) {
-      toast({ title: "Error", description: "Usuario/Email y contraseña son requeridos.", variant: "destructive" });
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      let userDetails: UserData | null = null;
-      const inputTrimmed = usernameOrEmailInput.trim();
-
-      if (inputTrimmed.includes('@')) { // Assume it's an email
-        userDetails = await fetchUserDetailsByEmail(inputTrimmed);
-      } else { // Assume it's a username
-        userDetails = await fetchUserDetailsByUsername(inputTrimmed);
-      }
-      
-
-      if (userDetails && userDetails.password === passwordInput) { 
-        localStorage.setItem(RXLOCAL_CURRENT_USER_USERNAME_KEY, userDetails.username); // Store username for session
-        setCurrentUser(userDetails);
-        setIsAuthenticated(true);
-        setIsCurrentUserAdmin(!!userDetails.isAdmin);
-        const capitalizedFirstName = userDetails.firstName.charAt(0).toUpperCase() + userDetails.firstName.slice(1).toLowerCase();
-        toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${capitalizedFirstName}!` });
-        router.push('/'); 
-      } else {
-        toast({ title: "Error de Inicio de Sesión", description: "Credenciales incorrectas.", variant: "destructive" });
-        setCurrentUser(null);
-        setIsAuthenticated(false);
-        setIsCurrentUserAdmin(false);
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      toast({ title: "Error de Inicio de Sesión", description: "Ocurrió un problema al iniciar sesión.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [router, toast, fetchUserDetailsByUsername, fetchUserDetailsByEmail]);
-
+  }, [router, toast, fetchUserProfile]);
 
   const register = useCallback(async (firstName?: string, lastName?: string, email?: string, username?: string, password?: string) => {
     setIsLoading(true);
-    if (!db) {
-      toast({ title: 'Error de Configuración', description: 'La base de datos no está disponible.', variant: 'destructive' });
+    if (!auth || !db) {
+      toast({ title: 'Error de Configuración', description: 'Firebase Auth o Firestore no está disponible.', variant: 'destructive' });
       setIsLoading(false);
       return;
     }
@@ -269,177 +153,200 @@ export function useAuth() {
       return;
     }
 
-    const targetUsername = username.trim().toLowerCase();
     const targetEmail = email.trim().toLowerCase();
-
-    // Optional: Check if email already exists before attempting registration
-    const emailExists = await checkEmailExists(targetEmail);
-    if (emailExists) {
-        toast({ title: "Error de Registro", description: "Este correo electrónico ya está en uso.", variant: "destructive" });
-        setIsLoading(false);
-        return;
-    }
-    // Username existence is already checked by the form's debounced check
+    const targetUsername = username.trim().toLowerCase();
 
     try {
-      const newUserDocRef = doc(collection(db, 'users'), targetUsername);
-      const newUser: UserData = {
-        username: targetUsername,
+      // Check if username already exists in userProfiles collection
+      const usernameQuery = query(collection(db, "userProfiles"), where("username", "==", targetUsername));
+      const usernameSnapshot = await getDocs(usernameQuery);
+      if (!usernameSnapshot.empty) {
+          toast({ title: "Error de Registro", description: "Este nombre de usuario ya está en uso.", variant: "destructive" });
+          setIsLoading(false);
+          return;
+      }
+      
+      const userCredential = await createUserWithEmailAndPassword(auth, targetEmail, password);
+      const firebaseUser = userCredential.user;
+
+      const userProfileData: UserProfile = {
+        uid: firebaseUser.uid,
         email: targetEmail,
-        password: password, 
+        username: targetUsername,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        isAdmin: false,
+        isAdmin: targetEmail === ADMIN_EMAIL, // Set admin if email matches
         createdAt: serverTimestamp() as Timestamp,
-        activityLog: [], 
+        activityLog: [],
       };
 
-      await setDoc(newUserDocRef, newUser);
+      await setDoc(doc(db, 'userProfiles', firebaseUser.uid), userProfileData);
+      
+      // Update currentUser state immediately
+      setCurrentUser({ ...firebaseUser, profile: userProfileData });
+      setIsCurrentUserAdmin(userProfileData.isAdmin || false);
 
-      const capitalizedFirstName = newUser.firstName.charAt(0).toUpperCase() + newUser.firstName.slice(1).toLowerCase();
-      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${capitalizedFirstName}. Usuario: ${newUser.username}` });
+      const capitalizedFirstName = userProfileData.firstName.charAt(0).toUpperCase() + userProfileData.firstName.slice(1).toLowerCase();
+      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${capitalizedFirstName}. Usuario: ${userProfileData.username}` });
       router.push('/login');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error);
-      toast({ title: "Error de Registro", description: "Ocurrió un problema al crear la cuenta.", variant: "destructive" });
+      let message = "Ocurrió un problema al crear la cuenta.";
+      if (error.code === 'auth/email-already-in-use') {
+        message = "Este correo electrónico ya está registrado.";
+      } else if (error.code === 'auth/invalid-email') {
+        message = "El formato del correo electrónico es inválido.";
+      } else if (error.code === 'auth/weak-password') {
+        message = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";
+      }
+      toast({ title: "Error de Registro", description: message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  }, [toast, router, checkEmailExists]);
+  }, [toast, router]);
 
-
-  const logout = useCallback(() => {
-    localStorage.removeItem(RXLOCAL_CURRENT_USER_USERNAME_KEY);
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    setIsCurrentUserAdmin(false);
-    router.push('/login');
-    toast({ title: "Sesión Cerrada", description: "Has cerrado sesión exitosamente." });
+  const logout = useCallback(async () => {
+    if (!auth) return;
+    setIsLoading(true);
+    try {
+      await signOut(auth);
+      setCurrentUser(null);
+      setIsCurrentUserAdmin(false);
+      router.push('/login');
+      toast({ title: "Sesión Cerrada", description: "Has cerrado sesión exitosamente." });
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({ title: "Error", description: "No se pudo cerrar la sesión.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
   }, [router, toast]);
 
-  const getCurrentUserUsername = useCallback((): string | null => {
-    try {
-      return localStorage.getItem(RXLOCAL_CURRENT_USER_USERNAME_KEY);
-    } catch (error) {
-      return null;
+  const sendPasswordReset = useCallback(async (emailForReset: string) => {
+    if (!auth) {
+        toast({ title: 'Error de Configuración', description: 'Firebase Auth no está disponible.', variant: 'destructive' });
+        return;
     }
+    setIsLoading(true);
+    try {
+      await fbSendPasswordResetEmail(auth, emailForReset.trim());
+      toast({
+        title: "Correo de Recuperación Enviado",
+        description: `Si una cuenta existe para ${emailForReset}, se ha enviado un correo con instrucciones.`,
+        duration: 7000,
+      });
+      // Optionally log this attempt to a generic activity log or user's log if UID is known
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      let message = "No se pudo enviar el correo de recuperación.";
+      if (error.code === 'auth/user-not-found') {
+        message = "No se encontró ninguna cuenta con este correo electrónico.";
+      } else if (error.code === 'auth/invalid-email') {
+        message = "El formato del correo electrónico es inválido.";
+      }
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+
+  // Check if username exists in Firestore (for registration form validation)
+  const checkUsernameExists = useCallback(async (username: string): Promise<boolean> => {
+    if (!db || !username) return false;
+    const profilesRef = collection(db, 'userProfiles');
+    const q = query(profilesRef, where("username", "==", username.trim().toLowerCase()));
+    const querySnapshot = await getDocs(q);
+    return !querySnapshot.empty;
+  }, []);
+  
+  // Email existence is implicitly checked by Firebase Auth during registration.
+  // This function might be useful if you want to check before attempting registration.
+  const checkEmailExists = useCallback(async (email: string): Promise<boolean> => {
+    // Firebase Auth's createUserWithEmailAndPassword will fail if email is in use.
+    // For a pre-check, you could use signInMethodsForEmail, but that's more complex.
+    // For now, let Firebase Auth handle this during registration attempt.
+    // If you *really* need a pre-check, this would be a Firestore query if emails are also in profiles.
+    if (!db || !email) return false;
+    const profilesRef = collection(db, 'userProfiles');
+    const q = query(profilesRef, where("email", "==", email.trim().toLowerCase()));
+    const fbAuthUser = auth?.currentUser; // Check if current user is trying to use their own email
+    const querySnapshot = await getDocs(q);
+     if (!querySnapshot.empty) {
+        // If a document is found, check if it's the current user's profile (if logged in)
+        if (fbAuthUser && querySnapshot.docs[0].id === fbAuthUser.uid) {
+            return false; // It's the current user's email, so it's "available" for them to "keep"
+        }
+        return true; // Email exists for another user
+    }
+    return false; // Email does not exist
   }, []);
 
-  const getCurrentUserDetails = useCallback(async (): Promise<UserData | null> => {
-    const username = getCurrentUserUsername();
-    if (username) {
-        return fetchUserDetailsByUsername(username); // Use by username for consistency
+
+  // The following functions might need adaptation if they were fetching 'users' collection directly
+  // For now, they are commented out or would need to fetch from 'userProfiles'
+  const getCurrentUserUsername = useCallback((): string | null => {
+    return currentUser?.profile?.username || null;
+  }, [currentUser]);
+
+  const getCurrentUserDetails = useCallback(async (): Promise<UserProfile | null> => {
+    if (currentUser?.uid) {
+        return fetchUserProfile(currentUser.uid);
     }
     return null;
-  }, [getCurrentUserUsername, fetchUserDetailsByUsername]);
+  }, [currentUser, fetchUserProfile]);
 
-
-  const getUsersFromFirestore = useCallback(async (): Promise<UserData[]> => {
-    if (!db) {
-      console.error("Firestore instance (db) is not available in getUsersFromFirestore.");
-      throw new Error("La base de datos (Firestore) no está inicializada o disponible.");
-    }
-    try {
-      const usersCollectionRef = collection(db, 'users');
-      const usersSnapshot = await getDocs(usersCollectionRef);
-      const usersList = usersSnapshot.docs.map(docSnapshot => {
-        const data = docSnapshot.data();
-        return {
-            firestoreId: docSnapshot.id,
-            username: data.username,
-            email: data.email, // Include email
-            firstName: data.firstName,
-            lastName: data.lastName,
-            isAdmin: data.isAdmin || false,
-            activityLog: data.activityLog || [], 
-        } as UserData
-      });
-      return usersList;
-    } catch (error: any) {
-      console.error("Error fetching users from Firestore in hook:", error);
-      throw new Error(`Error al obtener usuarios de Firestore: ${error.message || String(error)}`);
-    }
+  const getUsersFromFirestore = useCallback(async (): Promise<UserProfile[]> => {
+    if (!db) throw new Error("Firestore not initialized");
+    const profilesCollectionRef = collection(db, 'userProfiles');
+    const profilesSnapshot = await getDocs(profilesCollectionRef);
+    return profilesSnapshot.docs.map(docSnapshot => docSnapshot.data() as UserProfile);
   }, []);
 
-  const deleteUserFromFirestore = async (userFirestoreId: string): Promise<void> => {
-    if (!db) {
-      toast({ title: 'Error de Configuración', description: 'La base de datos no está disponible.', variant: 'destructive' });
-      throw new Error("Firestore not initialized");
+  const deleteUserFromFirestore = async (uidToDelete: string): Promise<void> => {
+    if (!db) throw new Error("Firestore not initialized");
+    if (!uidToDelete) throw new Error("User UID not provided for deletion.");
+    
+    // IMPORTANT: This only deletes the Firestore profile.
+    // Deleting a Firebase Auth user requires Admin SDK privileges (backend function).
+    // For a client-side app, you can't directly delete other Auth users.
+    // The current logged-in user can delete their OWN account: currentUser?.delete()
+    
+    if (currentUser?.uid === uidToDelete) {
+        toast({title: "Acción no permitida", description: "No puedes eliminar tu propia cuenta desde aquí.", variant: "destructive"});
+        throw new Error("Cannot delete own user profile through this admin function.");
     }
-    if (!userFirestoreId) {
-      toast({ title: 'Error', description: 'ID de usuario no proporcionado.', variant: 'destructive' });
-      throw new Error("User ID not provided for deletion.");
-    }
+
     try {
-      const userDocRef = doc(db, 'users', userFirestoreId);
-      await deleteDoc(userDocRef);
-      toast({ title: 'Usuario Eliminado', description: 'El usuario ha sido eliminado de Firestore.' });
+      const userProfileDocRef = doc(db, 'userProfiles', uidToDelete);
+      await deleteDoc(userProfileDocRef);
+      toast({ title: 'Perfil Eliminado', description: 'El perfil de usuario ha sido eliminado de Firestore.' });
+      // Refresh user list or UI as needed
     } catch (error) {
-      console.error('Error deleting user from Firestore:', error);
-      toast({ title: 'Error al Eliminar', description: 'No se pudo eliminar el usuario de Firestore.', variant: 'destructive' });
+      console.error('Error deleting user profile from Firestore:', error);
+      toast({ title: 'Error al Eliminar', description: 'No se pudo eliminar el perfil de Firestore.', variant: 'destructive' });
       throw error;
     }
   };
 
-  const sendPasswordResetEmail = async (emailForReset: string, usernameForLog?: string): Promise<void> => {
-    let userToLog = usernameForLog;
-    // If username is not provided for logging, try to find the user by email to get their username
-    if (!userToLog && db && emailForReset) {
-        const userDetailsByEmail = await fetchUserDetailsByEmail(emailForReset);
-        if (userDetailsByEmail) {
-            userToLog = userDetailsByEmail.username;
-        }
-    }
-
-    console.warn(`Simulating password reset email to: ${emailForReset} for user ${userToLog || '(username not found)'}. This requires backend implementation for actual email sending or Firebase Auth.`);
-    toast({
-      title: "Simulación de Recuperación",
-      description: `Si ${emailForReset} estuviera registrado, se enviaría un enlace (funcionalidad simulada).`,
-      duration: 5000,
-    });
-
-    if (db && userToLog) {
-      try {
-        const userDocRef = doc(db, 'users', userToLog.toLowerCase());
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-           const newLogEntry: ActivityLogEntry = {
-            timestamp: serverTimestamp() as Timestamp,
-            action: 'Intento de Reseteo de Contraseña',
-            details: `Solicitado para el correo: ${emailForReset} (Simulado)`,
-          };
-          await updateDoc(userDocRef, {
-            activityLog: arrayUnion(newLogEntry)
-          });
-        } else {
-          console.warn(`sendPasswordResetEmail: User ${userToLog} not found in Firestore to log activity.`);
-        }
-      } catch (error) {
-        console.error(`Error logging password reset attempt for ${userToLog}:`, error);
-      }
-    }
-    return Promise.resolve();
-  };
-
 
   return {
-    isAuthenticated,
+    isAuthenticated: !!currentUser,
     isLoading,
-    currentUser,
+    currentUser, // This is FirebaseUser | null, or your CurrentUser type
     isCurrentUserAdmin,
     login,
     register,
     logout,
-    getCurrentUserUsername,
-    getCurrentUserDetails,
-    fetchUserDetailsByUsername, // Keep this if needed elsewhere for direct username fetching
-    fetchUserDetailsByEmail,   // Keep this if needed elsewhere for direct email fetching
-    getUsersFromFirestore,
-    deleteUserFromFirestore,
-    checkUsernameExists,
-    checkEmailExists, // Expose if needed by registration form for pre-validation
-    sendPasswordResetEmail,
+    sendPasswordReset: sendPasswordReset, // Renamed for clarity
+    checkUsernameExists, // To check username in userProfiles
+    checkEmailExists, // To check email in userProfiles (optional pre-check)
+    
+    // Keeping these for potential admin panel usage, though they operate on profiles now
+    getCurrentUserUsername, // Gets username from current user's profile
+    getCurrentUserDetails,  // Gets profile of current user
+    getUsersFromFirestore, // Gets all user profiles
+    deleteUserFromFirestore, // Deletes a user's Firestore profile (not Auth record)
   };
 }
-
