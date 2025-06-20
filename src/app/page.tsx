@@ -21,6 +21,10 @@ export default function HomePage() {
     });
   };
 
+  const appVersion = process.env.NEXT_PUBLIC_APP_ENV && process.env.NEXT_PUBLIC_APP_ENV !== "production"
+    ? `${version}-${process.env.NEXT_PUBLIC_APP_ENV}`
+    : version;
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
       <Card className="w-full max-w-2xl shadow-lg rounded-xl">
@@ -88,7 +92,7 @@ export default function HomePage() {
         </CardContent>
       </Card>
        <footer className="mt-12 text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} TourFile Generator. Todos los derechos reservados. (Versión: {version})</p>
+        <p>&copy; {new Date().getFullYear()} TourFile Generator. Todos los derechos reservados. (Versión: {appVersion})</p>
       </footer>
     </div>
   );

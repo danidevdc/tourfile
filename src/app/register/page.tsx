@@ -10,6 +10,10 @@ export const metadata: Metadata = {
 };
 
 export default function RegisterPage() {
+  const appVersion = process.env.NEXT_PUBLIC_APP_ENV && process.env.NEXT_PUBLIC_APP_ENV !== "production"
+    ? `${version}-${process.env.NEXT_PUBLIC_APP_ENV}`
+    : version;
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
@@ -20,7 +24,7 @@ export default function RegisterPage() {
         </div>
         <RegistrationForm />
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} TourFile Generator. (Versión: {version})
+          © {new Date().getFullYear()} TourFile Generator. (Versión: {appVersion})
         </p>
       </div>
     </div>
