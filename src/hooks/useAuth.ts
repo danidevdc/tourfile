@@ -32,9 +32,9 @@ import {
 export interface UserProfile {
   uid: string; // Firebase Auth UID
   email: string; // Normalized email
-  username?: string; // Optional: No longer primary
-  firstName?: string; // Optional
-  lastName?:string; // Optional
+  firstName?: string;
+  lastName?:string;
+  username?: string; // No longer primary, but can be kept if other parts of system use it
   isAdmin?: boolean;
   createdAt?: Timestamp;
   activityLog?: ActivityLogEntry[];
@@ -123,7 +123,7 @@ export function useAuth() {
       setCurrentUser({ ...firebaseUser, profile });
       setIsCurrentUserAdmin(!!profile?.isAdmin || firebaseUser.email === ADMIN_EMAIL);
       
-      const displayName = profile?.email || "Usuario"; // Simplified display name
+      const displayName = profile?.email || "Usuario";
       toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${displayName}!` });
       router.push('/');
     } catch (error: any) {
@@ -180,6 +180,7 @@ export function useAuth() {
       const userProfileData: UserProfile = {
         uid: firebaseUserRegistered.uid,
         email: targetEmail,
+        // firstName and lastName are removed, username is optional
         isAdmin: targetEmail === ADMIN_EMAIL,
         createdAt: serverTimestamp() as Timestamp,
         activityLog: [],
@@ -187,8 +188,14 @@ export function useAuth() {
 
       await setDoc(doc(db, 'userProfiles', firebaseUserRegistered.uid), userProfileData);
 
-      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}.` });
-      router.push('/'); // Redirect to home page after successful registration
+      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}. Por favor, inicia sesión.` });
+      
+      // Sign out the user immediately after successful profile creation
+      if (auth.currentUser) { // Check if a user is indeed signed in by createUser
+        await signOut(auth);
+      }
+      // Redirect to login page AFTER signing out
+      router.push('/login'); 
 
     } catch (error: any) {
       console.error('Registration process error:', error.code, error.message);
@@ -261,7 +268,6 @@ export function useAuth() {
       console.error("Password reset error:", error);
       let message = "No se pudo enviar el correo de recuperación.";
       if (error.code === 'auth/user-not-found') {
-        // Don't reveal if user exists for security, keep it general
         message = `Si una cuenta existe para ${emailForReset}, se ha enviado un correo. Si no lo ves, revisa tu carpeta de spam.`;
          toast({
             title: "Verifica tu Correo",
@@ -296,14 +302,15 @@ export function useAuth() {
       }
       return false;
     } catch (error) {
-        console.error("Error checking email existence in Firestore:", error);
-        return false; // Default to false on error to avoid blocking UI
+        console.error("Error checking email existence in Firestore (could be rules or network):", error);
+        return false; 
     }
   }, []);
 
 
   const getCurrentUserUsername = useCallback((): string | null => {
-    return currentUser?.profile?.username || null;
+    // Username is no longer a primary identifier, but if it exists in profile, return it.
+    return currentUser?.profile?.username || currentUser?.profile?.email || null;
   }, [currentUser]);
 
   const getCurrentUserDetails = useCallback(async (): Promise<UserProfile | null> => {
@@ -333,8 +340,6 @@ export function useAuth() {
       const userProfileDocRef = doc(db, 'userProfiles', uidToDelete);
       await deleteDoc(userProfileDocRef);
       toast({ title: 'Perfil Eliminado', description: 'El perfil de usuario ha sido eliminado de Firestore.' });
-      // Note: This does NOT delete the user from Firebase Authentication.
-      // That would require Firebase Admin SDK backend functionality.
     } catch (error) {
       console.error('Error deleting user profile from Firestore:', error);
       toast({ title: 'Error al Eliminar', description: 'No se pudo eliminar el perfil de Firestore.', variant: 'destructive' });
@@ -352,12 +357,10 @@ export function useAuth() {
     register,
     logout,
     sendPasswordReset: sendPasswordReset,
-    checkEmailExists,
-    getCurrentUserUsername, // Kept, but username is not primary now
+    checkEmailExists, // Kept for now, but not used by registration form
+    getCurrentUserUsername, 
     getCurrentUserDetails,
     getUsersFromFirestore,
     deleteUserFromFirestore,
   };
 }
-
-    
