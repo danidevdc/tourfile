@@ -1,9 +1,10 @@
 
 import type { Metadata } from 'next';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster"; // Ensure this path is correct if useToast is customized
+import { Toaster } from "@/components/ui/toaster";
 import Header from '@/components/layout/header';
 import { ThemeProvider } from "@/components/theme-provider";
+import ProtectedRoute from '@/components/layout/ProtectedRoute'; // Import ProtectedRoute
 
 export const metadata: Metadata = {
   title: 'TourFile Generator',
@@ -30,8 +31,8 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Header />
-          <main className="pt-20 md:pt-24"> {/* Adjusted padding-top to accommodate fixed header */}
-            {children}
+          <main className="pt-20 md:pt-24">
+            <ProtectedRoute>{children}</ProtectedRoute> {/* Wrap children with ProtectedRoute */}
           </main>
           <Toaster />
         </ThemeProvider>
