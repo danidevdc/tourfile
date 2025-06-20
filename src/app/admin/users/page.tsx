@@ -3,13 +3,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, type UserProfile } from '@/hooks/useAuth';
+import { useAuth, type UserProfile } from '@/hooks/useAuth'; // UserProfile debe ser exportado desde useAuth
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, ArrowLeft, ShieldCheck, ShieldOff, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Timestamp } from 'firebase/firestore'; // Import Timestamp
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,18 +35,25 @@ export default function AdminUsersPage() {
   useEffect(() => {
     if (!authLoading) {
       if (!isCurrentUserAdmin) {
-        router.replace('/'); // Redirige si no es admin
+        toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive"});
+        router.replace('/'); 
       } else {
         const fetchUsers = async () => {
           setIsLoadingUsers(true);
-          const userProfiles = await getAllUserProfiles();
-          setUsers(userProfiles);
-          setIsLoadingUsers(false);
+          try {
+            const userProfiles = await getAllUserProfiles();
+            setUsers(userProfiles);
+          } catch (error) {
+            // Toast for error fetching users is handled in getAllUserProfiles
+            console.error("Failed to fetch users for admin page:", error);
+          } finally {
+            setIsLoadingUsers(false);
+          }
         };
         fetchUsers();
       }
     }
-  }, [isCurrentUserAdmin, authLoading, router, getAllUserProfiles]);
+  }, [isCurrentUserAdmin, authLoading, router, getAllUserProfiles, toast]);
 
   const handleDeleteUser = async () => {
     if (!userToDelete || !userToDelete.uid) return;
@@ -54,6 +62,7 @@ export default function AdminUsersPage() {
       setUserToDelete(null);
       return;
     }
+    // Assuming ADMIN_EMAIL is 'daniish77@gmail.com' as per useAuth
     if (userToDelete.email === 'daniish77@gmail.com' && userToDelete.uid !== currentUser?.uid) {
         toast({ title: "Acción no permitida", description: "No se puede eliminar la cuenta de administrador principal.", variant: "destructive" });
         setUserToDelete(null);
@@ -62,13 +71,12 @@ export default function AdminUsersPage() {
 
     try {
       await deleteUserFromFirestore(userToDelete.uid);
-      // Actualizar la lista de usuarios localmente
       setUsers(prevUsers => prevUsers.filter(user => user.uid !== userToDelete.uid));
-      toast({ title: "Usuario Eliminado", description: `El perfil para ${userToDelete.email} ha sido eliminado de Firestore.` });
+      toast({ title: "Perfil Eliminado", description: `El perfil para ${userToDelete.email} ha sido eliminado de Firestore.` });
     } catch (error) {
-      // El toast de error ya se maneja en deleteUserFromFirestore
+      // Error toast is handled within deleteUserFromFirestore
     } finally {
-      setUserToDelete(null); // Cierra el diálogo
+      setUserToDelete(null); 
     }
   };
 
@@ -145,7 +153,7 @@ export default function AdminUsersPage() {
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                           </AlertDialogTrigger>
-                          {userToDelete && userToDelete.uid === user.uid && ( // Asegurar que el diálogo es para el usuario correcto
+                          {userToDelete && userToDelete.uid === user.uid && ( 
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>¿Estás seguro de eliminar este perfil?</AlertDialogTitle>
@@ -178,5 +186,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-    
