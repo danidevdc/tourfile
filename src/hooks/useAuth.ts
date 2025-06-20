@@ -21,7 +21,7 @@ import {
   Timestamp,
   updateDoc,
   arrayUnion,
-  collection, 
+  collection,
   query,
   where,
   getDocs,
@@ -51,7 +51,7 @@ export interface CurrentUser extends FirebaseUser {
   profile?: UserProfile; // Optional profile, fetched from Firestore
 }
 
-const ADMIN_EMAIL = 'daniish77@gmail.com'; 
+const ADMIN_EMAIL = 'daniish77@gmail.com';
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -144,22 +144,42 @@ export function useAuth() {
       const userCredential = await signInWithEmailAndPassword(auth, emailToUseForLogin, passwordInput);
       const firebaseUser = userCredential.user;
       const profile = await fetchUserProfile(firebaseUser.uid);
-      
+
       setCurrentUser({ ...firebaseUser, profile });
       setIsCurrentUserAdmin(!!profile?.isAdmin);
-      
+
       const capitalizedFirstName = profile?.firstName.charAt(0).toUpperCase() + profile?.firstName.slice(1).toLowerCase() || 'Usuario';
       toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${capitalizedFirstName}!` });
       router.push('/');
     } catch (error: any) {
-      console.error('Login error:', error);
-      let message = "Credenciales incorrectas o error al iniciar sesión.";
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        message = isInputEmail ? "Correo electrónico o contraseña incorrectos." : "Nombre de usuario o contraseña incorrectos.";
-      } else if (error.code === 'auth/invalid-email') {
-        message = "El formato del correo electrónico es inválido.";
+      console.error('Login error:', error.code, error.message);
+      let title = "Error de Inicio de Sesión";
+      let message = "Ocurrió un problema al intentar iniciar sesión.";
+
+      if (error.code) {
+        switch (error.code) {
+          case 'auth/user-not-found':
+            message = isInputEmail ? "No se encontró una cuenta con ese correo electrónico." : "Nombre de usuario no encontrado o contraseña incorrecta.";
+            break;
+          case 'auth/wrong-password':
+             message = isInputEmail ? "Correo electrónico o contraseña incorrectos." : "Nombre de usuario o contraseña incorrectos.";
+            break;
+          case 'auth/invalid-credential':
+            message = "Las credenciales proporcionadas son inválidas. Verifica tu usuario/correo y contraseña.";
+            break;
+          case 'auth/invalid-email':
+            message = "El formato del correo electrónico es inválido.";
+            break;
+          case 'auth/user-disabled':
+            message = "Esta cuenta de usuario ha sido deshabilitada.";
+            title = "Cuenta Deshabilitada";
+            break;
+          default:
+            // For other Firebase errors, use Firebase's message if available
+            message = error.message || "Error desconocido durante el inicio de sesión.";
+        }
       }
-      toast({ title: "Error de Inicio de Sesión", description: message, variant: "destructive" });
+      toast({ title: title, description: message, variant: "destructive" });
       setCurrentUser(null);
       setIsCurrentUserAdmin(false);
     } finally {
@@ -182,7 +202,7 @@ export function useAuth() {
 
     const targetEmail = email.trim().toLowerCase();
     const targetUsername = username.trim().toLowerCase();
-    let firebaseUser; // Declare firebaseUser here to access in catch block if needed for logging
+    let firebaseUserRegistered;
 
     try {
       // Check if username already exists in userProfiles collection
@@ -193,36 +213,32 @@ export function useAuth() {
           setIsLoading(false);
           return;
       }
-      
+
       const userCredential = await createUserWithEmailAndPassword(auth, targetEmail, password);
-      firebaseUser = userCredential.user; // Assign here
+      firebaseUserRegistered = userCredential.user;
 
       const userProfileData: UserProfile = {
-        uid: firebaseUser.uid,
+        uid: firebaseUserRegistered.uid,
         email: targetEmail,
         username: targetUsername,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        isAdmin: targetEmail === ADMIN_EMAIL, // Set admin if email matches
+        isAdmin: targetEmail === ADMIN_EMAIL,
         createdAt: serverTimestamp() as Timestamp,
         activityLog: [],
       };
 
-      await setDoc(doc(db, 'userProfiles', firebaseUser.uid), userProfileData);
-      
-      // No need to call setCurrentUser here, onAuthStateChanged will handle it.
-      // setIsCurrentUserAdmin(userProfileData.isAdmin || false); // Also handled by onAuthStateChanged
+      await setDoc(doc(db, 'userProfiles', firebaseUserRegistered.uid), userProfileData);
 
       const capitalizedFirstName = userProfileData.firstName.charAt(0).toUpperCase() + userProfileData.firstName.slice(1).toLowerCase();
       toast({ title: "Registro Exitoso", description: `Cuenta creada para ${capitalizedFirstName}. Usuario: ${userProfileData.username}. Por favor, inicia sesión.` });
-      router.push('/login'); // Redirect to login after successful registration
+      router.push('/login');
 
     } catch (error: any) {
-      console.error('Registration process error:', error);
+      console.error('Registration process error:', error.code, error.message);
       let message = "Ocurrió un problema al crear la cuenta.";
-      
-      if (error.code) { // Firebase Auth errors often have a 'code' property
-        console.error(`Firebase Auth Error Code: ${error.code}, Message: ${error.message}`);
+
+      if (error.code) {
         switch (error.code) {
           case 'auth/email-already-in-use':
             message = "Este correo electrónico ya está registrado.";
@@ -233,20 +249,22 @@ export function useAuth() {
           case 'auth/weak-password':
             message = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";
             break;
+          case 'auth/requires-recent-login':
+             message = "Esta operación es sensible y requiere autenticación reciente. Intenta iniciar sesión de nuevo.";
+             break;
+          case 'permission-denied': // Specific to Firebase Auth, not Firestore rules here usually
+             message = "Permiso denegado por Firebase Authentication. Verifica la configuración de tu proyecto.";
+             break;
           default:
-            message = `Error de autenticación: ${error.message}`;
+            message = error.message || "Error desconocido durante el registro.";
         }
-      } else if (firebaseUser && error.message && error.message.toLowerCase().includes('firestore')) {
-        // This is a heuristic, Firestore errors might not always contain "firestore" in message
-        // but permission denied errors often do.
-        console.error(`Firestore Error after user ${firebaseUser.uid} created: ${error.message}`);
+      } else if (firebaseUserRegistered && error.message && error.message.toLowerCase().includes('firestore')) {
+        console.error(`Firestore Error after user ${firebaseUserRegistered.uid} created: ${error.message}`);
         message = "La cuenta de autenticación fue creada, pero hubo un problema al guardar el perfil. Contacta al soporte.";
-        // Consider if you need to delete the Firebase Auth user if profile creation fails critically.
-        // This is complex and depends on your app's recovery strategy.
       } else {
         console.error('Non-Firebase error or unknown error structure:', error);
       }
-      
+
       toast({ title: "Error de Registro", description: message, variant: "destructive" });
     } finally {
       setIsLoading(false);
@@ -306,28 +324,31 @@ export function useAuth() {
       const querySnapshot = await getDocs(q);
       return !querySnapshot.empty;
     } catch (error) {
-      console.error("Error checking username existence in Firestore (likely permissions or config):", error);
+      console.error("Error checking username existence in Firestore (could be rules or network):", error);
+      // To prevent blocking registration due to a failed check (e.g. Firestore rules),
+      // we'll log the error but return false, acting as if username is available.
+      // This means the UI won't show "No se pudo verificar..." but might allow a duplicate if rules are the issue.
       return false;
     }
   }, []);
-  
+
   const checkEmailExists = useCallback(async (email: string): Promise<boolean> => {
     if (!db || !email) return false;
     try {
       const profilesRef = collection(db, 'userProfiles');
       const q = query(profilesRef, where("email", "==", email.trim().toLowerCase()));
-      const fbAuthUser = auth?.currentUser; 
+      const fbAuthUser = auth?.currentUser;
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
           if (fbAuthUser && querySnapshot.docs[0].id === fbAuthUser.uid) {
-              return false; 
+              return false;
           }
-          return true; 
+          return true;
       }
-      return false; 
+      return false;
     } catch (error) {
         console.error("Error checking email existence in Firestore:", error);
-        return false; 
+        return false;
     }
   }, []);
 
@@ -353,7 +374,7 @@ export function useAuth() {
   const deleteUserFromFirestore = async (uidToDelete: string): Promise<void> => {
     if (!db) throw new Error("Firestore not initialized");
     if (!uidToDelete) throw new Error("User UID not provided for deletion.");
-    
+
     if (currentUser?.uid === uidToDelete) {
         toast({title: "Acción no permitida", description: "No puedes eliminar tu propia cuenta desde aquí.", variant: "destructive"});
         throw new Error("Cannot delete own user profile through this admin function.");
@@ -374,19 +395,18 @@ export function useAuth() {
   return {
     isAuthenticated: !!currentUser,
     isLoading,
-    currentUser, 
+    currentUser,
     isCurrentUserAdmin,
     login,
     register,
     logout,
-    sendPasswordReset: sendPasswordReset, 
-    checkUsernameExists, 
-    checkEmailExists, 
-    
-    getCurrentUserUsername, 
-    getCurrentUserDetails,  
-    getUsersFromFirestore, 
-    deleteUserFromFirestore, 
+    sendPasswordReset: sendPasswordReset,
+    checkUsernameExists,
+    checkEmailExists,
+
+    getCurrentUserUsername,
+    getCurrentUserDetails,
+    getUsersFromFirestore,
+    deleteUserFromFirestore,
   };
 }
-
