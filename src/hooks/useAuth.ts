@@ -51,7 +51,7 @@ export interface CurrentUser extends FirebaseUser {
   profile?: UserProfile; // Optional profile, fetched from Firestore
 }
 
-const ADMIN_EMAIL = 'admin@example.com'; // Define the admin email address
+const ADMIN_EMAIL = 'daniish77@gmail.com'; // Define the admin email address
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
