@@ -32,12 +32,14 @@ import {
 export interface UserProfile {
   uid: string; // Firebase Auth UID
   email: string; // Normalized email
-  firstName?: string;
-  lastName?:string;
-  username?: string; // No longer primary, but can be kept if other parts of system use it
   isAdmin?: boolean;
   createdAt?: Timestamp;
   activityLog?: ActivityLogEntry[];
+  // firstName, lastName, username son opcionales y no se usan en el registro simplificado
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  generatedReportsCount?: number; // Para la Parte 2
 }
 
 export interface ActivityLogEntry {
@@ -66,7 +68,15 @@ export function useAuth() {
       const userProfileDocRef = doc(db, 'userProfiles', uid);
       const userProfileDoc = await getDoc(userProfileDocRef);
       if (userProfileDoc.exists()) {
-        return userProfileDoc.data() as UserProfile;
+        const data = userProfileDoc.data() as UserProfile;
+        return {
+          ...data,
+          // Asegurar que los campos opcionales tengan un valor por defecto si no existen
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          username: data.username || '',
+          generatedReportsCount: data.generatedReportsCount || 0,
+        };
       }
       return null;
     } catch (error) {
@@ -146,7 +156,8 @@ export function useAuth() {
             title = "Cuenta Deshabilitada";
             break;
           default:
-            message = "Credenciales inválidas o error desconocido.";
+            // Usar el mensaje de error de Firebase si está disponible y es genérico
+            message = error.message || "Credenciales inválidas o error desconocido.";
         }
       }
       toast({ title: title, description: message, variant: "destructive" });
@@ -180,21 +191,19 @@ export function useAuth() {
       const userProfileData: UserProfile = {
         uid: firebaseUserRegistered.uid,
         email: targetEmail,
-        // firstName and lastName are removed, username is optional
         isAdmin: targetEmail === ADMIN_EMAIL,
         createdAt: serverTimestamp() as Timestamp,
         activityLog: [],
+        generatedReportsCount: 0, // Inicializar contador para Parte 2
       };
 
       await setDoc(doc(db, 'userProfiles', firebaseUserRegistered.uid), userProfileData);
 
       toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}. Por favor, inicia sesión.` });
       
-      // Sign out the user immediately after successful profile creation
-      if (auth.currentUser) { // Check if a user is indeed signed in by createUser
+      if (auth.currentUser) { 
         await signOut(auth);
       }
-      // Redirect to login page AFTER signing out
       router.push('/login'); 
 
     } catch (error: any) {
@@ -215,7 +224,7 @@ export function useAuth() {
           case 'auth/requires-recent-login':
              message = "Esta operación es sensible y requiere autenticación reciente. Intenta iniciar sesión de nuevo.";
              break;
-          case 'permission-denied': 
+          case 'permission-denied': // Este es el que estabas viendo
              message = "Permiso denegado por Firebase Authentication. Verifica la configuración de tu proyecto.";
              break;
           default:
@@ -288,29 +297,23 @@ export function useAuth() {
 
 
   const checkEmailExists = useCallback(async (email: string): Promise<boolean> => {
+    // Esta función no es crítica para el registro simplificado, pero la mantenemos si se usa en otro lugar.
     if (!db || !email) return false;
     try {
       const profilesRef = collection(db, 'userProfiles');
       const q = query(profilesRef, where("email", "==", email.trim().toLowerCase()));
-      const fbAuthUser = auth?.currentUser;
       const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-          if (fbAuthUser && querySnapshot.docs[0].id === fbAuthUser.uid) {
-              return false;
-          }
-          return true;
-      }
-      return false;
+      return !querySnapshot.empty;
     } catch (error) {
         console.error("Error checking email existence in Firestore (could be rules or network):", error);
+        // Asumir que no existe si hay un error de permisos/red para evitar bloquear el registro si las reglas son estrictas.
         return false; 
     }
   }, []);
 
 
   const getCurrentUserUsername = useCallback((): string | null => {
-    // Username is no longer a primary identifier, but if it exists in profile, return it.
-    return currentUser?.profile?.username || currentUser?.profile?.email || null;
+    return currentUser?.profile?.email || null;
   }, [currentUser]);
 
   const getCurrentUserDetails = useCallback(async (): Promise<UserProfile | null> => {
@@ -320,14 +323,37 @@ export function useAuth() {
     return null;
   }, [currentUser, fetchUserProfile]);
 
-  const getUsersFromFirestore = useCallback(async (): Promise<UserProfile[]> => {
-    if (!db) throw new Error("Firestore not initialized");
-    const profilesCollectionRef = collection(db, 'userProfiles');
-    const profilesSnapshot = await getDocs(profilesCollectionRef);
-    return profilesSnapshot.docs.map(docSnapshot => docSnapshot.data() as UserProfile);
-  }, []);
+  const getAllUserProfiles = useCallback(async (): Promise<UserProfile[]> => {
+    if (!db) {
+      toast({ title: "Error de BD", description: "Firestore no está disponible.", variant: "destructive" });
+      return [];
+    }
+    if (!isCurrentUserAdmin) {
+      toast({ title: "Acceso Denegado", description: "No tienes permisos para ver todos los usuarios.", variant: "destructive" });
+      return [];
+    }
+    try {
+      const profilesCollectionRef = collection(db, 'userProfiles');
+      const profilesSnapshot = await getDocs(profilesCollectionRef);
+      const usersList = profilesSnapshot.docs.map(docSnapshot => {
+        const data = docSnapshot.data() as UserProfile;
+        return {
+          ...data,
+          uid: docSnapshot.id, // Asegurar que el uid (id del doc) esté presente
+          generatedReportsCount: data.generatedReportsCount || 0, // Para Parte 2
+        };
+      });
+      return usersList;
+    } catch (error: any) {
+      console.error("Error fetching all user profiles from Firestore:", error);
+      toast({ title: "Error", description: `No se pudieron obtener los perfiles: ${error.message}`, variant: "destructive" });
+      return [];
+    }
+  }, [isCurrentUserAdmin, toast]);
+
 
   const deleteUserFromFirestore = async (uidToDelete: string): Promise<void> => {
+    // Esta función es para eliminar el PERFIL de Firestore. La eliminación del usuario de Firebase Auth es más compleja y requiere funciones de Admin SDK (backend).
     if (!db) throw new Error("Firestore not initialized");
     if (!uidToDelete) throw new Error("User UID not provided for deletion.");
 
@@ -357,10 +383,13 @@ export function useAuth() {
     register,
     logout,
     sendPasswordReset: sendPasswordReset,
-    checkEmailExists, // Kept for now, but not used by registration form
+    checkEmailExists,
     getCurrentUserUsername, 
     getCurrentUserDetails,
-    getUsersFromFirestore,
+    getAllUserProfiles, // Exportar la nueva función
     deleteUserFromFirestore,
   };
 }
+
+
+    

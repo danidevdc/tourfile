@@ -4,13 +4,13 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileSpreadsheet, ArrowRight, FilePenLine } from "lucide-react"; // Added FilePenLine
-import { useAuth } from "@/hooks/useAuth"; // Added useAuth
-import { useToast } from "@/hooks/use-toast"; // Added useToast
+import { FileSpreadsheet, ArrowRight, FilePenLine, Users } from "lucide-react"; // Added Users icon
+import { useAuth } from "@/hooks/useAuth"; 
+import { useToast } from "@/hooks/use-toast"; 
 
 export default function HomePage() {
-  const { isCurrentUserAdmin, isLoading: authLoading } = useAuth(); // Get admin status
-  const { toast } = useToast(); // Initialize toast
+  const { isCurrentUserAdmin, isLoading: authLoading } = useAuth(); 
+  const { toast } = useToast(); 
 
   const handleEditLogicClick = () => {
     toast({
@@ -52,19 +52,36 @@ export default function HomePage() {
             </Link>
 
             {!authLoading && isCurrentUserAdmin && (
-              <Button
-                variant="secondary" // You might want a different variant or specific admin styling
-                className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
-                onClick={handleEditLogicClick}
-              >
-                <FilePenLine className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
-                <div className="text-left flex-grow">
-                  <span className="block text-2xl font-bold text-secondary-foreground">
-                    Editar Lógica Generador LPZ
-                  </span>
-                </div>
-                <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-              </Button>
+              <>
+                <Button
+                  variant="secondary" 
+                  className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
+                  onClick={handleEditLogicClick}
+                >
+                  <FilePenLine className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                  <div className="text-left flex-grow">
+                    <span className="block text-2xl font-bold text-secondary-foreground">
+                      Editar Lógica Generador LPZ
+                    </span>
+                  </div>
+                  <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                </Button>
+
+                <Link href="/admin/users" passHref>
+                  <Button
+                    variant="secondary"
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
+                  >
+                    <Users className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                    <div className="text-left flex-grow">
+                      <span className="block text-2xl font-bold text-secondary-foreground">
+                        Administrar Usuarios
+                      </span>
+                    </div>
+                    <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
         </CardContent>
@@ -75,3 +92,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
