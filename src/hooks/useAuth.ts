@@ -21,7 +21,7 @@ import {
   Timestamp,
   updateDoc,
   arrayUnion,
-  collection, // For admin check and other Firestore operations if needed
+  collection, 
   query,
   where,
   getDocs,
@@ -51,7 +51,7 @@ export interface CurrentUser extends FirebaseUser {
   profile?: UserProfile; // Optional profile, fetched from Firestore
 }
 
-const ADMIN_EMAIL = 'daniish77@gmail.com'; // Define the admin email address
+const ADMIN_EMAIL = 'daniish77@gmail.com'; 
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -100,21 +100,48 @@ export function useAuth() {
   }, [fetchUserProfile, toast]);
 
 
-  const login = useCallback(async (emailInput?: string, passwordInput?: string) => {
+  const login = useCallback(async (usernameOrEmailInput?: string, passwordInput?: string) => {
     setIsLoading(true);
     if (!auth || !db) {
       toast({ title: 'Error de Configuración', description: 'Firebase Auth o Firestore no está disponible.', variant: 'destructive' });
       setIsLoading(false);
       return;
     }
-    if (!emailInput || !passwordInput) {
-      toast({ title: "Error", description: "Email y contraseña son requeridos.", variant: "destructive" });
+    if (!usernameOrEmailInput || !passwordInput) {
+      toast({ title: "Error", description: "Usuario/correo y contraseña son requeridos.", variant: "destructive" });
       setIsLoading(false);
       return;
     }
 
+    let emailToUseForLogin = usernameOrEmailInput.trim();
+    const isInputEmail = emailToUseForLogin.includes('@');
+
+    if (!isInputEmail) { // Input is a username, try to find associated email
+      try {
+        const profilesRef = collection(db, "userProfiles");
+        const q = query(profilesRef, where("username", "==", emailToUseForLogin.toLowerCase()));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          const userProfile = querySnapshot.docs[0].data() as UserProfile;
+          emailToUseForLogin = userProfile.email; // Use the email from the found profile
+        } else {
+          // Username not found in profiles, so can't log in this way
+          toast({ title: "Error de Inicio de Sesión", description: "Nombre de usuario o contraseña incorrectos.", variant: "destructive" });
+          setIsLoading(false);
+          return;
+        }
+      } catch (profileError) {
+        console.error("Error fetching profile by username for login:", profileError);
+        toast({ title: "Error de Inicio de Sesión", description: "Ocurrió un problema al verificar el usuario.", variant: "destructive" });
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    // Proceed with Firebase Auth using the determined email
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, emailInput.trim(), passwordInput);
+      const userCredential = await signInWithEmailAndPassword(auth, emailToUseForLogin, passwordInput);
       const firebaseUser = userCredential.user;
       const profile = await fetchUserProfile(firebaseUser.uid);
       
@@ -128,7 +155,7 @@ export function useAuth() {
       console.error('Login error:', error);
       let message = "Credenciales incorrectas o error al iniciar sesión.";
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        message = "Correo electrónico o contraseña incorrectos.";
+        message = isInputEmail ? "Correo electrónico o contraseña incorrectos." : "Nombre de usuario o contraseña incorrectos.";
       } else if (error.code === 'auth/invalid-email') {
         message = "El formato del correo electrónico es inválido.";
       }
@@ -182,7 +209,6 @@ export function useAuth() {
 
       await setDoc(doc(db, 'userProfiles', firebaseUser.uid), userProfileData);
       
-      // Update currentUser state immediately
       setCurrentUser({ ...firebaseUser, profile: userProfileData });
       setIsCurrentUserAdmin(userProfileData.isAdmin || false);
 
@@ -236,7 +262,6 @@ export function useAuth() {
         description: `Si una cuenta existe para ${emailForReset}, se ha enviado un correo con instrucciones.`,
         duration: 7000,
       });
-      // Optionally log this attempt to a generic activity log or user's log if UID is known
     } catch (error: any) {
       console.error("Password reset error:", error);
       let message = "No se pudo enviar el correo de recuperación.";
@@ -252,7 +277,6 @@ export function useAuth() {
   }, [toast]);
 
 
-  // Check if username exists in Firestore (for registration form validation)
   const checkUsernameExists = useCallback(async (username: string): Promise<boolean> => {
     if (!db || !username) return false;
     const profilesRef = collection(db, 'userProfiles');
@@ -261,31 +285,22 @@ export function useAuth() {
     return !querySnapshot.empty;
   }, []);
   
-  // Email existence is implicitly checked by Firebase Auth during registration.
-  // This function might be useful if you want to check before attempting registration.
   const checkEmailExists = useCallback(async (email: string): Promise<boolean> => {
-    // Firebase Auth's createUserWithEmailAndPassword will fail if email is in use.
-    // For a pre-check, you could use signInMethodsForEmail, but that's more complex.
-    // For now, let Firebase Auth handle this during registration attempt.
-    // If you *really* need a pre-check, this would be a Firestore query if emails are also in profiles.
     if (!db || !email) return false;
     const profilesRef = collection(db, 'userProfiles');
     const q = query(profilesRef, where("email", "==", email.trim().toLowerCase()));
-    const fbAuthUser = auth?.currentUser; // Check if current user is trying to use their own email
+    const fbAuthUser = auth?.currentUser; 
     const querySnapshot = await getDocs(q);
      if (!querySnapshot.empty) {
-        // If a document is found, check if it's the current user's profile (if logged in)
         if (fbAuthUser && querySnapshot.docs[0].id === fbAuthUser.uid) {
-            return false; // It's the current user's email, so it's "available" for them to "keep"
+            return false; 
         }
-        return true; // Email exists for another user
+        return true; 
     }
-    return false; // Email does not exist
+    return false; 
   }, []);
 
 
-  // The following functions might need adaptation if they were fetching 'users' collection directly
-  // For now, they are commented out or would need to fetch from 'userProfiles'
   const getCurrentUserUsername = useCallback((): string | null => {
     return currentUser?.profile?.username || null;
   }, [currentUser]);
@@ -308,11 +323,6 @@ export function useAuth() {
     if (!db) throw new Error("Firestore not initialized");
     if (!uidToDelete) throw new Error("User UID not provided for deletion.");
     
-    // IMPORTANT: This only deletes the Firestore profile.
-    // Deleting a Firebase Auth user requires Admin SDK privileges (backend function).
-    // For a client-side app, you can't directly delete other Auth users.
-    // The current logged-in user can delete their OWN account: currentUser?.delete()
-    
     if (currentUser?.uid === uidToDelete) {
         toast({title: "Acción no permitida", description: "No puedes eliminar tu propia cuenta desde aquí.", variant: "destructive"});
         throw new Error("Cannot delete own user profile through this admin function.");
@@ -322,7 +332,6 @@ export function useAuth() {
       const userProfileDocRef = doc(db, 'userProfiles', uidToDelete);
       await deleteDoc(userProfileDocRef);
       toast({ title: 'Perfil Eliminado', description: 'El perfil de usuario ha sido eliminado de Firestore.' });
-      // Refresh user list or UI as needed
     } catch (error) {
       console.error('Error deleting user profile from Firestore:', error);
       toast({ title: 'Error al Eliminar', description: 'No se pudo eliminar el perfil de Firestore.', variant: 'destructive' });
@@ -334,19 +343,18 @@ export function useAuth() {
   return {
     isAuthenticated: !!currentUser,
     isLoading,
-    currentUser, // This is FirebaseUser | null, or your CurrentUser type
+    currentUser, 
     isCurrentUserAdmin,
     login,
     register,
     logout,
-    sendPasswordReset: sendPasswordReset, // Renamed for clarity
-    checkUsernameExists, // To check username in userProfiles
-    checkEmailExists, // To check email in userProfiles (optional pre-check)
+    sendPasswordReset: sendPasswordReset, 
+    checkUsernameExists, 
+    checkEmailExists, 
     
-    // Keeping these for potential admin panel usage, though they operate on profiles now
-    getCurrentUserUsername, // Gets username from current user's profile
-    getCurrentUserDetails,  // Gets profile of current user
-    getUsersFromFirestore, // Gets all user profiles
-    deleteUserFromFirestore, // Deletes a user's Firestore profile (not Auth record)
+    getCurrentUserUsername, 
+    getCurrentUserDetails,  
+    getUsersFromFirestore, 
+    deleteUserFromFirestore, 
   };
 }

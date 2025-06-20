@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogIn, Eye, EyeOff, Loader2, Mail } from 'lucide-react'; 
+import { LogIn, Eye, EyeOff, Loader2, User } from 'lucide-react'; // Changed Mail to User
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginForm() {
-  const [email, setEmail] = useState(''); // Changed to email
+  const [usernameOrEmail, setUsernameOrEmail] = useState(''); // Changed state variable name
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuth();
@@ -20,15 +20,15 @@ export default function LoginForm() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!email || !password) {
+    if (!usernameOrEmail || !password) {
       toast({
         title: "Error de Inicio de Sesión",
-        description: "Por favor, ingresa tu correo electrónico y contraseña.",
+        description: "Por favor, ingresa tu usuario/correo y contraseña.", // Updated message
         variant: "destructive",
       });
       return;
     }
-    await login(email, password);
+    await login(usernameOrEmail, password);
   };
 
   return (
@@ -40,15 +40,15 @@ export default function LoginForm() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="email">Correo Electrónico</Label> 
+            <Label htmlFor="usernameOrEmail">Nombre de Usuario o Correo Electrónico</Label> 
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                id="email" 
-                type="email" // Changed type to email
-                placeholder="tu.correo@ejemplo.com" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="usernameOrEmail" 
+                type="text" // Changed type to text to allow username
+                placeholder="usuario o tu.correo@ejemplo.com" 
+                value={usernameOrEmail}
+                onChange={(e) => setUsernameOrEmail(e.target.value)}
                 required
                 className="bg-background pl-10"
               />

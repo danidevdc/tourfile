@@ -66,17 +66,35 @@ export default function RegistrationForm() {
   useEffect(() => {
     if (!generatedUsername.trim()) {
       setUsernameAvailable(null);
+      setUsernameCheckLoading(false); // Ensure loading is false if no username
       return;
     }
+    setUsernameCheckLoading(true); // Set loading true before timeout
     const handler = setTimeout(async () => {
-      setUsernameCheckLoading(true);
-      const exists = await checkUsernameExists(generatedUsername.trim());
-      setUsernameAvailable(!exists);
-      setUsernameCheckLoading(false);
+      try {
+        const exists = await checkUsernameExists(generatedUsername.trim());
+        setUsernameAvailable(!exists);
+      } catch (error) {
+        console.error("Error checking username:", error);
+        setUsernameAvailable(null); // Set to null or false on error to indicate uncertainty/failure
+        toast({
+            title: "Error de Verificación",
+            description: "No se pudo verificar la disponibilidad del nombre de usuario.",
+            variant: "destructive"
+        })
+      } finally {
+        setUsernameCheckLoading(false); // Ensure loading is set to false in all cases
+      }
     }, 700);
 
-    return () => clearTimeout(handler);
-  }, [generatedUsername, checkUsernameExists]);
+    return () => {
+        clearTimeout(handler);
+        // If component unmounts or generatedUsername changes before timeout,
+        // ensure loading is reset if it was set.
+        // This might be tricky if the timeout is cleared *before* setUsernameCheckLoading(true) runs.
+        // The current placement of setUsernameCheckLoading(true) *before* setTimeout is better.
+    }
+  }, [generatedUsername, checkUsernameExists, toast]);
 
 
   useEffect(() => {
@@ -97,7 +115,7 @@ export default function RegistrationForm() {
       emailFormatValid &&
       passwordsMatch &&
       usernameIsAvailableForProfile &&
-      !usernameCheckLoading &&
+      !usernameCheckLoading && // Ensure username check is not in progress
       passwordIsStrongEnough &&
       !isLoading 
     );
@@ -105,7 +123,7 @@ export default function RegistrationForm() {
     firstName,
     lastName,
     email,
-    generatedUsername, // Added generatedUsername
+    generatedUsername, 
     password,
     confirmPassword,
     usernameAvailable,
