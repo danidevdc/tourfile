@@ -279,25 +279,42 @@ export function useAuth() {
 
   const checkUsernameExists = useCallback(async (username: string): Promise<boolean> => {
     if (!db || !username) return false;
-    const profilesRef = collection(db, 'userProfiles');
-    const q = query(profilesRef, where("username", "==", username.trim().toLowerCase()));
-    const querySnapshot = await getDocs(q);
-    return !querySnapshot.empty;
+    try {
+      const profilesRef = collection(db, 'userProfiles');
+      const q = query(profilesRef, where("username", "==", username.trim().toLowerCase()));
+      const querySnapshot = await getDocs(q);
+      return !querySnapshot.empty;
+    } catch (error) {
+      console.error("Error checking username existence in Firestore:", error);
+      // Do not throw, return false to indicate username *might* be available or check failed.
+      // This prevents the registration form from showing a generic "Error de Verificación" toast
+      // if the check fails due to, e.g., Firestore security rules.
+      // The developer should check console for actual Firestore errors.
+      return false;
+    }
   }, []);
   
   const checkEmailExists = useCallback(async (email: string): Promise<boolean> => {
     if (!db || !email) return false;
-    const profilesRef = collection(db, 'userProfiles');
-    const q = query(profilesRef, where("email", "==", email.trim().toLowerCase()));
-    const fbAuthUser = auth?.currentUser; 
-    const querySnapshot = await getDocs(q);
-     if (!querySnapshot.empty) {
-        if (fbAuthUser && querySnapshot.docs[0].id === fbAuthUser.uid) {
-            return false; 
-        }
-        return true; 
+    // This check is primarily for the UI to give feedback if an email for a *profile* exists.
+    // Firebase Auth itself will handle if an *auth account* with that email exists during createUserWithEmailAndPassword.
+    try {
+      const profilesRef = collection(db, 'userProfiles');
+      const q = query(profilesRef, where("email", "==", email.trim().toLowerCase()));
+      const fbAuthUser = auth?.currentUser; 
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+          // If the found profile belongs to the currently logged-in user (e.g., editing their own profile), it's not a "conflict".
+          if (fbAuthUser && querySnapshot.docs[0].id === fbAuthUser.uid) {
+              return false; 
+          }
+          return true; // Email exists in another user's profile
+      }
+      return false; // Email does not exist in any profile
+    } catch (error) {
+        console.error("Error checking email existence in Firestore:", error);
+        return false; // Assume not found if check fails, to avoid blocking UI.
     }
-    return false; 
   }, []);
 
 
@@ -358,3 +375,4 @@ export function useAuth() {
     deleteUserFromFirestore, 
   };
 }
+
