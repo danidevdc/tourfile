@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FileSpreadsheet, ArrowRight, FilePenLine, Users } from "lucide-react"; // Added Users icon
 import { useAuth } from "@/hooks/useAuth"; 
 import { useToast } from "@/hooks/use-toast"; 
+import { version } from '../../package.json'; // Import version
 
 export default function HomePage() {
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth(); 
@@ -87,10 +88,8 @@ export default function HomePage() {
         </CardContent>
       </Card>
        <footer className="mt-12 text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} TourFile Generator. Todos los derechos reservados.</p>
+        <p>&copy; {new Date().getFullYear()} TourFile Generator. Todos los derechos reservados. (Versión: {version})</p>
       </footer>
     </div>
   );
 }
-
-    

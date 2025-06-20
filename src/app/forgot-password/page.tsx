@@ -2,6 +2,7 @@
 import ForgotPasswordForm from '@/components/auth/ForgotPasswordForm';
 import { KeyRound } from 'lucide-react'; // Using KeyRound icon
 import type { Metadata } from 'next';
+import { version } from '../../../package.json'; // Import version
 
 export const metadata: Metadata = {
   title: 'Recuperar Contraseña - TourFile Generator',
@@ -19,7 +20,7 @@ export default function ForgotPasswordPage() {
         </div>
         <ForgotPasswordForm />
          <p className="mt-8 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} TourFile Generator.
+          © {new Date().getFullYear()} TourFile Generator. (Versión: {version})
         </p>
       </div>
     </div>

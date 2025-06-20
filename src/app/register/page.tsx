@@ -2,6 +2,7 @@
 import RegistrationForm from '@/components/auth/RegistrationForm';
 import { UserRoundPlus } from 'lucide-react';
 import type { Metadata } from 'next';
+import { version } from '../../../package.json'; // Import version
 
 export const metadata: Metadata = {
   title: 'Registrar Usuario - TourFile Generator',
@@ -19,7 +20,7 @@ export default function RegisterPage() {
         </div>
         <RegistrationForm />
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} TourFile Generator.
+          © {new Date().getFullYear()} TourFile Generator. (Versión: {version})
         </p>
       </div>
     </div>
