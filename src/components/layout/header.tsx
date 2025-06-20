@@ -16,16 +16,19 @@ export default function Header() {
   const isOnAuthPage = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password';
 
   let userDisplayName = "";
-  if (currentUser && currentUser.profile) {
-    if (currentUser.profile.firstName && currentUser.profile.lastName) {
-      userDisplayName = `${currentUser.profile.firstName} ${currentUser.profile.lastName}`;
-    } else if (currentUser.profile.firstName) {
+  if (currentUser) {
+    // Try to use firstName and lastName from profile if they exist
+    if (currentUser.profile && currentUser.profile.firstName) {
       userDisplayName = currentUser.profile.firstName;
-    } else if (currentUser.profile.username) {
-      userDisplayName = currentUser.profile.username;
+      if (currentUser.profile.lastName) {
+        userDisplayName += ` ${currentUser.profile.lastName}`;
+      }
+    } else if (currentUser.email) { // Fallback to email if names are not in profile
+      userDisplayName = currentUser.email;
     }
+    // Username is no longer a primary display identifier
   }
-  // No fallback to email for display name for general UI, profile info is preferred.
+
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b shadow-md">
@@ -59,7 +62,7 @@ export default function Header() {
                 {userDisplayName && (
                   <span className="text-sm text-foreground hidden sm:flex items-center mr-1">
                     <UserCircle2 className="h-4 w-4 mr-1 flex-shrink-0 text-muted-foreground" />
-                    <span className="truncate">{userDisplayName}</span>
+                    <span className="truncate max-w-[150px] md:max-w-[200px]">{userDisplayName}</span>
                   </span>
                 )}
                 <Link href="/" passHref>
@@ -107,3 +110,5 @@ export default function Header() {
     </header>
   );
 }
+
+    

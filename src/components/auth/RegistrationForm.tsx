@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserPlus, Eye, EyeOff, AlertTriangle, UserCheck, Loader2, Mail } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, AlertTriangle, Loader2, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 
@@ -32,102 +32,42 @@ const getStrengthColor = (strength: number) => {
 };
 
 export default function RegistrationForm() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [generatedUsername, setGeneratedUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null); // For username in Firestore profile
-  const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
-  // Email availability is handled by Firebase Auth on submission, pre-check can be complex
   const [isFormValid, setIsFormValid] = useState(false);
 
-  const { register, isLoading, checkUsernameExists } = useAuth(); // Removed checkEmailExists as Firebase handles it
+  const { register, isLoading } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     setPasswordStrength(calculatePasswordStrength(password));
   }, [password]);
 
-  useEffect(() => {
-    if (firstName.trim() && lastName.trim()) {
-      const baseUsername = `${firstName.trim().toLowerCase()}.${lastName.trim().toLowerCase()}`;
-      setGeneratedUsername(baseUsername);
-    } else {
-      setGeneratedUsername('');
-    }
-  }, [firstName, lastName]);
-
-  // Debounce username check (for Firestore profile)
-  useEffect(() => {
-    if (!generatedUsername.trim()) {
-      setUsernameAvailable(null);
-      setUsernameCheckLoading(false); // Ensure loading is false if no username
-      return;
-    }
-    setUsernameCheckLoading(true); // Set loading true before timeout
-    const handler = setTimeout(async () => {
-      try {
-        const exists = await checkUsernameExists(generatedUsername.trim());
-        setUsernameAvailable(!exists);
-      } catch (error) {
-        console.error("Error checking username:", error);
-        setUsernameAvailable(null); // Set to null or false on error to indicate uncertainty/failure
-        toast({
-            title: "Error de Verificación",
-            description: "No se pudo verificar la disponibilidad del nombre de usuario.",
-            variant: "destructive"
-        })
-      } finally {
-        setUsernameCheckLoading(false); // Ensure loading is set to false in all cases
-      }
-    }, 700);
-
-    return () => {
-        clearTimeout(handler);
-        // If component unmounts or generatedUsername changes before timeout,
-        // ensure loading is reset if it was set.
-        // This might be tricky if the timeout is cleared *before* setUsernameCheckLoading(true) runs.
-        // The current placement of setUsernameCheckLoading(true) *before* setTimeout is better.
-    }
-  }, [generatedUsername, checkUsernameExists, toast]);
-
 
   useEffect(() => {
     const emailFormatValid = /\S+@\S+\.\S+/.test(email.trim());
     const allFieldsFilled =
-      firstName.trim() !== '' &&
-      lastName.trim() !== '' &&
       email.trim() !== '' &&
-      generatedUsername.trim() !== '' && // Ensure username is generated
       password !== '' &&
       confirmPassword !== '';
     const passwordsMatch = password === confirmPassword;
-    const usernameIsAvailableForProfile = usernameAvailable === true; // Check for Firestore profile username
     const passwordIsStrongEnough = passwordStrength >= 25; // Firebase min is 6 chars, so low strength bar
 
     setIsFormValid(
       allFieldsFilled &&
       emailFormatValid &&
       passwordsMatch &&
-      usernameIsAvailableForProfile &&
-      !usernameCheckLoading && // Ensure username check is not in progress
       passwordIsStrongEnough &&
       !isLoading 
     );
   }, [
-    firstName,
-    lastName,
     email,
-    generatedUsername, 
     password,
     confirmPassword,
-    usernameAvailable,
-    usernameCheckLoading,
     passwordStrength,
     isLoading
   ]);
@@ -144,7 +84,8 @@ export default function RegistrationForm() {
       return;
     }
     
-    await register(firstName.trim(), lastName.trim(), email.trim(), generatedUsername.trim(), password);
+    // Pass only email and password to register
+    await register(email.trim(), password);
   };
 
   return (
@@ -155,33 +96,6 @@ export default function RegistrationForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="firstName">Nombre</Label>
-              <Input
-                id="firstName"
-                type="text"
-                placeholder="Ingresa tu nombre"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-                className="bg-background"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="lastName">Apellido</Label>
-              <Input
-                id="lastName"
-                type="text"
-                placeholder="Ingresa tu apellido"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                required
-                className="bg-background"
-              />
-            </div>
-          </div>
-
           <div className="space-y-1">
             <Label htmlFor="email">Correo Electrónico</Label>
             <div className="relative">
@@ -199,33 +113,8 @@ export default function RegistrationForm() {
             {email.trim() && !/\S+@\S+\.\S+/.test(email.trim()) && (
                  <p className="text-xs text-destructive mt-1">Formato de correo inválido.</p>
             )}
-            {/* Firebase Auth handles email existence toast on submit */}
           </div>
           
-          <div className="space-y-1">
-            <Label htmlFor="generatedUsernameDisplay">Nombre de Usuario (para tu perfil)</Label>
-            <div 
-                id="generatedUsernameDisplay"
-                className="flex items-center p-3 min-h-[2.5rem] rounded-md border border-input bg-muted"
-            >
-                {usernameCheckLoading && <Loader2 className="h-5 w-5 mr-2 animate-spin text-muted-foreground shrink-0" />}
-                {!usernameCheckLoading && usernameAvailable === true && generatedUsername.trim() && <UserCheck className="h-5 w-5 mr-2 text-green-600 shrink-0" />}
-                {!usernameCheckLoading && usernameAvailable === false && generatedUsername.trim() && <AlertTriangle className="h-5 w-5 mr-2 text-destructive shrink-0" />}
-
-                {generatedUsername ? (
-                    <span className={`font-medium ${usernameAvailable === false ? 'text-destructive': ''}`}>{generatedUsername}</span>
-                ): (
-                    <span className="text-muted-foreground italic">Se generará aquí...</span>
-                )}
-            </div>
-            {generatedUsername.trim() && !usernameCheckLoading && usernameAvailable === true && (
-              <p className="text-xs text-green-600 mt-1">Nombre de usuario para perfil disponible.</p>
-            )}
-            {generatedUsername.trim() && !usernameCheckLoading && usernameAvailable === false && (
-              <p className="text-xs text-destructive mt-1">Este nombre de usuario para perfil ya existe.</p>
-            )}
-          </div>
-
           <div className="space-y-1">
             <Label htmlFor="password">Contraseña</Label>
             <div className="relative">
@@ -307,3 +196,5 @@ export default function RegistrationForm() {
     </Card>
   );
 }
+
+    
