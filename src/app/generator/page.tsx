@@ -8,6 +8,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
+import JSZip from 'jszip';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,9 +20,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, Eye, FileDown, Trash2 } from "lucide-react";
+import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, Eye, FileDown, Trash2, Archive } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Dialog } from "@/components/ui/dialog";
@@ -283,6 +284,7 @@ export default function GeneratorPage() {
   const [isResultsDialogOpen, setIsResultsDialogOpen] = useState(false);
   const [currentReportInDialog, setCurrentReportInDialog] = useState<GeneratedReportInfo | null>(null);
   const [isDownloadingReportId, setIsDownloadingReportId] = useState<string | null>(null);
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
 
   const form = useForm<FormValues>({
@@ -677,6 +679,76 @@ export default function GeneratorPage() {
     setIsDownloadingReportId(null);
   };
 
+  const handleDownloadAll = async () => {
+    if (generatedReports.length < 2) return;
+    setIsDownloadingAll(true);
+    toast({
+        title: "Iniciando Compresión",
+        description: `Preparando ${generatedReports.length} reportes...`,
+        duration: 3000
+    });
+
+    const zip = new JSZip();
+
+    try {
+        const filePromises = generatedReports.map(async (report) => {
+            const response = await fetch('/api/generate-excel-python', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(report),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Fallo al generar el reporte para el file ${report.fileNumber}`);
+            }
+
+            const blob = await response.blob();
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let fileName = `reporte_${report.fileNumber}.xlsx`; // fallback
+            if (contentDisposition) {
+                const match = contentDisposition.match(/filename="([^"]+)"/i);
+                if (match && match[1]) {
+                    fileName = match[1];
+                }
+            }
+            return { fileName, blob };
+        });
+
+        const files = await Promise.all(filePromises);
+
+        files.forEach(file => {
+            zip.file(file.fileName, file.blob);
+        });
+
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(zipBlob);
+        const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
+        link.download = `Reportes_Caja_Chica_${timestamp}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+
+        toast({
+            title: "Descarga Completa",
+            description: `El archivo .zip con ${files.length} reportes ha sido descargado.`,
+            className: "bg-green-100 dark:bg-green-900 border-green-500",
+        });
+
+    } catch (error) {
+        console.error("Error al descargar todos los reportes:", error);
+        toast({
+            title: "Error en Descarga Múltiple",
+            description: (error as Error).message || "No se pudieron descargar todos los reportes.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsDownloadingAll(false);
+    }
+  };
+
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
@@ -884,6 +956,18 @@ export default function GeneratorPage() {
               </TableBody>
             </Table>
           </CardContent>
+          {generatedReports.length >= 2 && (
+            <CardFooter className="p-6 pt-4 border-t">
+              <Button
+                onClick={handleDownloadAll}
+                disabled={isDownloadingAll}
+                className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+              >
+                {isDownloadingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Archive className="mr-2 h-4 w-4" />}
+                Descargar Todo ({generatedReports.length}) como .zip
+              </Button>
+            </CardFooter>
+          )}
         </Card>
       )}
 
