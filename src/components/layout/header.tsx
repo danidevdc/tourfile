@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Home, LogOut, FileSpreadsheet, LogIn, UserPlus, UserCircle2 } from 'lucide-react';
+import { Home, LogOut, FileSpreadsheet, UserCircle2 } from 'lucide-react'; // Removed LogIn, UserPlus
 import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useAuth } from '@/hooks/useAuth';
@@ -51,8 +51,8 @@ export default function Header() {
         {isLoading ? (
           !isOnAuthPage && ( // Only show skeletons if not on an auth page
             <>
-              <Skeleton className="h-9 w-9 rounded-md md:w-20" /> {/* For Home/Login button */}
-              <Skeleton className="h-9 w-9 rounded-md md:w-20" /> {/* For Logout/Register button */}
+              <Skeleton className="h-9 w-9 rounded-md md:w-20" />
+              <Skeleton className="h-9 w-9 rounded-md md:w-20" />
             </>
           )
         ) : (
@@ -89,18 +89,7 @@ export default function Header() {
                       <span className="hidden md:inline">Inicio</span>
                     </Button>
                   </Link>
-                  <Link href="/login" passHref>
-                    <Button variant="ghost" className="text-primary dark:text-primary-foreground hover:bg-muted dark:hover:bg-accent/20 px-2 md:px-3">
-                      <LogIn className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
-                      <span className="hidden md:inline">Ingresar</span>
-                    </Button>
-                  </Link>
-                  <Link href="/register" passHref>
-                    <Button variant="default" size="sm" className="hidden sm:inline-flex bg-primary text-primary-foreground hover:bg-primary/90">
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Registrarse
-                    </Button>
-                  </Link>
+                  {/* "Ingresar" and "Registrarse" buttons removed as requested */}
                 </>
               )
             )}
