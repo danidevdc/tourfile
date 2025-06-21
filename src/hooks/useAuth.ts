@@ -134,7 +134,7 @@ export function useAuth() {
       setIsCurrentUserAdmin(!!profile?.isAdmin || firebaseUser.email === ADMIN_EMAIL);
       
       const displayName = profile?.email || "Usuario";
-      toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${displayName}!` });
+      toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${displayName}!`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
       router.push('/');
     } catch (error: any) {
       console.error('Login error:', error.code, error.message);
@@ -199,7 +199,7 @@ export function useAuth() {
 
       await setDoc(doc(db, 'userProfiles', firebaseUserRegistered.uid), userProfileData);
 
-      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}. Por favor, inicia sesión.` });
+      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}. Por favor, inicia sesión.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
       
       if (auth.currentUser) { 
         await signOut(auth);
@@ -251,7 +251,7 @@ export function useAuth() {
       setCurrentUser(null);
       setIsCurrentUserAdmin(false);
       router.push('/login');
-      toast({ title: "Sesión Cerrada", description: "Has cerrado sesión exitosamente." });
+      toast({ title: "Sesión Cerrada", description: "Has cerrado sesión exitosamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
     } catch (error) {
       console.error("Logout error:", error);
       toast({ title: "Error", description: "No se pudo cerrar la sesión.", variant: "destructive" });
@@ -272,6 +272,7 @@ export function useAuth() {
         title: "Correo de Recuperación Enviado",
         description: `Si una cuenta existe para ${emailForReset}, se ha enviado un correo con instrucciones.`,
         duration: 7000,
+        className: "bg-green-100 dark:bg-green-900 border-green-500"
       });
     } catch (error: any) {
       console.error("Password reset error:", error);
@@ -282,6 +283,7 @@ export function useAuth() {
             title: "Verifica tu Correo",
             description: message,
             duration: 7000,
+            className: "bg-green-100 dark:bg-green-900 border-green-500"
         });
         setIsLoading(false);
         return;
@@ -365,7 +367,7 @@ export function useAuth() {
     try {
       const userProfileDocRef = doc(db, 'userProfiles', uidToDelete);
       await deleteDoc(userProfileDocRef);
-      toast({ title: 'Perfil Eliminado', description: 'El perfil de usuario ha sido eliminado de Firestore.' });
+      toast({ title: 'Perfil Eliminado', description: 'El perfil de usuario ha sido eliminado de Firestore.', className: "bg-green-100 dark:bg-green-900 border-green-500" });
     } catch (error) {
       console.error('Error deleting user profile from Firestore:', error);
       toast({ title: 'Error al Eliminar', description: 'No se pudo eliminar el perfil de Firestore.', variant: 'destructive' });
@@ -390,6 +392,3 @@ export function useAuth() {
     deleteUserFromFirestore,
   };
 }
-
-
-    

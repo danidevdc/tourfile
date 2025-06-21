@@ -319,7 +319,7 @@ export default function GeneratorPage() {
         toast({
           title: "Archivo Seleccionado",
           description: file.name,
-          variant: "default",
+          className: "bg-green-100 dark:bg-green-900 border-green-500",
         });
 
         const reader = new FileReader();
@@ -372,7 +372,6 @@ export default function GeneratorPage() {
       toast({
         title: "Archivo Limpiado",
         description: "Se ha quitado el archivo de programa seleccionado.",
-        variant: "default",
       });
     }
   };
@@ -471,7 +470,6 @@ export default function GeneratorPage() {
           toast({
             title: "Búsqueda Exitosa",
             description: `Nombre de file: ${groupName}`,
-            variant: "default",
             className: "bg-green-100 dark:bg-green-900 border-green-500",
           });
       } else {
@@ -566,6 +564,7 @@ export default function GeneratorPage() {
     toast({
       title: "Reporte Añadido",
       description: `Se añadió el reporte para el file ${newReport.fileNumber} a la lista.`,
+      className: "bg-green-100 dark:bg-green-900 border-green-500",
     });
     setIsProcessingGeneration(false);
   }
@@ -580,7 +579,7 @@ export default function GeneratorPage() {
     toast({
       title: "Reporte Eliminado",
       description: "El reporte ha sido eliminado de la lista.",
-      variant: "default",
+      className: "bg-green-100 dark:bg-green-900 border-green-500",
     });
   };
 
@@ -669,6 +668,7 @@ export default function GeneratorPage() {
       toast({
         title: "Descarga Iniciada",
         description: `El archivo ${fileName} ha comenzado a descargarse.`,
+        className: "bg-green-100 dark:bg-green-900 border-green-500",
       });
     } catch (error) {
       console.error("Error descargando Excel vía API:", error);

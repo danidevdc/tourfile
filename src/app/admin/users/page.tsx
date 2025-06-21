@@ -72,7 +72,7 @@ export default function AdminUsersPage() {
     try {
       await deleteUserFromFirestore(userToDelete.uid);
       setUsers(prevUsers => prevUsers.filter(user => user.uid !== userToDelete.uid));
-      toast({ title: "Perfil Eliminado", description: `El perfil para ${userToDelete.email} ha sido eliminado de Firestore.` });
+      // Positive toast is handled within deleteUserFromFirestore
     } catch (error) {
       // Error toast is handled within deleteUserFromFirestore
     } finally {
