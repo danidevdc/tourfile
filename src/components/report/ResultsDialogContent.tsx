@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -14,41 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { FileSpreadsheet, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { GeneratedReportInfo, ExpenseItem } from "@/app/generator/page"; 
+import { type GeneratedReportInfo, type ExpenseItem, resolveQuantity } from "@/lib/report-generator"; 
 import { format } from 'date-fns';
 import { cn } from "@/lib/utils";
-// import { downloadReportAsExcel } from '@/lib/excel-export'; // Removed
-
-// Copied from generator/page.tsx to be used locally for display purposes
-function resolveQuantity(quantityStr: string, paxNumber: number): number {
-  if (paxNumber === 0 && quantityStr.toUpperCase().includes("G3")) return 0;
-  if (!isNaN(Number(quantityStr))) {
-    return Number(quantityStr);
-  }
-
-  const cleanedQuantity = quantityStr.toUpperCase().replace(/\s/g, '');
-  const formulaWithPax = cleanedQuantity.replace(/(?<![A-Z])G3(?![0-9A-Z])|\$G\$3/g, String(paxNumber));
-
-
-  if (formulaWithPax.startsWith('=')) {
-    try {
-      const expression = formulaWithPax.substring(1);
-      if (/^[\d\s()+\-*/.]+$/.test(expression)) {
-        const result = new Function(`return ${expression}`)() as number;
-        return isNaN(result) ? 1 : result; 
-      } else {
-        // console.warn(`Fórmula de cantidad no segura o no válida: ${expression} (original: ${quantityStr})`);
-        return 1; 
-      }
-    } catch (e) {
-      // console.error(`Error evaluando cantidad "${quantityStr}" con expresión "${formulaWithPax.substring(1)}":`, e);
-      return 1; 
-    }
-  }
-  // console.warn(`Cantidad no reconocida: ${quantityStr}`);
-  return 1; 
-}
-
 
 const calculateGrandTotal = (expenseItems: ExpenseItem[], paxCount: number): number => {
   return expenseItems.reduce((sum, item) => {
@@ -178,5 +145,3 @@ export function ResultsDialogContent({ report, onClose, onDownloadExcel }: Resul
     </DialogContent>
   );
 }
-
-    
