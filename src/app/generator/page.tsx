@@ -27,6 +27,17 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Dialog } from "@/components/ui/dialog";
 import { ResultsDialogContent } from "@/components/report/ResultsDialogContent";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 
 const formSchema = z.object({
@@ -555,7 +566,7 @@ export default function GeneratorPage() {
       startDate: tourStartDate,
     };
 
-    setGeneratedReports(prev => [newReport, ...prev]);
+    setGeneratedReports(prev => [...prev, newReport]);
 
     form.reset({ fileNumber: "", guideName: "" });
     setFileSearchStatus("idle");
@@ -584,6 +595,15 @@ export default function GeneratorPage() {
       className: "bg-green-100 dark:bg-green-900 border-green-500",
     });
   };
+
+  const handleClearAllReports = () => {
+    setGeneratedReports([]);
+    toast({
+      title: "Lista Limpiada",
+      description: "Todos los reportes han sido eliminados de la lista.",
+      className: "bg-green-100 dark:bg-green-900 border-green-500",
+    });
+  }
 
   const handleApiExcelDownload = async (reportToDownload: GeneratedReportInfo) => {
     if (!reportToDownload) {
@@ -815,7 +835,7 @@ export default function GeneratorPage() {
                   name="fileNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>2. Número de File (ej: CTFI107098)</FormLabel>
+                      <FormLabel>2. Número de File</FormLabel>
                       <div className="flex items-center gap-2">
                         <FormControl>
                           <Input
@@ -886,7 +906,7 @@ export default function GeneratorPage() {
                   {isProcessingGeneration ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generando...</>
                   ) : (
-                    "Generar y Añadir a Lista"
+                    "Generar"
                   )}
                 </Button>
               </div>
@@ -957,15 +977,40 @@ export default function GeneratorPage() {
             </Table>
           </CardContent>
           {generatedReports.length >= 2 && (
-            <CardFooter className="p-6 pt-4 border-t">
-              <Button
-                onClick={handleDownloadAll}
-                disabled={isDownloadingAll}
-                className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground"
-              >
-                {isDownloadingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Archive className="mr-2 h-4 w-4" />}
-                Descargar Todo ({generatedReports.length}) como .zip
-              </Button>
+            <CardFooter className="p-6 pt-4 border-t flex justify-end gap-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Limpiar Lista
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta acción eliminará los {generatedReports.length} reportes de la lista actual. Esta acción no se puede deshacer.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleClearAllReports}
+                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                      >
+                        Sí, limpiar todo
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                <Button
+                  onClick={handleDownloadAll}
+                  disabled={isDownloadingAll}
+                  className="bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+                >
+                  {isDownloadingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Archive className="mr-2 h-4 w-4" />}
+                  Descargar Todo
+                </Button>
             </CardFooter>
           )}
         </Card>
