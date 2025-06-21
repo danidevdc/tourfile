@@ -66,14 +66,14 @@ export default function Header() {
                   </span>
                 )}
                 <Link href="/" passHref>
-                  <Button variant="ghost" className="text-primary dark:text-primary-foreground hover:bg-muted dark:hover:bg-muted/50 px-2 md:px-3">
+                  <Button variant="ghost" className="text-primary dark:text-primary-foreground hover:bg-muted dark:hover:bg-accent/20 px-2 md:px-3">
                     <Home className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
                     <span className="hidden md:inline">Inicio</span>
                   </Button>
                 </Link>
                 <Button
                   variant="ghost"
-                  className="text-destructive hover:bg-destructive/10 px-2 md:px-3"
+                  className="text-destructive hover:bg-destructive/20 px-2 md:px-3"
                   onClick={logout}
                 >
                   <LogOut className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
@@ -84,13 +84,13 @@ export default function Header() {
               !isOnAuthPage && ( // Only show these if NOT on an auth page
                 <>
                   <Link href="/" passHref>
-                    <Button variant="ghost" className="text-primary dark:text-primary-foreground hover:bg-muted dark:hover:bg-muted/50 px-2 md:px-3">
+                    <Button variant="ghost" className="text-primary dark:text-primary-foreground hover:bg-muted dark:hover:bg-accent/20 px-2 md:px-3">
                       <Home className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
                       <span className="hidden md:inline">Inicio</span>
                     </Button>
                   </Link>
                   <Link href="/login" passHref>
-                    <Button variant="ghost" className="text-primary dark:text-primary-foreground hover:bg-muted dark:hover:bg-muted/50 px-2 md:px-3">
+                    <Button variant="ghost" className="text-primary dark:text-primary-foreground hover:bg-muted dark:hover:bg-accent/20 px-2 md:px-3">
                       <LogIn className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
                       <span className="hidden md:inline">Ingresar</span>
                     </Button>
@@ -110,5 +110,3 @@ export default function Header() {
     </header>
   );
 }
-
-    

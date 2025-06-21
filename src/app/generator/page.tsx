@@ -22,22 +22,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, Eye, FileDown, Trash2, Archive } from "lucide-react";
+import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, Eye, FileDown, Trash2, Files } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Dialog } from "@/components/ui/dialog";
 import { ResultsDialogContent } from "@/components/report/ResultsDialogContent";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 
 const formSchema = z.object({
@@ -596,109 +585,6 @@ export default function GeneratorPage() {
     });
   };
 
-  const handleClearAllReports = () => {
-    setGeneratedReports([]);
-    toast({
-      title: "Lista Limpiada",
-      description: "Todos los reportes han sido eliminados de la lista.",
-      className: "bg-green-100 dark:bg-green-900 border-green-500",
-    });
-  }
-
-  const handleApiExcelDownload = async (reportToDownload: GeneratedReportInfo) => {
-    if (!reportToDownload) {
-      toast({ title: "Error", description: "No hay información del reporte para descargar.", variant: "destructive" });
-      return;
-    }
-    
-    if (reportToDownload.startDate === "N/A" && reportToDownload.paxCount === "N/A" && reportToDownload.expenseItems.length === 0) {
-      toast({
-          title: "Datos insuficientes",
-          description: "El reporte no contiene suficiente información para generar un archivo útil.",
-          variant: "destructive", 
-      });
-      return;
-    }
-    
-    setIsDownloadingReportId(reportToDownload.id);
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    try {
-      const response = await fetch('/api/generate-excel-python', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(reportToDownload),
-      });
-
-      if (!response.ok) {
-        let errorDisplayMessage = "No se pudo generar el archivo Excel desde el servidor.";
-        try {
-          const errorData = await response.json();
-          errorDisplayMessage = errorData.error || errorData.details || errorDisplayMessage;
-          if (errorData.details && errorData.error) errorDisplayMessage = `${errorData.error}: ${errorData.details}`;
-          console.error("API Error Data:", errorData);
-        } catch (e) {
-          errorDisplayMessage = response.statusText || errorDisplayMessage;
-          console.error("API Error (not JSON):", await response.text());
-        }
-        
-        toast({
-          title: `Error de Descarga (${response.status})`,
-          description: errorDisplayMessage,
-          variant: "destructive",
-          duration: 10000, 
-        });
-        setIsDownloadingReportId(null);
-        return;
-      }
-
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let fileName = "reporte_caja_chica.xlsx";
-
-      if (contentDisposition) {
-        const fileNameMatch = contentDisposition.match(/filename="([^"]+)"/i);
-        if (fileNameMatch && fileNameMatch[1]) {
-          fileName = fileNameMatch[1];
-          if (fileName.endsWith('"')) {
-            fileName = fileName.slice(0, -1);
-          }
-          if (fileName.endsWith('_')) {
-             fileName = fileName.slice(0, -1);
-          }
-          if (!fileName.toLowerCase().endsWith('.xlsx')) {
-            const dotIndex = fileName.lastIndexOf('.');
-            if (dotIndex > 0) {
-              fileName = fileName.substring(0, dotIndex) + '.xlsx';
-            } else {
-              fileName = fileName + '.xlsx';
-            }
-          }
-        }
-      }
-      
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
-
-      toast({
-        title: "Descarga Iniciada",
-        description: `El archivo ${fileName} ha comenzado a descargarse.`,
-        className: "bg-green-100 dark:bg-green-900 border-green-500",
-      });
-    } catch (error) {
-      console.error("Error descargando Excel vía API:", error);
-      toast({ title: "Error de Descarga", description: "No se pudo conectar con el servidor para generar el archivo Excel.", variant: "destructive" });
-    }
-    setIsDownloadingReportId(null);
-  };
-
   const handleDownloadAll = async () => {
     if (generatedReports.length < 2) return;
     setIsDownloadingAll(true);
@@ -977,38 +863,13 @@ export default function GeneratorPage() {
             </Table>
           </CardContent>
           {generatedReports.length >= 2 && (
-            <CardFooter className="p-6 pt-4 border-t flex justify-end gap-2">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Limpiar Lista
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta acción eliminará los {generatedReports.length} reportes de la lista actual. Esta acción no se puede deshacer.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleClearAllReports}
-                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                      >
-                        Sí, limpiar todo
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+            <CardFooter className="p-6 pt-4 border-t flex justify-end">
                 <Button
                   onClick={handleDownloadAll}
                   disabled={isDownloadingAll}
-                  className="bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+                  variant="outline"
                 >
-                  {isDownloadingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Archive className="mr-2 h-4 w-4" />}
+                  {isDownloadingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Files className="mr-2 h-4 w-4" />}
                   Descargar Todo
                 </Button>
             </CardFooter>
