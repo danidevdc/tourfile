@@ -68,6 +68,7 @@ export default function GeneratorPage() {
   const [isFileMissingError, setIsFileMissingError] = useState(false);
   const [isProcessingSearch, setIsProcessingSearch] = useState(false);
   const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
+  const [isProcessingGeneration, setIsProcessingGeneration] = useState(false);
 
   const [generatedReports, setGeneratedReports] = useState<GeneratedReportInfo[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -768,5 +769,3 @@ export default function GeneratorPage() {
   );
 }
 
-
-    
