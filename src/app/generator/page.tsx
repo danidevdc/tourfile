@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,6 +26,17 @@ import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, Eye, FileDow
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Dialog } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { ResultsDialogContent } from "@/components/report/ResultsDialogContent";
 import { 
   generateExpenseDetails, 
@@ -55,7 +67,6 @@ export default function GeneratorPage() {
 
   const [isFileMissingError, setIsFileMissingError] = useState(false);
   const [isProcessingSearch, setIsProcessingSearch] = useState(false);
-  const [isProcessingGeneration, setIsProcessingGeneration] = useState(false);
   const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
 
   const [generatedReports, setGeneratedReports] = useState<GeneratedReportInfo[]>([]);
@@ -65,6 +76,7 @@ export default function GeneratorPage() {
   const [currentReportInDialog, setCurrentReportInDialog] = useState<GeneratedReportInfo | null>(null);
   const [isDownloadingReportId, setIsDownloadingReportId] = useState<string | null>(null);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [isClearListAlertOpen, setIsClearListAlertOpen] = useState(false);
 
 
   const form = useForm<FormValues>({
@@ -156,6 +168,16 @@ export default function GeneratorPage() {
         description: "Se ha quitado el archivo de programa seleccionado.",
       });
     }
+  };
+
+  const handleClearList = () => {
+    setGeneratedReports([]);
+    setIsClearListAlertOpen(false);
+    toast({
+      title: "Lista Limpiada",
+      description: "Todos los reportes generados han sido eliminados de la lista.",
+      className: "bg-green-100 dark:bg-green-900 border-green-500",
+    });
   };
 
   const getFileNumberInputClasses = (): string => {
@@ -335,8 +357,7 @@ export default function GeneratorPage() {
       startDate: tourStartDate,
     };
 
-    setGeneratedReports(prev => [...prev, newReport]);
-
+    setGeneratedReports(prev => [...prev, newReport].sort((a, b) => a.generationDate.getTime() - b.generationDate.getTime()));
     form.reset({ fileNumber: "", guideName: "" });
     setFileSearchStatus("idle");
     setFoundCellValue(null);
@@ -552,7 +573,7 @@ export default function GeneratorPage() {
                   name="fileNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>2. Número de File</FormLabel>
+                      <FormLabel>Número de File</FormLabel>
                       <div className="flex items-center gap-2">
                         <FormControl>
                           <Input
@@ -606,7 +627,7 @@ export default function GeneratorPage() {
                   name="guideName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>3. Nombre del Guía</FormLabel>
+                      <FormLabel>Nombre del Guía</FormLabel>
                       <FormControl>
                         <Input placeholder="Ingresa nombre del guía" {...field} className="bg-muted"/>
                       </FormControl>
@@ -694,7 +715,7 @@ export default function GeneratorPage() {
             </Table>
           </CardContent>
           {generatedReports.length >= 2 && (
-            <CardFooter className="p-6 pt-4 border-t flex justify-end">
+            <CardFooter className="p-6 pt-4 border-t flex justify-end gap-2">
                 <Button
                   onClick={handleDownloadAll}
                   disabled={isDownloadingAll}
@@ -704,6 +725,31 @@ export default function GeneratorPage() {
                   {isDownloadingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Files className="mr-2 h-4 w-4" />}
                   Descargar Todo
                 </Button>
+                <AlertDialog open={isClearListAlertOpen} onOpenChange={setIsClearListAlertOpen}>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Limpiar Lista
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción eliminará los {generatedReports.length} reportes de la lista. Esta acción no se puede deshacer.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleClearList} className="bg-destructive hover:bg-destructive/90">
+                          Sí, limpiar lista
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </CardFooter>
           )}
         </Card>
@@ -721,3 +767,6 @@ export default function GeneratorPage() {
     </div>
   );
 }
+
+
+    
