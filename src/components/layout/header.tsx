@@ -47,22 +47,36 @@ export default function Header() {
           !isOnAuthPage && (
             <>
               {/* Skeletons for buttons and user display */}
+              <Skeleton className="h-9 w-36 rounded-md" /> {/* User display */}
+              <Skeleton className="h-9 w-9 rounded-md" />  {/* Theme Toggle */}
               <Skeleton className="h-9 w-20 rounded-md" /> {/* Home */}
               <Skeleton className="h-9 w-20 rounded-md" /> {/* Logout */}
-              <Skeleton className="h-9 w-36 rounded-md" /> {/* User display */}
-              <Skeleton className="h-9 w-9 rounded-md" /> {/* Theme Toggle */}
             </>
           )
         ) : (
           <>
             {isAuthenticated ? (
               <>
+                {/* User display */}
+                {userDisplayName && (
+                  <div className="text-sm hidden sm:flex items-center gap-1.5 bg-primary/10 text-primary rounded-md px-3 py-1.5 border border-primary/30 shadow-sm">
+                    <UserCircle2 className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate max-w-[150px] md:max-w-[200px] font-medium">{userDisplayName}</span>
+                  </div>
+                )}
+                
+                {/* Theme toggle */}
+                <ThemeToggle />
+
+                {/* Home button */}
                 <Link href="/" passHref>
-                  <Button variant="ghost" className="text-primary dark:text-primary-foreground hover:bg-muted dark:hover:bg-accent/20 px-2 md:px-3">
+                  <Button variant="ghost" className="text-primary hover:bg-muted dark:hover:bg-primary/20 px-2 md:px-3">
                     <Home className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
                     <span className="hidden md:inline">Inicio</span>
                   </Button>
                 </Link>
+
+                {/* Logout button */}
                 <Button
                   variant="ghost"
                   className="text-destructive hover:bg-destructive/20 px-2 md:px-3"
@@ -71,17 +85,6 @@ export default function Header() {
                   <LogOut className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
                   <span className="hidden md:inline">Salir</span>
                 </Button>
-
-                {/* New styled user display */}
-                {userDisplayName && (
-                  <div className="text-sm hidden sm:flex items-center gap-1.5 bg-primary text-primary-foreground rounded-md px-3 py-1.5 border border-primary-foreground/20 shadow">
-                    <UserCircle2 className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate max-w-[150px] md:max-w-[200px] font-medium">{userDisplayName}</span>
-                  </div>
-                )}
-                
-                {/* Theme toggle moved here */}
-                <ThemeToggle />
               </>
             ) : ( // Not Authenticated
               !isOnAuthPage && ( 
@@ -92,7 +95,6 @@ export default function Header() {
                       <span className="hidden md:inline">Inicio</span>
                     </Button>
                   </Link>
-                   {/* Theme toggle here for non-authed */}
                   <ThemeToggle />
                 </>
               )
