@@ -32,31 +32,16 @@ export default function Header() {
       userDisplayName = currentUser.email;
     }
   }
-  
-  if (!isMounted) {
-     return (
-        <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b shadow-md">
-            <div className="flex items-center gap-2">
-                <Link href="/" passHref>
-                <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
-                    <FileSpreadsheet className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                    <h1 className="text-lg sm:text-xl font-bold text-primary">
-                    TourFile Generator
-                    </h1>
-                </div>
-                </Link>
-            </div>
-            <div className="flex items-center gap-2">
-                {!isOnAuthPage && (
-                    <>
-                        <Skeleton className="h-9 w-9 rounded-md" />
-                        <Skeleton className="h-9 w-20 rounded-md" />
-                    </>
-                )}
-            </div>
-        </header>
-     );
-  }
+
+  // Define skeleton for non-auth pages to be used in multiple places
+  const nonAuthSkeletons = (
+    <>
+      <Skeleton className="h-9 w-36 rounded-md" />
+      <Skeleton className="h-9 w-9 rounded-md" />
+      <Skeleton className="h-9 w-20 rounded-md" />
+      <Skeleton className="h-9 w-20 rounded-md" />
+    </>
+  );
   
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b shadow-md">
@@ -74,40 +59,39 @@ export default function Header() {
 
       {/* Actions: Theme Toggle and Auth Buttons */}
       <div className="flex items-center gap-2">
-        {isLoading ? (
-            // While loading, show a skeleton that matches the likely final state to reduce layout shift
-             !isOnAuthPage && (
-                <>
-                    <Skeleton className="h-9 w-36 rounded-md" />
-                    <Skeleton className="h-9 w-9 rounded-md" />
-                    <Skeleton className="h-9 w-20 rounded-md" />
-                    <Skeleton className="h-9 w-20 rounded-md" />
-                </>
-            )
-        ) : isAuthenticated ? (
-          // Authenticated view
-          <>
-            {userDisplayName && (
-              <div className="flex items-center gap-1.5 bg-background/10 text-primary rounded-md px-3 py-1.5 border border-primary/30 shadow-sm">
-                <UserCircle2 className="h-4 w-4 flex-shrink-0" />
-                <span className="text-sm truncate max-w-[150px] md:max-w-[200px] font-medium">{userDisplayName}</span>
-              </div>
-            )}
-            <ThemeToggle />
-            <Link href="/" passHref>
-              <Button variant="ghost" className="text-primary hover:bg-muted dark:hover:bg-primary/20 px-2 md:px-3">
-                <Home className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
-                <span className="hidden md:inline">Inicio</span>
+        {
+          // Case 1: On auth pages, only show the theme toggle.
+          // Render a skeleton on the server and first client render to prevent hydration errors.
+          isOnAuthPage ? (
+            isMounted ? <ThemeToggle /> : <Skeleton className="h-9 w-9 rounded-md" />
+          ) : 
+          // Case 2: On all other pages, handle the full auth state.
+          // Show skeletons if not mounted or if auth is still loading.
+          !isMounted || isLoading ? (
+            nonAuthSkeletons
+          ) : isAuthenticated ? (
+            // Authenticated view
+            <>
+              {userDisplayName && (
+                <div className="flex items-center gap-1.5 bg-background/10 text-primary rounded-md px-3 py-1.5 border border-primary/30 shadow-sm">
+                  <UserCircle2 className="h-4 w-4 flex-shrink-0" />
+                  <span className="text-sm truncate max-w-[150px] md:max-w-[200px] font-medium">{userDisplayName}</span>
+                </div>
+              )}
+              <ThemeToggle />
+              <Link href="/" passHref>
+                <Button variant="ghost" className="text-primary hover:bg-muted dark:hover:bg-primary/20 px-2 md:px-3">
+                  <Home className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
+                  <span className="hidden md:inline">Inicio</span>
+                </Button>
+              </Link>
+              <Button variant="ghost" className="text-destructive hover:bg-destructive/20 px-2 md:px-3" onClick={logout}>
+                <LogOut className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
+                <span className="hidden md:inline">Salir</span>
               </Button>
-            </Link>
-            <Button variant="ghost" className="text-destructive hover:bg-destructive/20 px-2 md:px-3" onClick={logout}>
-              <LogOut className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
-              <span className="hidden md:inline">Salir</span>
-            </Button>
-          </>
-        ) : (
-          // Unauthenticated view
-          !isOnAuthPage && (
+            </>
+          ) : (
+            // Unauthenticated view
             <>
               <ThemeToggle />
               <Link href="/" passHref>
@@ -118,7 +102,7 @@ export default function Header() {
               </Link>
             </>
           )
-        )}
+        }
       </div>
     </header>
   );
