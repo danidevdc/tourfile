@@ -32,9 +32,7 @@ export default function Header() {
       userDisplayName = currentUser.email;
     }
   }
-
-  const showSkeletons = !isMounted || isLoading;
-
+  
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b shadow-md">
       {/* Logo and Title */}
@@ -50,67 +48,65 @@ export default function Header() {
       </div>
 
       {/* Actions: Theme Toggle and Auth Buttons */}
-      <div className="flex items-center gap-2">
-        {showSkeletons ? (
-          !isOnAuthPage && (
+      <div className="flex items-center gap-1 sm:gap-2">
+        {isMounted ? ( // Only render the dynamic content on the client after mount
             <>
-              {/* Skeletons for buttons and user display */}
-              <div className="flex items-center gap-1.5 bg-background/10 text-primary rounded-md px-3 py-1.5 border border-primary/30 shadow-sm">
-                <Skeleton className="h-4 w-4 rounded-full" />
-                <Skeleton className="h-4 w-24 rounded-md" />
-              </div>
-              <Skeleton className="h-9 w-9 rounded-md" />
-              <Skeleton className="h-9 w-20 rounded-md" />
-              <Skeleton className="h-9 w-20 rounded-md" />
-            </>
-          )
-        ) : (
-          <>
-            {isAuthenticated ? (
+            {isLoading ? (
+                // While loading, show a skeleton that matches the likely final state to reduce layout shift
+                 !isOnAuthPage && (
+                    <>
+                        <Skeleton className="h-9 w-36 rounded-md" />
+                        <Skeleton className="h-9 w-9 rounded-md" />
+                        <Skeleton className="h-9 w-20 rounded-md" />
+                        <Skeleton className="h-9 w-20 rounded-md" />
+                    </>
+                )
+            ) : isAuthenticated ? (
+              // Authenticated view
               <>
-                {/* User display */}
                 {userDisplayName && (
-                  <div className="flex items-center gap-1.5 bg-primary/10 text-primary rounded-md px-3 py-1.5 border border-primary/30 shadow-sm">
+                  <div className="flex items-center gap-1.5 bg-background text-primary rounded-md px-3 py-1.5 border border-primary/50 shadow-sm">
                     <UserCircle2 className="h-4 w-4 flex-shrink-0" />
                     <span className="truncate max-w-[150px] md:max-w-[200px] font-medium">{userDisplayName}</span>
                   </div>
                 )}
-                
-                {/* Theme toggle */}
                 <ThemeToggle />
-
-                {/* Home button */}
                 <Link href="/" passHref>
                   <Button variant="ghost" className="text-primary hover:bg-muted dark:hover:bg-primary/20 px-2 md:px-3">
                     <Home className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
                     <span className="hidden md:inline">Inicio</span>
                   </Button>
                 </Link>
-
-                {/* Logout button */}
-                <Button
-                  variant="ghost"
-                  className="text-destructive hover:bg-destructive/20 px-2 md:px-3"
-                  onClick={logout}
-                >
+                <Button variant="ghost" className="text-destructive hover:bg-destructive/20 px-2 md:px-3" onClick={logout}>
                   <LogOut className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
                   <span className="hidden md:inline">Salir</span>
                 </Button>
               </>
-            ) : ( // Not Authenticated
-              !isOnAuthPage && ( 
+            ) : (
+              // Unauthenticated view
+              !isOnAuthPage && (
                 <>
+                  <ThemeToggle />
                   <Link href="/" passHref>
                     <Button variant="ghost" className="text-primary hover:bg-muted dark:hover:bg-primary/20 px-2 md:px-3">
                       <Home className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
                       <span className="hidden md:inline">Inicio</span>
                     </Button>
                   </Link>
-                  <ThemeToggle />
                 </>
               )
             )}
           </>
+        ) : (
+            // This is what renders on the server and the first client render.
+            // It MUST be consistent and not depend on auth state.
+            // We render the skeleton for the unauthenticated view.
+            !isOnAuthPage && (
+                <>
+                    <Skeleton className="h-9 w-9 rounded-md" /> {/* Placeholder for Theme Toggle */}
+                    <Skeleton className="h-9 w-20 rounded-md" /> {/* Placeholder for Home Button */}
+                </>
+            )
         )}
       </div>
     </header>
