@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -7,10 +8,16 @@ import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useState, useEffect } from 'react';
 
 export default function Header() {
+  const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
   const { isAuthenticated, isLoading, logout, currentUser } = useAuth();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const isOnAuthPage = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password';
 
@@ -26,6 +33,7 @@ export default function Header() {
     }
   }
 
+  const showSkeletons = !isMounted || isLoading;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b shadow-md">
@@ -43,14 +51,17 @@ export default function Header() {
 
       {/* Actions: Theme Toggle and Auth Buttons */}
       <div className="flex items-center gap-2">
-        {isLoading ? (
+        {showSkeletons ? (
           !isOnAuthPage && (
             <>
               {/* Skeletons for buttons and user display */}
-              <Skeleton className="h-9 w-36 rounded-md" /> {/* User display */}
-              <Skeleton className="h-9 w-9 rounded-md" />  {/* Theme Toggle */}
-              <Skeleton className="h-9 w-20 rounded-md" /> {/* Home */}
-              <Skeleton className="h-9 w-20 rounded-md" /> {/* Logout */}
+              <div className="flex items-center gap-1.5 bg-background/10 text-primary rounded-md px-3 py-1.5 border border-primary/30 shadow-sm">
+                <Skeleton className="h-4 w-4 rounded-full" />
+                <Skeleton className="h-4 w-24 rounded-md" />
+              </div>
+              <Skeleton className="h-9 w-9 rounded-md" />
+              <Skeleton className="h-9 w-20 rounded-md" />
+              <Skeleton className="h-9 w-20 rounded-md" />
             </>
           )
         ) : (
@@ -59,7 +70,7 @@ export default function Header() {
               <>
                 {/* User display */}
                 {userDisplayName && (
-                  <div className="text-sm hidden sm:flex items-center gap-1.5 bg-primary/10 text-primary rounded-md px-3 py-1.5 border border-primary/30 shadow-sm">
+                  <div className="flex items-center gap-1.5 bg-primary/10 text-primary rounded-md px-3 py-1.5 border border-primary/30 shadow-sm">
                     <UserCircle2 className="h-4 w-4 flex-shrink-0" />
                     <span className="truncate max-w-[150px] md:max-w-[200px] font-medium">{userDisplayName}</span>
                   </div>
@@ -90,7 +101,7 @@ export default function Header() {
               !isOnAuthPage && ( 
                 <>
                   <Link href="/" passHref>
-                    <Button variant="ghost" className="text-primary dark:text-primary-foreground hover:bg-muted dark:hover:bg-accent/20 px-2 md:px-3">
+                    <Button variant="ghost" className="text-primary hover:bg-muted dark:hover:bg-primary/20 px-2 md:px-3">
                       <Home className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
                       <span className="hidden md:inline">Inicio</span>
                     </Button>
