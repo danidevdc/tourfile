@@ -45,7 +45,7 @@ def generate_excel(data, output_path):
 
         # --- Row 1: CAJA CHICA GUIA ---
         ws['A1'] = "CAJA CHICA GUIA"
-        ws['A1'].font = header_font 
+        ws['A1'].font = Font(name='Calibri', size=14, bold=True)
         ws['A1'].alignment = left_alignment 
         ws.merge_cells('A1:G1')
 
@@ -203,5 +203,6 @@ if __name__ == "__main__":
     
 
     
+
 
 
