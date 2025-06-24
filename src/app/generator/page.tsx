@@ -389,16 +389,22 @@ export default function GeneratorPage() {
 
   const handleApiExcelDownload = async (report: GeneratedReportInfo) => {
     setIsDownloadingReportId(report.id);
+    // IMPORTANT: Replace 'tourfileprocessor' with your actual Firebase project ID.
+    const cloudFunctionUrl = 'https://us-central1-tourfileprocessor.cloudfunctions.net/generateExcel';
+
     try {
-      const response = await fetch('/api/generate-excel-python', {
+      const response = await fetch(cloudFunctionUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(report),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || 'Failed to generate Excel file');
+        const errorText = await response.text();
+        console.error('Server error response:', errorText);
+        throw new Error(`Error del servidor (${response.status}): ${errorText}`);
       }
 
       const contentDisposition = response.headers.get('Content-Disposition');
@@ -448,10 +454,12 @@ export default function GeneratorPage() {
     });
 
     const zip = new JSZip();
+    const cloudFunctionUrl = 'https://us-central1-tourfileprocessor.cloudfunctions.net/generateExcel';
+
 
     try {
         const filePromises = generatedReports.map(async (report) => {
-            const response = await fetch('/api/generate-excel-python', {
+            const response = await fetch(cloudFunctionUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(report),
@@ -768,4 +776,3 @@ export default function GeneratorPage() {
     </div>
   );
 }
-
