@@ -1,3 +1,4 @@
+
 // src/lib/report-generator.ts
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
@@ -33,34 +34,31 @@ export interface FileDataProps {
 }
 
 export function resolveQuantity(quantityStr: string, paxNumber: number): number {
-  if (paxNumber === 0 && quantityStr.toUpperCase().includes("G3")) return 0;
+  if (paxNumber === 0 && quantityStr.toUpperCase().includes("$G$3")) return 0;
   if (!isNaN(Number(quantityStr))) {
     return Number(quantityStr);
   }
 
   const cleanedQuantity = quantityStr.toUpperCase().replace(/\s/g, '');
-  const formulaWithPax = cleanedQuantity.replace(/(?<![A-Z])G3(?![0-9A-Z])|\$G\$3/g, String(paxNumber));
+  // Replace absolute or relative G3 reference with the actual PAX number for calculation
+  const formulaWithPax = cleanedQuantity.replace(/\$G\$3/g, String(paxNumber));
 
 
   if (formulaWithPax.startsWith('=')) {
     try {
       const expression = formulaWithPax.substring(1);
+      // Basic check for safe characters to prevent arbitrary code execution
       if (/^[\d\s()+\-*/.]+$/.test(expression)) {
-        // Ensure that the expression is safe before evaluating
-        // For example, check for allowed characters or structure
         const result = new Function(`return ${expression}`)() as number;
-        return isNaN(result) ? 1 : result; // Default to 1 if evaluation fails or results in NaN
+        return isNaN(result) ? 1 : result;
       } else {
-        // console.warn(`Fórmula de cantidad no segura o no válida: ${expression} (original: ${quantityStr})`);
-        return 1; // Default if potentially unsafe
+        return 1;
       }
     } catch (e) {
-      // console.error(`Error evaluando cantidad "${quantityStr}" con expresión "${formulaWithPax.substring(1)}":`, e);
-      return 1; // Default to 1 on error
+      return 1;
     }
   }
-  // console.warn(`Cantidad no reconocida: ${quantityStr}`);
-  return 1; // Default if not a number or recognized formula
+  return 1;
 }
 
 export function generateExpenseDetails(
@@ -78,12 +76,10 @@ export function generateExpenseDetails(
   const columnIndex = fileData.columnIndex;
   const fileIdRowIndex = fileData.fileIdRowIndex;
 
-  // --- Nueva lógica dinámica para encontrar fecha y PAX ---
   let dateRowIndex = -1;
   let tourStartDateRaw: Date | null = null;
   let tourStartDate = "N/A";
   
-  // Buscar dinámicamente la fecha en la columna del file
   for (let i = fileIdRowIndex; i < excelData.length; i++) {
     const cellValue = excelData[i]?.[columnIndex];
     if (!cellValue) continue;
@@ -91,7 +87,7 @@ export function generateExpenseDetails(
     let parsedDateObj: Date | null = null;
     if (cellValue instanceof Date) {
       parsedDateObj = cellValue;
-    } else if (typeof cellValue === 'number' && cellValue > 25569) { // Excel serial date check
+    } else if (typeof cellValue === 'number' && cellValue > 25569) {
       const parsed = XLSX.SSF.parse_date_code(cellValue);
       if (parsed) {
         parsedDateObj = new Date(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0);
@@ -102,12 +98,11 @@ export function generateExpenseDetails(
       tourStartDateRaw = parsedDateObj;
       tourStartDate = format(tourStartDateRaw, 'dd/MM/yy');
       dateRowIndex = i;
-      break; // Encontramos la primera fecha válida, la usamos
+      break;
     }
   }
 
-  // Obtener PAX count de la fila siguiente a la fecha encontrada
-  let actualPaxCountString = "0"; // Default to 0 if not found
+  let actualPaxCountString = "0";
   if (dateRowIndex !== -1) {
     const paxRaw = excelData[dateRowIndex + 1]?.[columnIndex];
     if (paxRaw !== null && paxRaw !== undefined) {
@@ -120,8 +115,7 @@ export function generateExpenseDetails(
     console.error("Número de PAX no válido o no encontrado:", actualPaxCountString);
     return { expenses: [], tourStartDate: "N/A" };
   }
-  // --- Fin de la nueva lógica ---
-
+  
   const guia = 1;
 
   const columnData = excelData.map(row => String(row[columnIndex] || '').toLowerCase());

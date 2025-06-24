@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
-import { GeneratedReportInfo } from '@/lib/report-generator';
+import { GeneratedReportInfo, ExpenseItem } from '@/lib/report-generator';
 
 // Helper function to parse date strings like "dd/mm/yy" into Date objects
 function parseDate(dateStr: string): Date | null {
@@ -11,9 +11,9 @@ function parseDate(dateStr: string): Date | null {
     const day = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
     const year = parseInt(parts[2], 10) + 2000; // Assuming 21st century
-    const date = new Date(year, month, day);
+    const date = new Date(Date.UTC(year, month, day)); // Use UTC to avoid timezone issues
     // Basic validation
-    if (isNaN(date.getTime()) || date.getDate() !== day) {
+    if (isNaN(date.getTime()) || date.getUTCDate() !== day) {
         return null;
     }
     return date;
@@ -27,20 +27,11 @@ export async function POST(req: NextRequest) {
     const worksheet = workbook.addWorksheet('CajaChica');
 
     // --- 1. Define Styles (replicating Python script) ---
-    const titleFont: Partial<ExcelJS.Font> = { name: 'Calibri', size: 14, bold: true };
-    const headerFont: Partial<ExcelJS.Font> = { name: 'Calibri', size: 11, bold: true };
-    
-    const leftAlignment: Partial<ExcelJS.Alignment> = { horizontal: 'left', vertical: 'middle' };
-    const centerAlignment: Partial<ExcelJS.Alignment> = { horizontal: 'center', vertical: 'middle' };
-    const rightAlignment: Partial<ExcelJS.Alignment> = { horizontal: 'right', vertical: 'middle' };
-    
     const thinBorder: Partial<ExcelJS.Borders> = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' }
+        top: { style: 'thin' }, left: { style: 'thin' },
+        bottom: { style: 'thin' }, right: { style: 'thin' }
     };
-    
+
     // --- 2. Set Column Widths ---
     worksheet.getColumn('A').width = 12;
     worksheet.getColumn('B').width = 9.14;
@@ -50,53 +41,51 @@ export async function POST(req: NextRequest) {
     worksheet.getColumn('F').width = 9.14;
     worksheet.getColumn('G').width = 9.14;
 
-
     // --- 3. Build Header (Rows 1-3) ---
     // Row 1
     const titleCell = worksheet.getCell('A1');
     titleCell.value = "CAJA CHICA GUIA";
-    titleCell.font = titleFont;
-    titleCell.alignment = leftAlignment;
+    titleCell.font = { name: 'Calibri', size: 14, bold: true };
+    titleCell.alignment = { horizontal: 'left', vertical: 'middle' };
     worksheet.mergeCells('A1:G1');
 
     // Row 2
     worksheet.getCell('A2').value = "FILE:";
-    worksheet.getCell('A2').font = headerFont;
+    worksheet.getCell('A2').font = { name: 'Calibri', size: 11, bold: true };
     worksheet.getCell('B2').value = reportData.fileNumber;
-    worksheet.getCell('B2').alignment = centerAlignment;
+    worksheet.getCell('B2').alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.mergeCells('B2:C2');
 
     worksheet.getCell('D2').value = "NOMBRE GUIA:";
-    worksheet.getCell('D2').font = headerFont;
+    worksheet.getCell('D2').font = { name: 'Calibri', size: 11, bold: true };
     worksheet.getCell('E2').value = reportData.guideName.toUpperCase();
-    worksheet.getCell('E2').alignment = centerAlignment;
+    worksheet.getCell('E2').alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.mergeCells('E2:F2');
 
     // Row 3
     worksheet.getCell('A3').value = "NOMBRE Y Nº DE PAX:";
-    worksheet.getCell('A3').font = headerFont;
+    worksheet.getCell('A3').font = { name: 'Calibri', size: 11, bold: true };
     worksheet.mergeCells('A3:C3');
     
     worksheet.getCell('D3').value = reportData.groupName;
-    worksheet.getCell('D3').alignment = centerAlignment;
+    worksheet.getCell('D3').alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.mergeCells('D3:E3');
 
     worksheet.getCell('F3').value = "Nº";
-    worksheet.getCell('F3').font = headerFont;
+    worksheet.getCell('F3').font = { name: 'Calibri', size: 11, bold: true };
     worksheet.getCell('G3').value = parseInt(reportData.paxCount, 10) || 0;
-    worksheet.getCell('G3').font = headerFont;
-    worksheet.getCell('G3').alignment = rightAlignment;
+    worksheet.getCell('G3').font = { name: 'Calibri', size: 11, bold: true };
+    worksheet.getCell('G3').alignment = { horizontal: 'right', vertical: 'middle' };
 
     // --- 4. Build Table Headers (Row 4) ---
     const tableHeaders = ["FECHA", "CANT", "DETALLE DEL GASTO", null, "P. UNIT", "TOTAL Bs.", "VoB OPS"];
     const headerRow = worksheet.getRow(4);
     headerRow.values = tableHeaders;
     worksheet.mergeCells('C4:D4');
-    headerRow.eachCell((cell) => {
-        cell.font = headerFont;
-        cell.alignment = centerAlignment; // Python script used left, but center looks better for headers
+    headerRow.eachCell({ includeEmpty: true }, (cell) => {
+        cell.font = { name: 'Calibri', size: 11, bold: true };
+        cell.alignment = { horizontal: 'left', vertical: 'middle' }; // Align left as per python script
     });
-
 
     // --- 5. Add Expense Items (starting from Row 5) ---
     let currentRowIndex = 5;
@@ -104,44 +93,54 @@ export async function POST(req: NextRequest) {
         const row = worksheet.getRow(currentRowIndex);
         
         // Date
-        const dateObj = parseDate(item.date);
-        if (dateObj) {
-            row.getCell(1).value = dateObj;
-            row.getCell(1).numFmt = 'dd/mm/yy';
+        const dateCell = row.getCell(1);
+        if (item.date) {
+            const dateObj = parseDate(item.date);
+            if (dateObj) {
+                dateCell.value = dateObj;
+                dateCell.numFmt = 'dd/mm/yy';
+            } else {
+                dateCell.value = item.date;
+            }
         } else {
-            row.getCell(1).value = item.date; // fallback to string
+            dateCell.value = "";
         }
-        row.getCell(1).alignment = centerAlignment;
+        dateCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
         // Quantity
+        const quantityCell = row.getCell(2);
         const quantityStr = String(item.quantity || "1");
         if (quantityStr.startsWith('=')) {
-            // ExcelJS needs the G3 part replaced by a cell reference
-            const formula = quantityStr.replace(/=\$G\$3|\=G3/gi, '=G3');
-            row.getCell(2).value = { formula: formula.substring(1) };
+            quantityCell.value = { formula: quantityStr.substring(1) };
         } else {
-            row.getCell(2).value = !isNaN(parseFloat(quantityStr)) ? parseFloat(quantityStr) : quantityStr;
+            const num = parseFloat(quantityStr);
+            quantityCell.value = isNaN(num) ? quantityStr : num;
         }
-        row.getCell(2).alignment = centerAlignment;
+        quantityCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
         // Detail
-        row.getCell(3).value = item.detail;
-        row.getCell(3).alignment = leftAlignment;
+        const detailCell = row.getCell(3);
+        detailCell.value = item.detail;
+        detailCell.alignment = { horizontal: 'center', vertical: 'middle' };
         worksheet.mergeCells(`C${currentRowIndex}:D${currentRowIndex}`);
+        row.getCell(4).value = ""; // Clear the merged cell's original value
 
         // Unit Price
-        row.getCell(5).value = item.unitPrice;
-        row.getCell(5).numFmt = '#,##0.00';
-        row.getCell(5).alignment = rightAlignment;
+        const unitPriceCell = row.getCell(5);
+        unitPriceCell.value = item.unitPrice;
+        unitPriceCell.numFmt = '#,##0.00';
+        unitPriceCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
         // Total (as formula)
-        row.getCell(6).value = { formula: `B${currentRowIndex}*E${currentRowIndex}` };
-        row.getCell(6).numFmt = '#,##0.00';
-        row.getCell(6).alignment = rightAlignment;
+        const totalCell = row.getCell(6);
+        totalCell.value = { formula: `B${currentRowIndex}*E${currentRowIndex}` };
+        totalCell.numFmt = '#,##0.00';
+        totalCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
         // VoB Ops
-        row.getCell(7).value = item.vobOps || "";
-        row.getCell(7).alignment = centerAlignment;
+        const vobOpsCell = row.getCell(7);
+        vobOpsCell.value = item.vobOps || "";
+        vobOpsCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
         currentRowIndex++;
     });
@@ -150,8 +149,8 @@ export async function POST(req: NextRequest) {
     const totalRow = worksheet.getRow(currentRowIndex);
     const totalLabelCell = totalRow.getCell(3);
     totalLabelCell.value = "GASTO TOTAL";
-    totalLabelCell.font = headerFont;
-    totalLabelCell.alignment = centerAlignment;
+    totalLabelCell.font = { name: 'Calibri', size: 11, bold: true };
+    totalLabelCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.mergeCells(`C${currentRowIndex}:E${currentRowIndex}`);
 
     const grandTotalCell = totalRow.getCell(6);
@@ -160,14 +159,12 @@ export async function POST(req: NextRequest) {
     } else {
         grandTotalCell.value = 0;
     }
-    grandTotalCell.font = headerFont;
-    grandTotalCell.numFmt = '"Bs." #,##0.00';
-    grandTotalCell.alignment = rightAlignment;
+    grandTotalCell.font = { name: 'Calibri', size: 11, bold: true };
+    grandTotalCell.numFmt = '#,##0.00'; // Corrected format, removed "Bs."
+    grandTotalCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
-    
     // --- 7. Apply Borders to the entire used range ---
-    const lastRow = currentRowIndex;
-    for (let i = 1; i <= lastRow; i++) {
+    for (let i = 1; i <= currentRowIndex; i++) {
         const row = worksheet.getRow(i);
         row.eachCell({ includeEmpty: true }, (cell) => {
             cell.border = thinBorder;
@@ -177,11 +174,9 @@ export async function POST(req: NextRequest) {
     // --- 8. Generate Buffer and Return Response ---
     const buf = await workbook.xlsx.writeBuffer();
     
-    // Construct a safe filename
     const safeGroupName = String(reportData.groupName).replace(/[/\\]/g, '_');
     const safeGuideName = String(reportData.guideName).replace(/[/\\]/g, '_');
     const safeFileNumber = String(reportData.fileNumber).replace(/[/\\]/g, '_');
-    // Using a simple date for the filename as startDate can be tricky
     const simpleDate = new Date().toISOString().split('T')[0];
     const finalConstructedFileName = `G.O. ${reportData.startDate || simpleDate} - ${safeGroupName} - ${safeGuideName} - ${safeFileNumber}.xlsx`;
     
@@ -202,5 +197,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-    
