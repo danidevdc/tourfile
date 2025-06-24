@@ -24,6 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, Eye, FileDown, Trash2, Files } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { Dialog } from "@/components/ui/dialog";
 import {
@@ -57,6 +58,7 @@ type FormValues = z.infer<typeof formSchema>;
 export default function GeneratorPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const { currentUser, incrementUserReportCountBy } = useAuth();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [excelData, setExcelData] = useState<any[][] | null>(null);
@@ -406,13 +408,10 @@ export default function GeneratorPage() {
 
         if (contentType && contentType.includes("application/json")) {
             const errorData = await response.json();
-            // Log the data for debugging in a safe, stringified format
             console.error('Server JSON error response:', JSON.stringify(errorData, null, 2));
-            // Construct a more descriptive error message
             errorMessage = errorData.details || errorData.error || errorMessage;
         } else {
             const errorText = await response.text();
-            // Log the raw text for debugging. Avoid showing raw HTML to the user.
             console.error("Non-JSON error response from server:", errorText);
         }
 
@@ -443,6 +442,10 @@ export default function GeneratorPage() {
         description: `Se descargó el reporte para el file ${report.fileNumber}.`,
         className: 'bg-green-100 dark:bg-green-900 border-green-500',
       });
+      
+      if (currentUser?.uid && incrementUserReportCountBy) {
+        await incrementUserReportCountBy(currentUser.uid, 1);
+      }
       
     } catch (error) {
       console.error('Error downloading Excel file:', error);
@@ -495,8 +498,6 @@ export default function GeneratorPage() {
         const files = await Promise.all(filePromises);
 
         files.forEach(file => {
-            // Sanitize the filename to prevent subfolder creation in the zip file.
-            // Slashes are interpreted as directory separators by JSZip.
             const sanitizedFileName = file.fileName.replace(/[/\\]/g, '_');
             zip.file(sanitizedFileName, file.blob);
         });
@@ -517,6 +518,10 @@ export default function GeneratorPage() {
             description: `El archivo .zip con ${files.length} reportes ha sido descargado.`,
             className: "bg-green-100 dark:bg-green-900 border-green-500",
         });
+
+        if (currentUser?.uid && incrementUserReportCountBy && generatedReports.length > 0) {
+          await incrementUserReportCountBy(currentUser.uid, generatedReports.length);
+        }
 
     } catch (error) {
         console.error("Error al descargar todos los reportes:", error);

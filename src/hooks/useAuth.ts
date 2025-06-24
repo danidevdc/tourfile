@@ -25,7 +25,8 @@ import {
   query,
   where,
   getDocs,
-  deleteDoc
+  deleteDoc,
+  increment, // Add increment
 } from 'firebase/firestore';
 
 // TourFileGen specific user profile data stored in Firestore
@@ -313,6 +314,23 @@ export function useAuth() {
     }
   }, []);
 
+  const incrementUserReportCountBy = useCallback(async (uid: string, amount: number) => {
+    if (!db || !uid || amount <= 0) {
+      console.warn("Could not increment report count. Missing db, uid, or amount <= 0.", { uid, amount });
+      return;
+    }
+    const userProfileDocRef = doc(db, 'userProfiles', uid);
+    try {
+      await updateDoc(userProfileDocRef, {
+        generatedReportsCount: increment(amount)
+      });
+      // This is a silent background update, no toast notification is needed.
+    } catch (error) {
+      console.error(`Error incrementing report count for user ${uid}:`, error);
+      // Do not bother the user with a toast for this silent background task.
+    }
+  }, []);
+
 
   const getCurrentUserUsername = useCallback((): string | null => {
     return currentUser?.profile?.email || null;
@@ -388,7 +406,9 @@ export function useAuth() {
     checkEmailExists,
     getCurrentUserUsername, 
     getCurrentUserDetails,
-    getAllUserProfiles, // Exportar la nueva función
+    getAllUserProfiles,
     deleteUserFromFirestore,
+    incrementUserReportCountBy,
   };
 }
+
