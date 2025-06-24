@@ -401,21 +401,18 @@ export default function GeneratorPage() {
       });
 
       if (!response.ok) {
-        // Read the body once as text, regardless of what it is.
+        // Read the body once as text to avoid "body stream already read" error.
         const errorText = await response.text();
         let errorMessage = `Error del servidor (${response.status})`;
         
         try {
-            // Try to parse the text as JSON.
+            // Attempt to parse the text as JSON, as the backend might send a JSON error object.
             const errorData = JSON.parse(errorText);
-            // If successful, use the specific error message from the backend.
             errorMessage = errorData.error || errorMessage;
         } catch (e) {
-            // If it's not JSON, it could be an HTML error page or plain text.
-            // Log the raw response for debugging but show a generic error to the user.
+            // If it's not JSON, it might be an HTML error page or plain text from the server.
             console.error('Respuesta de error no-JSON del servidor:', errorText);
-            // In this case, we don't show the raw HTML/text to the user.
-            // The generic status message is often enough.
+            // We avoid showing raw HTML to the user; the generic status message is often better.
         }
         throw new Error(errorMessage);
       }
