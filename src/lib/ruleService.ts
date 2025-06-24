@@ -9,7 +9,7 @@ import {
   writeBatch,
   query,
   where,
-  limit, // Replaced getCountFromServer with limit
+  limit,
 } from 'firebase/firestore';
 
 export interface ExpenseRule {
@@ -48,7 +48,6 @@ const defaultLaPazRules: Omit<ExpenseRule, 'id'>[] = [
   { keyword: 'CT-City Tour', detail: 'AGUAS', unitPrice: 6, quantityFormula: '=$G$3+2', city: 'La Paz', isActive: true, order: 110 },
 ];
 
-// Replaced getCountFromServer with a more standard getDocs with limit(1) to avoid potential permission issues.
 export async function initializeDefaultRules(): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
     const rulesRef = collection(db, 'expenseRules');
@@ -59,8 +58,7 @@ export async function initializeDefaultRules(): Promise<void> {
         console.log('No default rules found for La Paz. Initializing...');
         const batch = writeBatch(db);
         defaultLaPazRules.forEach(ruleData => {
-            const docRef = doc(rulesRef); // Auto-generate ID
-            // The document's ID is the source of truth, so we don't store an `id` field inside the document data.
+            const docRef = doc(rulesRef);
             batch.set(docRef, ruleData);
         });
         await batch.commit();
@@ -79,23 +77,17 @@ export async function getExpenseRulesFromFirestore(city: 'La Paz' | 'Uyuni'): Pr
     return [];
   }
 
-  // The ID from the document snapshot is combined with the document data.
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ExpenseRule));
 }
 
-// Rewritten to be cleaner and not store the 'id' field within the document data.
 export async function saveExpenseRulesToFirestore(rules: ExpenseRule[]): Promise<void> {
   if (!db) throw new Error("Firestore not initialized");
   const batch = writeBatch(db);
   const rulesRef = collection(db, 'expenseRules');
 
   rules.forEach(rule => {
-    // If the id is a temporary one from the UI, create a new document reference. Otherwise, use the existing ID.
     const docRef = rule.id.startsWith('new_') ? doc(rulesRef) : doc(rulesRef, rule.id);
-    
-    // Destructure to remove the `id` from the object that gets saved to Firestore.
     const { id, ...dataToSave } = rule; 
-    
     batch.set(docRef, dataToSave);
   });
 

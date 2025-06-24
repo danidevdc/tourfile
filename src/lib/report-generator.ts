@@ -2,7 +2,7 @@
 // src/lib/report-generator.ts
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
-import { getExpenseRulesFromFirestore } from './ruleService';
+import { getExpenseRulesFromFirestore, type ExpenseRule } from './ruleService';
 
 export type FileSearchStatus = "idle" | "searching" | "found" | "not_found" | "error";
 
@@ -34,8 +34,6 @@ export interface FileDataProps {
   columnIndex: number | null;
 }
 
-// This function is kept for legacy or display purposes, but the core logic
-// for quantity is now the formula string itself.
 export function resolveQuantity(quantityStr: string, paxNumber: number): number {
   if (paxNumber === 0 && quantityStr.toUpperCase().includes("$G$3")) return 0;
   if (!isNaN(Number(quantityStr))) {
@@ -43,14 +41,12 @@ export function resolveQuantity(quantityStr: string, paxNumber: number): number 
   }
 
   const cleanedQuantity = String(quantityStr).toUpperCase().replace(/\s/g, '');
-  // Replace absolute or relative G3 reference with the actual PAX number for calculation
   const formulaWithPax = cleanedQuantity.replace(/\$G\$3/g, String(paxNumber));
 
 
   if (formulaWithPax.startsWith('=')) {
     try {
       const expression = formulaWithPax.substring(1);
-      // Basic check for safe characters to prevent arbitrary code execution
       if (/^[\d\s()+\-*/.]+$/.test(expression)) {
         // eslint-disable-next-line no-new-func
         const result = new Function(`return ${expression}`)() as number;
@@ -69,8 +65,7 @@ export function resolveQuantity(quantityStr: string, paxNumber: number): number 
 export async function generateExpenseDetails(
   excelData: any[][] | null,
   fileData: FileDataProps,
-  paxCountString: string,
-  groupName: string
+  paxCountString: string
 ): Promise<{ expenses: ExpenseItem[], tourStartDate: string }> {
 
   const expenseItems: ExpenseItem[] = [];
@@ -81,7 +76,6 @@ export async function generateExpenseDetails(
   const columnIndex = fileData.columnIndex;
   const fileIdRowIndex = fileData.fileIdRowIndex;
 
-  // --- Find Tour Start Date ---
   let tourStartDateRaw: Date | null = null;
   let tourStartDate = "N/A";
   
@@ -113,7 +107,15 @@ export async function generateExpenseDetails(
   }
   
   // --- Fetch Dynamic Rules from Firestore ---
-  const rules = await getExpenseRulesFromFirestore('La Paz');
+  let rules: ExpenseRule[] = [];
+  try {
+    rules = await getExpenseRulesFromFirestore('La Paz');
+  } catch (error) {
+    console.error("Failed to fetch expense rules from Firestore:", error);
+    // Depending on desired behavior, you could throw the error or return empty
+    return { expenses: [], tourStartDate: tourStartDate };
+  }
+  
   const activeRules = rules.filter(r => r.isActive).sort((a,b) => a.order - b.order);
   
   const columnData = excelData.map(row => String(row[columnIndex] || '').toLowerCase());
@@ -132,31 +134,12 @@ export async function generateExpenseDetails(
         quantity: rule.quantityFormula,
         detail: rule.detail,
         unitPrice: rule.unitPrice,
-        // Pre-calculate total for simple display purposes if needed, though Excel will do the final calculation
         total: resolveQuantity(rule.quantityFormula, paxNum) * rule.unitPrice,
         vobOps: rule.vobOps,
       };
       expenseItems.push(newItem);
     }
   }
-
-  // --- Handle Complex/Multi-condition Rules ---
-  // The "AGUAS" rule is complex because its quantity depends on other conditions.
-  // A simple keyword match is not enough. We'll handle it outside the main loop.
-  const cityTourRule = activeRules.find(r => r.keyword.toLowerCase() === 'ct-city tour');
-  if (cityTourRule) {
-      const isTiwanakuPresent = contiene('tiwanaku');
-      // If Tiwanaku is also present, the quantity formula should be different.
-      // This is an example of logic that's hard to capture in a simple rule.
-      // For now, we assume the base rule is enough, but this could be expanded.
-      // E.g., add a new property to the rule like "conditionalQuantityFormula"
-      if (isTiwanakuPresent) {
-         console.log("Tiwanaku detected alongside City Tour, complex rule could apply for AGUAS.");
-         // In a more advanced system, you might modify the quantity here.
-         // For now, we'll just use the one from the database.
-      }
-  }
-
 
   return { expenses: expenseItems, tourStartDate };
 }

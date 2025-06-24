@@ -53,11 +53,15 @@ export default function EditLogicPage() {
       if (isCurrentUserAdmin) {
         setIsLoading(true);
         try {
-          await initializeDefaultRules(); // Ensures defaults exist if collection is empty
+          // This function ensures the default rules exist in Firestore if the collection is empty.
+          // It's safe to call every time, as it won't overwrite existing rules.
+          await initializeDefaultRules(); 
+          
           const fetchedRules = await getExpenseRulesFromFirestore('La Paz');
           setRules(fetchedRules.sort((a, b) => a.order - b.order));
         } catch (error) {
-          toast({ title: "Error", description: "No se pudieron cargar las reglas.", variant: "destructive" });
+          console.error("Error loading rules:", error);
+          toast({ title: "Error", description: "No se pudieron cargar las reglas. Revisa los permisos de Firestore y la conexión.", variant: "destructive" });
         } finally {
           setIsLoading(false);
         }
