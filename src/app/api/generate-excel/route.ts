@@ -104,41 +104,56 @@ export async function POST(req: NextRequest) {
     ];
 
     // --- 5. Apply Cell Styles ---
-    const currencyFormat = '#,##0.00';
+    const currencyFormat = '"Bs." #,##0.00';
     const headerFont = { name: 'Calibri', sz: 11, bold: true };
     const titleFont = { name: 'Calibri', sz: 14, bold: true };
     
-    if (ws['A1']) ws['A1'].s = { font: titleFont, alignment: { horizontal: "left", vertical: "center" } };
-    
-    // Style headers
-    ['A2', 'D2', 'A3', 'F3'].forEach(ref => { if(ws[ref]) ws[ref].s = { font: headerFont }});
-    ['A4', 'B4', 'C4', 'E4', 'F4', 'G4'].forEach(ref => { if(ws[ref]) ws[ref].s = { font: headerFont }});
+    // Helper to get a cell reference
+    const getCell = (r: number, c: number) => ws[XLSX.utils.encode_cell({ r, c })];
+
+    // Style Title
+    const titleCell = getCell(0, 0);
+    if (titleCell) titleCell.s = { font: titleFont, alignment: { horizontal: "left", vertical: "center" } };
+
+    // Style Headers
+    [
+        // Row 2 (File, Guide Name)
+        [1, 0], [1, 3], 
+        // Row 3 (Pax, Group)
+        [2, 0], [2, 5],
+        // Row 4 (Table Headers)
+        [3,0], [3,1], [3,2], [3,4], [3,5], [3,6]
+    ].forEach(([r, c]) => {
+        const cell = getCell(r, c);
+        if (cell) cell.s = { font: headerFont };
+    });
 
     // Style data rows
     for (let R = 4; R < 4 + expenseItems.length; ++R) {
-        const dateCell = XLSX.utils.encode_cell({c:0, r:R});
-        if(ws[dateCell]) ws[dateCell].s = { numFmt: "dd/mm/yy", alignment: { horizontal: "center" }};
+        const dateCell = getCell(R, 0);
+        if (dateCell) dateCell.s = { numFmt: "dd/mm/yy", alignment: { horizontal: "center" } };
 
-        const unitPriceCell = XLSX.utils.encode_cell({c:4, r:R});
-        if(ws[unitPriceCell]) ws[unitPriceCell].s = { numFmt: currencyFormat, alignment: { horizontal: "right" }};
+        const unitPriceCell = getCell(R, 4);
+        if (unitPriceCell) unitPriceCell.s = { numFmt: currencyFormat, alignment: { horizontal: "right" } };
 
-        const totalCell = XLSX.utils.encode_cell({c:5, r:R});
-        if(ws[totalCell]) ws[totalCell].s = { numFmt: currencyFormat, alignment: { horizontal: "right" }};
+        const totalCell = getCell(R, 5);
+        if (totalCell) totalCell.s = { numFmt: currencyFormat, alignment: { horizontal: "right" } };
     }
 
     // Style total row
-    const grandTotalCell = XLSX.utils.encode_cell({c:5, r:totalRowIndex});
-    if(ws[grandTotalCell]) ws[grandTotalCell].s = { font: headerFont, numFmt: currencyFormat, alignment: { horizontal: "right" }};
-    const grandTotalLabelCell = XLSX.utils.encode_cell({c:2, r:totalRowIndex});
-    if(ws[grandTotalLabelCell]) ws[grandTotalLabelCell].s = { font: headerFont, alignment: { horizontal: "center" }};
+    const grandTotalLabelCell = getCell(totalRowIndex, 2);
+    if (grandTotalLabelCell) grandTotalLabelCell.s = { font: headerFont, alignment: { horizontal: "center" } };
+    
+    const grandTotalCell = getCell(totalRowIndex, 5);
+    if (grandTotalCell) grandTotalCell.s = { font: headerFont, numFmt: currencyFormat, alignment: { horizontal: "right" } };
 
 
     // --- 6. Generate Buffer and Return Response ---
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
-    const safeGroupName = String(groupName).replace(/[\/\\]/g, '_');
-    const safeGuideName = String(guideName).replace(/[\/\\]/g, '_');
-    const safeFileNumber = String(fileNumber).replace(/[\/\\]/g, '_');
+    const safeGroupName = String(groupName).replace(/[/\\]/g, '_');
+    const safeGuideName = String(guideName).replace(/[/\\]/g, '_');
+    const safeFileNumber = String(fileNumber).replace(/[/\\]/g, '_');
     const finalConstructedFileName = `G.O. ${startDate} - ${safeGroupName} - ${safeGuideName} - ${safeFileNumber}.xlsx`;
     
     return new NextResponse(buf, {
