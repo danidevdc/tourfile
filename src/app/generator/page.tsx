@@ -401,20 +401,16 @@ export default function GeneratorPage() {
       });
 
       if (!response.ok) {
-        // Read the body once as text to avoid "body stream already read" error.
+        let errorData;
         const errorText = await response.text();
-        let errorMessage = `Error del servidor (${response.status})`;
-        
         try {
-            // Attempt to parse the text as JSON, as the backend might send a JSON error object.
-            const errorData = JSON.parse(errorText);
-            errorMessage = errorData.error || errorMessage;
-        } catch (e) {
-            // If it's not JSON, it might be an HTML error page or plain text from the server.
-            console.error('Respuesta de error no-JSON del servidor:', errorText);
-            // We avoid showing raw HTML to the user; the generic status message is often better.
+            errorData = JSON.parse(errorText);
+        } catch(e) {
+            console.error("Non-JSON error response from server:", errorText);
+            throw new Error(`Error del servidor (${response.status})`);
         }
-        throw new Error(errorMessage);
+        console.error('Server error response:', errorData);
+        throw new Error(errorData.details || errorData.error || `Error del servidor (${response.status})`);
       }
 
       const contentDisposition = response.headers.get('Content-Disposition');
@@ -422,7 +418,7 @@ export default function GeneratorPage() {
       if (contentDisposition) {
         const match = contentDisposition.match(/filename="([^"]+)"/i);
         if (match && match[1]) {
-          filename = match[1];
+          filename = decodeURIComponent(match[1]);
         }
       }
       
@@ -484,7 +480,7 @@ export default function GeneratorPage() {
             if (contentDisposition) {
                 const match = contentDisposition.match(/filename="([^"]+)"/i);
                 if (match && match[1]) {
-                    fileName = match[1];
+                    fileName = decodeURIComponent(match[1]);
                 }
             }
             return { fileName, blob };

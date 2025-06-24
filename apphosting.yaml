@@ -1,18 +1,5 @@
 # apphosting.yaml
-
-# Next.js Frontend
 run: npm run start
 env:
   - variable: BROWSER_ARGS
-    value: "--no-sandbox"
-
-# Python Backend Service
-backends:
-  excel-generator:
-    run: gunicorn main:app --workers 1 --threads 8 --timeout 0
-    directory: backend
-
-# Rewrite rule to direct API calls to the Python backend
-rewrites:
-  - source: /api/generate-excel
-    backend: excel-generator
+    value: '--no-sandbox'
