@@ -317,15 +317,14 @@ export default function GeneratorPage() {
     setIsProcessingGeneration(true);
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    const { expenses, tourStartDate } = generateExpenseDetails(
+    const { expenses, tourStartDate } = await generateExpenseDetails(
       excelData,
-      fileDataProps, 
-      currentPaxCount,
-      foundCellValue
+      fileDataProps,
+      currentPaxCount
     );
 
      if (tourStartDate === "N/A") {
-         if (expenses.length === 0 && !excelData[fileDataProps.fileIdRowIndex!].some((cell: any) => String(cell).toLowerCase().includes("ct-city tour"))) {
+         if (expenses.length === 0 && excelData[fileDataProps.fileIdRowIndex!] && !excelData[fileDataProps.fileIdRowIndex!].some((cell: any) => String(cell).toLowerCase().includes("ct-city tour"))) {
              toast({ title: "Error de Generación", description: "No se pudo determinar la fecha de inicio del tour. Verifica el archivo Excel.", variant: "destructive" });
              setIsProcessingGeneration(false);
              return;
