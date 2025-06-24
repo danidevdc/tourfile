@@ -389,7 +389,7 @@ export default function GeneratorPage() {
 
   const handleApiExcelDownload = async (report: GeneratedReportInfo) => {
     setIsDownloadingReportId(report.id);
-    const apiUrl = '/api/generate-excel'; 
+    const apiUrl = '/api/generate-excel';
 
     try {
       const response = await fetch(apiUrl, {
@@ -401,16 +401,22 @@ export default function GeneratorPage() {
       });
 
       if (!response.ok) {
-        let errorData;
-        const errorText = await response.text();
-        try {
-            errorData = JSON.parse(errorText);
-        } catch(e) {
+        const contentType = response.headers.get("content-type");
+        let errorMessage = `Error del servidor (${response.status})`;
+
+        if (contentType && contentType.includes("application/json")) {
+            const errorData = await response.json();
+            // Log the data for debugging in a safe, stringified format
+            console.error('Server JSON error response:', JSON.stringify(errorData, null, 2));
+            // Construct a more descriptive error message
+            errorMessage = errorData.details || errorData.error || errorMessage;
+        } else {
+            const errorText = await response.text();
+            // Log the raw text for debugging. Avoid showing raw HTML to the user.
             console.error("Non-JSON error response from server:", errorText);
-            throw new Error(`Error del servidor (${response.status})`);
         }
-        console.error('Server error response:', errorData);
-        throw new Error(errorData.details || errorData.error || `Error del servidor (${response.status})`);
+
+        throw new Error(errorMessage);
       }
 
       const contentDisposition = response.headers.get('Content-Disposition');
