@@ -1,10 +1,22 @@
+
 const { onRequest } = require("firebase-functions/v2/https");
 const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
 
-exports.generateExcel = onRequest({ cors: true }, (req, res) => {
+exports.generateExcel = onRequest({ memory: "512MiB", timeoutSeconds: 60 }, (req, res) => {
+  // Set CORS headers for all responses to allow requests from any origin.
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle preflight (OPTIONS) requests, which browsers send before the actual POST.
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+  
   if (req.method !== 'POST') {
     return res.status(405).send('Method Not Allowed');
   }
@@ -46,7 +58,6 @@ exports.generateExcel = onRequest({ cors: true }, (req, res) => {
       res.set('Content-Disposition', `attachment; filename="${finalConstructedFileName}"`);
       res.status(200).send(fileBuffer);
       
-      // Cleanup
       fs.unlink(tempOutputXlsxPath, (unlinkErr) => {
         if (unlinkErr) console.error("Error deleting temp file", unlinkErr);
       });
