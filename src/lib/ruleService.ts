@@ -9,7 +9,7 @@ import {
   writeBatch,
   query,
   where,
-  getCountFromServer,
+  limit, // Replaced getCountFromServer with limit
 } from 'firebase/firestore';
 
 export interface ExpenseRule {
@@ -48,18 +48,20 @@ const defaultLaPazRules: Omit<ExpenseRule, 'id'>[] = [
   { keyword: 'CT-City Tour', detail: 'AGUAS', unitPrice: 6, quantityFormula: '=$G$3+2', city: 'La Paz', isActive: true, order: 110 },
 ];
 
+// Replaced getCountFromServer with a more standard getDocs with limit(1) to avoid potential permission issues.
 export async function initializeDefaultRules(): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
     const rulesRef = collection(db, 'expenseRules');
-    const q = query(rulesRef, where("city", "==", "La Paz"));
-    const snapshot = await getCountFromServer(q);
+    const q = query(rulesRef, where("city", "==", "La Paz"), limit(1));
+    const snapshot = await getDocs(q);
 
-    if (snapshot.data().count === 0) {
+    if (snapshot.empty) {
         console.log('No default rules found for La Paz. Initializing...');
         const batch = writeBatch(db);
         defaultLaPazRules.forEach(ruleData => {
             const docRef = doc(rulesRef); // Auto-generate ID
-            batch.set(docRef, { ...ruleData, id: docRef.id });
+            // The document's ID is the source of truth, so we don't store an `id` field inside the document data.
+            batch.set(docRef, ruleData);
         });
         await batch.commit();
         console.log('Default La Paz rules have been initialized in Firestore.');
@@ -77,18 +79,23 @@ export async function getExpenseRulesFromFirestore(city: 'La Paz' | 'Uyuni'): Pr
     return [];
   }
 
+  // The ID from the document snapshot is combined with the document data.
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ExpenseRule));
 }
 
+// Rewritten to be cleaner and not store the 'id' field within the document data.
 export async function saveExpenseRulesToFirestore(rules: ExpenseRule[]): Promise<void> {
   if (!db) throw new Error("Firestore not initialized");
   const batch = writeBatch(db);
   const rulesRef = collection(db, 'expenseRules');
 
   rules.forEach(rule => {
-    // If the id is a temporary one, create a new document reference
+    // If the id is a temporary one from the UI, create a new document reference. Otherwise, use the existing ID.
     const docRef = rule.id.startsWith('new_') ? doc(rulesRef) : doc(rulesRef, rule.id);
-    const dataToSave = { ...rule, id: docRef.id }; // Ensure the ID is persisted
+    
+    // Destructure to remove the `id` from the object that gets saved to Firestore.
+    const { id, ...dataToSave } = rule; 
+    
     batch.set(docRef, dataToSave);
   });
 
