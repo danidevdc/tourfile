@@ -3,30 +3,31 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /userProfiles/{userId} {
-      // Un usuario autenticado puede crear y actualizar su propio perfil.
-      allow write: if request.auth != null && request.auth.uid == userId;
-
-      // Un admin puede leer cualquier perfil. Un usuario normal solo puede leer el suyo.
-      allow get: if request.auth != null &&
-                  (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true || request.auth.uid == userId);
-
-      // Solo los administradores pueden listar todos los perfiles de usuario.
-      allow list: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-
-      // Solo un admin puede eliminar perfiles, y no puede eliminarse a sí mismo.
-      allow delete: if request.auth != null &&
-                     get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true &&
-                     request.auth.uid != userId;
+    // Helper function to safely check for admin status
+    function isAdmin() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // --- REGLAS PARA LA LÓGICA DE GASTOS ---
+    match /userProfiles/{userId} {
+      // Any authenticated user can create their own profile.
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // A user can read or update their own profile.
+      // An admin can read any profile.
+      allow get, update: if request.auth != null && (request.auth.uid == userId || isAdmin());
+
+      // Only an admin can list or delete user profiles.
+      allow list, delete: if isAdmin();
+    }
+
     match /expenseRules/{ruleId} {
-      // CUALQUIER usuario autenticado puede LEER las reglas (necesario para el generador).
+      // Any authenticated user can read the rules for the generator to work.
       allow read: if request.auth != null;
 
-      // SOLO un administrador puede crear, actualizar o eliminar las reglas.
-      allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+      // Only admins can create, update, or delete rules.
+      allow write: if isAdmin();
     }
   }
 }
