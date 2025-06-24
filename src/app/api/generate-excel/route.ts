@@ -26,38 +26,22 @@ export async function POST(req: NextRequest) {
     
     const paxCountNumber = parseInt(paxCount, 10) || 0;
 
-    // --- 1. Define Cell Styles ---
-    const thinBorder = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
-    const titleStyle = { font: { name: 'Calibri', sz: 14, bold: true }, alignment: { horizontal: "left", vertical: "center" } };
-    const headerLabelStyle = { font: { name: 'Calibri', sz: 11, bold: true } };
-    const tableHeaderStyle = { font: { name: 'Calibri', sz: 11, bold: true }, border: thinBorder, alignment: { horizontal: "center" } };
-    const currencyFormat = '"Bs." #,##0.00';
-    const dateFormat = "dd/mm/yy";
-
-    const defaultCellStyle = { font: { name: 'Calibri', sz: 11 }, border: thinBorder };
-    const dateCellStyle = { ...defaultCellStyle, numFmt: dateFormat, alignment: { horizontal: "center" } };
-    const numberCellStyle = { ...defaultCellStyle, alignment: { horizontal: "right" } };
-    const currencyCellStyle = { ...numberCellStyle, numFmt: currencyFormat };
-    const totalLabelStyle = { font: { name: 'Calibri', sz: 11, bold: true }, border: thinBorder, alignment: { horizontal: "center" } };
-    const totalValueStyle = { font: { name: 'Calibri', sz: 11, bold: true }, numFmt: currencyFormat, border: thinBorder, alignment: { horizontal: "right" } };
-
-    // --- 2. Build the data for the worksheet ---
+    // --- 1. Build the data array for the worksheet ---
     const ws_data: (string | number | Date | { f: string } | null)[][] = [];
-    ws_data.push(["CAJA CHICA GUIA"]);
-    ws_data.push(["FILE:", fileNumber, null, "NOMBRE GUIA:", guideName.toUpperCase()]);
-    ws_data.push(["NOMBRE Y Nº DE PAX:", null, null, groupName, null, "Nº", Number(paxCount)]);
-    ws_data.push(["FECHA", "CANT", "DETALLE DEL GASTO", null, "P. UNIT", "TOTAL Bs.", "VoB OPS"]);
+    ws_data.push(["CAJA CHICA GUIA"]); // Row 1
+    ws_data.push(["FILE:", fileNumber, null, "NOMBRE GUIA:", guideName.toUpperCase()]); // Row 2
+    ws_data.push(["NOMBRE Y Nº DE PAX:", null, null, groupName, null, "Nº", Number(paxCount)]); // Row 3
+    ws_data.push(["FECHA", "CANT", "DETALLE DEL GASTO", null, "P. UNIT", "TOTAL Bs.", "VoB OPS"]); // Row 4 (Table Header)
 
+    // Add expense items to the data array
     expenseItems.forEach((item: ExpenseItem) => {
       let dateValue: Date | string = "";
       if (item.date) {
-        // Attempt to parse date in dd/MM/yy format
         const parts = item.date.split('/');
         if (parts.length === 3) {
-          // new Date(year, monthIndex, day)
           dateValue = new Date(Number(`20${parts[2]}`), Number(parts[1]) - 1, Number(parts[0]));
         } else {
-          dateValue = item.date; // Fallback for other formats
+          dateValue = item.date;
         }
       }
       
@@ -76,21 +60,19 @@ export async function POST(req: NextRequest) {
       ]);
     });
     
-    const firstExpenseRow = 5; // 1-based index for Excel formula
-    const lastExpenseRow = firstExpenseRow + expenseItems.length - 1;
-    const totalFormula = `SUM(F${firstExpenseRow}:F${lastExpenseRow})`;
+    const firstDataRow = 5; // 1-based index for Excel formula
+    const lastDataRow = firstDataRow + expenseItems.length - 1;
     
-    const totalRowIndex = 4 + expenseItems.length + 1;
-    ws_data.push([]); // Empty row is pushed before total
+    ws_data.push([]); // Blank row before total
+    const totalRowIndex_0_based = 4 + expenseItems.length + 1;
+    const totalFormula = `SUM(F${firstDataRow}:F${lastDataRow})`;
     ws_data.push([null, null, "GASTO TOTAL", null, null, { f: totalFormula }]);
 
 
-    // --- 3. Create worksheet and workbook ---
+    // --- 2. Create worksheet from data array ---
     const ws = XLSX.utils.aoa_to_sheet(ws_data, { cellDates: true });
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'CajaChica');
     
-    // --- 4. Define Merges and Column Widths ---
+    // --- 3. Define Merges and Column Widths ---
     ws['!merges'] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // CAJA CHICA GUIA
       { s: { r: 1, c: 1 }, e: { r: 1, c: 2 } }, // File Number
@@ -98,7 +80,7 @@ export async function POST(req: NextRequest) {
       { s: { r: 2, c: 0 }, e: { r: 2, c: 2 } }, // NOMBRE Y Nº DE PAX text
       { s: { r: 2, c: 3 }, e: { r: 2, c: 4 } }, // Group Name
       { s: { r: 3, c: 2 }, e: { r: 3, c: 3 } }, // DETALLE DEL GASTO header
-      { s: { r: totalRowIndex, c: 2 }, e: { r: totalRowIndex, c: 4 } }, // GASTO TOTAL text
+      { s: { r: totalRowIndex_0_based, c: 2 }, e: { r: totalRowIndex_0_based, c: 4 } }, // GASTO TOTAL text
     ];
     
     expenseItems.forEach((_: any, index: number) => {
@@ -111,55 +93,68 @@ export async function POST(req: NextRequest) {
       { wch: 12 }, { wch: 12 }, { wch: 9 }
     ];
 
-    // --- 5. Apply Cell Styles (Robustly) ---
-    const ensureCell = (r: number, c: number): XLSX.CellObject => {
+    // --- 4. Define all Cell Styles ---
+    const thinBorder = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    
+    const titleStyle = { font: { name: 'Calibri', sz: 14, bold: true }, alignment: { horizontal: "left", vertical: "center" } };
+    const headerLabelStyle = { font: { name: 'Calibri', sz: 11, bold: true } };
+    const tableHeaderStyle = { font: { name: 'Calibri', sz: 11, bold: true }, border: thinBorder, alignment: { horizontal: "center", vertical: "center" } };
+    
+    const defaultCellStyleWithBorder = { font: { name: 'Calibri', sz: 11 }, border: thinBorder, alignment: { vertical: "center" }};
+    const dateCellStyle = { ...defaultCellStyleWithBorder, numFmt: "dd/mm/yy", alignment: { ...defaultCellStyleWithBorder.alignment, horizontal: "center" } };
+    const textCellStyle = { ...defaultCellStyleWithBorder, alignment: { ...defaultCellStyleWithBorder.alignment, horizontal: "left", wrapText: true }};
+    const numberCellStyle = { ...defaultCellStyleWithBorder, alignment: { ...defaultCellStyleWithBorder.alignment, horizontal: "right" }};
+
+    const totalLabelStyle = { font: { name: 'Calibri', sz: 11, bold: true }, border: thinBorder, alignment: { horizontal: "center", vertical: "center" } };
+    const totalValueStyle = { font: { name: 'Calibri', sz: 11, bold: true }, border: thinBorder, alignment: { horizontal: "right", vertical: "center" }, numFmt: "#,##0" };
+
+
+    // --- 5. Apply Styles Cell by Cell ---
+    const getCell = (r: number, c: number): XLSX.CellObject => {
       const address = XLSX.utils.encode_cell({ r, c });
-      if (!ws[address]) {
-        // Create a blank cell if it doesn't exist, so we can style it.
-        ws[address] = { t: 's', v: '' };
-      }
+      if (!ws[address]) { ws[address] = { t: 'z' }; } // Create a stub cell if it doesn't exist
       return ws[address];
     };
-    
-    // Style Title
-    ensureCell(0, 0).s = titleStyle;
 
-    // Style Header Labels
-    ensureCell(1, 0).s = headerLabelStyle;
-    ensureCell(1, 3).s = headerLabelStyle;
-    ensureCell(2, 0).s = headerLabelStyle;
-    ensureCell(2, 5).s = headerLabelStyle;
+    // Style Title and Header Info
+    getCell(0, 0).s = titleStyle;
+    getCell(1, 0).s = headerLabelStyle; // FILE:
+    getCell(1, 3).s = headerLabelStyle; // NOMBRE GUIA:
+    getCell(2, 0).s = headerLabelStyle; // NOMBRE Y No DE PAX:
+    getCell(2, 5).s = headerLabelStyle; // No
 
-    // Style Table Headers (Row 4, which is index 3)
-    for (let C = 0; C <= 6; C++) {
-        if (C === 3) continue; // Skip styling the second part of a merged cell
-        ensureCell(3, C).s = tableHeaderStyle;
+    // Style Table Headers
+    for (let C = 0; C < 7; ++C) {
+      if (C === 3) continue; // Skip merged cell part
+      getCell(3, C).s = tableHeaderStyle;
     }
+     if (getCell(3,3)) { getCell(3,3).s = tableHeaderStyle; } // Style the second part of the merged header
 
-    // Style data rows
+    // Style Data Rows
     for (let R = 4; R < 4 + expenseItems.length; ++R) {
-        ensureCell(R, 0).s = dateCellStyle;
-        ensureCell(R, 1).s = numberCellStyle;
-        ensureCell(R, 2).s = defaultCellStyle;
-        ensureCell(R, 3).s = defaultCellStyle; // Merged part
-        ensureCell(R, 4).s = currencyCellStyle;
-        ensureCell(R, 5).s = currencyCellStyle;
-        ensureCell(R, 6).s = defaultCellStyle;
+        getCell(R, 0).s = dateCellStyle;
+        getCell(R, 1).s = numberCellStyle;
+        getCell(R, 2).s = textCellStyle;
+        getCell(R, 3).s = textCellStyle; // Apply style to second part of merge too
+        getCell(R, 4).s = numberCellStyle;
+        getCell(R, 5).s = { ...numberCellStyle, numFmt: "#,##0" }; // Total column with number format
+        getCell(R, 6).s = defaultCellStyleWithBorder;
     }
     
-    // Style total row
-    ensureCell(totalRowIndex, 2).s = totalLabelStyle; // GASTO TOTAL
-    ensureCell(totalRowIndex, 5).s = totalValueStyle; // Total value
-    
-    // Add borders to the blank cells in the total row for a clean look
-    ensureCell(totalRowIndex, 0).s = { border: thinBorder };
-    ensureCell(totalRowIndex, 1).s = { border: thinBorder };
-    ensureCell(totalRowIndex, 3).s = { border: thinBorder }; // Merged part
-    ensureCell(totalRowIndex, 4).s = { border: thinBorder }; // Merged part
-    ensureCell(totalRowIndex, 6).s = { border: thinBorder };
+    // Style Total Row
+    getCell(totalRowIndex_0_based, 2).s = totalLabelStyle; // GASTO TOTAL
+    getCell(totalRowIndex_0_based, 5).s = totalValueStyle; // Total value cell
+    // Apply borders to the other cells in the total row
+    getCell(totalRowIndex_0_based, 0).s = { border: thinBorder };
+    getCell(totalRowIndex_0_based, 1).s = { border: thinBorder };
+    getCell(totalRowIndex_0_based, 3).s = { border: thinBorder };
+    getCell(totalRowIndex_0_based, 4).s = { border: thinBorder };
+    getCell(totalRowIndex_0_based, 6).s = { border: thinBorder };
 
 
     // --- 6. Generate Buffer and Return Response ---
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'CajaChica');
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
     const safeGroupName = String(groupName).replace(/[/\\]/g, '_');
