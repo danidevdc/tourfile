@@ -74,12 +74,15 @@ export async function POST(req: NextRequest) {
       ]);
     });
     
-    ws_data.push([]);
-    const firstExpenseRow = 5;
+    ws_data.push([]); // Empty row is pushed
+    const firstExpenseRow = 5; // 1-based index for Excel formula
     const lastExpenseRow = firstExpenseRow + expenseItems.length - 1;
     const totalFormula = `SUM(F${firstExpenseRow}:F${lastExpenseRow})`;
-    const totalRowIndex = ws_data.length;
+    
+    // The total row will be at index (0-indexed): 4 (headers) + expenseItems.length + 1 (empty row)
+    const totalRowIndex = 4 + expenseItems.length + 1;
     ws_data.push([null, null, "GASTO TOTAL", null, null, { f: totalFormula }]);
+
 
     // --- 3. Create worksheet and workbook ---
     const ws = XLSX.utils.aoa_to_sheet(ws_data, { cellDates: true });
@@ -107,42 +110,51 @@ export async function POST(req: NextRequest) {
       { wch: 12 }, { wch: 12 }, { wch: 9 }
     ];
 
-    // --- 5. Apply Cell Styles ---
-    const getCell = (r: number, c: number) => ws[XLSX.utils.encode_cell({ r, c })];
+    // --- 5. Apply Cell Styles (Robustly) ---
+    const ensureCell = (r: number, c: number): XLSX.CellObject => {
+      const address = XLSX.utils.encode_cell({ r, c });
+      if (!ws[address]) {
+        // Create a blank cell if it doesn't exist, so we can style it.
+        ws[address] = { t: 's', v: '' };
+      }
+      return ws[address];
+    };
     
     // Style Title
-    getCell(0, 0).s = titleStyle;
+    ensureCell(0, 0).s = titleStyle;
 
     // Style Header Labels
-    [[1, 0], [1, 3], [2, 0], [2, 5]].forEach(([r, c]) => {
-      getCell(r, c).s = headerLabelStyle;
-    });
+    ensureCell(1, 0).s = headerLabelStyle;
+    ensureCell(1, 3).s = headerLabelStyle;
+    ensureCell(2, 0).s = headerLabelStyle;
+    ensureCell(2, 5).s = headerLabelStyle;
 
-    // Style Table Headers (Row 4)
+    // Style Table Headers (Row 4, which is index 3)
     for (let C = 0; C <= 6; C++) {
-        if (!getCell(3,C)) continue;
-        getCell(3, C).s = tableHeaderStyle;
+        if (C === 3) continue; // Skip styling the second part of a merged cell
+        ensureCell(3, C).s = tableHeaderStyle;
     }
 
     // Style data rows
     for (let R = 4; R < 4 + expenseItems.length; ++R) {
-        getCell(R, 0).s = dateCellStyle;
-        getCell(R, 1).s = numberCellStyle;
-        getCell(R, 2).s = defaultCellStyle;
-        getCell(R, 3).s = defaultCellStyle; // Merged cell placeholder
-        getCell(R, 4).s = currencyCellStyle;
-        getCell(R, 5).s = currencyCellStyle;
-        getCell(R, 6).s = defaultCellStyle;
+        ensureCell(R, 0).s = dateCellStyle;
+        ensureCell(R, 1).s = numberCellStyle;
+        ensureCell(R, 2).s = defaultCellStyle;
+        ensureCell(R, 4).s = currencyCellStyle;
+        ensureCell(R, 5).s = currencyCellStyle;
+        ensureCell(R, 6).s = defaultCellStyle;
     }
     
     // Style total row
-    getCell(totalRowIndex, 2).s = totalLabelStyle; // GASTO TOTAL
-    getCell(totalRowIndex, 5).s = totalValueStyle; // Total value
+    ensureCell(totalRowIndex, 2).s = totalLabelStyle; // GASTO TOTAL
+    ensureCell(totalRowIndex, 5).s = totalValueStyle; // Total value
     
-    // Add borders to other cells in total row
-    getCell(totalRowIndex, 0) ? getCell(totalRowIndex, 0).s = {border: thinBorder} : ws[XLSX.utils.encode_cell({ r: totalRowIndex, c: 0 })] = {v: '', t: 's', s: {border: thinBorder}};
-    getCell(totalRowIndex, 1) ? getCell(totalRowIndex, 1).s = {border: thinBorder} : ws[XLSX.utils.encode_cell({ r: totalRowIndex, c: 1 })] = {v: '', t: 's', s: {border: thinBorder}};
-    getCell(totalRowIndex, 6) ? getCell(totalRowIndex, 6).s = {border: thinBorder} : ws[XLSX.utils.encode_cell({ r: totalRowIndex, c: 6 })] = {v: '', t: 's', s: {border: thinBorder}};
+    // Add borders to the blank cells in the total row for a clean look
+    ensureCell(totalRowIndex, 0).s = { border: thinBorder };
+    ensureCell(totalRowIndex, 1).s = { border: thinBorder };
+    ensureCell(totalRowIndex, 3).s = { border: thinBorder };
+    ensureCell(totalRowIndex, 4).s = { border: thinBorder };
+    ensureCell(totalRowIndex, 6).s = { border: thinBorder };
 
 
     // --- 6. Generate Buffer and Return Response ---
@@ -167,5 +179,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to generate Excel file.", details: errorMessage }, { status: 500 });
   }
 }
-
-    
