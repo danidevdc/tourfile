@@ -51,11 +51,13 @@ export async function POST(req: NextRequest) {
     expenseItems.forEach((item: ExpenseItem) => {
       let dateValue: Date | string = "";
       if (item.date) {
+        // Attempt to parse date in dd/MM/yy format
         const parts = item.date.split('/');
         if (parts.length === 3) {
+          // new Date(year, monthIndex, day)
           dateValue = new Date(Number(`20${parts[2]}`), Number(parts[1]) - 1, Number(parts[0]));
         } else {
-          dateValue = item.date;
+          dateValue = item.date; // Fallback for other formats
         }
       }
       
@@ -74,13 +76,12 @@ export async function POST(req: NextRequest) {
       ]);
     });
     
-    ws_data.push([]); // Empty row is pushed
     const firstExpenseRow = 5; // 1-based index for Excel formula
     const lastExpenseRow = firstExpenseRow + expenseItems.length - 1;
     const totalFormula = `SUM(F${firstExpenseRow}:F${lastExpenseRow})`;
     
-    // The total row will be at index (0-indexed): 4 (headers) + expenseItems.length + 1 (empty row)
     const totalRowIndex = 4 + expenseItems.length + 1;
+    ws_data.push([]); // Empty row is pushed before total
     ws_data.push([null, null, "GASTO TOTAL", null, null, { f: totalFormula }]);
 
 
@@ -140,6 +141,7 @@ export async function POST(req: NextRequest) {
         ensureCell(R, 0).s = dateCellStyle;
         ensureCell(R, 1).s = numberCellStyle;
         ensureCell(R, 2).s = defaultCellStyle;
+        ensureCell(R, 3).s = defaultCellStyle; // Merged part
         ensureCell(R, 4).s = currencyCellStyle;
         ensureCell(R, 5).s = currencyCellStyle;
         ensureCell(R, 6).s = defaultCellStyle;
@@ -152,8 +154,8 @@ export async function POST(req: NextRequest) {
     // Add borders to the blank cells in the total row for a clean look
     ensureCell(totalRowIndex, 0).s = { border: thinBorder };
     ensureCell(totalRowIndex, 1).s = { border: thinBorder };
-    ensureCell(totalRowIndex, 3).s = { border: thinBorder };
-    ensureCell(totalRowIndex, 4).s = { border: thinBorder };
+    ensureCell(totalRowIndex, 3).s = { border: thinBorder }; // Merged part
+    ensureCell(totalRowIndex, 4).s = { border: thinBorder }; // Merged part
     ensureCell(totalRowIndex, 6).s = { border: thinBorder };
 
 
