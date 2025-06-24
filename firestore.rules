@@ -4,44 +4,41 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Rules for user profiles
-    match /userProfiles/{userId} {
-      // An authenticated user can read their own profile. An admin can read any profile.
-      allow get: if request.auth != null && (request.auth.uid == userId || (
-                    exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
-                    get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true
-                  ));
-
-      // Only an admin can list all user profiles.
-      allow list: if request.auth != null &&
-                   exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
-                   get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-      
-      // An authenticated user can create their own profile.
-      allow create: if request.auth != null && request.auth.uid == userId;
-      
-      // A user can update their own profile. An admin can update any profile.
-      allow update: if request.auth != null && (request.auth.uid == userId || (
-                      exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
-                      get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true
-                    ));
-      
-      // Only an admin can delete a user profile (and not their own, for safety).
-      allow delete: if request.auth != null &&
-                     exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
-                     get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true &&
-                     request.auth.uid != userId;
+    // Helper functions to make rules cleaner and reusable
+    function isAuthOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
-    // Rules for the expense rules logic
+    function isAuthAdmin() {
+      // An admin is someone whose profile has isAdmin:true OR is the hardcoded superadmin email.
+      // The exists() check prevents errors if the user profile doc hasn't been created yet.
+      return request.auth != null && (
+        (exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true) ||
+        (request.auth.token.email == 'daniish77@gmail.com')
+      );
+    }
+
+    // Rules for user profiles
+    match /userProfiles/{userId} {
+      // An authenticated user can create their own profile.
+      allow create: if isAuthOwner(userId);
+      // An authenticated user can update their own profile. Admin can update any profile.
+      allow update: if isAuthOwner(userId) || isAuthAdmin();
+      // An authenticated user can get their own profile. Admin can get any profile.
+      allow get: if isAuthOwner(userId) || isAuthAdmin();
+      // Only admins can list all profiles.
+      allow list: if isAuthAdmin();
+      // Only admins can delete profiles.
+      allow delete: if isAuthAdmin();
+    }
+
+    // Rules for expense logic
     match /expenseRules/{ruleId} {
-      // Any authenticated user can read the rules (needed for the generator to work).
+      // Anyone authenticated can read the rules (needed for the generator to work for non-admins).
       allow read: if request.auth != null;
-      
-      // ONLY an admin can write (create, update, delete) the rules.
-      allow write: if request.auth != null && 
-                      exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
-                      get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+      // Only admins can write (create, update, delete) the rules.
+      allow write: if isAuthAdmin();
     }
   }
 }
