@@ -495,7 +495,10 @@ export default function GeneratorPage() {
         const files = await Promise.all(filePromises);
 
         files.forEach(file => {
-            zip.file(file.fileName, file.blob);
+            // Sanitize the filename to prevent subfolder creation in the zip file.
+            // Slashes are interpreted as directory separators by JSZip.
+            const sanitizedFileName = file.fileName.replace(/[/\\]/g, '_');
+            zip.file(sanitizedFileName, file.blob);
         });
 
         const zipBlob = await zip.generateAsync({ type: "blob" });
@@ -787,3 +790,5 @@ export default function GeneratorPage() {
     </div>
   );
 }
+
+    
