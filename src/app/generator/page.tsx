@@ -389,7 +389,7 @@ export default function GeneratorPage() {
 
   const handleApiExcelDownload = async (report: GeneratedReportInfo) => {
     setIsDownloadingReportId(report.id);
-    const apiUrl = '/api/generate-excel-python'; 
+    const apiUrl = '/api/generate-excel'; 
 
     try {
       const response = await fetch(apiUrl, {
@@ -407,9 +407,10 @@ export default function GeneratorPage() {
             errorMessage = errorData.error || errorMessage;
         } catch (e) {
             // Could not parse JSON, use the raw text
-            errorMessage = await response.text();
+            const textError = await response.text();
+            console.error('Server error response:', textError);
+            errorMessage = textError;
         }
-        console.error('Server error response:', errorMessage);
         throw new Error(errorMessage);
       }
 
@@ -460,7 +461,7 @@ export default function GeneratorPage() {
     });
 
     const zip = new JSZip();
-    const apiUrl = '/api/generate-excel-python';
+    const apiUrl = '/api/generate-excel';
 
     try {
         const filePromises = generatedReports.map(async (report) => {

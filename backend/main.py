@@ -1,11 +1,12 @@
-#!/usr/bin/env python3
-import sys
-import json
-import os
+
+from flask import Flask, request, send_file, jsonify
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 from datetime import datetime
+import io
+import traceback
+
+app = Flask(__name__)
 
 def apply_borders(ws, min_row, max_row, min_col, max_col):
     thin_border = Border(
@@ -18,7 +19,7 @@ def apply_borders(ws, min_row, max_row, min_col, max_col):
         for col_idx in range(min_col, max_col + 1):
             ws.cell(row=row_idx, column=col_idx).border = thin_border
 
-def generate_excel(data, output_path):
+def generate_excel_in_memory(data):
     try:
         wb = Workbook()
         ws = wb.active
@@ -30,7 +31,7 @@ def generate_excel(data, output_path):
         pax_count = int(data.get("paxCount", 0))
         expense_items = data.get("expenseItems", [])
 
-        header_font = Font(name='Calibri', size=11, bold=True) 
+        header_font = Font(name='Calibri', size=11, bold=True)
         
         center_alignment = Alignment(horizontal="center", vertical="center")
         right_alignment = Alignment(horizontal="right", vertical="center")
@@ -41,7 +42,7 @@ def generate_excel(data, output_path):
 
         ws['A1'] = "CAJA CHICA GUIA"
         ws['A1'].font = Font(name='Calibri', size=14, bold=True)
-        ws['A1'].alignment = left_alignment 
+        ws['A1'].alignment = left_alignment
         ws.merge_cells('A1:G1')
 
         ws['A2'] = "FILE:"
@@ -86,7 +87,9 @@ def generate_excel(data, output_path):
                     date_obj = datetime.strptime(date_val_str, "%d/%m/%y")
                     date_cell.value = date_obj
                     date_cell.number_format = date_format_ddmmyy
-                except ValueError:
+                except (ValueError, TypeError):
+                     # Handle cases where date is not in the expected format or is already a date object.
+                     # This can be adjusted based on expected data formats.
                     date_cell.value = date_val_str
             else:
                 date_cell.value = ""
@@ -98,7 +101,7 @@ def generate_excel(data, output_path):
             else:
                 try:
                     ws.cell(row=current_row, column=2, value=float(quantity_str)).alignment = center_alignment
-                except ValueError:
+                except (ValueError, TypeError):
                     ws.cell(row=current_row, column=2, value=quantity_str).alignment = center_alignment
 
             ws.cell(row=current_row, column=3, value=item.get("detail", "")).alignment = center_alignment
@@ -107,8 +110,8 @@ def generate_excel(data, output_path):
             unit_price_val = item.get("unitPrice", 0)
             try:
                 unit_price_val = float(unit_price_val)
-            except ValueError:
-                unit_price_val = 0 
+            except (ValueError, TypeError):
+                unit_price_val = 0
             
             unit_price_cell = ws.cell(row=current_row, column=5, value=unit_price_val)
             unit_price_cell.number_format = currency_format
@@ -132,7 +135,7 @@ def generate_excel(data, output_path):
         grand_total_cell.number_format = currency_format
         grand_total_cell.alignment = right_alignment
         
-        ws.column_dimensions['A'].width = 12 
+        ws.column_dimensions['A'].width = 12
         ws.column_dimensions['B'].width = 9.14
         ws.column_dimensions['C'].width = 9.14
         ws.column_dimensions['D'].width = 14.85
@@ -140,31 +143,48 @@ def generate_excel(data, output_path):
         ws.column_dimensions['F'].width = 9.14
         ws.column_dimensions['G'].width = 9.14
 
-        max_data_row = current_row 
+        max_data_row = current_row
         apply_borders(ws, min_row=1, max_row=max_data_row, min_col=1, max_col=7)
 
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        wb.save(output_path)
+        in_memory_fp = io.BytesIO()
+        wb.save(in_memory_fp)
+        in_memory_fp.seek(0)
+        return in_memory_fp
+
+    except Exception:
+        traceback.print_exc()
+        raise
+
+@app.route("/", methods=['POST'])
+def handle_excel_generation():
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+
+    report_data = request.get_json()
+    if not report_data:
+        return jsonify({"error": "Bad Request: Missing report data"}), 400
+
+    try:
+        excel_buffer = generate_excel_in_memory(report_data)
+
+        safe_group_name = str(report_data.get("groupName", "grupo")).replace('/', '_').replace('\\', '_')
+        safe_guide_name = str(report_data.get("guideName", "guia")).replace('/', '_').replace('\\', '_')
+        safe_file_number = str(report_data.get("fileNumber", "file")).replace('/', '_').replace('\\', '_')
+        start_date = report_data.get("startDate", "")
+        
+        final_constructed_file_name = f"G.O. {start_date} - {safe_group_name} - {safe_guide_name} - {safe_file_number}.xlsx"
+
+        return send_file(
+            excel_buffer,
+            as_attachment=True,
+            download_name=final_constructed_file_name,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
 
     except Exception as e:
-        sys.stderr.write(f"Python script error during Excel generation: {str(e)}\\n")
-        sys.exit(1) 
+        print(f"Internal server error: {e}")
+        traceback.print_exc()
+        return jsonify({"error": "An internal error occurred during Excel generation."}), 500
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2: 
-        sys.stderr.write("Usage: python excel_generator.py <output_xlsx_path>\\n")
-        sys.exit(1)
-
-    output_xlsx_path = sys.argv[1]
-    
-    try:
-        data_to_process = json.load(sys.stdin)
-    except json.JSONDecodeError as e:
-        sys.stderr.write(f"Error: Invalid JSON received: {str(e)}\\n")
-        sys.exit(1)
-    
-    if not output_xlsx_path:
-        sys.stderr.write("Error: Output path not provided.\\n")
-        sys.exit(1)
-
-    generate_excel(data_to_process, output_xlsx_path)
+    app.run(host="0.0.0.0", port=8080)
