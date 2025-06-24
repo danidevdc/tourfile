@@ -13,14 +13,6 @@ export default function HomePage() {
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth(); 
   const { toast } = useToast(); 
 
-  const handleEditLogicClick = () => {
-    toast({
-      title: "Próximamente",
-      description: "La funcionalidad para editar la lógica del generador estará disponible pronto.",
-      variant: "default",
-    });
-  };
-
   const appVersion = process.env.NEXT_PUBLIC_APP_ENV && process.env.NEXT_PUBLIC_APP_ENV !== "production"
     ? `${version}-${process.env.NEXT_PUBLIC_APP_ENV}`
     : version;
@@ -58,19 +50,20 @@ export default function HomePage() {
 
             {!authLoading && isCurrentUserAdmin && (
               <>
-                <Button
-                  variant="secondary" 
-                  className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
-                  onClick={handleEditLogicClick}
-                >
-                  <FilePenLine className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
-                  <div className="text-left flex-grow">
-                    <span className="block text-2xl font-bold text-secondary-foreground">
-                      Editar Lógica Generador LPZ
-                    </span>
-                  </div>
-                  <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-                </Button>
+                <Link href="/admin/edit-logic" passHref>
+                  <Button
+                    variant="secondary" 
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
+                  >
+                    <FilePenLine className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                    <div className="text-left flex-grow">
+                      <span className="block text-2xl font-bold text-secondary-foreground">
+                        Editar Lógica Generador LPZ
+                      </span>
+                    </div>
+                    <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                  </Button>
+                </Link>
 
                 <Link href="/admin/users" passHref>
                   <Button

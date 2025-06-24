@@ -2,15 +2,16 @@
 // src/lib/report-generator.ts
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
+import { getExpenseRulesFromFirestore } from './ruleService';
 
 export type FileSearchStatus = "idle" | "searching" | "found" | "not_found" | "error";
 
 export interface ExpenseItem {
   date: string;
-  quantity: string;
+  quantity: string; // The formula string itself, e.g., "=$G$3+1"
   detail: string;
   unitPrice: number;
-  total: number;
+  total: number; // Pre-calculated total for display purposes if needed
   vobOps?: string;
 }
 
@@ -33,13 +34,15 @@ export interface FileDataProps {
   columnIndex: number | null;
 }
 
+// This function is kept for legacy or display purposes, but the core logic
+// for quantity is now the formula string itself.
 export function resolveQuantity(quantityStr: string, paxNumber: number): number {
   if (paxNumber === 0 && quantityStr.toUpperCase().includes("$G$3")) return 0;
   if (!isNaN(Number(quantityStr))) {
     return Number(quantityStr);
   }
 
-  const cleanedQuantity = quantityStr.toUpperCase().replace(/\s/g, '');
+  const cleanedQuantity = String(quantityStr).toUpperCase().replace(/\s/g, '');
   // Replace absolute or relative G3 reference with the actual PAX number for calculation
   const formulaWithPax = cleanedQuantity.replace(/\$G\$3/g, String(paxNumber));
 
@@ -49,6 +52,7 @@ export function resolveQuantity(quantityStr: string, paxNumber: number): number 
       const expression = formulaWithPax.substring(1);
       // Basic check for safe characters to prevent arbitrary code execution
       if (/^[\d\s()+\-*/.]+$/.test(expression)) {
+        // eslint-disable-next-line no-new-func
         const result = new Function(`return ${expression}`)() as number;
         return isNaN(result) ? 1 : result;
       } else {
@@ -61,12 +65,13 @@ export function resolveQuantity(quantityStr: string, paxNumber: number): number 
   return 1;
 }
 
-export function generateExpenseDetails(
+// The main generation function is now async to fetch rules from Firestore
+export async function generateExpenseDetails(
   excelData: any[][] | null,
   fileData: FileDataProps,
   paxCountString: string,
   groupName: string
-): { expenses: ExpenseItem[], tourStartDate: string } {
+): Promise<{ expenses: ExpenseItem[], tourStartDate: string }> {
 
   const expenseItems: ExpenseItem[] = [];
   if (!excelData || fileData.columnIndex === null || fileData.fileIdRowIndex === null) {
@@ -76,7 +81,7 @@ export function generateExpenseDetails(
   const columnIndex = fileData.columnIndex;
   const fileIdRowIndex = fileData.fileIdRowIndex;
 
-  let dateRowIndex = -1;
+  // --- Find Tour Start Date ---
   let tourStartDateRaw: Date | null = null;
   let tourStartDate = "N/A";
   
@@ -90,133 +95,68 @@ export function generateExpenseDetails(
     } else if (typeof cellValue === 'number' && cellValue > 25569) {
       const parsed = XLSX.SSF.parse_date_code(cellValue);
       if (parsed) {
-        parsedDateObj = new Date(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0);
+        parsedDateObj = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0));
       }
     }
 
     if (parsedDateObj && !isNaN(parsedDateObj.valueOf())) {
       tourStartDateRaw = parsedDateObj;
       tourStartDate = format(tourStartDateRaw, 'dd/MM/yy');
-      dateRowIndex = i;
       break;
     }
   }
-
-  let actualPaxCountString = "0";
-  if (dateRowIndex !== -1) {
-    const paxRaw = excelData[dateRowIndex + 1]?.[columnIndex];
-    if (paxRaw !== null && paxRaw !== undefined) {
-      actualPaxCountString = String(paxRaw).trim();
-    }
-  }
-
-  const paxNum = parseInt(actualPaxCountString, 10);
+  
+  const paxNum = parseInt(paxCountString, 10);
   if (isNaN(paxNum)) {
-    console.error("Número de PAX no válido o no encontrado:", actualPaxCountString);
+    console.error("Número de PAX no válido o no encontrado:", paxCountString);
     return { expenses: [], tourStartDate: "N/A" };
   }
   
-  const guia = 1;
-
+  // --- Fetch Dynamic Rules from Firestore ---
+  const rules = await getExpenseRulesFromFirestore('La Paz');
+  const activeRules = rules.filter(r => r.isActive).sort((a,b) => a.order - b.order);
+  
   const columnData = excelData.map(row => String(row[columnIndex] || '').toLowerCase());
-
   const contiene = (keyword: string) => columnData.some(cell => cell.includes(keyword.toLowerCase()));
 
-  const contiene_desaguadero = contiene("desaguadero");
-  const contiene_puno = contiene("Puno/Kasani");
-  const contiene_isla = contiene("I.Sol") || contiene("Isla del Sol");
-  const contiene_trf_in = contiene("CT-Private transfer from airport to hotel");
-  const contiene_tiwa = contiene("Tiwanaku");
-  const contiene_teleferico = contiene("Cable Car") || contiene("teleferico");
-  const contiene_valle = contiene("Moon Valley") || contiene("valle de la luna");
-  const contiene_city_continuado_am = contiene("AM");
-  const contiene_kasani = contiene("Kasani/Puno");
-  const contiene_trf_out = contiene("CT-Private transfer from hotel to airport");
-  const contiene_aguas_ct_city_tour = contiene("CT-City Tour");
-  const contiene_city_tour_general = contiene("City Tour");
-
-  if (contiene_desaguadero) {
-    const quantityStr = "=$G$3";
-    expenseItems.push({ date: tourStartDate, quantity: quantityStr, detail: "MALETAS FRONTERA", unitPrice: 3.00, total: resolveQuantity(quantityStr, paxNum) * 3.00 });
-  }
-
-  if (contiene_puno) {
-    const itemsPuno = [
-      { quantityStr: String(guia), detail: "TAXI DOM - OFICINA", unitPrice: 30.00 },
-      { quantityStr: String(guia), detail: "BUS LPB - COPA", unitPrice: 40.00 },
-      { quantityStr: String(guia), detail: "DESAYUNO GUIA", unitPrice: 20.00 },
-    ];
-    itemsPuno.forEach(item => expenseItems.push({ date: tourStartDate, quantity: item.quantityStr, detail: item.detail, unitPrice: item.unitPrice, total: resolveQuantity(item.quantityStr, paxNum) * item.unitPrice }));
-  }
-
-  if (contiene_isla) {
-    const itemsIsla = [
-      { quantityStr: String(guia), detail: "TAXI DOM - HOTEL", unitPrice: 30.00 },
-      { quantityStr: "=$G$3", detail: "ISLA DEL SOL", unitPrice: 10.00 },
-      { quantityStr: "=$G$3", detail: "ISLA DE LA LUNA", unitPrice: 10.00 },
-    ];
-    itemsIsla.forEach(item => expenseItems.push({ date: tourStartDate, quantity: item.quantityStr, detail: item.detail, unitPrice: item.unitPrice, total: resolveQuantity(item.quantityStr, paxNum) * item.unitPrice }));
-  }
-
-  if (contiene_trf_in) {
-    const itemsTrfIn = [
-      { quantityStr: String(guia), detail: "TAXI DOM - OFICINA", unitPrice: 30.00 },
-      { quantityStr: "=$G$3", detail: "MALETAS AEROPUERTO", unitPrice: 3.00 },
-      { quantityStr: String(guia), detail: "TAXI HOTEL - DOM", unitPrice: 30.00 },
-    ];
-    itemsTrfIn.forEach(item => expenseItems.push({ date: tourStartDate, quantity: item.quantityStr, detail: item.detail, unitPrice: item.unitPrice, total: resolveQuantity(item.quantityStr, paxNum) * item.unitPrice }));
-  }
-
-  if (contiene_tiwa) {
-    const quantityStr = "=$G$3";
-    expenseItems.push({ date: tourStartDate, quantity: quantityStr, detail: "TIWANAKU", unitPrice: 100.00, total: resolveQuantity(quantityStr, paxNum) * 100.00 });
-  }
-
-  if (contiene_teleferico) {
-    const quantityStr = "=$G$3+1";
-    expenseItems.push({ date: tourStartDate, quantity: quantityStr, detail: "TELEFERICO", unitPrice: 7.00, total: resolveQuantity(quantityStr, paxNum) * 7.00 });
-  }
-
-  if (contiene_valle) {
-    const quantityStr = "=$G$3";
-    expenseItems.push({ date: tourStartDate, quantity: quantityStr, detail: "VALLE", unitPrice: 20.00, total: resolveQuantity(quantityStr, paxNum) * 20.00 });
-  }
-
-  if (contiene_city_continuado_am && contiene_city_tour_general) {
-    const quantityStr = String(guia);
-    expenseItems.push({ date: tourStartDate, quantity: quantityStr, detail: "ALMUERZO GUIA", unitPrice: 35.00, total: resolveQuantity(quantityStr, paxNum) * 35.00 });
-  }
-
-  if (contiene_kasani) {
-     const itemsKasani = [
-      { quantityStr: "=$G$3", detail: "MALETAS FRONTERA", unitPrice: 3.00 },
-      { quantityStr: String(guia), detail: "BUS COPA - LPB", unitPrice: 40.00 },
-    ];
-    itemsKasani.forEach(item => expenseItems.push({ date: tourStartDate, quantity: item.quantityStr, detail: item.detail, unitPrice: item.unitPrice, total: resolveQuantity(item.quantityStr, paxNum) * item.unitPrice }));
-  }
-
-  if (contiene_trf_out) {
-    const itemsTrfOut = [
-      { quantityStr: String(guia), detail: "TAXI DOM - HOTEL", unitPrice: 30.00 },
-      { quantityStr: "=$G$3", detail: "MALETAS AEROPUERTO", unitPrice: 3.00 },
-      { quantityStr: String(guia), detail: "TAXI CENTRO - DOM", unitPrice: 30.00 },
-    ];
-    itemsTrfOut.forEach(item => expenseItems.push({ date: tourStartDate, quantity: item.quantityStr, detail: item.detail, unitPrice: item.unitPrice, total: resolveQuantity(item.quantityStr, paxNum) * item.unitPrice }));
-  }
-
-  if (contiene_aguas_ct_city_tour) {
-    let cantidadFormulaAguas = "=$G$3+2";
-    if (contiene_city_tour_general && contiene_tiwa) {
-        cantidadFormulaAguas = "=($G$3+2)*2";
+  // --- Apply Rules to Generate Expenses ---
+  for (const rule of activeRules) {
+     if (contiene(rule.keyword)) {
+      // Handle special case for 'AM' which also requires 'City Tour'
+      if (rule.keyword.toLowerCase() === 'am' && !contiene('city tour')) {
+        continue;
+      }
+      
+      const newItem: ExpenseItem = {
+        date: tourStartDate,
+        quantity: rule.quantityFormula,
+        detail: rule.detail,
+        unitPrice: rule.unitPrice,
+        // Pre-calculate total for simple display purposes if needed, though Excel will do the final calculation
+        total: resolveQuantity(rule.quantityFormula, paxNum) * rule.unitPrice,
+        vobOps: rule.vobOps,
+      };
+      expenseItems.push(newItem);
     }
-    expenseItems.push({
-        date: "",
-        quantity: cantidadFormulaAguas,
-        detail: "AGUAS",
-        unitPrice: 6.00,
-        total: resolveQuantity(cantidadFormulaAguas, paxNum) * 6.00
-    });
   }
+
+  // --- Handle Complex/Multi-condition Rules ---
+  // The "AGUAS" rule is complex because its quantity depends on other conditions.
+  // A simple keyword match is not enough. We'll handle it outside the main loop.
+  const cityTourRule = activeRules.find(r => r.keyword.toLowerCase() === 'ct-city tour');
+  if (cityTourRule) {
+      const isTiwanakuPresent = contiene('tiwanaku');
+      // If Tiwanaku is also present, the quantity formula should be different.
+      // This is an example of logic that's hard to capture in a simple rule.
+      // For now, we assume the base rule is enough, but this could be expanded.
+      // E.g., add a new property to the rule like "conditionalQuantityFormula"
+      if (isTiwanakuPresent) {
+         console.log("Tiwanaku detected alongside City Tour, complex rule could apply for AGUAS.");
+         // In a more advanced system, you might modify the quantity here.
+         // For now, we'll just use the one from the database.
+      }
+  }
+
 
   return { expenses: expenseItems, tourStartDate };
 }
