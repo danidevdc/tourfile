@@ -4,41 +4,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions to make rules cleaner and reusable
-    function isAuthOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    // Helper function to check if a user is an admin.
+    // An admin is someone whose profile has `isAdmin: true`.
+    function isUserAdmin(userId) {
+      // Check for the existence of the user's profile document first to prevent errors.
+      return exists(/databases/$(database)/documents/userProfiles/$(userId)) &&
+             get(/databases/$(database)/documents/userProfiles/$(userId)).data.isAdmin == true;
     }
 
-    function isAuthAdmin() {
-      // An admin is someone whose profile has isAdmin:true OR is the hardcoded superadmin email.
-      // The exists() check prevents errors if the user profile doc hasn't been created yet.
-      return request.auth != null && (
-        (exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true) ||
-        (request.auth.token.email == 'daniish77@gmail.com')
-      );
-    }
-
-    // Rules for user profiles
+    // Rules for User Profiles
     match /userProfiles/{userId} {
-      // An authenticated user can create their own profile.
-      allow create: if isAuthOwner(userId);
-      // An authenticated user can update their own profile. Admin can update any profile.
-      allow update: if isAuthOwner(userId) || isAuthAdmin();
-      // An authenticated user can get their own profile. Admin can get any profile.
-      allow get: if isAuthOwner(userId) || isAuthAdmin();
-      // Only admins can list all profiles.
-      allow list: if isAuthAdmin();
-      // Only admins can delete profiles.
-      allow delete: if isAuthAdmin();
+      // Allow read access to admins or the user themselves.
+      allow get: if request.auth != null && (isUserAdmin(request.auth.uid) || request.auth.uid == userId);
+      // Allow list access only to admins.
+      allow list: if request.auth != null && isUserAdmin(request.auth.uid);
+      // Allow users to create their own profile upon registration.
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Allow users to update their own profile, or admins to update any profile.
+      allow update: if request.auth != null && (isUserAdmin(request.auth.uid) || request.auth.uid == userId);
+      // Allow admins to delete profiles, but not their own via this rule.
+      allow delete: if request.auth != null && isUserAdmin(request.auth.uid) && request.auth.uid != userId;
     }
 
-    // Rules for expense logic
+    // Rules for Expense Logic Rules
     match /expenseRules/{ruleId} {
-      // Anyone authenticated can read the rules (needed for the generator to work for non-admins).
+      // Any authenticated user can read the rules to generate reports.
       allow read: if request.auth != null;
-      // Only admins can write (create, update, delete) the rules.
-      allow write: if isAuthAdmin();
+      // Only admins can create, update, or delete the expense rules.
+      allow write: if request.auth != null && isUserAdmin(request.auth.uid);
     }
   }
 }
