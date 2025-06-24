@@ -1,0 +1,5 @@
+# apphosting.yaml
+run: npm run start
+env:
+  - variable: BROWSER_ARGS
+    value: "--no-sandbox"

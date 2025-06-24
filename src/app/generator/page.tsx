@@ -389,11 +389,10 @@ export default function GeneratorPage() {
 
   const handleApiExcelDownload = async (report: GeneratedReportInfo) => {
     setIsDownloadingReportId(report.id);
-    // IMPORTANT: Replace 'tourfileprocessor' with your actual Firebase project ID.
-    const cloudFunctionUrl = 'https://us-central1-tourfileprocessor.cloudfunctions.net/generateExcel';
+    const apiUrl = '/api/generate-excel-python'; 
 
     try {
-      const response = await fetch(cloudFunctionUrl, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -402,9 +401,16 @@ export default function GeneratorPage() {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server error response:', errorText);
-        throw new Error(`Error del servidor (${response.status}): ${errorText}`);
+        let errorMessage = `Error del servidor (${response.status})`;
+        try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+            // Could not parse JSON, use the raw text
+            errorMessage = await response.text();
+        }
+        console.error('Server error response:', errorMessage);
+        throw new Error(errorMessage);
       }
 
       const contentDisposition = response.headers.get('Content-Disposition');
@@ -454,12 +460,11 @@ export default function GeneratorPage() {
     });
 
     const zip = new JSZip();
-    const cloudFunctionUrl = 'https://us-central1-tourfileprocessor.cloudfunctions.net/generateExcel';
-
+    const apiUrl = '/api/generate-excel-python';
 
     try {
         const filePromises = generatedReports.map(async (report) => {
-            const response = await fetch(cloudFunctionUrl, {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(report),
