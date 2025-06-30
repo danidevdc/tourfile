@@ -258,7 +258,7 @@ export default function GeneratorPage() {
           } else if (typeof cellValue === 'number' && cellValue > 25569) { // Excel serial date check
               const parsed = XLSX.SSF.parse_date_code(cellValue);
               if (parsed) {
-                  parsedDateObj = new Date(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0);
+                  parsedDateObj = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0));
               }
           }
 
@@ -270,15 +270,45 @@ export default function GeneratorPage() {
       }
 
       if (dateFound) {
-          const paxRaw = excelData[dateRowIndex + 1]?.[colIdx];
-          const pax = (paxRaw !== null && paxRaw !== undefined) ? String(paxRaw).trim() : "N/A";
-          setCurrentPaxCount(pax);
-          setFileSearchStatus("found");
-          toast({
-            title: "Búsqueda Exitosa",
-            description: `Nombre de file: ${groupName}`,
-            className: "bg-green-100 dark:bg-green-900 border-green-500",
-          });
+        let paxFound = false;
+        let pax = "N/A";
+
+        // Comienza a buscar el PAX desde la fila siguiente a la fecha
+        for (let i = dateRowIndex + 1; i < excelData.length; i++) {
+            const paxRaw = excelData[i]?.[colIdx];
+            if (paxRaw !== null && paxRaw !== undefined) {
+                const paxValue = String(paxRaw).trim();
+
+                // Regex para formato "1+3" (permite espacios alrededor de '+')
+                const plusFormatRegex = /^\d+\s*\+\s*\d+$/;
+                // Regex para número de 1 o 2 dígitos
+                const numberRegex = /^\d{1,2}$/;
+
+                if (numberRegex.test(paxValue) || plusFormatRegex.test(paxValue)) {
+                    pax = paxValue;
+                    paxFound = true;
+                    break; // Encontrado, deja de buscar
+                }
+            }
+        }
+        
+        if (paxFound) {
+            setCurrentPaxCount(pax);
+            setFileSearchStatus("found");
+            toast({
+              title: "Búsqueda Exitosa",
+              description: `Nombre de file: ${groupName}`,
+              className: "bg-green-100 dark:bg-green-900 border-green-500",
+            });
+        } else {
+             setCurrentPaxCount("N/A");
+             setFileSearchStatus("found"); // Aún "found" porque se encontró el file/grupo.
+             toast({
+                title: "Búsqueda Parcial",
+                description: `File y grupo encontrados, pero no se pudo localizar un N° de PAX válido.`,
+                variant: "default",
+            });
+        }
       } else {
           setFileSearchStatus("not_found");
           setCurrentPaxCount(null);
