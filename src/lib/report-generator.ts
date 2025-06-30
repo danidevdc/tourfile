@@ -1,4 +1,3 @@
-
 // src/lib/report-generator.ts
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
@@ -33,6 +32,25 @@ export interface FileDataProps {
   fileIdRowIndex: number | null;
   columnIndex: number | null;
 }
+
+// Helper function to parse PAX count, handling formats like "16+1"
+export function parsePaxCount(paxString: string): number {
+  if (!paxString) return 0;
+
+  const trimmedPax = paxString.trim();
+  if (trimmedPax.includes('+')) {
+    const parts = trimmedPax.split('+').map(part => parseInt(part.trim(), 10));
+    // Ensure we have exactly two valid numbers to sum
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return parts[0] + parts[1];
+    }
+  }
+  
+  // Fallback for single numbers
+  const num = parseInt(trimmedPax, 10);
+  return isNaN(num) ? 0 : num;
+}
+
 
 export function resolveQuantity(quantityStr: string, paxNumber: number): number {
   if (paxNumber === 0 && quantityStr.toUpperCase().includes("$G$3")) return 0;
@@ -100,8 +118,8 @@ export async function generateExpenseDetails(
     }
   }
   
-  const paxNum = parseInt(paxCountString, 10);
-  if (isNaN(paxNum)) {
+  const paxNum = parsePaxCount(paxCountString);
+  if (paxNum === 0) {
     console.error("Número de PAX no válido o no encontrado:", paxCountString);
     return { expenses: [], tourStartDate: "N/A" };
   }

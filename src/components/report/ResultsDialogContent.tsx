@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { FileSpreadsheet, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { type GeneratedReportInfo, type ExpenseItem, resolveQuantity } from "@/lib/report-generator"; 
+import { type GeneratedReportInfo, type ExpenseItem, resolveQuantity, parsePaxCount } from "@/lib/report-generator"; 
 import { format } from 'date-fns';
 import { cn } from "@/lib/utils";
 
@@ -36,7 +36,7 @@ export function ResultsDialogContent({ report, onClose, onDownloadExcel }: Resul
   const { toast } = useToast(); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
   
-  const paxCountNumber = parseInt(report.paxCount, 10) || 0;
+  const paxCountNumber = parsePaxCount(report.paxCount);
   const expenseDataToDisplay = report.expenseItems; 
   const grandTotal = calculateGrandTotal(expenseDataToDisplay, paxCountNumber);
 
