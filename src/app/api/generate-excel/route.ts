@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
-import { GeneratedReportInfo, ExpenseItem } from '@/lib/report-generator';
+import { GeneratedReportInfo, parsePaxCount } from '@/lib/report-generator';
 
 // Helper function to parse date strings like "dd/mm/yy" into Date objects
 function parseDate(dateStr: string): Date | null {
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     worksheet.getCell('F3').value = "Nº";
     worksheet.getCell('F3').font = { name: 'Calibri', size: 11, bold: true };
-    worksheet.getCell('G3').value = parseInt(reportData.paxCount, 10) || 0;
+    worksheet.getCell('G3').value = parsePaxCount(reportData.paxCount); // USE PARSER HERE
     worksheet.getCell('G3').font = { name: 'Calibri', size: 11, bold: true };
     worksheet.getCell('G3').alignment = { horizontal: 'right', vertical: 'middle' };
     
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
 
         // Detail
         const detailCell = row.getCell(3);
-        detailCell.value = item.detail; // <--- THIS LINE WAS MISSING. IT IS NOW RESTORED.
+        detailCell.value = item.detail;
         detailCell.alignment = { horizontal: 'center', vertical: 'middle' };
         worksheet.mergeCells(`C${currentRowIndex}:D${currentRowIndex}`);
         
