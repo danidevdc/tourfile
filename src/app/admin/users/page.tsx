@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, ArrowLeft, ShieldCheck, ShieldOff, Trash2, BarChart3, LineChart } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, subMonths, getMonth, getYear } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Timestamp } from 'firebase/firestore';
 import {
@@ -87,28 +87,28 @@ export default function AdminUsersPage() {
                     .slice(0, 10); // Top 10 guides
                 setGuideUsage(guideData);
 
-                // Process monthly report data
+                // Process monthly report data for the last 6 months
                 const monthlyCounts: { [key: string]: number } = {};
-                const currentYear = new Date().getFullYear();
-                
                 reports.forEach(report => {
                     const date = report.generationDate.toDate();
-                    if (date.getFullYear() === currentYear && date.getMonth() >= 7) { // August is month 7 (0-indexed)
-                        const monthKey = format(date, 'yyyy-MM');
-                        monthlyCounts[monthKey] = (monthlyCounts[monthKey] || 0) + 1;
-                    }
+                    const monthKey = format(date, 'yyyy-MM');
+                    monthlyCounts[monthKey] = (monthlyCounts[monthKey] || 0) + 1;
                 });
-                
-                const monthNames = ["Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-                const generatedMonthlyData: MonthlyReportData[] = monthNames.map((name, index) => {
-                    const monthIndex = 7 + index;
-                    const monthKey = `${currentYear}-${(monthIndex + 1).toString().padStart(2, '0')}`;
-                    return {
-                        month: name,
-                        reportes: monthlyCounts[monthKey] || 0
-                    };
-                });
-                setMonthlyReports(generatedMonthlyData);
+
+                const last6Months: MonthlyReportData[] = [];
+                const today = new Date();
+                for (let i = 5; i >= 0; i--) {
+                    const date = subMonths(today, i);
+                    const monthKey = format(date, 'yyyy-MM');
+                    const monthName = format(date, 'MMMM', { locale: es });
+                    const capitalizedMonthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                    
+                    last6Months.push({
+                        month: capitalizedMonthName,
+                        reportes: monthlyCounts[monthKey] || 0,
+                    });
+                }
+                setMonthlyReports(last6Months);
             }
 
           } catch (error) {
@@ -288,7 +288,7 @@ export default function AdminUsersPage() {
             <CardTitle className="text-xl flex items-center gap-2">
               <LineChart className="text-primary"/> Reportes por Mes
             </CardTitle>
-            <CardDescription>Reportes descargados desde Agosto.</CardDescription>
+            <CardDescription>Reportes descargados en los últimos 6 meses.</CardDescription>
           </CardHeader>
           <CardContent>
              {isLoadingData ? (
@@ -317,3 +317,4 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
