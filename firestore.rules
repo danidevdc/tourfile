@@ -1,40 +1,30 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if the requesting user is an admin.
-    // It safely checks if the user's profile document exists before accessing its data.
-    function isRequestingUserAdmin() {
-      return exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-
+    
+    // User profiles are readable/writable only by the user themselves, or readable by an admin.
     match /userProfiles/{userId} {
-      // A user can create their own profile.
-      allow create: if request.auth.uid == userId;
-      
-      // A user can get their own profile. An admin can get any profile.
-      allow get: if request.auth.uid == userId || isRequestingUserAdmin();
-
-      // A user can update their own profile. An admin can update any profile.
-      allow update: if request.auth.uid == userId || isRequestingUserAdmin();
-      
-      // Only an admin can list all user profiles.
-      allow list: if isRequestingUserAdmin();
-      
-      // Only an admin can delete another user's profile.
-      allow delete: if isRequestingUserAdmin() && request.auth.uid != userId;
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      // Admins can read all profiles to display in the admin user list.
+      allow list: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Rules for the expense generation logic.
+    // Expense rules are readable by any authenticated user, but only writable by admins.
     match /expenseRules/{ruleId} {
-      // Any authenticated user can read the rules to generate their reports.
-      allow get, list: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
 
-      // ONLY an admin can create, update, or delete the expense rules.
-      allow write: if isRequestingUserAdmin();
+    // Generated report summaries are creatable by any authenticated user, but only readable by admins for analytics.
+    match /generatedReports/{reportId} {
+      allow create: if request.auth != null;
+      allow list: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Fallback security rule for any other path - deny all access.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
