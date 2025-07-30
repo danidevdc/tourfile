@@ -3,14 +3,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, type UserProfile } from '@/hooks/useAuth'; // UserProfile debe ser exportado desde useAuth
+import { useAuth, type UserProfile } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, ArrowLeft, ShieldCheck, ShieldOff, Trash2 } from 'lucide-react';
+import { Loader2, ArrowLeft, ShieldCheck, ShieldOff, Trash2, BarChart3, LineChart } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Timestamp } from 'firebase/firestore'; // Import Timestamp
+import { Timestamp } from 'firebase/firestore';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,14 +23,41 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { getAllReportsFromFirestore, type ReportInfo } from '@/lib/reportService';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  Line,
+  Legend
+} from 'recharts';
+
+
+interface GuideUsageData {
+  name: string;
+  count: number;
+}
+
+interface MonthlyReportData {
+  month: string;
+  reportes: number;
+}
 
 export default function AdminUsersPage() {
   const { isCurrentUserAdmin, isLoading: authLoading, getAllUserProfiles, deleteUserFromFirestore, currentUser } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const { toast } = useToast();
+
+  const [guideUsage, setGuideUsage] = useState<GuideUsageData[]>([]);
+  const [monthlyReports, setMonthlyReports] = useState<MonthlyReportData[]>([]);
+
 
   useEffect(() => {
     if (!authLoading) {
@@ -38,19 +65,60 @@ export default function AdminUsersPage() {
         toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive"});
         router.replace('/'); 
       } else {
-        const fetchUsers = async () => {
-          setIsLoadingUsers(true);
+        const fetchData = async () => {
+          setIsLoadingData(true);
           try {
-            const userProfiles = await getAllUserProfiles();
+            const [userProfiles, reports] = await Promise.all([
+              getAllUserProfiles(),
+              getAllReportsFromFirestore()
+            ]);
+            
             setUsers(userProfiles);
+
+            if (reports.length > 0) {
+                // Process guide usage data
+                const guideCounts: { [key: string]: number } = {};
+                reports.forEach(report => {
+                    guideCounts[report.guideName] = (guideCounts[report.guideName] || 0) + 1;
+                });
+                const guideData = Object.entries(guideCounts)
+                    .map(([name, count]) => ({ name, count }))
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 10); // Top 10 guides
+                setGuideUsage(guideData);
+
+                // Process monthly report data
+                const monthlyCounts: { [key: string]: number } = {};
+                const currentYear = new Date().getFullYear();
+                
+                reports.forEach(report => {
+                    const date = report.generationDate.toDate();
+                    if (date.getFullYear() === currentYear && date.getMonth() >= 7) { // August is month 7 (0-indexed)
+                        const monthKey = format(date, 'yyyy-MM');
+                        monthlyCounts[monthKey] = (monthlyCounts[monthKey] || 0) + 1;
+                    }
+                });
+                
+                const monthNames = ["Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                const generatedMonthlyData: MonthlyReportData[] = monthNames.map((name, index) => {
+                    const monthIndex = 7 + index;
+                    const monthKey = `${currentYear}-${(monthIndex + 1).toString().padStart(2, '0')}`;
+                    return {
+                        month: name,
+                        reportes: monthlyCounts[monthKey] || 0
+                    };
+                });
+                setMonthlyReports(generatedMonthlyData);
+            }
+
           } catch (error) {
-            // Toast for error fetching users is handled in getAllUserProfiles
-            console.error("Failed to fetch users for admin page:", error);
+            console.error("Failed to fetch admin data:", error);
+            toast({ title: "Error", description: "No se pudieron cargar los datos de administración.", variant: "destructive"});
           } finally {
-            setIsLoadingUsers(false);
+            setIsLoadingData(false);
           }
         };
-        fetchUsers();
+        fetchData();
       }
     }
   }, [isCurrentUserAdmin, authLoading, router, getAllUserProfiles, toast]);
@@ -62,7 +130,7 @@ export default function AdminUsersPage() {
       setUserToDelete(null);
       return;
     }
-    // Assuming ADMIN_EMAIL is 'daniish77@gmail.com' as per useAuth
+    
     if (userToDelete.email === 'daniish77@gmail.com' && userToDelete.uid !== currentUser?.uid) {
         toast({ title: "Acción no permitida", description: "No se puede eliminar la cuenta de administrador principal.", variant: "destructive" });
         setUserToDelete(null);
@@ -72,7 +140,6 @@ export default function AdminUsersPage() {
     try {
       await deleteUserFromFirestore(userToDelete.uid);
       setUsers(prevUsers => prevUsers.filter(user => user.uid !== userToDelete.uid));
-      // Positive toast is handled within deleteUserFromFirestore
     } catch (error) {
       // Error toast is handled within deleteUserFromFirestore
     } finally {
@@ -90,12 +157,13 @@ export default function AdminUsersPage() {
   }
   
   return (
-    <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
-      <div className="w-full max-w-4xl mb-4">
+    <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8 space-y-6">
+      <div className="w-full max-w-4xl">
         <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back" className="hover:bg-primary/90">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
+
       <Card className="w-full max-w-4xl shadow-lg">
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center text-primary">Administración de Usuarios</CardTitle>
@@ -104,7 +172,7 @@ export default function AdminUsersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoadingUsers ? (
+          {isLoadingData ? (
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="ml-2">Cargando usuarios...</p>
@@ -119,7 +187,7 @@ export default function AdminUsersPage() {
                     <TableHead>Correo Electrónico</TableHead>
                     <TableHead className="text-center">Admin</TableHead>
                     <TableHead>Fecha de Registro</TableHead>
-                    <TableHead className="text-center">Reportes</TableHead>
+                    <TableHead className="text-center">Reportes Generados</TableHead>
                     <TableHead className="text-center">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -139,7 +207,7 @@ export default function AdminUsersPage() {
                           ? format(user.createdAt.toDate(), 'dd/MM/yyyy HH:mm', { locale: es })
                           : user.createdAt?.toString() || 'N/A'}
                       </TableCell>
-                      <TableCell className="text-center">{user.generatedReportsCount || 0}</TableCell>
+                       <TableCell className="text-center font-medium">{user.generatedReportsCount || 0}</TableCell>
                       <TableCell className="text-center">
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -183,6 +251,69 @@ export default function AdminUsersPage() {
           )}
         </CardContent>
       </Card>
+      
+      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <BarChart3 className="text-primary"/> Uso por Guía
+            </CardTitle>
+            <CardDescription>Top 10 guías con más reportes generados.</CardDescription>
+          </CardHeader>
+          <CardContent>
+             {isLoadingData ? (
+                <div className="flex justify-center items-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+             ) : guideUsage.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={guideUsage} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} />
+                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
+                    <Bar dataKey="count" fill="hsl(var(--primary))" name="Reportes" barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex justify-center items-center h-64">
+                    <p className="text-muted-foreground">No hay suficientes datos de reportes.</p>
+                </div>
+              )}
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <LineChart className="text-primary"/> Reportes por Mes
+            </CardTitle>
+            <CardDescription>Reportes descargados desde Agosto.</CardDescription>
+          </CardHeader>
+          <CardContent>
+             {isLoadingData ? (
+                <div className="flex justify-center items-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+             ) : monthlyReports.some(d => d.reportes > 0) ? (
+                <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={monthlyReports} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                        <YAxis allowDecimals={false} />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="reportes" stroke="hsl(var(--primary))" strokeWidth={2} name="Reportes Descargados" />
+                    </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex justify-center items-center h-64">
+                    <p className="text-muted-foreground">No hay suficientes datos de reportes.</p>
+                </div>
+              )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
