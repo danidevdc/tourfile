@@ -45,6 +45,7 @@ import {
   type FileDataProps,
   type FileSearchStatus 
 } from "@/lib/report-generator";
+import { saveReportInfoToFirestore } from "@/lib/reportService";
 
 
 const formSchema = z.object({
@@ -472,8 +473,15 @@ export default function GeneratorPage() {
         className: 'bg-green-100 dark:bg-green-900 border-green-500',
       });
       
-      if (currentUser?.uid && incrementUserReportCountBy) {
+      if (currentUser?.uid) {
         await incrementUserReportCountBy(currentUser.uid, 1);
+        await saveReportInfoToFirestore({
+          fileNumber: report.fileNumber,
+          guideName: report.guideName,
+          groupName: report.groupName,
+          paxCount: report.paxCount,
+          generatedBy: currentUser.email || currentUser.uid,
+        });
       }
       
     } catch (error) {
@@ -499,6 +507,7 @@ export default function GeneratorPage() {
 
     const zip = new JSZip();
     const apiUrl = '/api/generate-excel';
+    let successfulDownloads = 0;
 
     try {
         const filePromises = generatedReports.map(async (report) => {
@@ -509,7 +518,20 @@ export default function GeneratorPage() {
             });
 
             if (!response.ok) {
-                throw new Error(`Fallo al generar el reporte para el file ${report.fileNumber}`);
+                console.error(`Fallo al generar el reporte para el file ${report.fileNumber}`);
+                // Return null or a specific error object to handle failed downloads gracefully
+                return null;
+            }
+            
+            // Save info to firestore for each report in the zip
+            if (currentUser?.uid) {
+              await saveReportInfoToFirestore({
+                  fileNumber: report.fileNumber,
+                  guideName: report.guideName,
+                  groupName: report.groupName,
+                  paxCount: report.paxCount,
+                  generatedBy: currentUser.email || currentUser.uid,
+              });
             }
 
             const blob = await response.blob();
@@ -521,10 +543,15 @@ export default function GeneratorPage() {
                     fileName = decodeURIComponent(match[1]);
                 }
             }
+            successfulDownloads++;
             return { fileName, blob };
         });
 
-        const files = await Promise.all(filePromises);
+        const files = (await Promise.all(filePromises)).filter((file): file is {fileName: string, blob: Blob} => file !== null);
+
+        if (files.length === 0) {
+          throw new Error("No se pudo generar ningún reporte para el archivo ZIP.");
+        }
 
         files.forEach(file => {
             const sanitizedFileName = file.fileName.replace(/[/\\]/g, '_');
@@ -548,8 +575,8 @@ export default function GeneratorPage() {
             className: "bg-green-100 dark:bg-green-900 border-green-500",
         });
 
-        if (currentUser?.uid && incrementUserReportCountBy && generatedReports.length > 0) {
-          await incrementUserReportCountBy(currentUser.uid, generatedReports.length);
+        if (currentUser?.uid && successfulDownloads > 0) {
+          await incrementUserReportCountBy(currentUser.uid, successfulDownloads);
         }
 
     } catch (error) {
@@ -824,5 +851,3 @@ export default function GeneratorPage() {
     </div>
   );
 }
-
-    
