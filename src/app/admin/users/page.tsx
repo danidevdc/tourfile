@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, ArrowLeft, ShieldCheck, ShieldOff, Trash2, BarChart3, LineChart } from 'lucide-react';
-import { format, subMonths, getMonth, getYear } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Timestamp } from 'firebase/firestore';
 import {
@@ -33,7 +33,8 @@ import {
   Tooltip, 
   ResponsiveContainer,
   Line,
-  Legend
+  Legend,
+  LineChart as RechartsLineChart // Renamed to avoid conflict with lucide-react icon
 } from 'recharts';
 
 
@@ -297,14 +298,14 @@ export default function AdminUsersPage() {
                 </div>
              ) : monthlyReports.some(d => d.reportes > 0) ? (
                 <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={monthlyReports} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <RechartsLineChart data={monthlyReports} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                         <YAxis allowDecimals={false} />
                         <Tooltip />
                         <Legend />
                         <Line type="monotone" dataKey="reportes" stroke="hsl(var(--primary))" strokeWidth={2} name="Reportes Descargados" />
-                    </LineChart>
+                    </RechartsLineChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="flex justify-center items-center h-64">
@@ -317,4 +318,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
