@@ -20,7 +20,6 @@ import {
   serverTimestamp,
   Timestamp,
   updateDoc,
-  arrayUnion,
   collection,
   query,
   where,
@@ -40,6 +39,7 @@ export interface UserProfile {
   lastName?: string;
   username?: string;
   generatedReportsCount?: number;
+  activeSessionId?: string; // For single-session enforcement
 }
 
 export interface ActivityLogEntry {
@@ -55,6 +55,7 @@ export interface CurrentUser extends FirebaseUser {
 
 const ADMIN_EMAIL = 'daniish77@gmail.com';
 const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour for inactivity logout
+const SESSION_ID_KEY = 'app_session_id'; // Key for sessionStorage
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -68,22 +69,23 @@ export function useAuth() {
     setIsLoading(true);
     try {
       await signOut(auth);
-      setCurrentUser(null);
-      setIsCurrentUserAdmin(false);
-      // sessionStorage is cleared automatically by the browser on tab close
+      sessionStorage.removeItem(SESSION_ID_KEY);
       
       router.push('/login');
 
       if (!isSilent) {
         toast({ title: "Sesión Cerrada", description: "Has cerrado sesión exitosamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
       } else {
-        toast({ title: "Sesión Expirada", description: message || "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.", duration: 5000 });
+        toast({ title: "Sesión Expirada", description: message || "Tu sesión ha expirado.", duration: 5000 });
       }
 
     } catch (error) {
       console.error("Logout error:", error);
       toast({ title: "Error", description: "No se pudo cerrar la sesión.", variant: "destructive" });
     } finally {
+      // This state change happens after redirect, so it's safe
+      setCurrentUser(null);
+      setIsCurrentUserAdmin(false);
       setIsLoading(false);
     }
   }, [router, toast]);
@@ -98,6 +100,7 @@ export function useAuth() {
         const data = userProfileDoc.data() as UserProfile;
         return {
           ...data,
+          uid: uid,
           firstName: data.firstName || '',
           lastName: data.lastName || '',
           username: data.username || '',
@@ -161,11 +164,20 @@ export function useAuth() {
       setIsLoading(true);
       if (firebaseUser) {
         const profile = await fetchUserProfile(firebaseUser.uid);
-        setCurrentUser({ ...firebaseUser, profile });
+        const localSessionId = sessionStorage.getItem(SESSION_ID_KEY);
+
+        // Single-session validation
+        if (profile && profile.activeSessionId && localSessionId !== profile.activeSessionId) {
+            logout(true, 'Tu sesión se ha cerrado porque iniciaste sesión en otro dispositivo.');
+            return;
+        }
+
+        setCurrentUser({ ...firebaseUser, profile: profile || undefined });
         setIsCurrentUserAdmin(!!profile?.isAdmin || firebaseUser.email === ADMIN_EMAIL);
       } else {
         setCurrentUser(null);
         setIsCurrentUserAdmin(false);
+        sessionStorage.removeItem(SESSION_ID_KEY);
       }
       setIsLoading(false);
     });
@@ -189,9 +201,14 @@ export function useAuth() {
     const emailToUseForLogin = emailInput.trim().toLowerCase();
 
     try {
-      // Because we are using session persistence, this will set a session cookie.
       const userCredential = await signInWithEmailAndPassword(auth, emailToUseForLogin, passwordInput);
       const firebaseUser = userCredential.user;
+
+      // Create and set the new session ID
+      const newSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      sessionStorage.setItem(SESSION_ID_KEY, newSessionId);
+      const userProfileDocRef = doc(db, 'userProfiles', firebaseUser.uid);
+      await updateDoc(userProfileDocRef, { activeSessionId: newSessionId });
       
       const profile = await fetchUserProfile(firebaseUser.uid);
 
@@ -203,6 +220,7 @@ export function useAuth() {
       router.push('/');
     } catch (error: any) {
       console.error('Login error:', error.code, error.message);
+      sessionStorage.removeItem(SESSION_ID_KEY);
       let title = "Error de Inicio de Sesión";
       let message = "Ocurrió un problema al intentar iniciar sesión.";
 
@@ -259,6 +277,7 @@ export function useAuth() {
         createdAt: serverTimestamp() as Timestamp,
         activityLog: [],
         generatedReportsCount: 0,
+        activeSessionId: '', // Initialize as empty
       };
 
       await setDoc(doc(db, 'userProfiles', firebaseUserRegistered.uid), userProfileData);
@@ -453,5 +472,3 @@ export function useAuth() {
     incrementUserReportCountBy,
   };
 }
-
-    
