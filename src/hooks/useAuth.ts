@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { db, auth } from '@/lib/firebase'; // Import auth from firebase config
@@ -55,9 +55,7 @@ export interface CurrentUser extends FirebaseUser {
 }
 
 const ADMIN_EMAIL = 'daniish77@gmail.com';
-const SESSION_START_TIME_KEY = 'tourfilegen_session_start_time';
-const EIGHT_HOURS_IN_MS = 8 * 60 * 60 * 1000;
-
+const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -65,6 +63,70 @@ export function useAuth() {
   const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const logout = useCallback(async (isSilent = false) => {
+    if (!auth) return;
+    setIsLoading(true);
+    try {
+      await signOut(auth);
+      setCurrentUser(null);
+      setIsCurrentUserAdmin(false);
+      
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
+      }
+      
+      router.push('/login');
+      if (!isSilent) {
+        toast({ title: "Sesión Cerrada", description: "Has cerrado sesión exitosamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      } else {
+        toast({ title: "Sesión Expirada", description: "Tu sesión ha expirado por inactividad. Por favor, inicia sesión de nuevo.", duration: 5000 });
+      }
+
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({ title: "Error", description: "No se pudo cerrar la sesión.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [router, toast]);
+
+
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    inactivityTimerRef.current = setTimeout(() => {
+        if(auth?.currentUser) {
+            console.log("Inactivity detected. Logging out.");
+            logout(true); // Silent logout for inactivity
+        }
+    }, INACTIVITY_TIMEOUT_MS);
+  }, [logout]);
+
+
+  useEffect(() => {
+    const activityEvents: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll'];
+    
+    if (currentUser) {
+      resetInactivityTimer();
+      activityEvents.forEach(event => {
+        window.addEventListener(event, resetInactivityTimer);
+      });
+    }
+
+    return () => {
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, resetInactivityTimer);
+      });
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
+  }, [currentUser, resetInactivityTimer]);
+
 
   const fetchUserProfile = useCallback(async (uid: string): Promise<UserProfile | null> => {
     if (!db) return null;
@@ -75,7 +137,6 @@ export function useAuth() {
         const data = userProfileDoc.data() as UserProfile;
         return {
           ...data,
-          // Asegurar que los campos opcionales tengan un valor por defecto si no existen
           firstName: data.firstName || '',
           lastName: data.lastName || '',
           username: data.username || '',
@@ -100,21 +161,6 @@ export function useAuth() {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setIsLoading(true);
-      
-      const sessionStartTime = localStorage.getItem(SESSION_START_TIME_KEY);
-      if (sessionStartTime && (Date.now() - parseInt(sessionStartTime, 10)) > EIGHT_HOURS_IN_MS) {
-        if (firebaseUser) {
-          await signOut(auth);
-        }
-        setCurrentUser(null);
-        setIsCurrentUserAdmin(false);
-        localStorage.removeItem(SESSION_START_TIME_KEY);
-        toast({ title: "Sesión Expirada", description: "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.", duration: 4000 });
-        setIsLoading(false);
-        // ProtectedRoute will handle the redirect
-        return;
-      }
-
       if (firebaseUser) {
         const profile = await fetchUserProfile(firebaseUser.uid);
         setCurrentUser({ ...firebaseUser, profile });
@@ -151,7 +197,6 @@ export function useAuth() {
 
       setCurrentUser({ ...firebaseUser, profile });
       setIsCurrentUserAdmin(!!profile?.isAdmin || firebaseUser.email === ADMIN_EMAIL);
-      localStorage.setItem(SESSION_START_TIME_KEY, Date.now().toString());
       
       const displayName = profile?.email || "Usuario";
       toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${displayName}!`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
@@ -176,7 +221,6 @@ export function useAuth() {
             title = "Cuenta Deshabilitada";
             break;
           default:
-            // Usar el mensaje de error de Firebase si está disponible y es genérico
             message = error.message || "Credenciales inválidas o error desconocido.";
         }
       }
@@ -214,7 +258,7 @@ export function useAuth() {
         isAdmin: targetEmail === ADMIN_EMAIL,
         createdAt: serverTimestamp() as Timestamp,
         activityLog: [],
-        generatedReportsCount: 0, // Inicializar contador para Parte 2
+        generatedReportsCount: 0,
       };
 
       await setDoc(doc(db, 'userProfiles', firebaseUserRegistered.uid), userProfileData);
@@ -244,7 +288,7 @@ export function useAuth() {
           case 'auth/requires-recent-login':
              message = "Esta operación es sensible y requiere autenticación reciente. Intenta iniciar sesión de nuevo.";
              break;
-          case 'permission-denied': // Este es el que estabas viendo
+          case 'permission-denied':
              message = "Permiso denegado por Firebase Authentication. Verifica la configuración de tu proyecto.";
              break;
           default:
@@ -263,23 +307,6 @@ export function useAuth() {
     }
   }, [toast, router]);
 
-  const logout = useCallback(async () => {
-    if (!auth) return;
-    setIsLoading(true);
-    try {
-      await signOut(auth);
-      setCurrentUser(null);
-      setIsCurrentUserAdmin(false);
-      localStorage.removeItem(SESSION_START_TIME_KEY); // Remove session timestamp on logout
-      router.push('/login');
-      toast({ title: "Sesión Cerrada", description: "Has cerrado sesión exitosamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
-    } catch (error) {
-      console.error("Logout error:", error);
-      toast({ title: "Error", description: "No se pudo cerrar la sesión.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [router, toast]);
 
   const sendPasswordReset = useCallback(async (emailForReset: string) => {
     if (!auth) {
@@ -320,7 +347,6 @@ export function useAuth() {
 
 
   const checkEmailExists = useCallback(async (email: string): Promise<boolean> => {
-    // Esta función no es crítica para el registro simplificado, pero la mantenemos si se usa en otro lugar.
     if (!db || !email) return false;
     try {
       const profilesRef = collection(db, 'userProfiles');
@@ -329,7 +355,6 @@ export function useAuth() {
       return !querySnapshot.empty;
     } catch (error) {
         console.error("Error checking email existence in Firestore (could be rules or network):", error);
-        // Asumir que no existe si hay un error de permisos/red para evitar bloquear el registro si las reglas son estrictas.
         return false; 
     }
   }, []);
@@ -344,10 +369,8 @@ export function useAuth() {
       await updateDoc(userProfileDocRef, {
         generatedReportsCount: increment(amount)
       });
-      // This is a silent background update, no toast notification is needed.
     } catch (error) {
       console.error(`Error incrementing report count for user ${uid}:`, error);
-      // Do not bother the user with a toast for this silent background task.
     }
   }, []);
 
@@ -379,8 +402,8 @@ export function useAuth() {
         const data = docSnapshot.data() as UserProfile;
         return {
           ...data,
-          uid: docSnapshot.id, // Asegurar que el uid (id del doc) esté presente
-          generatedReportsCount: data.generatedReportsCount || 0, // Para Parte 2
+          uid: docSnapshot.id,
+          generatedReportsCount: data.generatedReportsCount || 0,
         };
       });
       return usersList;
@@ -393,7 +416,6 @@ export function useAuth() {
 
 
   const deleteUserFromFirestore = async (uidToDelete: string): Promise<void> => {
-    // Esta función es para eliminar el PERFIL de Firestore. La eliminación del usuario de Firebase Auth es más compleja y requiere funciones de Admin SDK (backend).
     if (!db) throw new Error("Firestore not initialized");
     if (!uidToDelete) throw new Error("User UID not provided for deletion.");
 
@@ -421,7 +443,7 @@ export function useAuth() {
     isCurrentUserAdmin,
     login,
     register,
-    logout,
+    logout: () => logout(false), // Public logout is never silent
     sendPasswordReset: sendPasswordReset,
     checkEmailExists,
     getCurrentUserUsername, 
