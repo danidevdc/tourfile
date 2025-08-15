@@ -55,6 +55,9 @@ export interface CurrentUser extends FirebaseUser {
 }
 
 const ADMIN_EMAIL = 'daniish77@gmail.com';
+const SESSION_START_TIME_KEY = 'tourfilegen_session_start_time';
+const EIGHT_HOURS_IN_MS = 8 * 60 * 60 * 1000;
+
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -97,6 +100,21 @@ export function useAuth() {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setIsLoading(true);
+      
+      const sessionStartTime = localStorage.getItem(SESSION_START_TIME_KEY);
+      if (sessionStartTime && (Date.now() - parseInt(sessionStartTime, 10)) > EIGHT_HOURS_IN_MS) {
+        if (firebaseUser) {
+          await signOut(auth);
+        }
+        setCurrentUser(null);
+        setIsCurrentUserAdmin(false);
+        localStorage.removeItem(SESSION_START_TIME_KEY);
+        toast({ title: "Sesión Expirada", description: "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.", duration: 4000 });
+        setIsLoading(false);
+        // ProtectedRoute will handle the redirect
+        return;
+      }
+
       if (firebaseUser) {
         const profile = await fetchUserProfile(firebaseUser.uid);
         setCurrentUser({ ...firebaseUser, profile });
@@ -133,6 +151,7 @@ export function useAuth() {
 
       setCurrentUser({ ...firebaseUser, profile });
       setIsCurrentUserAdmin(!!profile?.isAdmin || firebaseUser.email === ADMIN_EMAIL);
+      localStorage.setItem(SESSION_START_TIME_KEY, Date.now().toString());
       
       const displayName = profile?.email || "Usuario";
       toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${displayName}!`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
@@ -251,6 +270,7 @@ export function useAuth() {
       await signOut(auth);
       setCurrentUser(null);
       setIsCurrentUserAdmin(false);
+      localStorage.removeItem(SESSION_START_TIME_KEY); // Remove session timestamp on logout
       router.push('/login');
       toast({ title: "Sesión Cerrada", description: "Has cerrado sesión exitosamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
     } catch (error) {
@@ -411,4 +431,3 @@ export function useAuth() {
     incrementUserReportCountBy,
   };
 }
-
