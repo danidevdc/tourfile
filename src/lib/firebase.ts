@@ -1,7 +1,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { getAuth, type Auth } from 'firebase/auth'; // Import Firebase Auth
+import { getAuth, type Auth, browserSessionPersistence, setPersistence } from 'firebase/auth'; // Import persistence functions
 
 // Ensure environment variables are being loaded. You might need to restart your dev server
 // if you've recently created or modified the .env.local file.
@@ -49,6 +49,14 @@ if (missingKeys.length > 0) {
     }
     try {
       auth = getAuth(app); // Initialize Auth
+      // Set persistence to 'session'
+      setPersistence(auth, browserSessionPersistence)
+        .then(() => {
+          console.log("Firebase Auth persistence set to 'session'.");
+        })
+        .catch((error) => {
+          console.error("Error setting Firebase Auth persistence:", error);
+        });
       console.log("Firebase Auth instance obtained successfully.");
     } catch (error: any) {
       console.error("Firebase Auth instance initialization error:", error.message, error.code);
@@ -60,3 +68,4 @@ if (missingKeys.length > 0) {
 
 export { db, auth, app }; // Export auth
 
+    

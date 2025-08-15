@@ -54,9 +54,7 @@ export interface CurrentUser extends FirebaseUser {
 }
 
 const ADMIN_EMAIL = 'daniish77@gmail.com';
-const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
-const SESSION_TIMESTAMP_KEY = 'session_login_timestamp';
-
+const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour for inactivity logout
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -65,21 +63,21 @@ export function useAuth() {
   const router = useRouter();
   const { toast } = useToast();
   
-  const logout = useCallback(async (isSilent = false) => {
+  const logout = useCallback(async (isSilent = false, message?: string) => {
     if (!auth) return;
     setIsLoading(true);
     try {
       await signOut(auth);
       setCurrentUser(null);
       setIsCurrentUserAdmin(false);
-      localStorage.removeItem(SESSION_TIMESTAMP_KEY);
+      // sessionStorage is cleared automatically by the browser on tab close
       
       router.push('/login');
 
       if (!isSilent) {
         toast({ title: "Sesión Cerrada", description: "Has cerrado sesión exitosamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
       } else {
-        toast({ title: "Sesión Expirada", description: "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.", duration: 5000 });
+        toast({ title: "Sesión Expirada", description: message || "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.", duration: 5000 });
       }
 
     } catch (error) {
@@ -114,6 +112,43 @@ export function useAuth() {
     }
   }, [toast]);
 
+  // Inactivity and Session Handling Effect
+  useEffect(() => {
+    if (typeof window === 'undefined' || !currentUser) return;
+
+    let inactivityTimer: NodeJS.Timeout;
+
+    const resetInactivityTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        logout(true, 'Tu sesión ha sido cerrada por inactividad.');
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+
+    const handleUserActivity = () => {
+      resetInactivityTimer();
+    };
+
+    // Set up event listeners for user activity
+    window.addEventListener('mousemove', handleUserActivity);
+    window.addEventListener('keydown', handleUserActivity);
+    window.addEventListener('click', handleUserActivity);
+    window.addEventListener('scroll', handleUserActivity);
+
+    // Initial start of the timer
+    resetInactivityTimer();
+
+    // Cleanup function
+    return () => {
+      clearTimeout(inactivityTimer);
+      window.removeEventListener('mousemove', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+      window.removeEventListener('click', handleUserActivity);
+      window.removeEventListener('scroll', handleUserActivity);
+    };
+  }, [currentUser, logout]);
+
+
   useEffect(() => {
     if (!auth) {
         console.error("Firebase Auth is not initialized. App will not function correctly.");
@@ -125,27 +160,12 @@ export function useAuth() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setIsLoading(true);
       if (firebaseUser) {
-        // Check for session timeout
-        const loginTimestampStr = localStorage.getItem(SESSION_TIMESTAMP_KEY);
-        if (loginTimestampStr) {
-          const loginTimestamp = parseInt(loginTimestampStr, 10);
-          if (Date.now() - loginTimestamp > SESSION_TIMEOUT_MS) {
-            logout(true); // Silent logout for expired session
-            return; // Stop further processing
-          }
-        } else {
-            // If there's a user but no timestamp, something is off. Force re-login.
-            logout(true);
-            return;
-        }
-
         const profile = await fetchUserProfile(firebaseUser.uid);
         setCurrentUser({ ...firebaseUser, profile });
         setIsCurrentUserAdmin(!!profile?.isAdmin || firebaseUser.email === ADMIN_EMAIL);
       } else {
         setCurrentUser(null);
         setIsCurrentUserAdmin(false);
-        localStorage.removeItem(SESSION_TIMESTAMP_KEY);
       }
       setIsLoading(false);
     });
@@ -169,12 +189,10 @@ export function useAuth() {
     const emailToUseForLogin = emailInput.trim().toLowerCase();
 
     try {
+      // Because we are using session persistence, this will set a session cookie.
       const userCredential = await signInWithEmailAndPassword(auth, emailToUseForLogin, passwordInput);
       const firebaseUser = userCredential.user;
       
-      // Set session timestamp on successful login
-      localStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
-
       const profile = await fetchUserProfile(firebaseUser.uid);
 
       setCurrentUser({ ...firebaseUser, profile });
@@ -187,7 +205,6 @@ export function useAuth() {
       console.error('Login error:', error.code, error.message);
       let title = "Error de Inicio de Sesión";
       let message = "Ocurrió un problema al intentar iniciar sesión.";
-      localStorage.removeItem(SESSION_TIMESTAMP_KEY);
 
       if (error.code) {
         switch (error.code) {
