@@ -52,16 +52,15 @@ export default function HomePage() {
               <>
                 <Link href="/service-order" passHref>
                   <Button
-                    variant="default"
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group bg-accent hover:bg-accent/90 text-accent-foreground"
                   >
-                    <ClipboardList className="h-12 w-12 mr-6 text-primary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                    <ClipboardList className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
-                      <span className="block text-2xl font-bold text-primary-foreground">
+                      <span className="block text-2xl font-bold">
                         Generar Órdenes de Servicio
                       </span>
                     </div>
-                    <ArrowRight className="h-8 w-8 ml-auto text-primary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                    <ArrowRight className="h-8 w-8 ml-auto text-accent-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
                   </Button>
                 </Link>
 
