@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileSpreadsheet, ArrowRight, FilePenLine, Users } from "lucide-react"; // Added Users icon
+import { FileSpreadsheet, ArrowRight, FilePenLine, Users, ClipboardList } from "lucide-react"; // Added ClipboardList icon
 import { useAuth } from "@/hooks/useAuth"; 
 import { useToast } from "@/hooks/use-toast"; 
 import { version } from '../../package.json'; // Import version
@@ -50,6 +50,21 @@ export default function HomePage() {
 
             {!authLoading && isCurrentUserAdmin && (
               <>
+                <Link href="/service-order" passHref>
+                  <Button
+                    variant="default"
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
+                  >
+                    <ClipboardList className="h-12 w-12 mr-6 text-primary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                    <div className="text-left flex-grow">
+                      <span className="block text-2xl font-bold text-primary-foreground">
+                        Generar Órdenes de Servicio
+                      </span>
+                    </div>
+                    <ArrowRight className="h-8 w-8 ml-auto text-primary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                  </Button>
+                </Link>
+
                 <Link href="/admin/edit-logic" passHref>
                   <Button
                     variant="secondary" 
