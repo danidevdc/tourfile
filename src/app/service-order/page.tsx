@@ -22,9 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Loader2, FileDown, Trash2, PlusCircle } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Combobox } from "@/components/ui/combobox"; // Import Combobox
+import { Combobox } from "@/components/ui/combobox";
 import { type ServiceOrderData, type ServiceItem } from "@/lib/serviceOrderGenerator";
 
 const initialServiceOrderState: ServiceOrderData = {
@@ -96,8 +95,8 @@ export default function ServiceOrderPage() {
         }));
       }
     } else if (type === 'hotel') {
-      const selectedHotel = hotels.find(h => h.id === value);
-      setOrderData(prev => ({ ...prev, hotel: selectedHotel?.name || '' }));
+        const selectedHotel = hotels.find(h => h.name.toLowerCase() === value.toLowerCase());
+        setOrderData(prev => ({ ...prev, hotel: selectedHotel?.name || '' }));
     }
   };
 
@@ -166,6 +165,8 @@ export default function ServiceOrderPage() {
   }
 
   const guideOptions = guides.map(g => ({ value: g.fullName.toLowerCase(), label: g.fullName }));
+  const hotelOptions = hotels.map(h => ({ value: h.name.toLowerCase(), label: h.name }));
+
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background">
@@ -207,12 +208,14 @@ export default function ServiceOrderPage() {
               </div>
               <div>
                   <Label>Hotel</Label>
-                  <Select onValueChange={(value) => handleSelectChange('hotel', value)}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar hotel..." /></SelectTrigger>
-                      <SelectContent>
-                          {hotels.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
-                      </SelectContent>
-                  </Select>
+                  <Combobox
+                      options={hotelOptions}
+                      value={orderData.hotel.toLowerCase()}
+                      onSelect={(currentValue) => handleSelectChange('hotel', currentValue)}
+                      placeholder="Buscar hotel..."
+                      notFoundMessage="No se encontró el hotel."
+                      className="mt-1"
+                  />
               </div>
           </CardContent>
         </Card>
