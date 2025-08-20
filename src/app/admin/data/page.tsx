@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ArrowLeft, Trash2, PlusCircle, Hotel as HotelIcon, Car, ListChecks } from 'lucide-react';
+import { Loader2, ArrowLeft, Trash2, PlusCircle, Hotel as HotelIcon, Car, ListChecks, FilePenLine } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -81,6 +81,7 @@ export default function DataManagementPage() {
     if (!authLoading) {
       fetchData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCurrentUserAdmin, authLoading, toast]);
 
 
@@ -92,15 +93,18 @@ export default function DataManagementPage() {
     setIsSubmitting(true);
     try {
       let success = false;
+      const nameToAdd = newItemName.trim();
+
       if (type === 'hotel') {
-        await createHotel(newItemName.trim());
+        await createHotel(nameToAdd);
         success = true;
       } else if (type === 'activity') {
-        await createActivity(newItemName.trim());
+        await createActivity(nameToAdd);
         success = true;
       } else if (type === 'driver') {
-        const namePrefix = driverType === 'externo' ? 'CONT ' : '';
-        const driverNameToSave = `${namePrefix}${newItemName.trim()}`;
+        const driverNameToSave = driverType === 'externo' && !nameToAdd.toUpperCase().startsWith('CONT ') 
+            ? `CONT ${nameToAdd}`
+            : nameToAdd;
         await createDriver(driverNameToSave);
         success = true;
       }
@@ -142,7 +146,7 @@ export default function DataManagementPage() {
       <CardHeader><CardTitle className="text-lg">{title}</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         {type === 'driver' && (
-           <RadioGroup defaultValue="propio" onValueChange={(val: 'propio' | 'externo') => setDriverType(val)}>
+           <RadioGroup defaultValue="propio" onValueChange={(val: 'propio' | 'externo') => setDriverType(val)} className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="propio" id="r-propio" />
                 <Label htmlFor="r-propio">Propio (Número. Ej: 8, 9, 10)</Label>
@@ -170,7 +174,7 @@ export default function DataManagementPage() {
   );
 
   const renderTable = <T extends {id: string, name: string}>(data: T[], type: DataType) => (
-      <div className="border rounded-lg mt-4 overflow-hidden">
+      <div className="border rounded-lg mt-4 overflow-hidden max-h-96 overflow-y-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -235,17 +239,20 @@ export default function DataManagementPage() {
       </div>
       <Card className="w-full max-w-4xl shadow-lg">
         <CardHeader>
-          <CardTitle className="text-3xl font-headline text-center text-primary">Administrar Datos</CardTitle>
+          <CardTitle className="text-3xl font-headline text-center text-primary">Administrar Datos y Lógica</CardTitle>
           <CardDescription className="text-center">
-            Añade o elimina hoteles, choferes y actividades para el generador de órdenes de servicio.
+            Añade o elimina datos para los generadores y edita la lógica de cálculo.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="hotels" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="hotels"><HotelIcon className="mr-2 h-4 w-4" />Hoteles</TabsTrigger>
               <TabsTrigger value="drivers"><Car className="mr-2 h-4 w-4" />Choferes</TabsTrigger>
               <TabsTrigger value="activities"><ListChecks className="mr-2 h-4 w-4" />Actividades</TabsTrigger>
+              <TabsTrigger value="pettyCashLogic" onClick={() => router.push('/admin/edit-logic')}>
+                 <FilePenLine className="mr-2 h-4 w-4" />Lógica Caja Chica
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="hotels">
               {renderTable(hotels, 'hotel')}
@@ -259,10 +266,15 @@ export default function DataManagementPage() {
               {renderTable(activities, 'activity')}
               {renderAddForm('activity', 'Nombre de la nueva actividad...', 'Añadir Nueva Actividad')}
             </TabsContent>
+            <TabsContent value="pettyCashLogic">
+                <div className='text-center p-8'>
+                    <Loader2 className='mx-auto h-8 w-8 animate-spin text-primary'/>
+                    <p className='mt-2 text-muted-foreground'>Redirigiendo a la lógica de Caja Chica...</p>
+                </div>
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
     </div>
   );
 }
-

@@ -141,6 +141,8 @@ export default function AdminUsersPage() {
     try {
       await deleteUserFromFirestore(userToDelete.uid);
       setUsers(prevUsers => prevUsers.filter(user => user.uid !== userToDelete.uid));
+      toast({ title: "Usuario Eliminado", description: "El perfil del usuario ha sido eliminado. La cuenta de autenticación debe ser eliminada manualmente desde Firebase Console.", className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 7000 });
+
     } catch (error) {
       // Error toast is handled within deleteUserFromFirestore
     } finally {
@@ -169,7 +171,7 @@ export default function AdminUsersPage() {
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center text-primary">Administración de Usuarios</CardTitle>
           <CardDescription className="text-center">
-            Lista de todos los usuarios registrados en el sistema.
+            Lista de todos los usuarios registrados en el sistema. Para añadir un nuevo usuario/guía, utiliza la <Link href="/register" className="text-primary underline">página de registro</Link>.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -205,7 +205,7 @@ export function useAuth() {
       const firebaseUser = userCredential.user;
 
       // Create and set the new session ID
-      const newSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const newSessionId = `${'${Date.now()}'}-${Math.random().toString(36).substring(2, 9)}`;
       sessionStorage.setItem(SESSION_ID_KEY, newSessionId);
       const userProfileDocRef = doc(db, 'userProfiles', firebaseUser.uid);
       await updateDoc(userProfileDocRef, { activeSessionId: newSessionId });
@@ -216,7 +216,7 @@ export function useAuth() {
       setIsCurrentUserAdmin(!!profile?.isAdmin || firebaseUser.email === ADMIN_EMAIL);
       
       const displayName = profile?.email || "Usuario";
-      toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${displayName}!`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${'${displayName}'}!`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
       router.push('/');
     } catch (error: any) {
       console.error('Login error:', error.code, error.message);
@@ -282,7 +282,7 @@ export function useAuth() {
 
       await setDoc(doc(db, 'userProfiles', firebaseUserRegistered.uid), userProfileData);
 
-      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}. Por favor, inicia sesión.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${'${targetEmail}'}. Por favor, inicia sesión.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
       
       if (auth.currentUser) { 
         await signOut(auth);
@@ -314,7 +314,7 @@ export function useAuth() {
             message = error.message || "Error desconocido durante el registro.";
         }
       } else if (firebaseUserRegistered && error.message && error.message.toLowerCase().includes('firestore')) {
-        console.error(`Firestore Error after user ${firebaseUserRegistered.uid} created: ${error.message}`);
+        console.error(`Firestore Error after user ${'${firebaseUserRegistered.uid}'} created: ${'${error.message}'}`);
         message = "La cuenta de autenticación fue creada, pero hubo un problema al guardar el perfil. Contacta al soporte.";
       } else {
         console.error('Non-Firebase error or unknown error structure:', error);
@@ -337,7 +337,7 @@ export function useAuth() {
       await fbSendPasswordResetEmail(auth, emailForReset.trim());
       toast({
         title: "Correo de Recuperación Enviado",
-        description: `Si una cuenta existe para ${emailForReset}, se ha enviado un correo con instrucciones.`,
+        description: `Si una cuenta existe para ${'${emailForReset}'}, se ha enviado un correo con instrucciones.`,
         duration: 7000,
         className: "bg-green-100 dark:bg-green-900 border-green-500"
       });
@@ -345,7 +345,7 @@ export function useAuth() {
       console.error("Password reset error:", error);
       let message = "No se pudo enviar el correo de recuperación.";
       if (error.code === 'auth/user-not-found') {
-        message = `Si una cuenta existe para ${emailForReset}, se ha enviado un correo. Si no lo ves, revisa tu carpeta de spam.`;
+        message = `Si una cuenta existe para ${'${emailForReset}'}, se ha enviado un correo. Si no lo ves, revisa tu carpeta de spam.`;
          toast({
             title: "Verifica tu Correo",
             description: message,
@@ -389,7 +389,7 @@ export function useAuth() {
         generatedReportsCount: increment(amount)
       });
     } catch (error) {
-      console.error(`Error incrementing report count for user ${uid}:`, error);
+      console.error(`Error incrementing report count for user ${'${uid}'}:`, error);
     }
   }, []);
 
@@ -428,7 +428,7 @@ export function useAuth() {
       return usersList;
     } catch (error: any) {
       console.error("Error fetching all user profiles from Firestore:", error);
-      toast({ title: "Error", description: `No se pudieron obtener los perfiles: ${error.message}`, variant: "destructive" });
+      toast({ title: "Error", description: `No se pudieron obtener los perfiles: ${'${error.message}'}`, variant: "destructive" });
       return [];
     }
   }, [isCurrentUserAdmin, toast]);
