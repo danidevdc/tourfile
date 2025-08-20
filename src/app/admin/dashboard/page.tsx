@@ -94,7 +94,8 @@ export default function AdminDashboardPage() {
                     // Process guide usage data
                     const guideCounts: { [key: string]: number } = {};
                     reports.forEach(report => {
-                        guideCounts[report.guideName] = (guideCounts[report.guideName] || 0) + 1;
+                        const guideName = report.guideName || "Desconocido";
+                        guideCounts[guideName] = (guideCounts[guideName] || 0) + 1;
                     });
                     const guideData = Object.entries(guideCounts)
                         .map(([name, count]) => ({ name, count }))
@@ -105,9 +106,11 @@ export default function AdminDashboardPage() {
                     // Process monthly report data for the last 6 months
                     const monthlyCounts: { [key: string]: number } = {};
                     reports.forEach(report => {
-                        const date = report.generationDate.toDate();
-                        const monthKey = format(date, 'yyyy-MM');
-                        monthlyCounts[monthKey] = (monthlyCounts[monthKey] || 0) + 1;
+                        if (report.generationDate && typeof report.generationDate.toDate === 'function') {
+                            const date = report.generationDate.toDate();
+                            const monthKey = format(date, 'yyyy-MM');
+                            monthlyCounts[monthKey] = (monthlyCounts[monthKey] || 0) + 1;
+                        }
                     });
 
                     const last6Months: MonthlyReportData[] = [];
@@ -149,7 +152,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8 space-y-6">
       <div className="w-full max-w-6xl mb-4">
-        <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back">
+        <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go home">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
@@ -172,7 +175,7 @@ export default function AdminDashboardPage() {
               href="/admin/data"
               icon={Database}
               title="Administrar Datos"
-              description="Añade, edita o elimina hoteles, choferes y actividades."
+              description="Añade, edita o elimina guías, hoteles, choferes y actividades."
             />
              <AdminLinkCard 
               href="/admin/edit-petty-cash-logic"
@@ -216,7 +219,7 @@ export default function AdminDashboardPage() {
                     <XAxis type="number" allowDecimals={false} />
                     <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} />
                     <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" name="Reportes" barSize={20} />
+                    <Bar dataKey="count" fill="hsl(var(--chart-1))" name="Reportes" barSize={20} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -247,7 +250,7 @@ export default function AdminDashboardPage() {
                         <YAxis allowDecimals={false} />
                         <Tooltip />
                         <Legend />
-                        <Line type="monotone" dataKey="reportes" stroke="hsl(var(--primary))" strokeWidth={2} name="Reportes Descargados" />
+                        <Line type="monotone" dataKey="reportes" stroke="hsl(var(--chart-1))" strokeWidth={2} name="Reportes Descargados" />
                     </RechartsLineChart>
                 </ResponsiveContainer>
               ) : (
@@ -262,3 +265,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+    
