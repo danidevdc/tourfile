@@ -3,50 +3,90 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import * as XLSX from 'xlsx';
+
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import {
+  initializeDefaultServiceOrderData,
+  getGuidesFromUsers,
+  getHotelsFromFirestore,
+  getActivitiesFromFirestore,
+  type ServiceOrderGuide,
+  type Hotel,
+  type Activity,
+} from "@/lib/serviceOrderService";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, Trash2, Loader2, Search, FileDown, FileImage, FileText, Share2 } from "lucide-react";
+import { ArrowLeft, Upload, Trash2, Loader2, Search, FileDown, FileImage, FileText, Share2, User, Building } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-// Placeholder types, will be defined properly later
-interface ServiceOrder {
-  id: string;
-  fileNumber: string;
-  guideName: string;
-  driverName: string;
-  paxInfo: string;
-  itinerary: ItineraryItem[];
+
+interface ServiceOrderData {
+  ref: string;
+  file: string;
+  pax: string;
+  guide: ServiceOrderGuide | null;
+  hotel: Hotel | null;
+  itinerary: Activity[];
 }
 
-interface ItineraryItem {
-  date: string;
-  time: string;
-  activity: string;
-}
-
-export default function ServiceOrderGeneratorPage() {
+export default function ServiceOrderPage() {
   const router = useRouter();
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [fileNumber, setFileNumber] = useState("");
+  // Component State
+  const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [excelData, setExcelData] = useState<any[][] | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Data for Selects
+  const [guides, setGuides] = useState<ServiceOrderGuide[]>([]);
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
 
-  // This will hold the generated service order data
-  const [generatedOrder, setGeneratedOrder] = useState<ServiceOrder | null>(null);
+  // Form & Results State
+  const [fileNumberToSearch, setFileNumberToSearch] = useState("");
+  const [generatedOrder, setGeneratedOrder] = useState<ServiceOrderData | null>(null);
 
-  // Redirect if not admin
+  // Initial data loading
   useEffect(() => {
     if (!authLoading && !isCurrentUserAdmin) {
-      toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
+      toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder.", variant: "destructive" });
       router.replace('/');
+      return;
+    }
+    
+    async function loadInitialData() {
+      if (isCurrentUserAdmin) {
+        setIsLoading(true);
+        try {
+          await initializeDefaultServiceOrderData();
+          const [fetchedGuides, fetchedHotels, fetchedActivities] = await Promise.all([
+            getGuidesFromUsers(),
+            getHotelsFromFirestore(),
+            getActivitiesFromFirestore(),
+          ]);
+          setGuides(fetchedGuides);
+          setHotels(fetchedHotels);
+          setActivities(fetchedActivities);
+        } catch (error) {
+          toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    }
+    if(!authLoading) {
+        loadInitialData();
     }
   }, [authLoading, isCurrentUserAdmin, router, toast]);
 
@@ -54,57 +94,88 @@ export default function ServiceOrderGeneratorPage() {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      toast({ title: "Archivo Seleccionado", description: file.name, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
+        setExcelData(json);
+        toast({ title: "Archivo Cargado", description: file.name, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      };
+      reader.readAsArrayBuffer(file);
     }
   };
 
   const handleClearFile = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
     setSelectedFile(null);
+    setExcelData(null);
+    setGeneratedOrder(null);
   };
   
   const handleSearchFile = async () => {
-    if (!selectedFile) {
-        toast({ title: "Error", description: "Por favor, carga un archivo de programa primero.", variant: "destructive"});
-        return;
-    }
-    if (!fileNumber) {
-        toast({ title: "Error", description: "Por favor, ingresa un número de file para buscar.", variant: "destructive"});
-        return;
-    }
-    setIsSearching(true);
-    // Simulate search and generation
-    await new Promise(res => setTimeout(res, 1500));
-    
-    // Placeholder data for demonstration
-    setGeneratedOrder({
-        id: `ORD-${fileNumber}`,
-        fileNumber: fileNumber,
-        guideName: "JUAN PEREZ",
-        driverName: "CARLOS RAMOS",
-        paxInfo: "Sr. John Doe (2 PAX)",
-        itinerary: [
-            { date: "25/07/2024", time: "08:00", activity: "Recojo del Hotel" },
-            { date: "25/07/2024", time: "09:00", activity: "City Tour La Paz" },
-            { date: "25/07/2024", time: "12:30", activity: "Almuerzo en restaurante típico" },
-            { date: "25/07/2024", time: "14:00", activity: "Visita al Valle de la Luna" },
-            { date: "25/07/2024", time: "17:00", activity: "Retorno al Hotel" },
-        ]
-    });
+    if (!excelData) return toast({ title: "Error", description: "Carga un archivo de programa.", variant: "destructive" });
+    if (!fileNumberToSearch) return toast({ title: "Error", description: "Ingresa un número de file.", variant: "destructive" });
 
-    toast({ title: "Búsqueda Exitosa", description: `Se encontró y generó la orden para el file ${fileNumber}.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+    setIsSearching(true);
+    await new Promise(res => setTimeout(res, 500)); // Simulate search
+
+    let fileFound = false;
+    let ref = "No encontrado";
+    let pax = "N/A";
+
+    for (const row of excelData) {
+      if (String(row[0]).trim().toUpperCase() === fileNumberToSearch.trim().toUpperCase()) {
+        fileFound = true;
+        ref = String(row[1] || "No encontrado");
+        pax = String(row[2] || "N/A");
+        break;
+      }
+    }
+
+    if (fileFound) {
+      setGeneratedOrder({
+        ref: ref,
+        file: fileNumberToSearch,
+        pax: pax,
+        guide: null,
+        hotel: null,
+        itinerary: activities.slice(0, 5), // Placeholder with first 5 activities
+      });
+      toast({ title: "Búsqueda Exitosa", description: `File encontrado: ${ref}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+    } else {
+      setGeneratedOrder(null);
+      toast({ title: "Búsqueda Fallida", description: `No se encontró el file ${fileNumberToSearch}.`, variant: "destructive" });
+    }
     setIsSearching(false);
   };
   
+  const handleSelectChange = (type: 'guide' | 'hotel', value: string) => {
+    if (!generatedOrder) return;
+
+    if (type === 'guide') {
+      const selectedGuide = guides.find(g => g.uid === value) || null;
+      setGeneratedOrder({ ...generatedOrder, guide: selectedGuide });
+    } else if (type === 'hotel') {
+      const selectedHotel = hotels.find(h => h.id === value) || null;
+      setGeneratedOrder({ ...generatedOrder, hotel: selectedHotel });
+    }
+  };
+  
   const handleDownload = (format: 'Excel' | 'PDF' | 'Imagen' | 'WhatsApp') => {
-      toast({
-          title: `Función Próximamente`,
-          description: `La opción de descargar como ${format} estará disponible pronto.`,
-          variant: "default",
-      });
+    if (!generatedOrder || !generatedOrder.guide || !generatedOrder.hotel) {
+      return toast({ title: "Datos incompletos", description: "Selecciona un guía y un hotel antes de descargar.", variant: "destructive"});
+    }
+    toast({
+        title: `Función Próximamente`,
+        description: `La opción de descargar como ${format} estará disponible pronto.`,
+        variant: "default",
+    });
   };
 
-  if (authLoading || !isCurrentUserAdmin) {
+  if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -114,105 +185,117 @@ export default function ServiceOrderGeneratorPage() {
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
-      <div className="w-full max-w-4xl mb-4">
-        <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back" className="hover:bg-primary/90">
+      <div className="w-full max-w-6xl mb-4">
+        <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
 
-      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Input Card */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-2xl font-headline text-primary">Generar Orden de Servicio</CardTitle>
-            <CardDescription>Carga el programa y busca por número de file.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <Label>1. Archivo de Programa</Label>
-              <div className="flex items-center gap-2 mt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  className={cn(
-                    "flex-grow justify-start text-left font-normal",
-                    selectedFile && "bg-green-100 dark:bg-green-900 border-green-500"
-                  )}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  {selectedFile ? selectedFile.name : "Seleccionar archivo .xlsx"}
-                </Button>
-                {selectedFile && (
-                  <Button type="button" variant="destructive" size="icon" onClick={handleClearFile}>
-                    <Trash2 className="h-4 w-4" />
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* --- Input Column --- */}
+        <div className="space-y-6">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-2xl font-headline text-primary">Generar Orden de Servicio</CardTitle>
+              <CardDescription>Carga el programa, busca por file y selecciona los detalles.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>1. Archivo de Programa</Label>
+                <div className="flex items-center gap-2 mt-2">
+                  <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}
+                    className={cn("w-full justify-start", selectedFile && "bg-green-100 dark:bg-green-900 border-green-500")}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    {selectedFile ? selectedFile.name : "Seleccionar archivo .xlsx"}
                   </Button>
-                )}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                  accept=".xlsx,.xls"
-                />
+                  {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={handleClearFile}><Trash2 className="h-4 w-4" /></Button>}
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
+                </div>
               </div>
-            </div>
-
-            <div>
-              <Label htmlFor="fileNumber">2. Número de File</Label>
-              <div className="flex items-center gap-2 mt-2">
-                <Input 
-                    id="fileNumber" 
-                    placeholder="Ingresa el file..." 
-                    value={fileNumber}
-                    onChange={(e) => setFileNumber(e.target.value)}
-                    className="bg-muted"
-                />
-                <Button onClick={handleSearchFile} disabled={isSearching || !selectedFile || !fileNumber}>
-                    {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}
-                    Buscar
-                </Button>
+              <div>
+                <Label htmlFor="fileNumber">2. Buscar Número de File</Label>
+                <div className="flex items-center gap-2 mt-2">
+                  <Input id="fileNumber" placeholder="Ingresa el file..." value={fileNumberToSearch} onChange={(e) => setFileNumberToSearch(e.target.value)} className="bg-muted"/>
+                  <Button onClick={handleSearchFile} disabled={isSearching || !selectedFile}><Search className="mr-2 h-4 w-4"/>Buscar</Button>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+          
+          {generatedOrder && (
+            <Card className="shadow-lg">
+                <CardHeader>
+                    <CardTitle className="text-xl">3. Completar Datos</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <Label>Guía</Label>
+                            <Select onValueChange={(value) => handleSelectChange('guide', value)}>
+                                <SelectTrigger className="w-full mt-2"><User className="mr-2 h-4 w-4 text-muted-foreground"/> <SelectValue placeholder="Seleccionar guía..." /></SelectTrigger>
+                                <SelectContent>
+                                    {guides.map(g => <SelectItem key={g.uid} value={g.uid}>{g.fullName}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>Hotel</Label>
+                            <Select onValueChange={(value) => handleSelectChange('hotel', value)}>
+                                <SelectTrigger className="w-full mt-2"><Building className="mr-2 h-4 w-4 text-muted-foreground"/> <SelectValue placeholder="Seleccionar hotel..." /></SelectTrigger>
+                                <SelectContent>
+                                    {hotels.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                   </div>
+                   {/* We can add a component to edit the itinerary here later */}
+                </CardContent>
+            </Card>
+          )}
+        </div>
 
-        {/* Output Card */}
+        {/* --- Output Column --- */}
         <Card className="shadow-lg">
             <CardHeader>
-                <CardTitle className="text-2xl font-headline text-primary">Orden de Servicio Generada</CardTitle>
+                <CardTitle className="text-2xl font-headline text-primary">Orden de Servicio</CardTitle>
                 <CardDescription>
-                    {generatedOrder ? `Mostrando orden para el file: ${generatedOrder.fileNumber}` : "Aquí se mostrará el resultado."}
+                    {generatedOrder ? `Orden para el file: ${generatedOrder.file}` : "Aquí se mostrará el resultado."}
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                {isSearching ? (
-                    <div className="flex flex-col items-center justify-center h-48">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary"/>
-                        <p className="mt-4 text-muted-foreground">Buscando y generando...</p>
-                    </div>
-                ) : generatedOrder ? (
-                    <div className="space-y-4">
-                        <div className="p-4 border rounded-lg bg-background">
-                            <h3 className="font-bold text-lg">{generatedOrder.guideName} (Guía)</h3>
-                            <h4 className="font-semibold text-md">{generatedOrder.driverName} (Chofer)</h4>
-                            <p className="text-sm text-muted-foreground">{generatedOrder.paxInfo}</p>
-                        </div>
-                        <div className="border rounded-lg p-4">
-                            <h4 className="font-semibold mb-2">Itinerario:</h4>
-                            <ul className="space-y-2">
-                                {generatedOrder.itinerary.map((item, index) => (
-                                    <li key={index} className="flex items-center text-sm">
-                                        <span className="font-bold w-28">{item.date} {item.time}</span>
-                                        <span className="text-muted-foreground">{item.activity}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+                {!generatedOrder ? (
+                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center">
+                        {isSearching ? <Loader2 className="h-8 w-8 animate-spin text-primary"/> : <p className="text-muted-foreground">La orden aparecerá aquí.</p>}
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center h-48 text-center">
-                        <p className="text-muted-foreground">La orden de servicio aparecerá aquí una vez generada.</p>
+                    <div className="space-y-4">
+                        <div className="p-4 border rounded-lg bg-muted/50 space-y-1 text-sm">
+                           <p><strong>REF:</strong> {generatedOrder.ref}</p>
+                           <p><strong>FILE:</strong> {generatedOrder.file}</p>
+                           <p><strong>PAX:</strong> {generatedOrder.pax}</p>
+                           <p><strong>GUIA:</strong> {generatedOrder.guide?.fullName || <span className="text-destructive">No seleccionado</span>}</p>
+                           <p><strong>HOTEL:</strong> {generatedOrder.hotel?.name || <span className="text-destructive">No seleccionado</span>}</p>
+                        </div>
+                        <div className="border rounded-lg">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-[100px]">Fecha</TableHead>
+                                        <TableHead>Actividad</TableHead>
+                                        <TableHead className="w-[120px]">Guía Asignado</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {generatedOrder.itinerary.map((item, index) => (
+                                        <TableRow key={index}>
+                                            <TableCell>01/01/25</TableCell>
+                                            <TableCell>{item.name}</TableCell>
+                                            <TableCell className="font-medium">{generatedOrder.guide?.firstName || ""}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
                 )}
             </CardContent>
