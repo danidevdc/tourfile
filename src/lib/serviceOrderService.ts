@@ -36,64 +36,18 @@ export interface ServiceOrderGuide {
   firstName: string;
 }
 
-// --- Default Data for Initialization ---
+// --- Default Data for Initialization (Now handled by admin UI) ---
 
-const defaultHotels: Omit<Hotel, 'id'>[] = [
-  { name: "HOTEL ROSARIO" },
-  { name: "CASA DE PIEDRA" },
-  { name: "STANNUN" },
-  { name: "HOTEL MITRU" },
-  { name: "QANTU" },
-];
-
-const defaultActivities: Omit<Activity, 'id'>[] = [
-    { name: "Recojo del Hotel" },
-    { name: "City Tour La Paz" },
-    { name: "Almuerzo en restaurante típico" },
-    { name: "Visita al Valle de la Luna" },
-    { name: "Retorno al Hotel" },
-    { name: "Traslado al aeropuerto" },
-    { name: "Cena Show" },
-];
-
-const defaultDrivers: Omit<Driver, 'id'>[] = [
-    { name: "8" },
-    { name: "9" },
-    { name: "10" },
-    { name: "CONT Juan Perez" },
-];
-
-// --- Firestore Initialization Function ---
-
+// This function can be kept for potential future use, but the default data arrays are removed.
 export async function initializeDefaultServiceOrderData(): Promise<void> {
   if (!db) throw new Error("Firestore not initialized.");
   
-  const collectionsToInit = [
-    { ref: collection(db, 'hotels'), data: defaultHotels, name: 'hotels' },
-    { ref: collection(db, 'activities'), data: defaultActivities, name: 'activities' },
-    { ref: collection(db, 'drivers'), data: defaultDrivers, name: 'drivers' }
-  ];
-
-  const batch = writeBatch(db);
-  let batchHasWrites = false;
-
-  for (const { ref, data, name } of collectionsToInit) {
-    const q = query(ref, limit(1));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-      console.log(`No ${name} found. Initializing default ${name}...`);
-      data.forEach(item => {
-        const docRef = doc(ref);
-        batch.set(docRef, item);
-      });
-      batchHasWrites = true;
-    }
-  }
-
-  if (batchHasWrites) {
-    await batch.commit();
-    console.log('Default service order data has been initialized.');
-  }
+  // The collections are now managed via the admin UI.
+  // This function will no longer auto-populate data to prevent confusion
+  // and give the admin full control from a clean slate.
+  console.log("Service order data is now managed manually via the Admin UI.");
+  
+  return Promise.resolve();
 }
 
 // --- Data Fetching Functions ---
