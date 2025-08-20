@@ -216,8 +216,8 @@ export default function AdminDashboardPage() {
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={guideUsage} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" allowDecimals={false} />
-                    <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fill: 'hsl(var(--foreground))' }} />
+                    <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
                     <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
                     <Bar dataKey="count" fill="hsl(var(--chart-1))" name="Reportes" barSize={20} />
                   </BarChart>
@@ -246,8 +246,8 @@ export default function AdminDashboardPage() {
                 <ResponsiveContainer width="100%" height={300}>
                     <RechartsLineChart data={monthlyReports} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                        <YAxis allowDecimals={false} />
+                        <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
+                        <YAxis allowDecimals={false} tick={{ fill: 'hsl(var(--foreground))' }} />
                         <Tooltip />
                         <Legend />
                         <Line type="monotone" dataKey="reportes" stroke="hsl(var(--chart-1))" strokeWidth={2} name="Reportes Descargados" />
