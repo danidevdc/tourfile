@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -31,7 +32,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 
 
-export default function EditLogicPage() {
+export default function EditPettyCashLogicPage() {
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -160,7 +161,7 @@ export default function EditLogicPage() {
       </div>
       <Card className="w-full max-w-6xl shadow-lg">
         <CardHeader>
-          <CardTitle className="text-3xl font-headline text-center text-primary">Editor de Lógica (La Paz)</CardTitle>
+          <CardTitle className="text-3xl font-headline text-center text-primary">Editor de Lógica de Caja Chica (La Paz)</CardTitle>
           <CardDescription className="text-center">
             Define las reglas para generar los reportes de caja chica. Usa `=$G$3` para el N° de PAX.
           </CardDescription>

@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ArrowLeft, Trash2, PlusCircle, Hotel as HotelIcon, Car, ListChecks, FilePenLine } from 'lucide-react';
+import { Loader2, ArrowLeft, Trash2, PlusCircle, Hotel as HotelIcon, Car, ListChecks } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -239,20 +239,17 @@ export default function DataManagementPage() {
       </div>
       <Card className="w-full max-w-4xl shadow-lg">
         <CardHeader>
-          <CardTitle className="text-3xl font-headline text-center text-primary">Administrar Datos y Lógica</CardTitle>
+          <CardTitle className="text-3xl font-headline text-center text-primary">Administrar Datos</CardTitle>
           <CardDescription className="text-center">
-            Añade o elimina datos para los generadores y edita la lógica de cálculo.
+            Añade o elimina datos para los generadores de la aplicación.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="hotels" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="hotels"><HotelIcon className="mr-2 h-4 w-4" />Hoteles</TabsTrigger>
               <TabsTrigger value="drivers"><Car className="mr-2 h-4 w-4" />Choferes</TabsTrigger>
               <TabsTrigger value="activities"><ListChecks className="mr-2 h-4 w-4" />Actividades</TabsTrigger>
-              <TabsTrigger value="pettyCashLogic" onClick={() => router.push('/admin/edit-logic')}>
-                 <FilePenLine className="mr-2 h-4 w-4" />Lógica Caja Chica
-              </TabsTrigger>
             </TabsList>
             <TabsContent value="hotels">
               {renderTable(hotels, 'hotel')}
@@ -265,12 +262,6 @@ export default function DataManagementPage() {
             <TabsContent value="activities">
               {renderTable(activities, 'activity')}
               {renderAddForm('activity', 'Nombre de la nueva actividad...', 'Añadir Nueva Actividad')}
-            </TabsContent>
-            <TabsContent value="pettyCashLogic">
-                <div className='text-center p-8'>
-                    <Loader2 className='mx-auto h-8 w-8 animate-spin text-primary'/>
-                    <p className='mt-2 text-muted-foreground'>Redirigiendo a la lógica de Caja Chica...</p>
-                </div>
             </TabsContent>
           </Tabs>
         </CardContent>

@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FileSpreadsheet, ArrowRight, FilePenLine, Users, ClipboardList, Database } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth"; 
 import { useToast } from "@/hooks/use-toast"; 
-import { version } from '../../package.json'; // Import version
+import { version } from '../../package.json';
 
 export default function HomePage() {
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth(); 
@@ -21,7 +21,6 @@ export default function HomePage() {
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
       <Card className="w-full max-w-2xl shadow-lg rounded-xl">
         <CardContent className="p-10">
-          {/* Greeting Section */}
           <div className="mb-10 text-center">
             <h1 className="text-4xl font-bold text-primary">
               Bienvenido!
@@ -31,7 +30,6 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Action Buttons Section */}
           <div className="grid grid-cols-1 gap-6">
             <Link href="/city-selection" passHref>
               <Button
@@ -72,7 +70,28 @@ export default function HomePage() {
                     <Database className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
                       <span className="block text-2xl font-bold text-secondary-foreground">
-                        Administrar Datos y Lógica
+                        Administrar Datos
+                      </span>
+                       <span className="block text-sm font-normal text-secondary-foreground/80">
+                        Hoteles, Choferes, Actividades
+                      </span>
+                    </div>
+                    <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                  </Button>
+                </Link>
+
+                 <Link href="/admin/edit-petty-cash-logic" passHref>
+                   <Button
+                    variant="secondary" 
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
+                  >
+                    <FilePenLine className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                    <div className="text-left flex-grow">
+                      <span className="block text-2xl font-bold text-secondary-foreground">
+                        Editar Lógica de Caja Chica
+                      </span>
+                       <span className="block text-sm font-normal text-secondary-foreground/80">
+                        Modificar reglas de gastos para La Paz
                       </span>
                     </div>
                     <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
