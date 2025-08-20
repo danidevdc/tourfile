@@ -6,11 +6,9 @@ import {
   collection,
   doc,
   getDocs,
-  writeBatch,
-  query,
-  limit,
   addDoc,
   deleteDoc,
+  setDoc,
 } from 'firebase/firestore';
 
 // --- Interface Definitions ---
@@ -30,43 +28,39 @@ export interface Driver {
   name: string;
 }
 
-export interface ServiceOrderGuide {
-  uid: string;
-  fullName: string;
+export interface Guide {
+  uid: string; // Firestore document id
   firstName: string;
+  lastName: string;
 }
 
-// --- Default Data for Initialization (Now handled by admin UI) ---
+export interface ServiceOrderGuide extends Guide {
+  fullName: string;
+}
 
-// This function can be kept for potential future use, but the default data arrays are removed.
+// --- Default Data for Initialization ---
 export async function initializeDefaultServiceOrderData(): Promise<void> {
   if (!db) throw new Error("Firestore not initialized.");
-  
-  // The collections are now managed via the admin UI.
-  // This function will no longer auto-populate data to prevent confusion
-  // and give the admin full control from a clean slate.
   console.log("Service order data is now managed manually via the Admin UI.");
-  
   return Promise.resolve();
 }
 
 // --- Data Fetching Functions ---
 
-export async function getGuidesFromUsers(): Promise<ServiceOrderGuide[]> {
+export async function getGuidesFromFirestore(): Promise<ServiceOrderGuide[]> {
   if (!db) throw new Error("Firestore not initialized.");
-  const usersRef = collection(db, 'userProfiles');
-  const snapshot = await getDocs(usersRef);
+  const guidesRef = collection(db, 'guides');
+  const snapshot = await getDocs(guidesRef);
   
   if (snapshot.empty) return [];
 
   return snapshot.docs.map(doc => {
-    const data = doc.data();
-    const firstName = data.firstName || data.email.split('@')[0] || 'Usuario';
-    const lastName = data.lastName || '';
+    const data = doc.data() as Omit<Guide, 'uid'>;
     return {
       uid: doc.id,
-      firstName: firstName.trim(),
-      fullName: `${firstName.trim()} ${lastName.trim()}`.trim()
+      firstName: data.firstName,
+      lastName: data.lastName,
+      fullName: `${data.firstName} ${data.lastName}`.trim()
     };
   }).sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
@@ -107,6 +101,7 @@ export async function getDriversFromFirestore(): Promise<Driver[]> {
 
 // --- Data Creation Functions ---
 
+export const createGuide = (guide: {firstName: string, lastName: string}) => addDoc(collection(db!, 'guides'), guide);
 export const createHotel = (name: string) => addDoc(collection(db!, 'hotels'), { name });
 export const createActivity = (name: string) => addDoc(collection(db!, 'activities'), { name });
 export const createDriver = (name: string) => addDoc(collection(db!, 'drivers'), { name });
@@ -114,6 +109,7 @@ export const createDriver = (name: string) => addDoc(collection(db!, 'drivers'),
 
 // --- Data Deletion Functions ---
 
+export const deleteGuide = (id: string) => deleteDoc(doc(db!, 'guides', id));
 export const deleteHotel = (id: string) => deleteDoc(doc(db!, 'hotels', id));
 export const deleteActivity = (id: string) => deleteDoc(doc(db!, 'activities', id));
 export const deleteDriver = (id: string) => deleteDoc(doc(db!, 'drivers', id));

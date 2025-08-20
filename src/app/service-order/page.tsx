@@ -1,16 +1,15 @@
 
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
-import { format } from 'date-fns';
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
   initializeDefaultServiceOrderData,
-  getGuidesFromUsers,
+  getGuidesFromFirestore, // Use the new function
   getHotelsFromFirestore,
   type ServiceOrderGuide,
   type Hotel,
@@ -18,7 +17,7 @@ import {
 import { generateServiceOrderExcel } from '@/lib/serviceOrderGenerator';
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,18 +42,14 @@ export default function ServiceOrderPage() {
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
 
-  // Component State
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   
-  // Data for Selects
   const [guides, setGuides] = useState<ServiceOrderGuide[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
 
-  // Form & Results State
   const [orderData, setOrderData] = useState<ServiceOrderData>(initialServiceOrderState);
 
-  // Initial data loading
   useEffect(() => {
     if (!authLoading && !isCurrentUserAdmin) {
       toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder.", variant: "destructive" });
@@ -68,7 +63,7 @@ export default function ServiceOrderPage() {
         try {
           await initializeDefaultServiceOrderData();
           const [fetchedGuides, fetchedHotels] = await Promise.all([
-            getGuidesFromUsers(),
+            getGuidesFromFirestore(),
             getHotelsFromFirestore(),
           ]);
           setGuides(fetchedGuides);
@@ -117,6 +112,7 @@ export default function ServiceOrderPage() {
       guia: guides.find(g => g.fullName === orderData.guia)?.firstName || '',
       bus: orderData.nPax,
       chofer: '',
+
       observaciones: ''
     };
     setOrderData(prev => ({ ...prev, services: [...prev.services, newService] }));
@@ -148,7 +144,6 @@ export default function ServiceOrderPage() {
 
 
   useEffect(() => {
-    // Update 'bus' and 'guia' in services when main fields change
     const guideFirstName = guides.find(g => g.fullName === orderData.guia)?.firstName || '';
     setOrderData(prev => ({
       ...prev,

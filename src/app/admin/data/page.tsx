@@ -9,15 +9,16 @@ import {
   createHotel, deleteHotel, getHotelsFromFirestore,
   createDriver, deleteDriver, getDriversFromFirestore,
   createActivity, deleteActivity, getActivitiesFromFirestore,
+  createGuide, deleteGuide, getGuidesFromFirestore,
   initializeDefaultServiceOrderData,
-  type Hotel, type Driver, type Activity
+  type Hotel, type Driver, type Activity, type ServiceOrderGuide
 } from '@/lib/serviceOrderService';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ArrowLeft, Trash2, PlusCircle, Hotel as HotelIcon, Car, ListChecks } from 'lucide-react';
+import { Loader2, ArrowLeft, Trash2, PlusCircle, Hotel as HotelIcon, Car, ListChecks, UserSquare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -28,8 +29,8 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 
-type DataType = 'hotel' | 'driver' | 'activity';
-type ItemToDelete = (Hotel | Driver | Activity) & { type: DataType };
+type DataType = 'hotel' | 'driver' | 'activity' | 'guide';
+type ItemToDelete = (Hotel | Driver | Activity | ServiceOrderGuide) & { type: DataType; name?: string; fullName?: string };
 
 export default function DataManagementPage() {
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
@@ -39,11 +40,13 @@ export default function DataManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [guides, setGuides] = useState<ServiceOrderGuide[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   
   const [newItemName, setNewItemName] = useState('');
+  const [newItemLastName, setNewItemLastName] = useState('');
   const [driverType, setDriverType] = useState<'propio' | 'externo'>('propio');
   
   const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null);
@@ -60,14 +63,16 @@ export default function DataManagementPage() {
       setIsLoading(true);
       try {
         await initializeDefaultServiceOrderData();
-        const [fetchedHotels, fetchedDrivers, fetchedActivities] = await Promise.all([
+        const [fetchedHotels, fetchedDrivers, fetchedActivities, fetchedGuides] = await Promise.all([
           getHotelsFromFirestore(),
           getDriversFromFirestore(),
           getActivitiesFromFirestore(),
+          getGuidesFromFirestore(),
         ]);
         setHotels(fetchedHotels);
         setDrivers(fetchedDrivers);
         setActivities(fetchedActivities);
+        setGuides(fetchedGuides);
       } catch (error) {
         console.error("Error loading data:", error);
         toast({ title: "Error", description: "No se pudieron cargar los datos.", variant: "destructive" });
@@ -86,34 +91,34 @@ export default function DataManagementPage() {
 
 
   const handleAddItem = async (type: DataType) => {
-    if (!newItemName.trim()) {
+    const name = newItemName.trim();
+    const lastName = newItemLastName.trim();
+
+    if (!name) {
       toast({ title: "Dato Requerido", description: "El nombre no puede estar vacío.", variant: "destructive" });
       return;
     }
+    if (type === 'guide' && !lastName) {
+       toast({ title: "Dato Requerido", description: "El apellido no puede estar vacío.", variant: "destructive" });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      let success = false;
-      const nameToAdd = newItemName.trim();
-
-      if (type === 'hotel') {
-        await createHotel(nameToAdd);
-        success = true;
-      } else if (type === 'activity') {
-        await createActivity(nameToAdd);
-        success = true;
-      } else if (type === 'driver') {
-        const driverNameToSave = driverType === 'externo' && !nameToAdd.toUpperCase().startsWith('CONT ') 
-            ? `CONT ${nameToAdd}`
-            : nameToAdd;
+      if (type === 'hotel') await createHotel(name);
+      else if (type === 'activity') await createActivity(name);
+      else if (type === 'guide') await createGuide({ firstName: name, lastName: lastName });
+      else if (type === 'driver') {
+        const driverNameToSave = driverType === 'externo' && !name.toUpperCase().startsWith('CONT ') 
+            ? `CONT ${name}`
+            : name;
         await createDriver(driverNameToSave);
-        success = true;
       }
 
-      if (success) {
-        toast({ title: "Éxito", description: `${type.charAt(0).toUpperCase() + type.slice(1)} añadido correctamente.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
-        setNewItemName('');
-        await fetchData(); // Refresh data
-      }
+      toast({ title: "Éxito", description: `${type.charAt(0).toUpperCase() + type.slice(1)} añadido correctamente.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      setNewItemName('');
+      setNewItemLastName('');
+      await fetchData(); // Refresh data
     } catch (error) {
       console.error(`Error adding ${type}:`, error);
       toast({ title: "Error", description: `No se pudo añadir el ${type}.`, variant: "destructive" });
@@ -125,13 +130,14 @@ export default function DataManagementPage() {
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
     try {
-      if (itemToDelete.type === 'hotel') {
-        await deleteHotel(itemToDelete.id);
-      } else if (itemToDelete.type === 'driver') {
-        await deleteDriver(itemToDelete.id);
-      } else if (itemToDelete.type === 'activity') {
-        await deleteActivity(itemToDelete.id);
-      }
+      const id = 'uid' in itemToDelete ? itemToDelete.uid : itemToDelete.id;
+      if (!id) throw new Error("ID is missing");
+      
+      if (itemToDelete.type === 'hotel') await deleteHotel(id);
+      else if (itemToDelete.type === 'driver') await deleteDriver(id);
+      else if (itemToDelete.type === 'activity') await deleteActivity(id);
+      else if (itemToDelete.type === 'guide') await deleteGuide(id);
+
       toast({ title: "Eliminado", description: "El registro ha sido eliminado.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
       await fetchData(); // Refresh data
     } catch (error) {
@@ -141,9 +147,9 @@ export default function DataManagementPage() {
     }
   };
 
-  const renderAddForm = (type: DataType, placeholder: string, title: string) => (
+  const renderAddForm = (type: DataType) => (
     <Card className="mt-4">
-      <CardHeader><CardTitle className="text-lg">{title}</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-lg">Añadir Nuevo {type.charAt(0).toUpperCase() + type.slice(1)}</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         {type === 'driver' && (
            <RadioGroup defaultValue="propio" onValueChange={(val: 'propio' | 'externo') => setDriverType(val)} className="flex items-center space-x-4">
@@ -157,13 +163,21 @@ export default function DataManagementPage() {
               </div>
             </RadioGroup>
         )}
-        <div className="flex gap-2">
+        <div className={`flex gap-2 ${type === 'guide' ? 'flex-col sm:flex-row' : ''}`}>
           <Input 
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
-            placeholder={placeholder}
+            placeholder={type === 'guide' ? 'Nombre del guía...' : `Nombre del nuevo ${type}...`}
             onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)}
           />
+           {type === 'guide' && (
+               <Input 
+                value={newItemLastName}
+                onChange={(e) => setNewItemLastName(e.target.value)}
+                placeholder="Apellido del guía..."
+                onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)}
+              />
+           )}
           <Button onClick={() => handleAddItem(type)} disabled={isSubmitting}>
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
             Añadir
@@ -173,12 +187,18 @@ export default function DataManagementPage() {
     </Card>
   );
 
-  const renderTable = <T extends {id: string, name: string}>(data: T[], type: DataType) => (
+  const renderTable = <T extends { id?: string; uid?: string; name?: string; fullName?: string; firstName?: string; lastName?: string }>(data: T[], type: DataType) => {
+    const displayName = (item: T) => {
+        if (type === 'guide') return `${item.firstName} ${item.lastName}`;
+        return item.name || '';
+    };
+    
+    return (
       <div className="border rounded-lg mt-4 overflow-hidden max-h-96 overflow-y-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nombre</TableHead>
+              <TableHead>{type === 'guide' ? 'Nombre Completo' : 'Nombre'}</TableHead>
               <TableHead className="text-right w-[100px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -186,41 +206,46 @@ export default function DataManagementPage() {
             {data.length === 0 ? (
               <TableRow><TableCell colSpan={2} className="text-center h-24">No hay datos.</TableCell></TableRow>
             ) : (
-              data.map(item => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell className="text-right">
-                    <AlertDialog>
-                       <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="icon" title={`Eliminar ${type}`} onClick={() => setItemToDelete({ ...item, type })}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                       </AlertDialogTrigger>
-                       {itemToDelete?.id === item.id && (
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Se eliminará permanentemente "{itemToDelete.name}". Esta acción no se puede deshacer.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive hover:bg-destructive/90">
-                                Sí, eliminar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                       )}
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))
+              data.map(item => {
+                const itemId = item.id || item.uid;
+                if (!itemId) return null;
+                return (
+                  <TableRow key={itemId}>
+                    <TableCell className="font-medium">{displayName(item)}</TableCell>
+                    <TableCell className="text-right">
+                      <AlertDialog>
+                         <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="icon" title={`Eliminar ${type}`} onClick={() => setItemToDelete({ ...item, type })}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                         </AlertDialogTrigger>
+                         {itemToDelete && (itemToDelete.id || itemToDelete.uid) === itemId && (
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Se eliminará permanentemente "{displayName(itemToDelete)}". Esta acción no se puede deshacer.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive hover:bg-destructive/90">
+                                  Sí, eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                         )}
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>
       </div>
-  );
+    );
+  };
 
   if (authLoading || isLoading) {
     return (
@@ -245,23 +270,28 @@ export default function DataManagementPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="hotels" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs defaultValue="guides" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="guides"><UserSquare className="mr-2 h-4 w-4" />Guías</TabsTrigger>
               <TabsTrigger value="hotels"><HotelIcon className="mr-2 h-4 w-4" />Hoteles</TabsTrigger>
               <TabsTrigger value="drivers"><Car className="mr-2 h-4 w-4" />Choferes</TabsTrigger>
               <TabsTrigger value="activities"><ListChecks className="mr-2 h-4 w-4" />Actividades</TabsTrigger>
             </TabsList>
+            <TabsContent value="guides">
+              {renderTable(guides, 'guide')}
+              {renderAddForm('guide')}
+            </TabsContent>
             <TabsContent value="hotels">
               {renderTable(hotels, 'hotel')}
-              {renderAddForm('hotel', 'Nombre del nuevo hotel...', 'Añadir Nuevo Hotel')}
+              {renderAddForm('hotel')}
             </TabsContent>
             <TabsContent value="drivers">
               {renderTable(drivers, 'driver')}
-              {renderAddForm('driver', 'Número o nombre del chofer...', 'Añadir Nuevo Chofer')}
+              {renderAddForm('driver')}
             </TabsContent>
             <TabsContent value="activities">
               {renderTable(activities, 'activity')}
-              {renderAddForm('activity', 'Nombre de la nueva actividad...', 'Añadir Nueva Actividad')}
+              {renderAddForm('activity')}
             </TabsContent>
           </Tabs>
         </CardContent>
