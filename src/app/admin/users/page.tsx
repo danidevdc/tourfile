@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth, type UserProfile } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -141,7 +142,7 @@ export default function AdminUsersPage() {
     try {
       await deleteUserFromFirestore(userToDelete.uid);
       setUsers(prevUsers => prevUsers.filter(user => user.uid !== userToDelete.uid));
-      toast({ title: "Usuario Eliminado", description: "El perfil del usuario ha sido eliminado. La cuenta de autenticación debe ser eliminada manualmente desde Firebase Console.", className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 7000 });
+      toast({ title: "Usuario Eliminado", description: "El perfil del usuario ha sido eliminado. La cuenta de autenticación debe ser eliminada manually desde Firebase Console.", className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 7000 });
 
     } catch (error) {
       // Error toast is handled within deleteUserFromFirestore
@@ -320,3 +321,5 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
+    
