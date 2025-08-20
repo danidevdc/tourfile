@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileSpreadsheet, ArrowRight, FilePenLine, Users, ClipboardList, Database } from "lucide-react";
+import { FileSpreadsheet, ArrowRight, ClipboardList, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth"; 
 import { useToast } from "@/hooks/use-toast"; 
 import { version } from '../../package.json';
@@ -46,73 +46,38 @@ export default function HomePage() {
               </Button>
             </Link>
 
+            <Link href="/service-order" passHref>
+              <Button
+                className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group bg-accent hover:bg-accent/90 text-accent-foreground"
+              >
+                <ClipboardList className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                <div className="text-left flex-grow">
+                  <span className="block text-2xl font-bold">
+                    Generar Órdenes de Servicio
+                  </span>
+                </div>
+                <ArrowRight className="h-8 w-8 ml-auto text-accent-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+              </Button>
+            </Link>
+
             {!authLoading && isCurrentUserAdmin && (
-              <>
-                <Link href="/service-order" passHref>
-                  <Button
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group bg-accent hover:bg-accent/90 text-accent-foreground"
-                  >
-                    <ClipboardList className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
-                    <div className="text-left flex-grow">
-                      <span className="block text-2xl font-bold">
-                        Generar Órdenes de Servicio
-                      </span>
-                    </div>
-                    <ArrowRight className="h-8 w-8 ml-auto text-accent-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-                  </Button>
-                </Link>
-
-                <Link href="/admin/data" passHref>
-                  <Button
-                    variant="secondary" 
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
-                  >
-                    <Database className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
-                    <div className="text-left flex-grow">
-                      <span className="block text-2xl font-bold text-secondary-foreground">
-                        Administrar Datos
-                      </span>
-                       <span className="block text-sm font-normal text-secondary-foreground/80">
-                        Hoteles, Choferes, Actividades
-                      </span>
-                    </div>
-                    <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-                  </Button>
-                </Link>
-
-                 <Link href="/admin/edit-petty-cash-logic" passHref>
-                   <Button
-                    variant="secondary" 
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
-                  >
-                    <FilePenLine className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
-                    <div className="text-left flex-grow">
-                      <span className="block text-2xl font-bold text-secondary-foreground">
-                        Editar Lógica de Caja Chica
-                      </span>
-                       <span className="block text-sm font-normal text-secondary-foreground/80">
-                        Modificar reglas de gastos para La Paz
-                      </span>
-                    </div>
-                    <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-                  </Button>
-                </Link>
-
-                <Link href="/admin/users" passHref>
-                  <Button
-                    variant="secondary"
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
-                  >
-                    <Users className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
-                    <div className="text-left flex-grow">
-                      <span className="block text-2xl font-bold text-secondary-foreground">
-                        Administrar Usuarios
-                      </span>
-                    </div>
-                    <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-                  </Button>
-                </Link>
-              </>
+               <Link href="/admin/dashboard" passHref>
+                 <Button
+                  variant="secondary" 
+                  className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
+                >
+                  <Settings className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                  <div className="text-left flex-grow">
+                    <span className="block text-2xl font-bold text-secondary-foreground">
+                      Administrar
+                    </span>
+                     <span className="block text-sm font-normal text-secondary-foreground/80">
+                      Gestionar datos, lógica y usuarios
+                    </span>
+                  </div>
+                  <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                </Button>
+              </Link>
             )}
           </div>
         </CardContent>
