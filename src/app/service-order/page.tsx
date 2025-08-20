@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
   initializeDefaultServiceOrderData,
-  getGuidesFromFirestore, // Use the new function
+  getGuidesFromFirestore,
   getHotelsFromFirestore,
   type ServiceOrderGuide,
   type Hotel,
@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Loader2, FileDown, Trash2, PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Combobox } from "@/components/ui/combobox"; // Import Combobox
 import { type ServiceOrderData, type ServiceItem } from "@/lib/serviceOrderGenerator";
 
 const initialServiceOrderState: ServiceOrderData = {
@@ -86,7 +87,7 @@ export default function ServiceOrderPage() {
   
   const handleSelectChange = (type: 'guide' | 'hotel', value: string) => {
     if (type === 'guide') {
-      const selectedGuide = guides.find(g => g.uid === value);
+      const selectedGuide = guides.find(g => g.fullName.toLowerCase() === value.toLowerCase());
       if (selectedGuide) {
         setOrderData(prev => ({
           ...prev,
@@ -164,6 +165,8 @@ export default function ServiceOrderPage() {
     );
   }
 
+  const guideOptions = guides.map(g => ({ value: g.fullName.toLowerCase(), label: g.fullName }));
+
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background">
       <div className="w-full max-w-7xl mb-4">
@@ -181,12 +184,14 @@ export default function ServiceOrderPage() {
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div>
                   <Label>Guía</Label>
-                  <Select onValueChange={(value) => handleSelectChange('guide', value)}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar guía..." /></SelectTrigger>
-                      <SelectContent>
-                          {guides.map(g => <SelectItem key={g.uid} value={g.uid}>{g.fullName}</SelectItem>)}
-                      </SelectContent>
-                  </Select>
+                  <Combobox
+                    options={guideOptions}
+                    value={orderData.guia.toLowerCase()}
+                    onSelect={(currentValue) => handleSelectChange('guide', currentValue)}
+                    placeholder="Buscar guía..."
+                    notFoundMessage="No se encontró el guía."
+                    className="mt-1"
+                  />
               </div>
               <div>
                   <Label htmlFor="file">File</Label>
