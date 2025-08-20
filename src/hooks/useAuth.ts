@@ -33,7 +33,8 @@ export interface UserProfile {
   uid: string; // Firebase Auth UID
   email: string; // Normalized email
   isAdmin?: boolean;
-  createdAt?: Timestamp;
+  createdAt?: Date;
+  lastSignInTime?: Date;
   activityLog?: ActivityLogEntry[];
   firstName?: string;
   lastName?: string;
@@ -97,15 +98,21 @@ export function useAuth() {
       const userProfileDocRef = doc(db, 'userProfiles', uid);
       const userProfileDoc = await getDoc(userProfileDocRef);
       if (userProfileDoc.exists()) {
-        const data = userProfileDoc.data() as UserProfile;
+        const data = userProfileDoc.data();
+        // Convert Firestore Timestamps to JS Date objects
+        const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : undefined;
+        const lastSignInTime = data.lastSignInTime instanceof Timestamp ? data.lastSignInTime.toDate() : undefined;
+
         return {
           ...data,
           uid: uid,
+          createdAt,
+          lastSignInTime,
           firstName: data.firstName || '',
           lastName: data.lastName || '',
           username: data.username || '',
           generatedReportsCount: data.generatedReportsCount || 0,
-        };
+        } as UserProfile;
       }
       return null;
     } catch (error) {
@@ -203,12 +210,15 @@ export function useAuth() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, emailToUseForLogin, passwordInput);
       const firebaseUser = userCredential.user;
-
-      // Create and set the new session ID
-      const newSessionId = `${'${Date.now()}'}-${Math.random().toString(36).substring(2, 9)}`;
+      
+      const newSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       sessionStorage.setItem(SESSION_ID_KEY, newSessionId);
+      
       const userProfileDocRef = doc(db, 'userProfiles', firebaseUser.uid);
-      await updateDoc(userProfileDocRef, { activeSessionId: newSessionId });
+      await updateDoc(userProfileDocRef, {
+        activeSessionId: newSessionId,
+        lastSignInTime: serverTimestamp() // Update last login time
+      });
       
       const profile = await fetchUserProfile(firebaseUser.uid);
 
@@ -216,7 +226,7 @@ export function useAuth() {
       setIsCurrentUserAdmin(!!profile?.isAdmin || firebaseUser.email === ADMIN_EMAIL);
       
       const displayName = profile?.email || "Usuario";
-      toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${'${displayName}'}!`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${displayName}!`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
       router.push('/');
     } catch (error: any) {
       console.error('Login error:', error.code, error.message);
@@ -270,8 +280,7 @@ export function useAuth() {
       const userCredential = await createUserWithEmailAndPassword(auth, targetEmail, password);
       firebaseUserRegistered = userCredential.user;
 
-      const userProfileData: UserProfile = {
-        uid: firebaseUserRegistered.uid,
+      const userProfileData: Omit<UserProfile, 'uid'> = {
         email: targetEmail,
         isAdmin: targetEmail === ADMIN_EMAIL,
         createdAt: serverTimestamp() as Timestamp,
@@ -282,7 +291,7 @@ export function useAuth() {
 
       await setDoc(doc(db, 'userProfiles', firebaseUserRegistered.uid), userProfileData);
 
-      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${'${targetEmail}'}. Por favor, inicia sesión.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}. Por favor, inicia sesión.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
       
       if (auth.currentUser) { 
         await signOut(auth);
@@ -314,7 +323,7 @@ export function useAuth() {
             message = error.message || "Error desconocido durante el registro.";
         }
       } else if (firebaseUserRegistered && error.message && error.message.toLowerCase().includes('firestore')) {
-        console.error(`Firestore Error after user ${'${firebaseUserRegistered.uid}'} created: ${'${error.message}'}`);
+        console.error(`Firestore Error after user ${firebaseUserRegistered.uid} created: ${error.message}`);
         message = "La cuenta de autenticación fue creada, pero hubo un problema al guardar el perfil. Contacta al soporte.";
       } else {
         console.error('Non-Firebase error or unknown error structure:', error);
@@ -337,7 +346,7 @@ export function useAuth() {
       await fbSendPasswordResetEmail(auth, emailForReset.trim());
       toast({
         title: "Correo de Recuperación Enviado",
-        description: `Si una cuenta existe para ${'${emailForReset}'}, se ha enviado un correo con instrucciones.`,
+        description: `Si una cuenta existe para ${emailForReset}, se ha enviado un correo con instrucciones.`,
         duration: 7000,
         className: "bg-green-100 dark:bg-green-900 border-green-500"
       });
@@ -345,7 +354,7 @@ export function useAuth() {
       console.error("Password reset error:", error);
       let message = "No se pudo enviar el correo de recuperación.";
       if (error.code === 'auth/user-not-found') {
-        message = `Si una cuenta existe para ${'${emailForReset}'}, se ha enviado un correo. Si no lo ves, revisa tu carpeta de spam.`;
+        message = `Si una cuenta existe para ${emailForReset}, se ha enviado un correo. Si no lo ves, revisa tu carpeta de spam.`;
          toast({
             title: "Verifica tu Correo",
             description: message,
@@ -389,7 +398,7 @@ export function useAuth() {
         generatedReportsCount: increment(amount)
       });
     } catch (error) {
-      console.error(`Error incrementing report count for user ${'${uid}'}:`, error);
+      console.error(`Error incrementing report count for user ${uid}:`, error);
     }
   }, []);
 
@@ -418,17 +427,23 @@ export function useAuth() {
       const profilesCollectionRef = collection(db, 'userProfiles');
       const profilesSnapshot = await getDocs(profilesCollectionRef);
       const usersList = profilesSnapshot.docs.map(docSnapshot => {
-        const data = docSnapshot.data() as UserProfile;
+        const data = docSnapshot.data();
+         // Convert Firestore Timestamps to JS Date objects
+        const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : undefined;
+        const lastSignInTime = data.lastSignInTime instanceof Timestamp ? data.lastSignInTime.toDate() : undefined;
+        
         return {
           ...data,
           uid: docSnapshot.id,
+          createdAt,
+          lastSignInTime,
           generatedReportsCount: data.generatedReportsCount || 0,
-        };
+        } as UserProfile;
       });
       return usersList;
     } catch (error: any) {
       console.error("Error fetching all user profiles from Firestore:", error);
-      toast({ title: "Error", description: `No se pudieron obtener los perfiles: ${'${error.message}'}`, variant: "destructive" });
+      toast({ title: "Error", description: `No se pudieron obtener los perfiles: ${error.message}`, variant: "destructive" });
       return [];
     }
   }, [isCurrentUserAdmin, toast]);
