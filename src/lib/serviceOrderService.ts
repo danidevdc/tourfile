@@ -8,7 +8,7 @@ import {
   getDocs,
   addDoc,
   deleteDoc,
-  setDoc,
+  writeBatch,
 } from 'firebase/firestore';
 
 // --- Interface Definitions ---
@@ -41,7 +41,7 @@ export interface ServiceOrderGuide extends Guide {
 // --- Default Data for Initialization ---
 export async function initializeDefaultServiceOrderData(): Promise<void> {
   if (!db) throw new Error("Firestore not initialized.");
-  console.log("Service order data is now managed manually via the Admin UI.");
+  // Data is now managed manually via the Admin UI. This function is kept for potential future use.
   return Promise.resolve();
 }
 
@@ -99,12 +99,29 @@ export async function getDriversFromFirestore(): Promise<Driver[]> {
 }
 
 
-// --- Data Creation Functions ---
+// --- Data Creation Functions (Single) ---
 
 export const createGuide = (guide: {firstName: string, lastName: string}) => addDoc(collection(db!, 'guides'), guide);
 export const createHotel = (name: string) => addDoc(collection(db!, 'hotels'), { name });
 export const createActivity = (name: string) => addDoc(collection(db!, 'activities'), { name });
 export const createDriver = (name: string) => addDoc(collection(db!, 'drivers'), { name });
+
+// --- Data Creation Functions (Bulk) ---
+const createBulk = async (collectionName: string, records: { [key: string]: any }[]) => {
+  if (!db) throw new Error("Firestore not initialized");
+  const batch = writeBatch(db);
+  const collectionRef = collection(db, collectionName);
+  records.forEach(record => {
+    const docRef = doc(collectionRef);
+    batch.set(docRef, record);
+  });
+  await batch.commit();
+};
+
+export const createBulkGuides = (guides: {firstName: string, lastName: string}[]) => createBulk('guides', guides);
+export const createBulkHotels = (hotels: {name: string}[]) => createBulk('hotels', hotels);
+export const createBulkActivities = (activities: {name: string}[]) => createBulk('activities', activities);
+export const createBulkDrivers = (drivers: {name: string}[]) => createBulk('drivers', drivers);
 
 
 // --- Data Deletion Functions ---

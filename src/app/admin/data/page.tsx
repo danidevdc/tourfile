@@ -1,8 +1,9 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import * as XLSX from 'xlsx';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -10,7 +11,7 @@ import {
   createDriver, deleteDriver, getDriversFromFirestore,
   createActivity, deleteActivity, getActivitiesFromFirestore,
   createGuide, deleteGuide, getGuidesFromFirestore,
-  initializeDefaultServiceOrderData,
+  createBulkGuides, createBulkHotels, createBulkDrivers, createBulkActivities,
   type Hotel, type Driver, type Activity, type ServiceOrderGuide
 } from '@/lib/serviceOrderService';
 
@@ -18,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ArrowLeft, Trash2, PlusCircle, Hotel as HotelIcon, Car, ListChecks, UserSquare } from 'lucide-react';
+import { Loader2, ArrowLeft, Trash2, PlusCircle, Hotel as HotelIcon, Car, ListChecks, UserSquare, Upload } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -29,8 +30,56 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 
-type DataType = 'hotel' | 'driver' | 'activity' | 'guide';
+type DataType = 'guide' | 'hotel' | 'driver' | 'activity';
 type ItemToDelete = (Hotel | Driver | Activity | ServiceOrderGuide) & { type: DataType; name?: string; fullName?: string };
+
+
+interface BulkUploadButtonProps {
+  dataType: DataType;
+  onUpload: (file: File) => Promise<void>;
+  isSubmitting: boolean;
+}
+
+const BulkUploadButton: React.FC<BulkUploadButtonProps> = ({ dataType, onUpload, isSubmitting }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onUpload(file);
+    }
+    // Reset file input to allow uploading the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  return (
+    <>
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept=".xlsx, .xls"
+        onChange={handleFileChange}
+      />
+      <Button
+        variant="outline"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={isSubmitting}
+        className="ml-2"
+      >
+        {isSubmitting ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Upload className="mr-2 h-4 w-4" />
+        )}
+        Subir Lista
+      </Button>
+    </>
+  );
+};
+
 
 export default function DataManagementPage() {
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
@@ -62,7 +111,6 @@ export default function DataManagementPage() {
     if (isCurrentUserAdmin) {
       setIsLoading(true);
       try {
-        await initializeDefaultServiceOrderData();
         const [fetchedHotels, fetchedDrivers, fetchedActivities, fetchedGuides] = await Promise.all([
           getHotelsFromFirestore(),
           getDriversFromFirestore(),
@@ -87,7 +135,7 @@ export default function DataManagementPage() {
       fetchData();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCurrentUserAdmin, authLoading, toast]);
+  }, [isCurrentUserAdmin, authLoading]);
 
 
   const handleAddItem = async (type: DataType) => {
@@ -147,6 +195,55 @@ export default function DataManagementPage() {
     }
   };
 
+
+  const handleBulkUpload = async (file: File, type: DataType) => {
+    setIsSubmitting(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+
+          let records: any[] = [];
+          if (type === 'guide') {
+            records = json.map(row => ({ firstName: row.nombre, lastName: row.apellido })).filter(g => g.firstName && g.lastName);
+            if(records.length > 0) await createBulkGuides(records);
+          } else {
+            records = json.map(row => ({ name: row.nombre })).filter(item => item.name);
+            if (records.length > 0) {
+              if (type === 'hotel') await createBulkHotels(records);
+              else if (type === 'driver') await createBulkDrivers(records);
+              else if (type === 'activity') await createBulkActivities(records);
+            }
+          }
+          
+          if (records.length === 0) {
+            toast({ title: "Archivo Vacío o Formato Incorrecto", description: "Asegúrate que el archivo Excel tenga las columnas correctas ('nombre' y 'apellido' para guías, 'nombre' para los demás).", variant: "destructive", duration: 7000 });
+          } else {
+            toast({ title: "Carga Exitosa", description: `Se procesaron ${records.length} registros desde el archivo.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+            await fetchData();
+          }
+
+        } catch (err) {
+          console.error("Error processing file:", err);
+          toast({ title: "Error al procesar archivo", description: "Hubo un problema al leer el contenido del archivo Excel.", variant: "destructive" });
+        } finally {
+          setIsSubmitting(false);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } catch (error) {
+      console.error("Error reading file:", error);
+      toast({ title: "Error de carga", description: "No se pudo cargar el archivo.", variant: "destructive" });
+      setIsSubmitting(false);
+    }
+  };
+
+
   const renderAddForm = (type: DataType) => (
     <Card className="mt-4">
       <CardHeader><CardTitle className="text-lg">Añadir Nuevo {type.charAt(0).toUpperCase() + type.slice(1)}</CardTitle></CardHeader>
@@ -163,25 +260,30 @@ export default function DataManagementPage() {
               </div>
             </RadioGroup>
         )}
-        <div className={`flex gap-2 ${type === 'guide' ? 'flex-col sm:flex-row' : ''}`}>
-          <Input 
-            value={newItemName}
-            onChange={(e) => setNewItemName(e.target.value)}
-            placeholder={type === 'guide' ? 'Nombre del guía...' : `Nombre del nuevo ${type}...`}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)}
-          />
-           {type === 'guide' && (
-               <Input 
-                value={newItemLastName}
-                onChange={(e) => setNewItemLastName(e.target.value)}
-                placeholder="Apellido del guía..."
-                onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)}
-              />
-           )}
-          <Button onClick={() => handleAddItem(type)} disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
-            Añadir
-          </Button>
+        <div className={`flex gap-2 items-center ${type === 'guide' ? 'flex-col sm:flex-row' : ''}`}>
+          <div className="flex-grow flex gap-2">
+            <Input 
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              placeholder={type === 'guide' ? 'Nombre del guía...' : `Nombre del nuevo ${type}...`}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)}
+            />
+            {type === 'guide' && (
+                <Input 
+                  value={newItemLastName}
+                  onChange={(e) => setNewItemLastName(e.target.value)}
+                  placeholder="Apellido del guía..."
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)}
+                />
+            )}
+          </div>
+          <div className="flex gap-2 shrink-0">
+             <Button onClick={() => handleAddItem(type)} disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
+              Añadir
+            </Button>
+            <BulkUploadButton dataType={type} onUpload={(file) => handleBulkUpload(file, type)} isSubmitting={isSubmitting} />
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -266,7 +368,7 @@ export default function DataManagementPage() {
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center text-primary">Administrar Datos</CardTitle>
           <CardDescription className="text-center">
-            Añade o elimina datos para los generadores de la aplicación.
+            Añade, elimina o sube listas de datos para los generadores.
           </CardDescription>
         </CardHeader>
         <CardContent>
