@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileSpreadsheet, ArrowRight, FilePenLine, Users, ClipboardList } from "lucide-react"; // Added ClipboardList icon
+import { FileSpreadsheet, ArrowRight, FilePenLine, Users, ClipboardList, Database } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth"; 
 import { useToast } from "@/hooks/use-toast"; 
 import { version } from '../../package.json'; // Import version
@@ -72,7 +72,22 @@ export default function HomePage() {
                     <FilePenLine className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
                       <span className="block text-2xl font-bold text-secondary-foreground">
-                        Editar Lógica Generador LPZ
+                        Editar Lógica (Caja Chica)
+                      </span>
+                    </div>
+                    <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                  </Button>
+                </Link>
+                
+                <Link href="/admin/data" passHref>
+                  <Button
+                    variant="secondary" 
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
+                  >
+                    <Database className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                    <div className="text-left flex-grow">
+                      <span className="block text-2xl font-bold text-secondary-foreground">
+                        Administrar Datos (O.S.)
                       </span>
                     </div>
                     <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />

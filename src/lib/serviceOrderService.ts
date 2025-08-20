@@ -9,15 +9,24 @@ import {
   writeBatch,
   query,
   limit,
+  addDoc,
+  deleteDoc,
 } from 'firebase/firestore';
 
+// --- Interface Definitions ---
+
 export interface Hotel {
-  id: string; // Corresponds to Firestore document ID
+  id: string; 
   name: string;
 }
 
 export interface Activity {
-  id: string; // Corresponds to Firestore document ID
+  id: string; 
+  name: string;
+}
+
+export interface Driver {
+  id: string;
   name: string;
 }
 
@@ -47,40 +56,43 @@ const defaultActivities: Omit<Activity, 'id'>[] = [
     { name: "Cena Show" },
 ];
 
+const defaultDrivers: Omit<Driver, 'id'>[] = [
+    { name: "8" },
+    { name: "9" },
+    { name: "10" },
+    { name: "CONT Juan Perez" },
+];
 
-// --- Firestore Initialization Functions ---
+// --- Firestore Initialization Function ---
 
 export async function initializeDefaultServiceOrderData(): Promise<void> {
   if (!db) throw new Error("Firestore not initialized.");
   
-  // Initialize Hotels
-  const hotelsRef = collection(db, 'hotels');
-  const hotelsQuery = query(hotelsRef, limit(1));
-  const hotelSnapshot = await getDocs(hotelsQuery);
-  if (hotelSnapshot.empty) {
-    console.log('No hotels found. Initializing default hotels...');
-    const batch = writeBatch(db);
-    defaultHotels.forEach(hotel => {
-      const docRef = doc(hotelsRef);
-      batch.set(docRef, hotel);
-    });
-    await batch.commit();
-    console.log('Default hotels have been initialized.');
+  const collectionsToInit = [
+    { ref: collection(db, 'hotels'), data: defaultHotels, name: 'hotels' },
+    { ref: collection(db, 'activities'), data: defaultActivities, name: 'activities' },
+    { ref: collection(db, 'drivers'), data: defaultDrivers, name: 'drivers' }
+  ];
+
+  const batch = writeBatch(db);
+  let batchHasWrites = false;
+
+  for (const { ref, data, name } of collectionsToInit) {
+    const q = query(ref, limit(1));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      console.log(`No ${name} found. Initializing default ${name}...`);
+      data.forEach(item => {
+        const docRef = doc(ref);
+        batch.set(docRef, item);
+      });
+      batchHasWrites = true;
+    }
   }
 
-  // Initialize Activities
-  const activitiesRef = collection(db, 'activities');
-  const activitiesQuery = query(activitiesRef, limit(1));
-  const activitySnapshot = await getDocs(activitiesQuery);
-  if (activitySnapshot.empty) {
-    console.log('No activities found. Initializing default activities...');
-    const batch = writeBatch(db);
-    defaultActivities.forEach(activity => {
-      const docRef = doc(activitiesRef);
-      batch.set(docRef, activity);
-    });
+  if (batchHasWrites) {
     await batch.commit();
-    console.log('Default activities have been initialized.');
+    console.log('Default service order data has been initialized.');
   }
 }
 
@@ -105,7 +117,6 @@ export async function getGuidesFromUsers(): Promise<ServiceOrderGuide[]> {
   }).sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
 
-
 export async function getHotelsFromFirestore(): Promise<Hotel[]> {
   if (!db) throw new Error("Firestore not initialized.");
   const hotelsRef = collection(db, 'hotels');
@@ -127,3 +138,28 @@ export async function getActivitiesFromFirestore(): Promise<Activity[]> {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Activity))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
+
+export async function getDriversFromFirestore(): Promise<Driver[]> {
+  if (!db) throw new Error("Firestore not initialized.");
+  const driversRef = collection(db, 'drivers');
+  const snapshot = await getDocs(driversRef);
+
+  if (snapshot.empty) return [];
+
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Driver))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+
+// --- Data Creation Functions ---
+
+export const createHotel = (name: string) => addDoc(collection(db!, 'hotels'), { name });
+export const createActivity = (name: string) => addDoc(collection(db!, 'activities'), { name });
+export const createDriver = (name: string) => addDoc(collection(db!, 'drivers'), { name });
+
+
+// --- Data Deletion Functions ---
+
+export const deleteHotel = (id: string) => deleteDoc(doc(db!, 'hotels', id));
+export const deleteActivity = (id: string) => deleteDoc(doc(db!, 'activities', id));
+export const deleteDriver = (id: string) => deleteDoc(doc(db!, 'drivers', id));
