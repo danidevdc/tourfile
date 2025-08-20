@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2 } from "lucide-react";
+import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
@@ -95,6 +95,12 @@ export default function AdminDashboardPage() {
               icon={FilePenLine}
               title="Editar Lógica de Caja Chica"
               description="Modifica las reglas de gastos automáticos para La Paz."
+            />
+             <AdminLinkCard 
+              href="/admin/edit-service-order-logic"
+              icon={ClipboardEdit}
+              title="Editar Lógica de Órdenes"
+              description="Define las reglas para la generación de órdenes de servicio."
             />
              <AdminLinkCard 
               href="/admin/users"
