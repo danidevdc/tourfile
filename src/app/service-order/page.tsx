@@ -1,9 +1,10 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -11,30 +12,31 @@ import {
   initializeDefaultServiceOrderData,
   getGuidesFromUsers,
   getHotelsFromFirestore,
-  getActivitiesFromFirestore,
   type ServiceOrderGuide,
   type Hotel,
-  type Activity,
 } from "@/lib/serviceOrderService";
+import { generateServiceOrderExcel } from '@/lib/serviceOrderGenerator';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, Trash2, Loader2, Search, FileDown, FileImage, FileText, Share2, User, Building } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Loader2, FileDown, Trash2, PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { type ServiceOrderData, type ServiceItem } from "@/lib/serviceOrderGenerator";
 
-
-interface ServiceOrderData {
-  ref: string;
-  file: string;
-  pax: string;
-  guide: ServiceOrderGuide | null;
-  hotel: Hotel | null;
-  itinerary: Activity[];
-}
+const initialServiceOrderState: ServiceOrderData = {
+  guia: '',
+  file: '',
+  ref: '',
+  nPax: '',
+  hotel: '',
+  services: [],
+  observations: '',
+  nota: 'SERVICIOS EN EL LAGO.\nTODOS LOS GUIAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA'
+};
 
 export default function ServiceOrderPage() {
   const router = useRouter();
@@ -43,19 +45,14 @@ export default function ServiceOrderPage() {
 
   // Component State
   const [isLoading, setIsLoading] = useState(true);
-  const [isSearching, setIsSearching] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [excelData, setExcelData] = useState<any[][] | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   
   // Data for Selects
   const [guides, setGuides] = useState<ServiceOrderGuide[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
 
   // Form & Results State
-  const [fileNumberToSearch, setFileNumberToSearch] = useState("");
-  const [generatedOrder, setGeneratedOrder] = useState<ServiceOrderData | null>(null);
+  const [orderData, setOrderData] = useState<ServiceOrderData>(initialServiceOrderState);
 
   // Initial data loading
   useEffect(() => {
@@ -70,14 +67,12 @@ export default function ServiceOrderPage() {
         setIsLoading(true);
         try {
           await initializeDefaultServiceOrderData();
-          const [fetchedGuides, fetchedHotels, fetchedActivities] = await Promise.all([
+          const [fetchedGuides, fetchedHotels] = await Promise.all([
             getGuidesFromUsers(),
             getHotelsFromFirestore(),
-            getActivitiesFromFirestore(),
           ]);
           setGuides(fetchedGuides);
           setHotels(fetchedHotels);
-          setActivities(fetchedActivities);
         } catch (error) {
           toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
         } finally {
@@ -86,94 +81,85 @@ export default function ServiceOrderPage() {
       }
     }
     if(!authLoading) {
-        loadInitialData();
+      loadInitialData();
     }
   }, [authLoading, isCurrentUserAdmin, router, toast]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
-        setExcelData(json);
-        toast({ title: "Archivo Cargado", description: file.name, className: "bg-green-100 dark:bg-green-900 border-green-500" });
-      };
-      reader.readAsArrayBuffer(file);
-    }
-  };
-
-  const handleClearFile = () => {
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setSelectedFile(null);
-    setExcelData(null);
-    setGeneratedOrder(null);
-  };
-  
-  const handleSearchFile = async () => {
-    if (!excelData) return toast({ title: "Error", description: "Carga un archivo de programa.", variant: "destructive" });
-    if (!fileNumberToSearch) return toast({ title: "Error", description: "Ingresa un número de file.", variant: "destructive" });
-
-    setIsSearching(true);
-    await new Promise(res => setTimeout(res, 500)); // Simulate search
-
-    let fileFound = false;
-    let ref = "No encontrado";
-    let pax = "N/A";
-
-    for (const row of excelData) {
-      if (String(row[0]).trim().toUpperCase() === fileNumberToSearch.trim().toUpperCase()) {
-        fileFound = true;
-        ref = String(row[1] || "No encontrado");
-        pax = String(row[2] || "N/A");
-        break;
-      }
-    }
-
-    if (fileFound) {
-      setGeneratedOrder({
-        ref: ref,
-        file: fileNumberToSearch,
-        pax: pax,
-        guide: null,
-        hotel: null,
-        itinerary: activities.slice(0, 5), // Placeholder with first 5 activities
-      });
-      toast({ title: "Búsqueda Exitosa", description: `File encontrado: ${ref}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
-    } else {
-      setGeneratedOrder(null);
-      toast({ title: "Búsqueda Fallida", description: `No se encontró el file ${fileNumberToSearch}.`, variant: "destructive" });
-    }
-    setIsSearching(false);
+  const handleInputChange = (field: keyof ServiceOrderData, value: string) => {
+    setOrderData(prev => ({ ...prev, [field]: value }));
   };
   
   const handleSelectChange = (type: 'guide' | 'hotel', value: string) => {
-    if (!generatedOrder) return;
-
     if (type === 'guide') {
-      const selectedGuide = guides.find(g => g.uid === value) || null;
-      setGeneratedOrder({ ...generatedOrder, guide: selectedGuide });
+      const selectedGuide = guides.find(g => g.uid === value);
+      if (selectedGuide) {
+        setOrderData(prev => ({
+          ...prev,
+          guia: selectedGuide.fullName,
+          services: prev.services.map(s => ({ ...s, guia: selectedGuide.firstName }))
+        }));
+      }
     } else if (type === 'hotel') {
-      const selectedHotel = hotels.find(h => h.id === value) || null;
-      setGeneratedOrder({ ...generatedOrder, hotel: selectedHotel });
+      const selectedHotel = hotels.find(h => h.id === value);
+      setOrderData(prev => ({ ...prev, hotel: selectedHotel?.name || '' }));
     }
   };
-  
-  const handleDownload = (format: 'Excel' | 'PDF' | 'Imagen' | 'WhatsApp') => {
-    if (!generatedOrder || !generatedOrder.guide || !generatedOrder.hotel) {
-      return toast({ title: "Datos incompletos", description: "Selecciona un guía y un hotel antes de descargar.", variant: "destructive"});
-    }
-    toast({
-        title: `Función Próximamente`,
-        description: `La opción de descargar como ${format} estará disponible pronto.`,
-        variant: "default",
-    });
+
+  const handleServiceChange = (index: number, field: keyof ServiceItem, value: string) => {
+    const updatedServices = [...orderData.services];
+    updatedServices[index] = { ...updatedServices[index], [field]: value };
+    setOrderData(prev => ({ ...prev, services: updatedServices }));
   };
+
+  const addNewService = () => {
+    const newService: ServiceItem = {
+      fecha: '', hora: '', servicio: '', vuelo: '',
+      guia: guides.find(g => g.fullName === orderData.guia)?.firstName || '',
+      bus: orderData.nPax,
+      chofer: '',
+      observaciones: ''
+    };
+    setOrderData(prev => ({ ...prev, services: [...prev.services, newService] }));
+  };
+
+  const removeService = (index: number) => {
+    const updatedServices = orderData.services.filter((_, i) => i !== index);
+    setOrderData(prev => ({ ...prev, services: updatedServices }));
+  };
+
+  const handleDownloadExcel = () => {
+    setIsGenerating(true);
+    try {
+      if (!orderData.guia || !orderData.file) {
+        toast({ title: "Datos incompletos", description: "El nombre del guía y el file son obligatorios.", variant: "destructive" });
+        return;
+      }
+      const workbook = generateServiceOrderExcel(orderData);
+      const fileName = `Orden_Servicio_${orderData.file.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      toast({ title: "Descarga Exitosa", description: `Se generó el archivo ${fileName}.`, className: "bg-green-100 dark:bg-green-900 border-green-500"});
+    } catch(error) {
+      console.error("Error generating excel", error);
+      toast({ title: "Error", description: "No se pudo generar el archivo Excel.", variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+
+  useEffect(() => {
+    // Update 'bus' and 'guia' in services when main fields change
+    const guideFirstName = guides.find(g => g.fullName === orderData.guia)?.firstName || '';
+    setOrderData(prev => ({
+      ...prev,
+      services: prev.services.map(s => ({
+        ...s,
+        bus: prev.nPax,
+        guia: guideFirstName
+      }))
+    }));
+  }, [orderData.nPax, orderData.guia, guides]);
+
 
   if (authLoading || isLoading) {
     return (
@@ -184,129 +170,123 @@ export default function ServiceOrderPage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
-      <div className="w-full max-w-6xl mb-4">
+    <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background">
+      <div className="w-full max-w-7xl mb-4">
         <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
 
-      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* --- Input Column --- */}
-        <div className="space-y-6">
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-2xl font-headline text-primary">Generar Orden de Servicio</CardTitle>
-              <CardDescription>Carga el programa, busca por file y selecciona los detalles.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>1. Archivo de Programa</Label>
-                <div className="flex items-center gap-2 mt-2">
-                  <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}
-                    className={cn("w-full justify-start", selectedFile && "bg-green-100 dark:bg-green-900 border-green-500")}>
-                    <Upload className="mr-2 h-4 w-4" />
-                    {selectedFile ? selectedFile.name : "Seleccionar archivo .xlsx"}
-                  </Button>
-                  {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={handleClearFile}><Trash2 className="h-4 w-4" /></Button>}
-                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="fileNumber">2. Buscar Número de File</Label>
-                <div className="flex items-center gap-2 mt-2">
-                  <Input id="fileNumber" placeholder="Ingresa el file..." value={fileNumberToSearch} onChange={(e) => setFileNumberToSearch(e.target.value)} className="bg-muted"/>
-                  <Button onClick={handleSearchFile} disabled={isSearching || !selectedFile}><Search className="mr-2 h-4 w-4"/>Buscar</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {generatedOrder && (
-            <Card className="shadow-lg">
-                <CardHeader>
-                    <CardTitle className="text-xl">3. Completar Datos</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <Label>Guía</Label>
-                            <Select onValueChange={(value) => handleSelectChange('guide', value)}>
-                                <SelectTrigger className="w-full mt-2"><User className="mr-2 h-4 w-4 text-muted-foreground"/> <SelectValue placeholder="Seleccionar guía..." /></SelectTrigger>
-                                <SelectContent>
-                                    {guides.map(g => <SelectItem key={g.uid} value={g.uid}>{g.fullName}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label>Hotel</Label>
-                            <Select onValueChange={(value) => handleSelectChange('hotel', value)}>
-                                <SelectTrigger className="w-full mt-2"><Building className="mr-2 h-4 w-4 text-muted-foreground"/> <SelectValue placeholder="Seleccionar hotel..." /></SelectTrigger>
-                                <SelectContent>
-                                    {hotels.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                   </div>
-                   {/* We can add a component to edit the itinerary here later */}
-                </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* --- Output Column --- */}
+      <div className="w-full max-w-7xl space-y-6">
         <Card className="shadow-lg">
-            <CardHeader>
-                <CardTitle className="text-2xl font-headline text-primary">Orden de Servicio</CardTitle>
-                <CardDescription>
-                    {generatedOrder ? `Orden para el file: ${generatedOrder.file}` : "Aquí se mostrará el resultado."}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                {!generatedOrder ? (
-                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center">
-                        {isSearching ? <Loader2 className="h-8 w-8 animate-spin text-primary"/> : <p className="text-muted-foreground">La orden aparecerá aquí.</p>}
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        <div className="p-4 border rounded-lg bg-muted/50 space-y-1 text-sm">
-                           <p><strong>REF:</strong> {generatedOrder.ref}</p>
-                           <p><strong>FILE:</strong> {generatedOrder.file}</p>
-                           <p><strong>PAX:</strong> {generatedOrder.pax}</p>
-                           <p><strong>GUIA:</strong> {generatedOrder.guide?.fullName || <span className="text-destructive">No seleccionado</span>}</p>
-                           <p><strong>HOTEL:</strong> {generatedOrder.hotel?.name || <span className="text-destructive">No seleccionado</span>}</p>
-                        </div>
-                        <div className="border rounded-lg">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[100px]">Fecha</TableHead>
-                                        <TableHead>Actividad</TableHead>
-                                        <TableHead className="w-[120px]">Guía Asignado</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {generatedOrder.itinerary.map((item, index) => (
-                                        <TableRow key={index}>
-                                            <TableCell>01/01/25</TableCell>
-                                            <TableCell>{item.name}</TableCell>
-                                            <TableCell className="font-medium">{generatedOrder.guide?.firstName || ""}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </div>
-                )}
-            </CardContent>
-            {generatedOrder && (
-                <CardFooter className="grid grid-cols-2 gap-2 pt-6 border-t">
-                    <Button onClick={() => handleDownload('Excel')} variant="outline"><FileDown className="mr-2"/> Excel</Button>
-                    <Button onClick={() => handleDownload('PDF')} variant="outline"><FileText className="mr-2"/> PDF</Button>
-                    <Button onClick={() => handleDownload('Imagen')} variant="outline"><FileImage className="mr-2"/> Imagen</Button>
-                    <Button onClick={() => handleDownload('WhatsApp')} variant="outline"><Share2 className="mr-2"/> WhatsApp</Button>
-                </CardFooter>
-            )}
+          <CardHeader>
+            <CardTitle className="text-2xl font-headline text-primary">Generador de Órdenes de Servicio</CardTitle>
+            <CardDescription>Completa los campos para generar la orden de servicio.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div>
+                  <Label>Guía</Label>
+                  <Select onValueChange={(value) => handleSelectChange('guide', value)}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar guía..." /></SelectTrigger>
+                      <SelectContent>
+                          {guides.map(g => <SelectItem key={g.uid} value={g.uid}>{g.fullName}</SelectItem>)}
+                      </SelectContent>
+                  </Select>
+              </div>
+              <div>
+                  <Label htmlFor="file">File</Label>
+                  <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} className="mt-1"/>
+              </div>
+              <div>
+                  <Label htmlFor="ref">Ref</Label>
+                  <Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className="mt-1"/>
+              </div>
+              <div>
+                  <Label htmlFor="nPax">Nº Pax</Label>
+                  <Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1"/>
+              </div>
+              <div>
+                  <Label>Hotel</Label>
+                  <Select onValueChange={(value) => handleSelectChange('hotel', value)}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar hotel..." /></SelectTrigger>
+                      <SelectContent>
+                          {hotels.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
+                      </SelectContent>
+                  </Select>
+              </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle>Servicios</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Hora</TableHead>
+                    <TableHead>Servicio</TableHead>
+                    <TableHead>Vuelo</TableHead>
+                    <TableHead>Guía</TableHead>
+                    <TableHead>Bus</TableHead>
+                    <TableHead>Chofer</TableHead>
+                    <TableHead>Observaciones</TableHead>
+                    <TableHead className="text-right">Acción</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orderData.services.map((service, index) => (
+                    <TableRow key={index}>
+                      <TableCell><Input value={service.fecha} onChange={e => handleServiceChange(index, 'fecha', e.target.value)} placeholder="dd/mm/aa" /></TableCell>
+                      <TableCell><Input value={service.hora} onChange={e => handleServiceChange(index, 'hora', e.target.value)} placeholder="HH:mm" /></TableCell>
+                      <TableCell><Input value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
+                      <TableCell><Input value={service.vuelo} onChange={e => handleServiceChange(index, 'vuelo', e.target.value)} /></TableCell>
+                      <TableCell><Input value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
+                      <TableCell><Input value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
+                      <TableCell><Input value={service.chofer} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
+                      <TableCell><Input value={service.observaciones} onChange={e => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <Button onClick={addNewService} variant="outline" className="mt-4"><PlusCircle className="mr-2 h-4 w-4"/>Añadir Servicio</Button>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg">
+           <CardHeader>
+            <CardTitle>Observaciones y Notas Finales</CardTitle>
+          </CardHeader>
+           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label htmlFor="observaciones">Observaciones Generales</Label>
+                <Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={5}/>
+              </div>
+               <div>
+                <Label htmlFor="nota">Nota (Pie de página)</Label>
+                <Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/>
+              </div>
+           </CardContent>
+        </Card>
+
+        <Card className="shadow-lg">
+          <CardHeader>
+             <CardTitle className="text-xl">Finalizar</CardTitle>
+             <CardDescription>Genera y descarga el archivo final.</CardDescription>
+          </CardHeader>
+          <CardContent>
+              <Button onClick={handleDownloadExcel} className="w-full sm:w-auto" disabled={isGenerating}>
+                  {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4"/>}
+                  Generar y Descargar Excel
+              </Button>
+          </CardContent>
         </Card>
       </div>
     </div>
