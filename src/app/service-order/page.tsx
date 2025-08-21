@@ -137,7 +137,7 @@ export default function ServiceOrderPage() {
     const newService: ServiceItem = {
       fecha: '', hora: '', servicio: '', vuelo: '',
       guia: guideFirstName,
-      bus: busTypeSelection, // This now correctly uses the selection
+      bus: busTypeSelection,
       chofer: driverName,
       observaciones: ''
     };
@@ -291,7 +291,7 @@ export default function ServiceOrderPage() {
                       <TableCell><Input value={service.vuelo} onChange={e => handleServiceChange(index, 'vuelo', e.target.value)} /></TableCell>
                       <TableCell><Input value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
                       <TableCell><Input value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
-                      <TableCell><Input value={service.chofer} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
+                      <TableCell><Input value={service.chofer?.replace(/^CONT\s/i, '')} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
                       <TableCell><Input value={service.observaciones} onChange={e => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
                       <TableCell className="text-right">
                         <Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button>
