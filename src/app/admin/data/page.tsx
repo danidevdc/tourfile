@@ -295,6 +295,10 @@ export default function DataManagementPage() {
     }
   };
 
+  const handleTabChange = (tabValue: string) => {
+    router.push(`/admin/data?tab=${tabValue}`, { scroll: false });
+  };
+
 
   const renderAddForm = (type: DataType) => (
     <Card className="mt-4">
@@ -432,7 +436,7 @@ export default function DataManagementPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue={activeTab} className="w-full">
+          <Tabs defaultValue={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="guides"><UserSquare className="mr-2 h-4 w-4" />Guías</TabsTrigger>
               <TabsTrigger value="hotels"><HotelIcon className="mr-2 h-4 w-4" />Hoteles</TabsTrigger>
