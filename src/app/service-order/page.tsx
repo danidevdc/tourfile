@@ -107,19 +107,20 @@ export default function ServiceOrderPage() {
     setOrderData(prev => ({ ...prev, [field]: value }));
   };
   
-  const handleSelectChange = (type: 'guide' | 'hotel', value: string) => {
+  const handleSelectChange = (type: 'guide' | 'hotel' | 'driver', value: string) => {
     if (type === 'guide') {
       const selectedGuide = guides.find(g => g.fullName.toLowerCase() === value.toLowerCase());
       if (selectedGuide) {
         setOrderData(prev => ({
           ...prev,
           guia: selectedGuide.fullName,
-          services: prev.services.map(s => ({ ...s, guia: selectedGuide.firstName }))
         }));
       }
     } else if (type === 'hotel') {
         const selectedHotel = hotels.find(h => h.name.toLowerCase() === value.toLowerCase());
         setOrderData(prev => ({ ...prev, hotel: selectedHotel?.name || '' }));
+    } else if (type === 'driver') {
+        setDriverSelection(value);
     }
   };
 
@@ -130,15 +131,19 @@ export default function ServiceOrderPage() {
   };
 
   const addNewService = () => {
+    const guideFirstName = guides.find(g => g.fullName === orderData.guia)?.firstName || '';
+    const driverName = allDrivers.find(d => d.name.toLowerCase() === driverSelection.toLowerCase())?.name || '';
+    
     const newService: ServiceItem = {
       fecha: '', hora: '', servicio: '', vuelo: '',
-      guia: guides.find(g => g.fullName === orderData.guia)?.firstName || '',
-      bus: busTypeSelection === 'CONT.' ? '' : busTypeSelection,
-      chofer: driverSelection,
+      guia: guideFirstName,
+      bus: busTypeSelection, // This now correctly uses the selection
+      chofer: driverName,
       observaciones: ''
     };
     setOrderData(prev => ({ ...prev, services: [...prev.services, newService] }));
   };
+
 
   const removeService = (index: number) => {
     const updatedServices = orderData.services.filter((_, i) => i !== index);
@@ -163,21 +168,6 @@ export default function ServiceOrderPage() {
       setIsGenerating(false);
     }
   };
-
-  useEffect(() => {
-    const guideFirstName = guides.find(g => g.fullName === orderData.guia)?.firstName || '';
-    const busValue = busTypeSelection === 'CONT.' ? '' : busTypeSelection;
-
-    setOrderData(prev => ({
-      ...prev,
-      services: prev.services.map(s => ({
-        ...s,
-        guia: guideFirstName,
-        bus: busValue,
-        chofer: driverSelection
-      }))
-    }));
-  }, [orderData.guia, guides, busTypeSelection, driverSelection]);
 
   const handleBusTypeChange = (value: string) => {
     setBusTypeSelection(value);
@@ -263,7 +253,7 @@ export default function ServiceOrderPage() {
                 <Combobox
                     options={driverOptions}
                     value={driverSelection.toLowerCase()}
-                    onSelect={(val) => setDriverSelection(val)}
+                    onSelect={(val) => handleSelectChange('driver', val)}
                     placeholder="Seleccionar chofer..."
                     notFoundMessage="No se encontró el chofer."
                     className="mt-1"
