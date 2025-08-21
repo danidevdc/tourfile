@@ -58,7 +58,7 @@ export function generateServiceOrderExcel(data: ServiceOrderData): XLSX.WorkBook
       service.vuelo || '', 
       service.guia || '', 
       service.bus || '',
-      service.chofer ? service.chofer.replace(/^CONT\s/, '') : '',
+      service.chofer ? service.chofer.replace(/^CONT\s/i, '') : '',
       service.observaciones || ''
     ]);
   });
@@ -90,7 +90,7 @@ export function generateServiceOrderExcel(data: ServiceOrderData): XLSX.WorkBook
   const thinBorder = { style: 'thin', color: { rgb: '000000' } };
   const allBorders = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
 
-  const headerRowIndex = 7; // 0-indexed for wsData array
+  const headerRowIndex = 8; // 0-indexed for wsData array
   
   ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }]; // Title merge
 
