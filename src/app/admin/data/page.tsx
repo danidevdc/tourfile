@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useRef, type ChangeEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -31,7 +31,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 
 
-type DataType = 'guide' | 'hotel' | 'driver' | 'activity';
+type DataType = 'guides' | 'hotels' | 'drivers' | 'activities';
+const VALID_TABS: DataType[] = ['guides', 'hotels', 'drivers', 'activities'];
+
 type ItemToDelete = (Hotel | Driver | Activity | ServiceOrderGuide) & { type: DataType; name?: string; fullName?: string };
 type Item = Hotel | Driver | Activity | ServiceOrderGuide;
 
@@ -86,6 +88,7 @@ const BulkUploadButton: React.FC<BulkUploadButtonProps> = ({ dataType, onUpload,
 export default function DataManagementPage() {
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -104,6 +107,10 @@ export default function DataManagementPage() {
   
   const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null);
 
+  const initialTab = searchParams.get('tab') as DataType | null;
+  const activeTab = initialTab && VALID_TABS.includes(initialTab) ? initialTab : 'guides';
+
+
   useEffect(() => {
     if (!authLoading && !isCurrentUserAdmin) {
       toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder.", variant: "destructive" });
@@ -120,7 +127,7 @@ export default function DataManagementPage() {
       if (!id) return;
       
       let nameKey: string;
-      if (type === 'guide' && 'fullName' in item) {
+      if (type === 'guides' && 'fullName' in item) {
         nameKey = item.fullName.trim().toLowerCase();
       } else if ('name' in item) {
         nameKey = item.name.trim().toLowerCase();
@@ -159,10 +166,10 @@ export default function DataManagementPage() {
         setGuides(fetchedGuides);
 
         const allDuplicates = new Set([
-            ...findDuplicates(fetchedHotels, 'hotel'),
-            ...findDuplicates(fetchedDrivers, 'driver'),
-            ...findDuplicates(fetchedActivities, 'activity'),
-            ...findDuplicates(fetchedGuides, 'guide'),
+            ...findDuplicates(fetchedHotels, 'hotels'),
+            ...findDuplicates(fetchedDrivers, 'drivers'),
+            ...findDuplicates(fetchedActivities, 'activities'),
+            ...findDuplicates(fetchedGuides, 'guides'),
         ]);
         setDuplicateIds(allDuplicates);
 
@@ -191,30 +198,30 @@ export default function DataManagementPage() {
       toast({ title: "Dato Requerido", description: "El nombre no puede estar vacío.", variant: "destructive" });
       return;
     }
-    if (type === 'guide' && !lastName) {
+    if (type === 'guides' && !lastName) {
        toast({ title: "Dato Requerido", description: "El apellido no puede estar vacío.", variant: "destructive" });
       return;
     }
 
     setIsSubmitting(true);
     try {
-      if (type === 'hotel') await createHotel(name);
-      else if (type === 'activity') await createActivity(name);
-      else if (type === 'guide') await createGuide({ firstName: name, lastName: lastName });
-      else if (type === 'driver') {
+      if (type === 'hotels') await createHotel(name);
+      else if (type === 'activities') await createActivity(name);
+      else if (type === 'guides') await createGuide({ firstName: name, lastName: lastName });
+      else if (type === 'drivers') {
         const driverNameToSave = driverType === 'externo' && !name.toUpperCase().startsWith('CONT ') 
             ? `CONT ${name}`
             : name;
         await createDriver(driverNameToSave);
       }
 
-      toast({ title: "Éxito", description: `${type.charAt(0).toUpperCase() + type.slice(1)} añadido correctamente.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      toast({ title: "Éxito", description: `${type.charAt(0).toUpperCase() + type.slice(1, -1)} añadido correctamente.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
       setNewItemName('');
       setNewItemLastName('');
       await fetchData(); // Refresh data
     } catch (error) {
       console.error(`Error adding ${type}:`, error);
-      toast({ title: "Error", description: `No se pudo añadir el ${type}.`, variant: "destructive" });
+      toast({ title: "Error", description: `No se pudo añadir el ${type.slice(0, -1)}.`, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -226,10 +233,10 @@ export default function DataManagementPage() {
       const id = 'uid' in itemToDelete ? itemToDelete.uid : itemToDelete.id;
       if (!id) throw new Error("ID is missing");
       
-      if (itemToDelete.type === 'hotel') await deleteHotel(id);
-      else if (itemToDelete.type === 'driver') await deleteDriver(id);
-      else if (itemToDelete.type === 'activity') await deleteActivity(id);
-      else if (itemToDelete.type === 'guide') await deleteGuide(id);
+      if (itemToDelete.type === 'hotels') await deleteHotel(id);
+      else if (itemToDelete.type === 'drivers') await deleteDriver(id);
+      else if (itemToDelete.type === 'activities') await deleteActivity(id);
+      else if (itemToDelete.type === 'guides') await deleteGuide(id);
 
       toast({ title: "Eliminado", description: "El registro ha sido eliminado.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
       await fetchData(); // Refresh data
@@ -254,15 +261,15 @@ export default function DataManagementPage() {
           const json: any[] = XLSX.utils.sheet_to_json(worksheet);
 
           let records: any[] = [];
-          if (type === 'guide') {
+          if (type === 'guides') {
             records = json.map(row => ({ firstName: row.nombre, lastName: row.apellido })).filter(g => g.firstName && g.lastName);
             if(records.length > 0) await createBulkGuides(records);
           } else {
             records = json.map(row => ({ name: row.nombre })).filter(item => item.name);
             if (records.length > 0) {
-              if (type === 'hotel') await createBulkHotels(records);
-              else if (type === 'driver') await createBulkDrivers(records);
-              else if (type === 'activity') await createBulkActivities(records);
+              if (type === 'hotels') await createBulkHotels(records);
+              else if (type === 'drivers') await createBulkDrivers(records);
+              else if (type === 'activities') await createBulkActivities(records);
             }
           }
           
@@ -291,9 +298,9 @@ export default function DataManagementPage() {
 
   const renderAddForm = (type: DataType) => (
     <Card className="mt-4">
-      <CardHeader><CardTitle className="text-lg">Añadir Nuevo {type.charAt(0).toUpperCase() + type.slice(1)}</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-lg">Añadir Nuevo {type.slice(0, -1)}</CardTitle></CardHeader>
       <CardContent className="space-y-4">
-        {type === 'driver' && (
+        {type === 'drivers' && (
            <RadioGroup defaultValue="propio" onValueChange={(val: 'propio' | 'externo') => setDriverType(val)} className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="propio" id="r-propio" />
@@ -305,15 +312,15 @@ export default function DataManagementPage() {
               </div>
             </RadioGroup>
         )}
-        <div className={`flex gap-2 items-center ${type === 'guide' ? 'flex-col sm:flex-row' : ''}`}>
+        <div className={`flex gap-2 items-center ${type === 'guides' ? 'flex-col sm:flex-row' : ''}`}>
           <div className="flex-grow flex gap-2">
             <Input 
               value={newItemName}
               onChange={(e) => setNewItemName(e.target.value)}
-              placeholder={type === 'guide' ? 'Nombre del guía...' : `Nombre del nuevo ${type}...`}
+              placeholder={type === 'guides' ? 'Nombre del guía...' : `Nombre del nuevo ${type.slice(0, -1)}...`}
               onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)}
             />
-            {type === 'guide' && (
+            {type === 'guides' && (
                 <Input 
                   value={newItemLastName}
                   onChange={(e) => setNewItemLastName(e.target.value)}
@@ -336,7 +343,7 @@ export default function DataManagementPage() {
 
   const renderTable = <T extends { id?: string; uid?: string; name?: string; fullName?: string; firstName?: string; lastName?: string }>(data: T[], type: DataType) => {
     const displayName = (item: T) => {
-        if (type === 'guide') return `${item.firstName} ${item.lastName}`;
+        if (type === 'guides') return `${item.firstName} ${item.lastName}`;
         return item.name || '';
     };
     
@@ -345,7 +352,7 @@ export default function DataManagementPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{type === 'guide' ? 'Nombre Completo' : 'Nombre'}</TableHead>
+              <TableHead>{type === 'guides' ? 'Nombre Completo' : 'Nombre'}</TableHead>
               <TableHead className="text-right w-[100px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -370,7 +377,7 @@ export default function DataManagementPage() {
                     <TableCell className="text-right">
                       <AlertDialog>
                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="icon" title={`Eliminar ${type}`} onClick={() => setItemToDelete({ ...item, type })}>
+                            <Button variant="destructive" size="icon" title={`Eliminar ${type.slice(0, -1)}`} onClick={() => setItemToDelete({ ...item, type })}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                          </AlertDialogTrigger>
@@ -425,7 +432,7 @@ export default function DataManagementPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="guides" className="w-full">
+          <Tabs defaultValue={activeTab} className="w-full">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="guides"><UserSquare className="mr-2 h-4 w-4" />Guías</TabsTrigger>
               <TabsTrigger value="hotels"><HotelIcon className="mr-2 h-4 w-4" />Hoteles</TabsTrigger>
@@ -433,20 +440,20 @@ export default function DataManagementPage() {
               <TabsTrigger value="activities"><ListChecks className="mr-2 h-4 w-4" />Actividades</TabsTrigger>
             </TabsList>
             <TabsContent value="guides">
-              {renderTable(guides, 'guide')}
-              {renderAddForm('guide')}
+              {renderTable(guides, 'guides')}
+              {renderAddForm('guides')}
             </TabsContent>
             <TabsContent value="hotels">
-              {renderTable(hotels, 'hotel')}
-              {renderAddForm('hotel')}
+              {renderTable(hotels, 'hotels')}
+              {renderAddForm('hotels')}
             </TabsContent>
             <TabsContent value="drivers">
-              {renderTable(drivers, 'driver')}
-              {renderAddForm('driver')}
+              {renderTable(drivers, 'drivers')}
+              {renderAddForm('drivers')}
             </TabsContent>
             <TabsContent value="activities">
-              {renderTable(activities, 'activity')}
-              {renderAddForm('activity')}
+              {renderTable(activities, 'activities')}
+              {renderAddForm('activities')}
             </TabsContent>
           </Tabs>
         </CardContent>
