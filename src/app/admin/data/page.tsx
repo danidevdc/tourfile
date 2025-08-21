@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ArrowLeft, Trash2, PlusCircle, Hotel as HotelIcon, Car, ListChecks, UserSquare, Upload } from 'lucide-react';
+import { Loader2, ArrowLeft, Trash2, PlusCircle, Hotel as HotelIcon, Car, ListChecks, UserSquare, Upload, AlertTriangle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -28,10 +28,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { cn } from '@/lib/utils';
 
 
 type DataType = 'guide' | 'hotel' | 'driver' | 'activity';
 type ItemToDelete = (Hotel | Driver | Activity | ServiceOrderGuide) & { type: DataType; name?: string; fullName?: string };
+type Item = Hotel | Driver | Activity | ServiceOrderGuide;
 
 
 interface BulkUploadButtonProps {
@@ -93,6 +95,8 @@ export default function DataManagementPage() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+
+  const [duplicateIds, setDuplicateIds] = useState<Set<string>>(new Set());
   
   const [newItemName, setNewItemName] = useState('');
   const [newItemLastName, setNewItemLastName] = useState('');
@@ -106,6 +110,38 @@ export default function DataManagementPage() {
       router.replace('/');
     }
   }, [authLoading, isCurrentUserAdmin, router, toast]);
+
+  const findDuplicates = (items: Item[], type: DataType): Set<string> => {
+    const nameCounts: { [key: string]: string[] } = {};
+    const duplicates = new Set<string>();
+
+    items.forEach(item => {
+      const id = 'uid' in item ? item.uid : item.id;
+      if (!id) return;
+      
+      let nameKey: string;
+      if (type === 'guide' && 'fullName' in item) {
+        nameKey = item.fullName.trim().toLowerCase();
+      } else if ('name' in item) {
+        nameKey = item.name.trim().toLowerCase();
+      } else {
+        return;
+      }
+      
+      if (!nameCounts[nameKey]) {
+        nameCounts[nameKey] = [];
+      }
+      nameCounts[nameKey].push(id);
+    });
+
+    for (const nameKey in nameCounts) {
+      if (nameCounts[nameKey].length > 1) {
+        nameCounts[nameKey].forEach(id => duplicates.add(id));
+      }
+    }
+    return duplicates;
+  };
+
 
   const fetchData = async () => {
     if (isCurrentUserAdmin) {
@@ -121,6 +157,15 @@ export default function DataManagementPage() {
         setDrivers(fetchedDrivers);
         setActivities(fetchedActivities);
         setGuides(fetchedGuides);
+
+        const allDuplicates = new Set([
+            ...findDuplicates(fetchedHotels, 'hotel'),
+            ...findDuplicates(fetchedDrivers, 'driver'),
+            ...findDuplicates(fetchedActivities, 'activity'),
+            ...findDuplicates(fetchedGuides, 'guide'),
+        ]);
+        setDuplicateIds(allDuplicates);
+
       } catch (error) {
         console.error("Error loading data:", error);
         toast({ title: "Error", description: "No se pudieron cargar los datos.", variant: "destructive" });
@@ -311,9 +356,17 @@ export default function DataManagementPage() {
               data.map(item => {
                 const itemId = item.id || item.uid;
                 if (!itemId) return null;
+                const isDuplicate = duplicateIds.has(itemId);
+
                 return (
-                  <TableRow key={itemId}>
-                    <TableCell className="font-medium">{displayName(item)}</TableCell>
+                  <TableRow 
+                    key={itemId}
+                    className={cn(isDuplicate && "bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200/80 dark:hover:bg-yellow-900/50")}
+                  >
+                    <TableCell className="font-medium flex items-center gap-2">
+                      {isDuplicate && <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" title="Registro duplicado"/>}
+                      {displayName(item)}
+                    </TableCell>
                     <TableCell className="text-right">
                       <AlertDialog>
                          <AlertDialogTrigger asChild>
@@ -368,7 +421,7 @@ export default function DataManagementPage() {
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center text-primary">Administrar Datos</CardTitle>
           <CardDescription className="text-center">
-            Añade, elimina o sube listas de datos para los generadores.
+            Añade, elimina o sube listas de datos para los generadores. Los registros duplicados se marcarán en amarillo.
           </CardDescription>
         </CardHeader>
         <CardContent>
