@@ -286,7 +286,8 @@ export default function ServiceOrderPage() {
                     <TableHead>Servicio</TableHead>
                     <TableHead>Vuelo</TableHead>
                     <TableHead>Guía</TableHead>
-                    <TableHead>Bus/Chofer</TableHead>
+                    <TableHead>Bus</TableHead>
+                    <TableHead>Chofer</TableHead>
                     <TableHead>Observaciones</TableHead>
                     <TableHead className="text-right">Acción</TableHead>
                   </TableRow>
@@ -299,11 +300,8 @@ export default function ServiceOrderPage() {
                       <TableCell><Input value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
                       <TableCell><Input value={service.vuelo} onChange={e => handleServiceChange(index, 'vuelo', e.target.value)} /></TableCell>
                       <TableCell><Input value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
-                      <TableCell><Input value={`${service.bus || ''}${service.chofer ? ' / ' + service.chofer.replace(/^CONT\s/, '') : ''}`} onChange={e => {
-                          const [busPart, choferPart] = e.target.value.split(' / ');
-                          handleServiceChange(index, 'bus', busPart);
-                          handleServiceChange(index, 'chofer', choferPart);
-                      }} /></TableCell>
+                      <TableCell><Input value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
+                      <TableCell><Input value={service.chofer} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
                       <TableCell><Input value={service.observaciones} onChange={e => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
                       <TableCell className="text-right">
                         <Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button>

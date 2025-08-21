@@ -45,16 +45,20 @@ export function generateServiceOrderExcel(data: ServiceOrderData): XLSX.WorkBook
   
   // Services table header
   const tableHeader = [
-    'FECHA', 'HORA', 'SERVICIO', 'VUELO', 'GUIA', 'BUS / CHOFER', 'OBSERVACIONES'
+    'FECHA', 'HORA', 'SERVICIO', 'VUELO', 'GUIA', 'BUS', 'CHOFER', 'OBSERVACIONES'
   ];
   wsData.push(tableHeader);
   
   // Add service items
   data.services.forEach(service => {
-    const busChofer = [service.bus, service.chofer?.replace(/^CONT\s/, '')].filter(Boolean).join(' / ');
     wsData.push([
-      service.fecha || '', service.hora || '', service.servicio || '',
-      service.vuelo || '', service.guia || '', busChofer,
+      service.fecha || '', 
+      service.hora || '', 
+      service.servicio || '',
+      service.vuelo || '', 
+      service.guia || '', 
+      service.bus || '',
+      service.chofer ? service.chofer.replace(/^CONT\s/, '') : '',
       service.observaciones || ''
     ]);
   });
@@ -80,7 +84,7 @@ export function generateServiceOrderExcel(data: ServiceOrderData): XLSX.WorkBook
   // --- Start Formatting ---
   ws['!cols'] = [
     { wch: 12 }, { wch: 8 }, { wch: 30 }, { wch: 10 }, { wch: 15 },
-    { wch: 20 }, { wch: 35 }
+    { wch: 10 }, { wch: 15 }, { wch: 35 }
   ];
 
   const thinBorder = { style: 'thin', color: { rgb: '000000' } };
@@ -88,18 +92,18 @@ export function generateServiceOrderExcel(data: ServiceOrderData): XLSX.WorkBook
 
   const headerRowIndex = 7; // 0-indexed for wsData array
   
-  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }]; // Title merge
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }]; // Title merge
 
   if (data.observations) {
       const obsRow = wsData.findIndex(r => r[0] === 'OBSERVACIONES:');
       if (obsRow !== -1) {
-          ws['!merges']?.push({ s: { r: obsRow + 1, c: 0 }, e: { r: obsRow + 1, c: 6 } });
+          ws['!merges']?.push({ s: { r: obsRow + 1, c: 0 }, e: { r: obsRow + 1, c: 7 } });
       }
   }
   if (data.nota) {
       const notaRow = wsData.findIndex(r => r[0] === 'NOTA:');
       if (notaRow !== -1) {
-          ws['!merges']?.push({ s: { r: notaRow, c: 1 }, e: { r: notaRow, c: 6 } });
+          ws['!merges']?.push({ s: { r: notaRow, c: 1 }, e: { r: notaRow, c: 7 } });
       }
   }
 
