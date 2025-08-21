@@ -191,8 +191,8 @@ export default function DataManagementPage() {
 
 
   const handleAddItem = async (type: DataType) => {
-    const name = newItemName.trim();
-    const lastName = newItemLastName.trim();
+    const name = newItemName.trim().toUpperCase();
+    const lastName = newItemLastName.trim().toUpperCase();
 
     if (!name) {
       toast({ title: "Dato Requerido", description: "El nombre no puede estar vacío.", variant: "destructive" });
@@ -209,7 +209,7 @@ export default function DataManagementPage() {
       else if (type === 'activities') await createActivity(name);
       else if (type === 'guides') await createGuide({ firstName: name, lastName: lastName });
       else if (type === 'drivers') {
-        const driverNameToSave = driverType === 'externo' && !name.toUpperCase().startsWith('CONT ') 
+        const driverNameToSave = driverType === 'externo' && !name.startsWith('CONT ') 
             ? `CONT ${name}`
             : name;
         await createDriver(driverNameToSave);
@@ -262,10 +262,15 @@ export default function DataManagementPage() {
 
           let records: any[] = [];
           if (type === 'guides') {
-            records = json.map(row => ({ firstName: row.nombre, lastName: row.apellido })).filter(g => g.firstName && g.lastName);
+            records = json.map(row => ({ 
+              firstName: String(row.nombre || '').trim().toUpperCase(), 
+              lastName: String(row.apellido || '').trim().toUpperCase() 
+            })).filter(g => g.firstName && g.lastName);
             if(records.length > 0) await createBulkGuides(records);
           } else {
-            records = json.map(row => ({ name: row.nombre })).filter(item => item.name);
+            records = json.map(row => ({ 
+              name: String(row.nombre || '').trim().toUpperCase() 
+            })).filter(item => item.name);
             if (records.length > 0) {
               if (type === 'hotels') await createBulkHotels(records);
               else if (type === 'drivers') await createBulkDrivers(records);
@@ -465,3 +470,5 @@ export default function DataManagementPage() {
     </div>
   );
 }
+
+    
