@@ -11,8 +11,10 @@ import {
   initializeDefaultServiceOrderData,
   getGuidesFromFirestore,
   getHotelsFromFirestore,
+  getDriversFromFirestore,
   type ServiceOrderGuide,
   type Hotel,
+  type Driver,
 } from "@/lib/serviceOrderService";
 import { generateServiceOrderExcel } from '@/lib/serviceOrderGenerator';
 
@@ -25,6 +27,8 @@ import { ArrowLeft, Loader2, FileDown, Trash2, PlusCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { type ServiceOrderData, type ServiceItem } from "@/lib/serviceOrderGenerator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 const initialServiceOrderState: ServiceOrderData = {
   guia: '',
@@ -37,6 +41,13 @@ const initialServiceOrderState: ServiceOrderData = {
   nota: 'SERVICIOS EN EL LAGO.\nTODOS LOS GUIAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA'
 };
 
+const BUS_TYPES = [
+    { value: '8', label: 'Bus 8' },
+    { value: '9', label: 'Bus 9' },
+    { value: '10', label: 'Bus 10' },
+    { value: 'CONT.', label: 'Contratado (Externo)' },
+];
+
 export default function ServiceOrderPage() {
   const router = useRouter();
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
@@ -47,8 +58,14 @@ export default function ServiceOrderPage() {
   
   const [guides, setGuides] = useState<ServiceOrderGuide[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
+  const [ownDrivers, setOwnDrivers] = useState<Driver[]>([]);
+  const [externalDrivers, setExternalDrivers] = useState<Driver[]>([]);
 
   const [orderData, setOrderData] = useState<ServiceOrderData>(initialServiceOrderState);
+  
+  const [busTypeSelection, setBusTypeSelection] = useState('');
+  const [driverSelection, setDriverSelection] = useState('');
 
   useEffect(() => {
     if (!authLoading && !isCurrentUserAdmin) {
@@ -62,12 +79,18 @@ export default function ServiceOrderPage() {
         setIsLoading(true);
         try {
           await initializeDefaultServiceOrderData();
-          const [fetchedGuides, fetchedHotels] = await Promise.all([
+          const [fetchedGuides, fetchedHotels, fetchedDrivers] = await Promise.all([
             getGuidesFromFirestore(),
             getHotelsFromFirestore(),
+            getDriversFromFirestore(),
           ]);
           setGuides(fetchedGuides);
           setHotels(fetchedHotels);
+          setAllDrivers(fetchedDrivers);
+          
+          setOwnDrivers(fetchedDrivers.filter(d => !d.name.startsWith('CONT ')));
+          setExternalDrivers(fetchedDrivers.filter(d => d.name.startsWith('CONT ')));
+          
         } catch (error) {
           toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
         } finally {
@@ -110,9 +133,8 @@ export default function ServiceOrderPage() {
     const newService: ServiceItem = {
       fecha: '', hora: '', servicio: '', vuelo: '',
       guia: guides.find(g => g.fullName === orderData.guia)?.firstName || '',
-      bus: orderData.nPax,
-      chofer: '',
-
+      bus: busTypeSelection === 'CONT.' ? '' : busTypeSelection,
+      chofer: driverSelection,
       observaciones: ''
     };
     setOrderData(prev => ({ ...prev, services: [...prev.services, newService] }));
@@ -142,19 +164,25 @@ export default function ServiceOrderPage() {
     }
   };
 
-
   useEffect(() => {
     const guideFirstName = guides.find(g => g.fullName === orderData.guia)?.firstName || '';
+    const busValue = busTypeSelection === 'CONT.' ? '' : busTypeSelection;
+
     setOrderData(prev => ({
       ...prev,
       services: prev.services.map(s => ({
         ...s,
-        bus: prev.nPax,
-        guia: guideFirstName
+        guia: guideFirstName,
+        bus: busValue,
+        chofer: driverSelection
       }))
     }));
-  }, [orderData.nPax, orderData.guia, guides]);
+  }, [orderData.guia, guides, busTypeSelection, driverSelection]);
 
+  const handleBusTypeChange = (value: string) => {
+    setBusTypeSelection(value);
+    setDriverSelection(''); // Reset driver selection when bus type changes
+  }
 
   if (authLoading || isLoading) {
     return (
@@ -166,7 +194,7 @@ export default function ServiceOrderPage() {
 
   const guideOptions = guides.map(g => ({ value: g.fullName.toLowerCase(), label: g.fullName }));
   const hotelOptions = hotels.map(h => ({ value: h.name.toLowerCase(), label: h.name }));
-
+  const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toLowerCase(), label: d.name }));
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background">
@@ -182,7 +210,7 @@ export default function ServiceOrderPage() {
             <CardTitle className="text-2xl font-headline text-primary">Generador de Órdenes de Servicio</CardTitle>
             <CardDescription>Completa los campos para generar la orden de servicio.</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div>
                   <Label>Guía</Label>
                   <Combobox
@@ -217,6 +245,30 @@ export default function ServiceOrderPage() {
                       className="mt-1"
                   />
               </div>
+              <div>
+                <Label>Bus / Tipo Chofer</Label>
+                <Select value={busTypeSelection} onValueChange={handleBusTypeChange}>
+                    <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Seleccionar tipo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {BUS_TYPES.map(type => (
+                            <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+              </div>
+               <div>
+                <Label>Chofer</Label>
+                <Combobox
+                    options={driverOptions}
+                    value={driverSelection.toLowerCase()}
+                    onSelect={(val) => setDriverSelection(val)}
+                    placeholder="Seleccionar chofer..."
+                    notFoundMessage="No se encontró el chofer."
+                    className="mt-1"
+                />
+              </div>
           </CardContent>
         </Card>
 
@@ -234,8 +286,7 @@ export default function ServiceOrderPage() {
                     <TableHead>Servicio</TableHead>
                     <TableHead>Vuelo</TableHead>
                     <TableHead>Guía</TableHead>
-                    <TableHead>Bus</TableHead>
-                    <TableHead>Chofer</TableHead>
+                    <TableHead>Bus/Chofer</TableHead>
                     <TableHead>Observaciones</TableHead>
                     <TableHead className="text-right">Acción</TableHead>
                   </TableRow>
@@ -248,8 +299,11 @@ export default function ServiceOrderPage() {
                       <TableCell><Input value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
                       <TableCell><Input value={service.vuelo} onChange={e => handleServiceChange(index, 'vuelo', e.target.value)} /></TableCell>
                       <TableCell><Input value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
-                      <TableCell><Input value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
-                      <TableCell><Input value={service.chofer} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
+                      <TableCell><Input value={`${service.bus || ''}${service.chofer ? ' / ' + service.chofer.replace(/^CONT\s/, '') : ''}`} onChange={e => {
+                          const [busPart, choferPart] = e.target.value.split(' / ');
+                          handleServiceChange(index, 'bus', busPart);
+                          handleServiceChange(index, 'chofer', choferPart);
+                      }} /></TableCell>
                       <TableCell><Input value={service.observaciones} onChange={e => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
                       <TableCell className="text-right">
                         <Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button>

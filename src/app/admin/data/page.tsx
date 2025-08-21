@@ -313,11 +313,11 @@ export default function DataManagementPage() {
            <RadioGroup defaultValue="propio" onValueChange={(val: 'propio' | 'externo') => setDriverType(val)} className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="propio" id="r-propio" />
-                <Label htmlFor="r-propio">Propio (Número. Ej: 8, 9, 10)</Label>
+                <Label htmlFor="r-propio">Propio (Nombre. Ej: MARIO, LUIS)</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="externo" id="r-externo" />
-                <Label htmlFor="r-externo">Externo (Nombre. Se añadirá 'CONT ')</Label>
+                <Label htmlFor="r-externo">Externo (Nombre. Se añadirá prefijo 'CONT ')</Label>
               </div>
             </RadioGroup>
         )}

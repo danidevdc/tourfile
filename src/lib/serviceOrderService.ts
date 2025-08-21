@@ -56,11 +56,13 @@ export async function getGuidesFromFirestore(): Promise<ServiceOrderGuide[]> {
 
   return snapshot.docs.map(doc => {
     const data = doc.data() as Omit<Guide, 'uid'>;
+    const firstName = data.firstName.toUpperCase();
+    const lastName = data.lastName.toUpperCase();
     return {
       uid: doc.id,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      fullName: `${data.firstName} ${data.lastName}`.trim()
+      firstName: firstName,
+      lastName: lastName,
+      fullName: `${firstName} ${lastName}`.trim()
     };
   }).sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
@@ -72,7 +74,10 @@ export async function getHotelsFromFirestore(): Promise<Hotel[]> {
 
   if (snapshot.empty) return [];
 
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Hotel))
+  return snapshot.docs.map(doc => ({ 
+    id: doc.id, 
+    name: (doc.data().name as string).toUpperCase() 
+  } as Hotel))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -83,7 +88,10 @@ export async function getActivitiesFromFirestore(): Promise<Activity[]> {
 
   if (snapshot.empty) return [];
 
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Activity))
+  return snapshot.docs.map(doc => ({ 
+    id: doc.id, 
+    name: (doc.data().name as string).toUpperCase() 
+  } as Activity))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -94,7 +102,10 @@ export async function getDriversFromFirestore(): Promise<Driver[]> {
 
   if (snapshot.empty) return [];
 
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Driver))
+  return snapshot.docs.map(doc => ({ 
+    id: doc.id, 
+    name: (doc.data().name as string).toUpperCase() 
+  } as Driver))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
