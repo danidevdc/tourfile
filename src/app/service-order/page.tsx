@@ -19,14 +19,14 @@ import {
 } from "@/lib/serviceOrderService";
 import { getActivitiesFromFirestore, type Activity } from "@/lib/activityService";
 import { generateServiceOrderExcel, type ServiceOrderData, type ServiceItem } from '@/lib/serviceOrderGenerator';
-import { type FileDataProps, type FileSearchStatus, parsePaxCount } from "@/lib/report-generator";
+import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generator";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileDown, Trash2, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon, Clock } from "lucide-react";
+import { ArrowLeft, Loader2, FileDown, Trash2, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -72,7 +72,6 @@ export default function ServiceOrderPage() {
   const [excelData, setExcelData] = useState<any[][] | null>(null);
   const [fileDataProps, setFileDataProps] = useState<FileDataProps>({ fileIdRowIndex: null, columnIndex: null });
   const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
-  const [isFileMissingError, setIsFileMissingError] = useState(false);
   const [isProcessingSearch, setIsProcessingSearch] = useState(false);
 
   // State for adding activities
@@ -114,7 +113,6 @@ export default function ServiceOrderPage() {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setIsFileMissingError(false);
       toast({ title: "Archivo Seleccionado", description: file.name, className: "bg-green-100 dark:bg-green-900 border-green-500" });
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -129,12 +127,20 @@ export default function ServiceOrderPage() {
     if (event.target) event.target.value = "";
   };
 
+  const clearFile = () => {
+    setSelectedFile(null);
+    setExcelData(null);
+    setFileSearchStatus("idle");
+    setOrderData(prev => ({...prev, file: '', ref: '', nPax: ''}));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    toast({ title: "Archivo Limpiado", description: "Se ha quitado el programa." });
+  }
+
   const handleSearchFile = async () => {
-    if (!selectedFile || !excelData) {
-      setIsFileMissingError(true);
+    if (!selectedFile || !excelData || !orderData.file) {
+      toast({ title: "Datos incompletos", description: "Sube un archivo y escribe un número de file para buscar.", variant: "destructive" });
       return;
     }
-    setIsFileMissingError(false);
     setIsProcessingSearch(true);
     setFileSearchStatus("searching");
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -170,6 +176,7 @@ export default function ServiceOrderPage() {
         toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
     } else {
         setFileSearchStatus("not_found");
+        setOrderData(prev => ({ ...prev, ref: '', nPax: '' }));
         toast({ title: "Búsqueda Fallida", description: "File no encontrado.", variant: "destructive" });
     }
     setIsProcessingSearch(false);
@@ -279,32 +286,40 @@ export default function ServiceOrderPage() {
           <CardHeader><CardTitle className="text-2xl font-headline text-primary">Generador de Órdenes de Servicio</CardTitle><CardDescription>Sube, busca y completa los campos para generar la orden.</CardDescription></CardHeader>
           <CardContent className="space-y-4">
               {/* File Upload and Search */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg bg-card">
-                  <div className="md:col-span-1">
-                      <Label>1. Subir Programa</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                          <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className={cn("flex-grow justify-start text-left font-normal", selectedFile && "border-green-500", isFileMissingError && "border-destructive")}>
-                              <Upload className="mr-2 h-4 w-4" />{selectedFile ? selectedFile.name : "Seleccionar .xlsx"}
-                          </Button>
-                          <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
-                          {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={() => setSelectedFile(null)}><Trash2 className="h-4 w-4" /></Button>}
-                      </div>
+              <div className="space-y-4 p-4 border rounded-lg bg-card">
+                  <div className="flex items-center gap-2">
+                      <Label className="font-semibold">1. Subir Programa:</Label>
+                      <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className={cn("flex-grow justify-start text-left font-normal", selectedFile && "border-green-500")}>
+                          <Upload className="mr-2 h-4 w-4" />{selectedFile ? selectedFile.name : "Seleccionar archivo .xlsx"}
+                      </Button>
+                      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
+                      {selectedFile && <Button type="button" variant="ghost" size="icon" onClick={clearFile}><Trash2 className="h-4 w-4 text-destructive"/></Button>}
                   </div>
-                  <div className="md:col-span-1">
-                      <Label htmlFor="file">2. Buscar File</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                          <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} placeholder="Número de file..." className={getFileNumberInputClasses()} />
-                          <Button type="button" onClick={handleSearchFile} variant="default" size="icon" disabled={!selectedFile || !orderData.file || isProcessingSearch}><Search className="h-4 w-4" /></Button>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                      <div className="flex items-end gap-2">
+                          <div className="flex-grow">
+                              <Label htmlFor="file">2. Buscar File:</Label>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} placeholder="Número de file..." className={getFileNumberInputClasses()} />
+                                <Button type="button" onClick={handleSearchFile} variant="default" size="icon" disabled={!selectedFile || !orderData.file || isProcessingSearch}>
+                                  {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4" />}
+                                </Button>
+                              </div>
+                          </div>
                       </div>
-                  </div>
-                   <div className="md:col-span-1 flex items-end">
-                    {(fileSearchStatus === "found") && (
-                        <div className="w-full text-sm text-green-800 dark:text-green-200">
-                            <p><strong>Ref:</strong> {orderData.ref}</p>
-                            <p><strong>Pax:</strong> {orderData.nPax}</p>
-                        </div>
-                    )}
-                    {(fileSearchStatus === "not_found") && <div className="text-sm text-destructive flex items-center gap-1"><XCircle className="h-4 w-4" /> File no encontrado.</div>}
+                      <div className={cn("md:col-span-2 text-sm", fileSearchStatus === 'found' ? 'text-green-800 dark:text-green-200' : 'text-destructive')}>
+                         {fileSearchStatus === 'found' ? (
+                              <div className="flex gap-4 p-2 rounded-md bg-green-100 dark:bg-green-900/50 border border-green-500/50">
+                                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5"/>
+                                  <div>
+                                      <p><strong>Ref:</strong> {orderData.ref}</p>
+                                      <p><strong>Pax:</strong> {orderData.nPax}</p>
+                                  </div>
+                              </div>
+                         ) : fileSearchStatus === 'not_found' ? (
+                            <div className="flex items-center gap-2 text-destructive"><XCircle className="h-4 w-4" /> File no encontrado.</div>
+                         ) : null}
+                      </div>
                   </div>
               </div>
 
@@ -324,7 +339,7 @@ export default function ServiceOrderPage() {
             <CardContent className="flex flex-col md:flex-row items-center gap-4">
                 <div className="flex-1 w-full"><Label>Fecha</Label>
                     <Popover><PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !selectedDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{selectedDate ? format(selectedDate, "PPP") : <span>Elige una fecha</span>}</Button>
+                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !selectedDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{selectedDate ? format(selectedDate, "dd/MM/yy") : <span>Elige una fecha</span>}</Button>
                     </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent></Popover>
                 </div>
                 <div className="flex-1 w-full"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
@@ -336,21 +351,27 @@ export default function ServiceOrderPage() {
         <Card className="shadow-lg">
           <CardHeader><CardTitle>Tabla Resumen del Itinerario</CardTitle></CardHeader>
           <CardContent><div className="overflow-x-auto"><Table><TableHeader><TableRow>
-            <TableHead>Fecha</TableHead><TableHead>Hora</TableHead><TableHead>Servicio</TableHead>
-            <TableHead>Guía</TableHead><TableHead>Bus</TableHead><TableHead>Chofer</TableHead>
-            <TableHead className="text-right">Acción</TableHead>
+            <TableHead className="w-[120px]">Fecha</TableHead>
+            <TableHead className="w-[100px]">Hora</TableHead>
+            <TableHead>Servicio</TableHead>
+            <TableHead>Guía</TableHead>
+            <TableHead>Bus</TableHead>
+            <TableHead>Chofer</TableHead>
+            <TableHead className="text-right w-[80px]">Acción</TableHead>
           </TableRow></TableHeader><TableBody>
-            {orderData.services.map((service, index) => (
+            {orderData.services.length > 0 ? orderData.services.map((service, index) => (
               <TableRow key={index}>
-                <TableCell><Input value={service.fecha} onChange={e => handleServiceChange(index, 'fecha', e.target.value)} /></TableCell>
-                <TableCell><Input value={service.hora} onChange={e => handleServiceChange(index, 'hora', e.target.value)} /></TableCell>
-                <TableCell><Input value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
-                <TableCell><Input value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
-                <TableCell><Input value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
-                <TableCell><Input value={service.chofer?.replace(/^CONT\s/i, '')} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[100px]" value={service.fecha} onChange={e => handleServiceChange(index, 'fecha', e.target.value)} placeholder="dd/MM/yy" /></TableCell>
+                <TableCell><Input className="min-w-[80px]" value={service.hora} onChange={e => handleServiceChange(index, 'hora', e.target.value)} placeholder="HH:mm" /></TableCell>
+                <TableCell><Input className="min-w-[200px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[150px]" value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[80px]" value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[150px]" value={service.chofer?.replace(/^CONT\s/i, '')} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
                 <TableCell className="text-right"><Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
               </TableRow>
-            ))}
+            )) : (
+              <TableRow><TableCell colSpan={7} className="text-center h-24 text-muted-foreground">Añade actividades para construir el itinerario.</TableCell></TableRow>
+            )}
           </TableBody></Table></div></CardContent>
         </Card>
         
@@ -371,3 +392,5 @@ export default function ServiceOrderPage() {
     </div>
   );
 }
+
+    
