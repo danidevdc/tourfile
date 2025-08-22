@@ -219,11 +219,7 @@ export default function ServiceOrderPage() {
   };
   
   const handleInputChange = (field: keyof ServiceOrderData | 'file' | 'ref' | 'nPax', value: string) => {
-    if (field === 'file' || field === 'ref' || field === 'nPax') {
-      setOrderData(prev => ({ ...prev, [field]: value.toUpperCase() }));
-    } else {
-      setOrderData(prev => ({ ...prev, [field]: value.toUpperCase() }));
-    }
+    setOrderData(prev => ({ ...prev, [field]: value.toUpperCase() }));
   };
   
   const handleSelectChange = (type: 'guide' | 'hotel' | 'driver', value: string) => {
@@ -335,7 +331,7 @@ export default function ServiceOrderPage() {
                         <div className="md:col-span-1">
                             <Label htmlFor="file">Buscar File:</Label>
                             <div className="flex items-center gap-2 mt-1">
-                                <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} placeholder="Número de file..." className={fileSearchStatus === "found" ? "border-green-500" : ""} />
+                                <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} placeholder="Número de file..." className={cn(fileSearchStatus === "found" && "border-green-500")} />
                                 <Button type="button" onClick={handleSearchFile} variant="default" size="icon" disabled={!selectedFile || !orderData.file || isProcessingSearch}>
                                   {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4" />}
                                 </Button>
@@ -357,7 +353,7 @@ export default function ServiceOrderPage() {
 
         <Card className="shadow-lg">
             <CardHeader><CardTitle>Añadir Actividad al Itinerario</CardTitle></CardHeader>
-            <CardContent className="flex flex-col md:flex-row items-center gap-4">
+            <CardContent className="flex flex-col md:flex-row items-end gap-4">
                 <div className="w-full md:max-w-[150px]"><Label>Fecha</Label>
                     <Popover><PopoverTrigger asChild>
                        <div className="relative mt-1">
@@ -374,8 +370,8 @@ export default function ServiceOrderPage() {
                        </div>
                     </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent></Popover>
                 </div>
-                <div className="flex-1 w-full md:max-w-[400px]"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
-                <div className="self-end"><Button onClick={addActivityToItinerary} className="w-full md:w-auto mt-4 md:mt-0"><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button></div>
+                <div className="flex-1 w-full md:max-w-md"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
+                <div><Button onClick={addActivityToItinerary} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button></div>
             </CardContent>
         </Card>
         
@@ -397,7 +393,8 @@ export default function ServiceOrderPage() {
                   <Input 
                     value={service.fecha} 
                     onChange={e => handleServiceChange(index, 'fecha', e.target.value)} 
-                    placeholder="dd/MM/yy" 
+                    placeholder="dd/MM/yy"
+                    className="min-w-[100px]"
                   />
                 </TableCell>
                 <TableCell>
@@ -406,6 +403,7 @@ export default function ServiceOrderPage() {
                     onChange={e => handleServiceChange(index, 'hora', e.target.value)}
                     onBlur={e => handleTimeBlur(index, e.target.value)}
                     placeholder="HH:mm" 
+                    className="min-w-[80px]"
                   />
                 </TableCell>
                 <TableCell><Input className="min-w-[300px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
@@ -421,7 +419,7 @@ export default function ServiceOrderPage() {
           </TableBody></Table></div></CardContent>
         </Card>
         
-         <Accordion type="single" collapsible className="w-full">
+         <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
             <AccordionItem value="item-1">
               <AccordionTrigger className="text-lg font-medium">Observaciones y Notas Finales</AccordionTrigger>
               <AccordionContent className="space-y-4 pt-4">
@@ -439,5 +437,3 @@ export default function ServiceOrderPage() {
     </div>
   );
 }
-
-    
