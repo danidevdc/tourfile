@@ -354,9 +354,9 @@ export default function ServiceOrderPage() {
         <Card className="shadow-lg">
             <CardHeader><CardTitle>Añadir Actividad al Itinerario</CardTitle></CardHeader>
             <CardContent className="flex flex-col md:flex-row items-end gap-4">
-                <div className="w-full md:max-w-[150px]"><Label>Fecha</Label>
+                <div className="w-full md:w-auto"><Label>Fecha</Label>
                     <Popover><PopoverTrigger asChild>
-                       <div className="relative mt-1">
+                       <div className="relative mt-1 md:w-[150px]">
                           <Input
                               value={selectedDate ? format(selectedDate, "dd/MM/yy") : ''}
                               onChange={(e) => {
@@ -370,7 +370,7 @@ export default function ServiceOrderPage() {
                        </div>
                     </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent></Popover>
                 </div>
-                <div className="flex-1 w-full md:max-w-md"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
+                <div className="flex-1 w-full md:max-w-lg"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
                 <div><Button onClick={addActivityToItinerary} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button></div>
             </CardContent>
         </Card>
@@ -378,13 +378,13 @@ export default function ServiceOrderPage() {
         <Card className="shadow-lg">
           <CardHeader><CardTitle>Tabla Resumen del Itinerario</CardTitle></CardHeader>
           <CardContent><div className="overflow-x-auto"><Table><TableHeader><TableRow>
-            <TableHead className="w-[120px] bg-muted/50">Fecha</TableHead>
+            <TableHead className="w-[140px] bg-muted/50">Fecha</TableHead>
             <TableHead className="w-[100px] bg-muted/50">Hora</TableHead>
-            <TableHead className="w-[350px] bg-muted/50">Servicio</TableHead>
-            <TableHead className="w-[150px] bg-muted/50">Guía</TableHead>
-            <TableHead className="w-[100px] bg-muted/50">Bus</TableHead>
-            <TableHead className="w-[150px] bg-muted/50">Chofer</TableHead>
-            <TableHead className="w-[250px] bg-muted/50">Observaciones</TableHead>
+            <TableHead className="w-[400px] bg-muted/50">Servicio</TableHead>
+            <TableHead className="w-[180px] bg-muted/50">Guía</TableHead>
+            <TableHead className="w-[80px] bg-muted/50">Bus</TableHead>
+            <TableHead className="w-[180px] bg-muted/50">Chofer</TableHead>
+            <TableHead className="w-[300px] bg-muted/50">Observaciones</TableHead>
             <TableHead className="text-right w-[80px] bg-muted/50">Acción</TableHead>
           </TableRow></TableHeader><TableBody>
             {orderData.services.length > 0 ? orderData.services.map((service, index) => (
@@ -394,7 +394,7 @@ export default function ServiceOrderPage() {
                     value={service.fecha} 
                     onChange={e => handleServiceChange(index, 'fecha', e.target.value)} 
                     placeholder="dd/MM/yy"
-                    className="min-w-[100px]"
+                    className="min-w-[120px]"
                   />
                 </TableCell>
                 <TableCell>
@@ -408,7 +408,7 @@ export default function ServiceOrderPage() {
                 </TableCell>
                 <TableCell><Input className="min-w-[300px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
                 <TableCell><Input className="min-w-[120px]" value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
-                <TableCell><Input className="min-w-[80px]" value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[70px]" value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
                 <TableCell><Input className="min-w-[120px]" value={service.chofer?.replace(/^CONT\s/i, '')} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
                 <TableCell><Input className="min-w-[200px]" value={service.observaciones} onChange={e => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
                 <TableCell className="text-right"><Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
