@@ -76,6 +76,7 @@ export default function ServiceOrderPage() {
   const [isProcessingSearch, setIsProcessingSearch] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [dateString, setDateString] = useState<string>("");
   const [selectedActivity, setSelectedActivity] = useState<string>("");
 
    const processAndStoreFile = (file: File) => {
@@ -237,17 +238,21 @@ export default function ServiceOrderPage() {
   const handleDateInputChange = (e: ChangeEvent<HTMLInputElement>, onDateSet: (date: Date | undefined) => void, onStringSet: (value: string) => void) => {
     const rawValue = e.target.value;
     const numbersOnly = rawValue.replace(/[^0-9]/g, '');
-    let formattedDate = '';
+    let formatted = '';
 
-    if (numbersOnly.length > 0) formattedDate = numbersOnly.slice(0, 2);
-    if (numbersOnly.length > 2) formattedDate += '/' + numbersOnly.slice(2, 4);
-    if (numbersOnly.length > 4) formattedDate += '/' + numbersOnly.slice(4, 8);
+    if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
+    if (numbersOnly.length > 2) formatted += '/' + numbersOnly.slice(2, 4);
+    if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 6);
     
-    onStringSet(formattedDate);
+    onStringSet(formatted); // Update string state
 
-    const parsedDate = parse(formattedDate, "dd/MM/yyyy", new Date());
-    if (!isNaN(parsedDate.getTime()) && formattedDate.length === 10) {
-      onDateSet(parsedDate);
+    if (formatted.length === 8) {
+      const parsedDate = parse(formatted, "dd/MM/yy", new Date());
+      if (!isNaN(parsedDate.getTime())) {
+        onDateSet(parsedDate);
+      } else {
+        onDateSet(undefined);
+      }
     } else {
       onDateSet(undefined);
     }
@@ -272,6 +277,8 @@ export default function ServiceOrderPage() {
       };
       setOrderData(prev => ({ ...prev, services: [...prev.services, newService] }));
       setSelectedActivity("");
+      setDateString("");
+      setSelectedDate(undefined);
   }
 
   const handleServiceChange = (index: number, field: keyof ServiceItem, value: string) => {
@@ -374,19 +381,22 @@ export default function ServiceOrderPage() {
         <Card className="shadow-lg">
             <CardHeader><CardTitle>Añadir Actividad al Itinerario</CardTitle></CardHeader>
             <CardContent className="flex flex-col md:flex-row items-end gap-4">
-                <div className="w-full md:w-auto"><Label>Fecha</Label>
-                    <div className="relative mt-1 md:w-[170px]">
+                <div className="w-full md:w-auto">
+                  <Label>Fecha</Label>
+                    <div className="relative mt-1 md:w-[150px]">
                       <Input
-                          value={selectedDate ? format(selectedDate, "dd/MM/yyyy") : ''}
-                          onChange={(e) => handleDateInputChange(e, setSelectedDate, (val) => setSelectedDate(parse(val, "dd/MM/yyyy", new Date())))}
-                          placeholder="DD/MM/YYYY" 
+                          value={dateString}
+                          onChange={(e) => handleDateInputChange(e, setSelectedDate, setDateString)}
+                          placeholder="dd/mm/yy" 
                           className="pr-8" 
                        />
                        <Popover>
                           <PopoverTrigger asChild>
-                             <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" />
+                             <div className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
+                                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                             </div>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
+                          <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={(date) => {setSelectedDate(date); setDateString(date ? format(date, "dd/MM/yy") : "")}} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
                        </Popover>
                     </div>
                 </div>
@@ -416,18 +426,20 @@ export default function ServiceOrderPage() {
                       onChange={(e) => {
                           const rawValue = e.target.value;
                           const numbersOnly = rawValue.replace(/[^0-9]/g, '');
-                          let formattedDate = '';
-                          if (numbersOnly.length > 0) formattedDate = numbersOnly.slice(0, 2);
-                          if (numbersOnly.length > 2) formattedDate += '/' + numbersOnly.slice(2, 4);
-                          if (numbersOnly.length > 4) formattedDate += '/' + numbersOnly.slice(4, 8);
-                          handleServiceChange(index, 'fecha', formattedDate);
+                          let formatted = '';
+                          if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
+                          if (numbersOnly.length > 2) formatted += '/' + numbersOnly.slice(2, 4);
+                          if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 6);
+                          handleServiceChange(index, 'fecha', formatted);
                       }}
-                      placeholder="DD/MM/YYYY"
+                      placeholder="dd/mm/yy"
                       className="min-w-[150px] pr-8"
                     />
                     <Popover>
                         <PopoverTrigger asChild>
-                            <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" />
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
+                                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                            </div>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
                             <Calendar
@@ -482,5 +494,7 @@ export default function ServiceOrderPage() {
   );
 }
 
+
+    
 
     
