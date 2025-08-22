@@ -250,7 +250,7 @@ export default function ServiceOrderPage() {
           servicio: activityData?.name || selectedActivity,
           vuelo: '',
           guia: guides.find(g => g.fullName.toUpperCase() === orderData.guia.toUpperCase())?.firstName || '',
-          bus: busTypeSelection,
+          bus: busTypeSelection === 'CONT.' ? 'CONT.' : busTypeSelection,
           chofer: driverSelection,
           observaciones: ''
       };
@@ -341,8 +341,8 @@ export default function ServiceOrderPage() {
                                 </Button>
                             </div>
                         </div>
-                        <div className="md:col-span-1"><Label htmlFor="ref">Ref (Nombre Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className="mt-1"/></div>
-                        <div className="md:col-span-1"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1"/></div>
+                        <div className="md:col-span-1"><Label htmlFor="ref">Ref (Nombre Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-500")} /></div>
+                        <div className="md:col-span-1"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-500")} /></div>
                   </div>
                   {fileSearchStatus === "not_found" && (<div className="flex items-center gap-2 text-destructive text-sm"><XCircle className="h-4 w-4" /> File no encontrado.</div>)}
               </div>
@@ -360,11 +360,21 @@ export default function ServiceOrderPage() {
             <CardContent className="flex flex-col md:flex-row items-center gap-4">
                 <div className="w-full md:max-w-[150px]"><Label>Fecha</Label>
                     <Popover><PopoverTrigger asChild>
-                       <div className="relative mt-1"><Input value={selectedDate ? format(selectedDate, "dd/MM/yy") : ''} onChange={(e) => {/* Handle manual input if needed */}} placeholder="dd/MM/yy" className="pr-8" />
-                       <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" /></div>
+                       <div className="relative mt-1">
+                          <Input
+                              value={selectedDate ? format(selectedDate, "dd/MM/yy") : ''}
+                              onChange={(e) => {
+                                const parsedDate = parse(e.target.value, "dd/MM/yy", new Date());
+                                if (!isNaN(parsedDate.getTime())) {
+                                  setSelectedDate(parsedDate);
+                                }
+                              }}
+                              placeholder="dd/MM/yy" className="pr-8" />
+                          <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" />
+                       </div>
                     </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent></Popover>
                 </div>
-                <div className="flex-1 w-full"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
+                <div className="flex-1 w-full md:max-w-[400px]"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
                 <div className="self-end"><Button onClick={addActivityToItinerary} className="w-full md:w-auto mt-4 md:mt-0"><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button></div>
             </CardContent>
         </Card>
@@ -429,3 +439,5 @@ export default function ServiceOrderPage() {
     </div>
   );
 }
+
+    
