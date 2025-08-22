@@ -29,8 +29,8 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
 
   worksheet.columns = [
     { key: 'fecha', width: 12 }, { key: 'hora', width: 8 },
-    { key: 'servicio', width: 35 }, { key: 'vuelo', width: 12 },
-    { key: 'guia', width: 22 }, { key: 'bus', width: 12 },
+    { key: 'servicio', width: 40 }, { key: 'vuelo', width: 12 },
+    { key: 'guia', width: 22 }, { key: 'bus', width: 10 },
     { key: 'chofer', width: 22 }, { key: 'observaciones', width: 35 }
   ];
 
@@ -62,7 +62,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
     currentRowNum++;
   });
   
-  const headerRow = worksheet.getRow(8);
+  const headerRow = worksheet.getRow(7);
   headerRow.values = ['FECHA', 'HORA', 'SERVICIO', 'VUELO', 'GUIA', 'BUS', 'CHOFER', 'OBSERVACIONES'];
   headerRow.eachCell(cell => cell.style = tableHeaderStyle);
   
@@ -85,7 +85,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
       });
   }
 
-  let finalRow = (worksheet.lastRow?.number || 8) + 1;
+  let finalRow = (worksheet.lastRow?.number || 7) + 2; // Add space after table
   worksheet.getCell(`A${finalRow}`).value = 'OBS:';
   worksheet.getCell(`A${finalRow}`).style = infoHeaderStyle;
   worksheet.mergeCells(`B${finalRow}:H${finalRow}`);
@@ -93,6 +93,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   worksheet.getCell(`B${finalRow}`).style = noteSectionStyle;
   worksheet.getRow(finalRow).height = 30;
   finalRow++;
+  finalRow++; // Add more space
 
   worksheet.getCell(`A${finalRow}`).value = 'NOTA:';
   worksheet.getCell(`A${finalRow}`).style = infoHeaderStyle;
@@ -102,7 +103,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   worksheet.getRow(finalRow).height = 45;
   
   const lastContentRow = worksheet.lastRow?.number || finalRow;
-  for(let i = 2; i <= lastContentRow; i++) {
+  for(let i = 2; i <= 6; i++) { // Header info section
     const row = worksheet.getRow(i);
     for(let j = 1; j <= 8; j++) {
        const cell = row.getCell(j);

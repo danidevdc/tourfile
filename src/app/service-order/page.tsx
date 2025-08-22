@@ -4,12 +4,11 @@
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
-import { format, isBefore, startOfToday } from 'date-fns';
+import { format, isBefore, startOfToday, parse } from 'date-fns';
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
-  initializeDefaultServiceOrderData,
   getGuidesFromFirestore,
   getHotelsFromFirestore,
   getDriversFromFirestore,
@@ -51,7 +50,7 @@ const SESSION_STORAGE_FILENAME_KEY = 'serviceOrderProgramFileName_v2';
 
 export default function ServiceOrderPage() {
   const router = useRouter();
-  const { isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading, logout } = useAuth();
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -137,7 +136,6 @@ export default function ServiceOrderPage() {
     async function loadInitialData() {
         setIsLoading(true);
         try {
-          await initializeDefaultServiceOrderData();
           const [fetchedGuides, fetchedHotels, fetchedDrivers, fetchedActivities] = await Promise.all([
             getGuidesFromFirestore(), getHotelsFromFirestore(), getDriversFromFirestore(), getActivitiesFromFirestore()
           ]);
@@ -220,8 +218,12 @@ export default function ServiceOrderPage() {
     setIsProcessingSearch(false);
   };
   
-  const handleInputChange = (field: keyof ServiceOrderData, value: string) => {
-    setOrderData(prev => ({ ...prev, [field]: value.toUpperCase() }));
+  const handleInputChange = (field: keyof ServiceOrderData | 'file' | 'ref' | 'nPax', value: string) => {
+    if (field === 'file' || field === 'ref' || field === 'nPax') {
+      setOrderData(prev => ({ ...prev, [field]: value.toUpperCase() }));
+    } else {
+      setOrderData(prev => ({ ...prev, [field]: value.toUpperCase() }));
+    }
   };
   
   const handleSelectChange = (type: 'guide' | 'hotel' | 'driver', value: string) => {
@@ -261,6 +263,18 @@ export default function ServiceOrderPage() {
     updatedServices[index] = { ...updatedServices[index], [field]: value.toUpperCase() };
     setOrderData(prev => ({ ...prev, services: updatedServices }));
   };
+
+  const handleTimeBlur = (index: number, value: string) => {
+    const timeValue = value.replace(/[^0-9]/g, '');
+    let formattedTime = value;
+    if (timeValue.length === 4) {
+      formattedTime = `${timeValue.substring(0, 2)}:${timeValue.substring(2, 4)}`;
+    }
+    const updatedServices = [...orderData.services];
+    updatedServices[index] = { ...updatedServices[index], hora: formattedTime };
+    setOrderData(prev => ({ ...prev, services: updatedServices }));
+  }
+
 
   const removeService = (index: number) => {
     setOrderData(prev => ({ ...prev, services: prev.services.filter((_, i) => i !== index) }));
@@ -344,7 +358,7 @@ export default function ServiceOrderPage() {
         <Card className="shadow-lg">
             <CardHeader><CardTitle>Añadir Actividad al Itinerario</CardTitle></CardHeader>
             <CardContent className="flex flex-col md:flex-row items-center gap-4">
-                <div className="flex-1 w-full md:max-w-xs"><Label>Fecha</Label>
+                <div className="w-full md:max-w-[150px]"><Label>Fecha</Label>
                     <Popover><PopoverTrigger asChild>
                        <div className="relative mt-1"><Input value={selectedDate ? format(selectedDate, "dd/MM/yy") : ''} onChange={(e) => {/* Handle manual input if needed */}} placeholder="dd/MM/yy" className="pr-8" />
                        <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" /></div>
@@ -360,24 +374,39 @@ export default function ServiceOrderPage() {
           <CardContent><div className="overflow-x-auto"><Table><TableHeader><TableRow>
             <TableHead className="w-[120px] bg-muted/50">Fecha</TableHead>
             <TableHead className="w-[100px] bg-muted/50">Hora</TableHead>
-            <TableHead className="bg-muted/50">Servicio</TableHead>
-            <TableHead className="bg-muted/50">Guía</TableHead>
-            <TableHead className="bg-muted/50">Bus</TableHead>
-            <TableHead className="bg-muted/50">Chofer</TableHead>
+            <TableHead className="w-[350px] bg-muted/50">Servicio</TableHead>
+            <TableHead className="w-[150px] bg-muted/50">Guía</TableHead>
+            <TableHead className="w-[100px] bg-muted/50">Bus</TableHead>
+            <TableHead className="w-[150px] bg-muted/50">Chofer</TableHead>
+            <TableHead className="w-[250px] bg-muted/50">Observaciones</TableHead>
             <TableHead className="text-right w-[80px] bg-muted/50">Acción</TableHead>
           </TableRow></TableHeader><TableBody>
             {orderData.services.length > 0 ? orderData.services.map((service, index) => (
               <TableRow key={index}>
-                <TableCell><div className="relative"><Input className="min-w-[100px] pr-8" value={service.fecha} onChange={e => handleServiceChange(index, 'fecha', e.target.value)} placeholder="dd/MM/yy" /><CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /></div></TableCell>
-                <TableCell><div className="relative"><Input className="min-w-[80px] pr-8" value={service.hora} onChange={e => handleServiceChange(index, 'hora', e.target.value)} placeholder="HH:mm" /><Clock className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /></div></TableCell>
-                <TableCell><Input className="min-w-[200px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
-                <TableCell><Input className="min-w-[150px]" value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
+                <TableCell>
+                  <Input 
+                    value={service.fecha} 
+                    onChange={e => handleServiceChange(index, 'fecha', e.target.value)} 
+                    placeholder="dd/MM/yy" 
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input 
+                    value={service.hora} 
+                    onChange={e => handleServiceChange(index, 'hora', e.target.value)}
+                    onBlur={e => handleTimeBlur(index, e.target.value)}
+                    placeholder="HH:mm" 
+                  />
+                </TableCell>
+                <TableCell><Input className="min-w-[300px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[120px]" value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
                 <TableCell><Input className="min-w-[80px]" value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
-                <TableCell><Input className="min-w-[150px]" value={service.chofer?.replace(/^CONT\s/i, '')} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[120px]" value={service.chofer?.replace(/^CONT\s/i, '')} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[200px]" value={service.observaciones} onChange={e => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
                 <TableCell className="text-right"><Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
               </TableRow>
             )) : (
-              <TableRow><TableCell colSpan={7} className="text-center h-24 text-muted-foreground">Añade actividades para construir el itinerario.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center h-24 text-muted-foreground">Añade actividades para construir el itinerario.</TableCell></TableRow>
             )}
           </TableBody></Table></div></CardContent>
         </Card>
@@ -400,4 +429,3 @@ export default function ServiceOrderPage() {
     </div>
   );
 }
-
