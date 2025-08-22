@@ -26,34 +26,37 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileDown, Trash2, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon } from "lucide-react";
+import { ArrowLeft, Loader2, FileDown, Trash2, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon, Clock } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+
+const defaultObsText = 'LA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
+const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS REALIZADOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA';
 
 const initialServiceOrderState: ServiceOrderData = {
   guia: '', file: '', ref: '', nPax: '', hotel: '',
   services: [],
-  observations: '',
-  nota: 'SERVICIOS EN EL LAGO.\nTODOS LOS GUIAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA'
+  observations: defaultObsText,
+  nota: defaultNotaText
 };
 
 const BUS_TYPES = [ { value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado (Externo)' } ];
-const SESSION_STORAGE_FILE_KEY = 'serviceOrderProgramFile';
-const SESSION_STORAGE_FILENAME_KEY = 'serviceOrderProgramFileName';
+const SESSION_STORAGE_FILE_KEY = 'serviceOrderProgramFile_v2';
+const SESSION_STORAGE_FILENAME_KEY = 'serviceOrderProgramFileName_v2';
 
 export default function ServiceOrderPage() {
   const router = useRouter();
-  const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading } = useAuth();
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   
-  // Data from Firestore
   const [guides, setGuides] = useState<ServiceOrderGuide[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
@@ -61,14 +64,11 @@ export default function ServiceOrderPage() {
   const [externalDrivers, setExternalDrivers] = useState<Driver[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
 
-  // Main form state
   const [orderData, setOrderData] = useState<ServiceOrderData>(initialServiceOrderState);
 
-  // Selections for choferes
   const [busTypeSelection, setBusTypeSelection] = useState('');
   const [driverSelection, setDriverSelection] = useState('');
   
-  // State for file upload and search
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<{name: string} | null>(null);
   const [excelData, setExcelData] = useState<any[][] | null>(null);
@@ -76,7 +76,6 @@ export default function ServiceOrderPage() {
   const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
   const [isProcessingSearch, setIsProcessingSearch] = useState(false);
 
-  // State for adding activities
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedActivity, setSelectedActivity] = useState<string>("");
 
@@ -90,13 +89,12 @@ export default function ServiceOrderPage() {
         const jsonData: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null });
         setExcelData(jsonData);
 
-        // Store file content in sessionStorage
-        const base64 = btoa(new Uint8Array(data).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+        const base64 = btoa(new Uint8Array(data).reduce((res, byte) => res + String.fromCharCode(byte), ''));
         sessionStorage.setItem(SESSION_STORAGE_FILE_KEY, base64);
         sessionStorage.setItem(SESSION_STORAGE_FILENAME_KEY, file.name);
 
       } catch (error) {
-         toast({ title: "Error", description: "No se pudo procesar el archivo. Límite de tamaño del navegador excedido.", variant: "destructive" });
+         toast({ title: "Error", description: "No se pudo procesar el archivo. Límite de tamaño excedido.", variant: "destructive" });
          clearFile();
       }
     };
@@ -115,9 +113,7 @@ export default function ServiceOrderPage() {
             try {
                 const byteString = atob(storedFile);
                 const byteNumbers = new Array(byteString.length);
-                for (let i = 0; i < byteString.length; i++) {
-                    byteNumbers[i] = byteString.charCodeAt(i);
-                }
+                for (let i = 0; i < byteString.length; i++) byteNumbers[i] = byteString.charCodeAt(i);
                 const byteArray = new Uint8Array(byteNumbers);
                 const blob = new Blob([byteArray], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
                 const file = new File([blob], storedFileName);
@@ -129,7 +125,7 @@ export default function ServiceOrderPage() {
                 setExcelData(jsonData);
             } catch (e) {
                 console.error("Failed to load file from session storage:", e);
-                clearFile(); // Clear corrupted data
+                clearFile(); 
             }
         }
     }
@@ -138,14 +134,7 @@ export default function ServiceOrderPage() {
 
 
   useEffect(() => {
-    if (!authLoading && !isCurrentUserAdmin) {
-      toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder.", variant: "destructive" });
-      router.replace('/');
-      return;
-    }
-    
     async function loadInitialData() {
-      if (isCurrentUserAdmin) {
         setIsLoading(true);
         try {
           await initializeDefaultServiceOrderData();
@@ -163,10 +152,9 @@ export default function ServiceOrderPage() {
         } finally {
           setIsLoading(false);
         }
-      }
     }
     if(!authLoading) loadInitialData();
-  }, [authLoading, isCurrentUserAdmin, router, toast]);
+  }, [authLoading, toast]);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -211,22 +199,19 @@ export default function ServiceOrderPage() {
     if (found) {
         setFileSearchStatus("found");
         const groupName = String(excelData[rowIdx + 1]?.[colIdx] || "No encontrado").toUpperCase();
-        
         let pax = "N/A";
         for (let i = rowIdx + 2; i < excelData.length; i++) {
              const paxRaw = excelData[i]?.[colIdx];
              if (paxRaw !== null && paxRaw !== undefined) {
                  const paxValue = String(paxRaw).trim();
                  if (/^\d{1,2}$/.test(paxValue) || /^\d+\s*\+\s*\d+$/.test(paxValue)) {
-                     pax = paxValue;
-                     break;
+                     pax = paxValue; break;
                  }
              }
         }
-        
         setOrderData(prev => ({ ...prev, ref: groupName, nPax: pax }));
         setFileDataProps({ fileIdRowIndex: rowIdx, columnIndex: colIdx });
-        toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+        toast({ title: "Búsqueda Exitosa", className: "bg-green-100 dark:bg-green-900 border-green-500" });
     } else {
         setFileSearchStatus("not_found");
         setOrderData(prev => ({ ...prev, ref: '', nPax: '' }));
@@ -241,20 +226,14 @@ export default function ServiceOrderPage() {
   
   const handleSelectChange = (type: 'guide' | 'hotel' | 'driver', value: string) => {
     const upperValue = value.toUpperCase();
-    if (type === 'guide') {
-      const selectedGuide = guides.find(g => g.fullName.toUpperCase() === upperValue);
-      setOrderData(prev => ({ ...prev, guia: selectedGuide?.fullName || '' }));
-    } else if (type === 'hotel') {
-        const selectedHotel = hotels.find(h => h.name.toUpperCase() === upperValue);
-        setOrderData(prev => ({ ...prev, hotel: selectedHotel?.name || '' }));
-    } else if (type === 'driver') {
-        setDriverSelection(upperValue);
-    }
+    if (type === 'guide') setOrderData(prev => ({ ...prev, guia: upperValue }));
+    else if (type === 'hotel') setOrderData(prev => ({ ...prev, hotel: upperValue }));
+    else if (type === 'driver') setDriverSelection(upperValue);
   };
 
   const handleBusTypeChange = (value: string) => {
     setBusTypeSelection(value);
-    setDriverSelection(''); // Reset driver selection
+    setDriverSelection('');
   }
 
   const addActivityToItinerary = () => {
@@ -268,13 +247,13 @@ export default function ServiceOrderPage() {
           hora: activityData?.defaultTime || "09:00",
           servicio: activityData?.name || selectedActivity,
           vuelo: '',
-          guia: guides.find(g => g.fullName === orderData.guia)?.firstName || '',
+          guia: guides.find(g => g.fullName.toUpperCase() === orderData.guia.toUpperCase())?.firstName || '',
           bus: busTypeSelection,
           chofer: driverSelection,
           observaciones: ''
       };
       setOrderData(prev => ({ ...prev, services: [...prev.services, newService] }));
-      setSelectedActivity(""); // Reset for next entry
+      setSelectedActivity("");
   }
 
   const handleServiceChange = (index: number, field: keyof ServiceItem, value: string) => {
@@ -294,7 +273,6 @@ export default function ServiceOrderPage() {
         toast({ title: "Datos incompletos", description: "El nombre del guía y el file son obligatorios.", variant: "destructive" });
         return;
       }
-      
       const buffer = await generateServiceOrderExcel(orderData);
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
@@ -306,7 +284,6 @@ export default function ServiceOrderPage() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       toast({ title: "Descarga Exitosa", className: "bg-green-100 dark:bg-green-900 border-green-500"});
-
     } catch(error) {
       toast({ title: "Error", description: "No se pudo generar el archivo Excel.", variant: "destructive" });
     } finally {
@@ -323,13 +300,6 @@ export default function ServiceOrderPage() {
   const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
   const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\s/i, '') }));
 
-  const getFileNumberInputClasses = (): string => {
-    let baseClasses = "bg-muted";
-    if (fileSearchStatus === "found") baseClasses = "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500";
-    else if (fileSearchStatus === "not_found" || fileSearchStatus === "error") baseClasses = "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive";
-    return baseClasses;
-  };
-  
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background">
       <div className="w-full max-w-7xl mb-4"><Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back"><ArrowLeft className="h-5 w-5" /></Button></div>
@@ -338,7 +308,6 @@ export default function ServiceOrderPage() {
         <Card className="shadow-lg">
           <CardHeader><CardTitle className="text-2xl font-headline text-primary">Generador de Órdenes de Servicio</CardTitle><CardDescription>Sube, busca y completa los campos para generar la orden.</CardDescription></CardHeader>
           <CardContent className="space-y-4">
-              {/* File Upload and Search */}
               <div className="space-y-4 p-4 border rounded-lg bg-card">
                   <div className="flex items-center gap-2">
                       <Label className="font-semibold shrink-0">Programa:</Label>
@@ -346,37 +315,23 @@ export default function ServiceOrderPage() {
                           <Upload className="mr-2 h-4 w-4" />{selectedFile ? selectedFile.name : "Seleccionar archivo .xlsx"}
                       </Button>
                       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
-                      {selectedFile && <Button type="button" variant="ghost" size="icon" onClick={clearFile}><Trash2 className="h-4 w-4 text-destructive"/></Button>}
+                      {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile} title="Limpiar archivo"><Trash2 className="h-4 w-4"/></Button>}
                   </div>
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                      <div className="flex items-end gap-2">
-                          <div className="flex-grow">
-                              <Label htmlFor="file">Buscar File:</Label>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} placeholder="Número de file..." className={getFileNumberInputClasses()} />
+                        <div className="md:col-span-1">
+                            <Label htmlFor="file">Buscar File:</Label>
+                            <div className="flex items-center gap-2 mt-1">
+                                <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} placeholder="Número de file..." className={fileSearchStatus === "found" ? "border-green-500" : ""} />
                                 <Button type="button" onClick={handleSearchFile} variant="default" size="icon" disabled={!selectedFile || !orderData.file || isProcessingSearch}>
                                   {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4" />}
                                 </Button>
-                              </div>
-                          </div>
-                      </div>
-                      <div className={cn("md:col-span-2 text-sm", fileSearchStatus === 'found' ? 'text-green-800 dark:text-green-200' : 'text-destructive')}>
-                         {fileSearchStatus === 'found' ? (
-                              <div className="flex gap-4 p-2 rounded-md bg-green-100 dark:bg-green-900/50 border border-green-500/50">
-                                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5"/>
-                                  <div>
-                                      <p><strong>Ref:</strong> {orderData.ref}</p>
-                                      <p><strong>Pax:</strong> {orderData.nPax}</p>
-                                  </div>
-                              </div>
-                         ) : fileSearchStatus === 'not_found' ? (
-                            <div className="flex items-center gap-2 text-destructive"><XCircle className="h-4 w-4" /> File no encontrado.</div>
-                         ) : null}
-                      </div>
+                            </div>
+                        </div>
+                        <div className="md:col-span-1"><Label htmlFor="ref">Ref (Nombre Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className="mt-1"/></div>
+                        <div className="md:col-span-1"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1"/></div>
                   </div>
+                  {fileSearchStatus === "not_found" && (<div className="flex items-center gap-2 text-destructive text-sm"><XCircle className="h-4 w-4" /> File no encontrado.</div>)}
               </div>
-
-               {/* Main Selections */}
                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-card">
                   <div><Label>Guía</Label><Combobox options={guideOptions} value={orderData.guia.toUpperCase()} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1" /></div>
                   <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel.toUpperCase()} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1" /></div>
@@ -386,13 +341,13 @@ export default function ServiceOrderPage() {
           </CardContent>
         </Card>
 
-        {/* Itinerary Builder */}
         <Card className="shadow-lg">
             <CardHeader><CardTitle>Añadir Actividad al Itinerario</CardTitle></CardHeader>
             <CardContent className="flex flex-col md:flex-row items-center gap-4">
-                <div className="flex-1 w-full"><Label>Fecha</Label>
+                <div className="flex-1 w-full md:max-w-xs"><Label>Fecha</Label>
                     <Popover><PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !selectedDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{selectedDate ? format(selectedDate, "dd/MM/yy") : <span>Elige una fecha</span>}</Button>
+                       <div className="relative mt-1"><Input value={selectedDate ? format(selectedDate, "dd/MM/yy") : ''} onChange={(e) => {/* Handle manual input if needed */}} placeholder="dd/MM/yy" className="pr-8" />
+                       <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" /></div>
                     </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent></Popover>
                 </div>
                 <div className="flex-1 w-full"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
@@ -400,22 +355,21 @@ export default function ServiceOrderPage() {
             </CardContent>
         </Card>
         
-        {/* Services Table */}
         <Card className="shadow-lg">
           <CardHeader><CardTitle>Tabla Resumen del Itinerario</CardTitle></CardHeader>
           <CardContent><div className="overflow-x-auto"><Table><TableHeader><TableRow>
-            <TableHead className="w-[120px]">Fecha</TableHead>
-            <TableHead className="w-[100px]">Hora</TableHead>
-            <TableHead>Servicio</TableHead>
-            <TableHead>Guía</TableHead>
-            <TableHead>Bus</TableHead>
-            <TableHead>Chofer</TableHead>
-            <TableHead className="text-right w-[80px]">Acción</TableHead>
+            <TableHead className="w-[120px] bg-muted/50">Fecha</TableHead>
+            <TableHead className="w-[100px] bg-muted/50">Hora</TableHead>
+            <TableHead className="bg-muted/50">Servicio</TableHead>
+            <TableHead className="bg-muted/50">Guía</TableHead>
+            <TableHead className="bg-muted/50">Bus</TableHead>
+            <TableHead className="bg-muted/50">Chofer</TableHead>
+            <TableHead className="text-right w-[80px] bg-muted/50">Acción</TableHead>
           </TableRow></TableHeader><TableBody>
             {orderData.services.length > 0 ? orderData.services.map((service, index) => (
               <TableRow key={index}>
-                <TableCell><Input className="min-w-[100px]" value={service.fecha} onChange={e => handleServiceChange(index, 'fecha', e.target.value)} placeholder="dd/MM/yy" /></TableCell>
-                <TableCell><Input className="min-w-[80px]" value={service.hora} onChange={e => handleServiceChange(index, 'hora', e.target.value)} placeholder="HH:mm" /></TableCell>
+                <TableCell><div className="relative"><Input className="min-w-[100px] pr-8" value={service.fecha} onChange={e => handleServiceChange(index, 'fecha', e.target.value)} placeholder="dd/MM/yy" /><CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /></div></TableCell>
+                <TableCell><div className="relative"><Input className="min-w-[80px] pr-8" value={service.hora} onChange={e => handleServiceChange(index, 'hora', e.target.value)} placeholder="HH:mm" /><Clock className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /></div></TableCell>
                 <TableCell><Input className="min-w-[200px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
                 <TableCell><Input className="min-w-[150px]" value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
                 <TableCell><Input className="min-w-[80px]" value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
@@ -428,14 +382,15 @@ export default function ServiceOrderPage() {
           </TableBody></Table></div></CardContent>
         </Card>
         
-        {/* Notes and Finalize */}
-         <Card className="shadow-lg">
-           <CardHeader><CardTitle>Observaciones y Notas Finales</CardTitle></CardHeader>
-           <CardContent className="space-y-4">
-              <div><Label htmlFor="observaciones">Observaciones Generales</Label><Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={3}/></div>
-              <div><Label htmlFor="nota">Nota (Pie de página)</Label><Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/></div>
-           </CardContent>
-        </Card>
+         <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="item-1">
+              <AccordionTrigger className="text-lg font-medium">Observaciones y Notas Finales</AccordionTrigger>
+              <AccordionContent className="space-y-4 pt-4">
+                <div><Label htmlFor="observaciones">Observaciones Generales</Label><Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={3}/></div>
+                <div><Label htmlFor="nota">Nota (Pie de página)</Label><Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/></div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
         <Card className="shadow-lg">
           <CardHeader><CardTitle className="text-xl">Finalizar</CardTitle><CardDescription>Genera y descarga el archivo final.</CardDescription></CardHeader>
@@ -445,3 +400,4 @@ export default function ServiceOrderPage() {
     </div>
   );
 }
+
