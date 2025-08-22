@@ -16,7 +16,6 @@ import {
   type Hotel,
   type Driver,
 } from "@/lib/serviceOrderService";
-import { getActivitiesFromFirestore } from "@/lib/activityService";
 import { generateServiceOrderExcel, type ServiceOrderData, type ServiceItem } from '@/lib/serviceOrderGenerator';
 import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generator";
 
@@ -79,6 +78,7 @@ export default function ServiceOrderPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [dateString, setDateString] = useState<string>("");
   const [selectedActivity, setSelectedActivity] = useState<string>("");
+  const [timeString, setTimeString] = useState<string>("");
 
    const processAndStoreFile = (file: File) => {
     const reader = new FileReader();
@@ -236,7 +236,7 @@ export default function ServiceOrderPage() {
     setDriverSelection('');
   }
   
-  const handleDateInputChange = (e: ChangeEvent<HTMLInputElement>, onDateSet: (date: Date | undefined) => void, onStringSet: (value: string) => void) => {
+  const handleDateInputChange = (e: ChangeEvent<HTMLInputElement>, onStateChange: (value: string) => void) => {
     const rawValue = e.target.value;
     const numbersOnly = rawValue.replace(/[^0-9]/g, '');
     let formatted = '';
@@ -245,30 +245,30 @@ export default function ServiceOrderPage() {
     if (numbersOnly.length > 2) formatted += '/' + numbersOnly.slice(2, 4);
     if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 8);
     
-    onStringSet(formatted);
+    onStateChange(formatted);
+  };
+  
+  const handleTimeInputChange = (e: ChangeEvent<HTMLInputElement>, onStateChange: (value: string) => void) => {
+      const rawValue = e.target.value;
+      const numbersOnly = rawValue.replace(/[^0-9]/g, '');
+      let formatted = '';
 
-    if (formatted.length === 10) {
-      const parsedDate = parse(formatted, "dd/MM/yyyy", new Date());
-      if (!isNaN(parsedDate.getTime())) {
-        onDateSet(parsedDate);
-      } else {
-        onDateSet(undefined);
-      }
-    } else {
-      onDateSet(undefined);
-    }
+      if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
+      if (numbersOnly.length > 2) formatted += ':' + numbersOnly.slice(2, 4);
+
+      onStateChange(formatted);
   };
 
 
   const addActivityToItinerary = () => {
-      if (!selectedDate || !selectedActivity) {
+      if (!dateString || !selectedActivity) {
           toast({ title: "Datos incompletos", description: "Selecciona una fecha y una actividad.", variant: "destructive" });
           return;
       }
       const activityData = activities.find(a => a.name === selectedActivity);
       const newService: ServiceItem = {
-          fecha: format(selectedDate, "dd/MM/yyyy"),
-          hora: activityData?.defaultTime || "09:00",
+          fecha: dateString,
+          hora: timeString || activityData?.defaultTime || "09:00",
           servicio: activityData?.name || selectedActivity,
           vuelo: '',
           guia: guides.find(g => g.fullName.toUpperCase() === orderData.guia.toUpperCase())?.firstName || '',
@@ -280,6 +280,7 @@ export default function ServiceOrderPage() {
       setSelectedActivity("");
       setDateString("");
       setSelectedDate(undefined);
+      setTimeString("");
   }
 
   const handleServiceChange = (index: number, field: keyof ServiceItem, value: string) => {
@@ -287,18 +288,6 @@ export default function ServiceOrderPage() {
     updatedServices[index] = { ...updatedServices[index], [field]: value.toUpperCase() };
     setOrderData(prev => ({ ...prev, services: updatedServices }));
   };
-
-  const handleTimeBlur = (index: number, value: string) => {
-    const timeValue = value.replace(/[^0-9]/g, '');
-    let formattedTime = value;
-    if (timeValue.length === 4) {
-      formattedTime = `${timeValue.substring(0, 2)}:${timeValue.substring(2, 4)}`;
-    }
-    const updatedServices = [...orderData.services];
-    updatedServices[index] = { ...updatedServices[index], hora: formattedTime };
-    setOrderData(prev => ({ ...prev, services: updatedServices }));
-  }
-
 
   const removeService = (index: number) => {
     setOrderData(prev => ({ ...prev, services: prev.services.filter((_, i) => i !== index) }));
@@ -344,8 +333,12 @@ export default function ServiceOrderPage() {
 
       <div className="w-full max-w-7xl space-y-6">
         <Card className="shadow-lg">
-          <CardHeader><CardTitle className="text-2xl font-headline text-primary">Generador de Órdenes de Servicio</CardTitle><CardDescription>Sube, busca y completa los campos para generar la orden.</CardDescription></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-2xl font-headline text-primary">Generador de Órdenes de Servicio</CardTitle>
+            <CardDescription>Sube, busca y completa los campos para generar la orden.</CardDescription>
+          </CardHeader>
           <CardContent className="space-y-4">
+              {/* --- FILE UPLOAD AND SEARCH --- */}
               <div className="space-y-4 p-4 border rounded-lg bg-card">
                   <div className="flex items-center gap-2">
                       <Label className="font-semibold shrink-0">Programa:</Label>
@@ -355,8 +348,8 @@ export default function ServiceOrderPage() {
                       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
                       {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile} title="Limpiar archivo"><Trash2 className="h-4 w-4"/></Button>}
                   </div>
-                   <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                        <div className="md:col-span-2">
+                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                        <div className="md:col-span-3">
                             <Label htmlFor="file">Buscar File:</Label>
                             <div className="flex items-center gap-2 mt-1">
                                 <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} placeholder="Número de file..." className={cn(fileSearchStatus === "found" && "border-green-500")} />
@@ -365,130 +358,140 @@ export default function ServiceOrderPage() {
                                 </Button>
                             </div>
                         </div>
-                        <div className="md:col-span-3"><Label htmlFor="ref">Ref (Nombre Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-500")} /></div>
-                        <div className="md:col-span-1"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-500")} /></div>
+                        <div className="md:col-span-7"><Label htmlFor="ref">Ref (Nombre Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-500 bg-green-50 dark:bg-green-900/20")} /></div>
+                        <div className="md:col-span-2"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-500 bg-green-50 dark:bg-green-900/20")} /></div>
                   </div>
                   {fileSearchStatus === "not_found" && (<div className="flex items-center gap-2 text-destructive text-sm"><XCircle className="h-4 w-4" /> File no encontrado.</div>)}
               </div>
+
+               {/* --- MAIN DETAILS --- */}
                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-card">
                   <div><Label>Guía</Label><Combobox options={guideOptions} value={orderData.guia.toUpperCase()} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1" /></div>
                   <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel.toUpperCase()} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1" /></div>
                   <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={handleBusTypeChange}><SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{BUS_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
                   <div><Label>Chofer</Label><Combobox options={driverOptions} value={driverSelection.toUpperCase()} onSelect={(val) => handleSelectChange('driver', val)} placeholder="Seleccionar chofer..." className="mt-1" /></div>
               </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg">
-            <CardHeader><CardTitle>Añadir Actividad al Itinerario</CardTitle></CardHeader>
-            <CardContent className="flex flex-col md:flex-row items-end gap-4">
-                <div className="w-full md:w-auto">
-                  <Label>Fecha</Label>
-                    <div className="relative mt-1 md:w-[170px]">
-                      <Input
-                          value={dateString}
-                          onChange={(e) => handleDateInputChange(e, setSelectedDate, setDateString)}
-                          placeholder="dd/mm/yyyy" 
-                          className="w-full"
-                       />
-                       <Popover>
-                          <PopoverTrigger asChild>
-                             <div className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
-                                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                             </div>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={(date) => {setSelectedDate(date); setDateString(date ? format(date, "dd/MM/yyyy") : "")}} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
-                       </Popover>
+              
+              {/* --- ADD ACTIVITY --- */}
+              <Card>
+                 <CardHeader><CardTitle className="text-lg">Añadir Actividad al Itinerario</CardTitle></CardHeader>
+                 <CardContent className="flex flex-col md:flex-row items-end gap-4">
+                    <div className="w-full md:w-auto">
+                      <Label>Fecha</Label>
+                        <div className="relative mt-1">
+                          <Input
+                              value={dateString}
+                              onChange={(e) => handleDateInputChange(e, setDateString)}
+                              placeholder="dd/MM/yyyy" 
+                              className="w-full md:w-[170px]"
+                              maxLength={10}
+                           />
+                           <Popover>
+                              <PopoverTrigger asChild>
+                                 <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
+                                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                                 </button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={(date) => {setSelectedDate(date); setDateString(date ? format(date, "dd/MM/yyyy") : "")}} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
+                           </Popover>
+                        </div>
                     </div>
-                </div>
-                <div className="flex-1 w-full md:max-w-xl"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
-                <div><Button onClick={addActivityToItinerary} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button></div>
-            </CardContent>
-        </Card>
-        
-        <Card className="shadow-lg">
-          <CardHeader><CardTitle>Tabla Resumen del Itinerario</CardTitle></CardHeader>
-          <CardContent><div className="overflow-x-auto"><Table><TableHeader><TableRow>
-            <TableHead className="w-[170px] bg-muted/50">Fecha</TableHead>
-            <TableHead className="w-[120px] bg-muted/50">Hora</TableHead>
-            <TableHead className="w-[450px] bg-muted/50">Servicio</TableHead>
-            <TableHead className="w-[200px] bg-muted/50">Guía</TableHead>
-            <TableHead className="w-[100px] bg-muted/50">Bus</TableHead>
-            <TableHead className="w-[200px] bg-muted/50">Chofer</TableHead>
-            <TableHead className="w-[300px] bg-muted/50">Observaciones</TableHead>
-            <TableHead className="text-right w-[80px] bg-muted/50">Acción</TableHead>
-          </TableRow></TableHeader><TableBody>
-            {orderData.services.length > 0 ? orderData.services.map((service, index) => (
-              <TableRow key={index}>
-                <TableCell>
-                  <div className="relative">
-                    <Input 
-                      value={service.fecha} 
-                      onChange={(e) => {
-                          const rawValue = e.target.value;
-                          const numbersOnly = rawValue.replace(/[^0-9]/g, '');
-                          let formatted = '';
-                          if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
-                          if (numbersOnly.length > 2) formatted += '/' + numbersOnly.slice(2, 4);
-                          if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 8);
-                          handleServiceChange(index, 'fecha', formatted);
-                      }}
-                      placeholder="dd/mm/yyyy"
-                      className="min-w-[170px]"
-                    />
-                    <Popover>
-                        <PopoverTrigger asChild>
-                             <div className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
-                                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                             </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                            <Calendar
-                                mode="single"
-                                selected={parse(service.fecha, "dd/MM/yyyy", new Date())}
-                                onSelect={(date) => date && handleServiceChange(index, 'fecha', format(date, 'dd/MM/yyyy'))}
-                                disabled={(date) => isBefore(date, startOfToday())}
-                                initialFocus
-                            />
-                        </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Input 
-                    value={service.hora} 
-                    onChange={e => handleServiceChange(index, 'hora', e.target.value)}
-                    onBlur={e => handleTimeBlur(index, e.target.value)}
-                    placeholder="HH:mm" 
-                    className="min-w-[120px]"
-                  />
-                </TableCell>
-                <TableCell><Input className="min-w-[450px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
-                <TableCell><Input className="min-w-[200px]" value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
-                <TableCell><Input className="min-w-[100px]" value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
-                <TableCell><Input className="min-w-[200px]" value={service.chofer?.replace(/^CONT\s/i, '')} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
-                <TableCell><Input className="min-w-[300px]" value={service.observaciones} onChange={e => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
-                <TableCell className="text-right"><Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
-              </TableRow>
-            )) : (
-              <TableRow><TableCell colSpan={8} className="text-center h-24 text-muted-foreground">Añade actividades para construir el itinerario.</TableCell></TableRow>
-            )}
-          </TableBody></Table></div></CardContent>
-        </Card>
-        
-         <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
-            <AccordionItem value="item-1">
-              <AccordionTrigger className="text-lg font-medium">Observaciones y Notas Finales</AccordionTrigger>
-              <AccordionContent className="space-y-4 pt-4">
-                <div><Label htmlFor="observaciones">Observaciones Generales</Label><Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observaciones', e.target.value)} className="mt-1" rows={3}/></div>
-                <div><Label htmlFor="nota">Nota (Pie de página)</Label><Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/></div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+                     <div className="w-full md:w-auto">
+                        <Label>Hora</Label>
+                        <Input 
+                            value={timeString} 
+                            onChange={(e) => handleTimeInputChange(e, setTimeString)}
+                            placeholder="HH:mm" 
+                            className="mt-1 md:w-[120px]"
+                            maxLength={5}
+                        />
+                    </div>
+                    <div className="flex-1 w-full md:max-w-md"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
+                    <div><Button onClick={addActivityToItinerary} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button></div>
+                </CardContent>
+              </Card>
 
-        <Card className="shadow-lg">
-          <CardHeader><CardTitle className="text-xl">Finalizar</CardTitle><CardDescription>Genera y descarga el archivo final.</CardDescription></CardHeader>
-          <CardContent><Button onClick={handleDownloadExcel} className="w-full sm:w-auto" disabled={isGenerating}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4"/>} Generar y Descargar Excel</Button></CardContent>
+              {/* --- SUMMARY TABLE --- */}
+              <Card>
+                <CardHeader><CardTitle>Tabla Resumen del Itinerario</CardTitle></CardHeader>
+                <CardContent><div className="overflow-x-auto"><Table><TableHeader><TableRow>
+                  <TableHead className="bg-muted/50 min-w-[170px]">Fecha</TableHead>
+                  <TableHead className="bg-muted/50 min-w-[120px]">Hora</TableHead>
+                  <TableHead className="bg-muted/50 min-w-[450px]">Servicio</TableHead>
+                  <TableHead className="bg-muted/50 min-w-[150px]">Guía</TableHead>
+                  <TableHead className="bg-muted/50 min-w-[80px]">Bus</TableHead>
+                  <TableHead className="bg-muted/50 min-w-[150px]">Chofer</TableHead>
+                  <TableHead className="bg-muted/50 min-w-[300px]">Observaciones</TableHead>
+                  <TableHead className="text-right w-[80px] bg-muted/50">Acción</TableHead>
+                </TableRow></TableHeader><TableBody>
+                  {orderData.services.length > 0 ? orderData.services.map((service, index) => (
+                    <TableRow key={index}>
+                      <TableCell>
+                         <div className="relative">
+                            <Input 
+                              value={service.fecha} 
+                              onChange={(e) => handleDateInputChange(e, (val) => handleServiceChange(index, 'fecha', val))}
+                              placeholder="dd/mm/yyyy"
+                              maxLength={10}
+                              className="min-w-[170px]"
+                            />
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                     <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
+                                        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                                     </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={parse(service.fecha, "dd/MM/yyyy", new Date())}
+                                        onSelect={(date) => date && handleServiceChange(index, 'fecha', format(date, 'dd/MM/yyyy'))}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                          </div>
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          value={service.hora} 
+                          onChange={(e) => handleTimeInputChange(e, (val) => handleServiceChange(index, 'hora', val))}
+                          placeholder="HH:mm" 
+                          maxLength={5}
+                          className="min-w-[120px]"
+                        />
+                      </TableCell>
+                      <TableCell><Input className="min-w-[450px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
+                      <TableCell><Input className="min-w-[150px]" value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
+                      <TableCell><Input className="min-w-[80px]" value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
+                      <TableCell><Input className="min-w-[150px]" value={service.chofer?.replace(/^CONT\s/i, '')} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
+                      <TableCell><Input className="min-w-[300px]" value={service.observaciones} onChange={e => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
+                      <TableCell className="text-right"><Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow><TableCell colSpan={8} className="text-center h-24 text-muted-foreground">Añade actividades para construir el itinerario.</TableCell></TableRow>
+                  )}
+                </TableBody></Table></div></CardContent>
+              </Card>
+
+              {/* --- FINAL NOTES --- */}
+              <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger className="text-lg font-medium">Observaciones y Notas Finales</AccordionTrigger>
+                    <AccordionContent className="space-y-4 pt-4">
+                      <div><Label htmlFor="observaciones">Observaciones Generales</Label><Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={3}/></div>
+                      <div><Label htmlFor="nota">Nota (Pie de página)</Label><Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/></div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+
+              {/* --- DOWNLOAD --- */}
+              <Card>
+                <CardHeader><CardTitle className="text-xl">Finalizar</CardTitle><CardDescription>Genera y descarga el archivo final.</CardDescription></CardHeader>
+                <CardContent><Button onClick={handleDownloadExcel} className="w-full sm:w-auto" disabled={isGenerating}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4"/>} Generar y Descargar Excel</Button></CardContent>
+              </Card>
+
+          </CardContent>
         </Card>
       </div>
     </div>
