@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import * as XLSX from 'xlsx';
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -150,17 +149,30 @@ export default function ServiceOrderPage() {
     setOrderData(prev => ({ ...prev, services: updatedServices }));
   };
 
-  const handleDownloadExcel = () => {
+  const handleDownloadExcel = async () => {
     setIsGenerating(true);
     try {
       if (!orderData.guia || !orderData.file) {
         toast({ title: "Datos incompletos", description: "El nombre del guía y el file son obligatorios.", variant: "destructive" });
         return;
       }
-      const workbook = generateServiceOrderExcel(orderData);
+      
+      const buffer = await generateServiceOrderExcel(orderData);
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
       const fileName = `Orden_Servicio_${orderData.file.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
-      XLSX.writeFile(workbook, fileName);
+      link.download = fileName;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
       toast({ title: "Descarga Exitosa", description: `Se generó el archivo ${fileName}.`, className: "bg-green-100 dark:bg-green-900 border-green-500"});
+
     } catch(error) {
       console.error("Error generating excel", error);
       toast({ title: "Error", description: "No se pudo generar el archivo Excel.", variant: "destructive" });
