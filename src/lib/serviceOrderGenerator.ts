@@ -18,7 +18,7 @@ export interface ServiceItem {
   servicio: string;
   vuelo?: string;
   guia?: string;
-  bus?: string;
+  bus?: string; 
   chofer?: string;
   observaciones?: string;
 }
@@ -33,10 +33,10 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
     { key: 'fecha', width: 12 },
     { key: 'hora', width: 8 },
     { key: 'servicio', width: 35 },
-    { key: 'vuelo', width: 10 },
-    { key: 'guia', width: 20 },
-    { key: 'bus', width: 10 },
-    { key: 'chofer', width: 20 },
+    { key: 'vuelo', width: 12 },
+    { key: 'guia', width: 22 },
+    { key: 'bus', width: 12 },
+    { key: 'chofer', width: 22 },
     { key: 'observaciones', width: 35 }
   ];
 
@@ -48,7 +48,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   const infoHeaderStyle: Partial<ExcelJS.Style> = {
     font: { name: 'Calibri', size: 11, bold: true },
   };
-  const tableHeaderStyle: Partial<ExcelJS.Style> = {
+   const tableHeaderStyle: Partial<ExcelJS.Style> = {
     font: { name: 'Calibri', size: 11, bold: true },
     fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } },
     alignment: { horizontal: 'center', vertical: 'middle' },
@@ -65,7 +65,10 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
         bottom: { style: 'thin' }, right: { style: 'thin' }
       }
   };
-
+  const noteSectionStyle: Partial<ExcelJS.Style> = {
+    font: { name: 'Calibri', size: 11 },
+    alignment: { vertical: 'top', wrapText: true },
+  };
 
   // --- Title ---
   worksheet.mergeCells('A1:H1');
@@ -75,80 +78,94 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   worksheet.getRow(1).height = 20;
 
   // --- Info Section ---
-  let currentRow = 3;
-  worksheet.getCell(`A${currentRow}`).value = 'GUIA';
-  worksheet.getCell(`A${currentRow}`).style = infoHeaderStyle;
-  worksheet.getCell(`B${currentRow}`).value = data.guia;
-  
-  currentRow++;
-  worksheet.getCell(`A${currentRow}`).value = 'FILE:';
-  worksheet.getCell(`A${currentRow}`).style = infoHeaderStyle;
-  worksheet.getCell(`B${currentRow}`).value = data.file;
-  
-  currentRow++;
-  worksheet.getCell(`A${currentRow}`).value = 'REF:';
-  worksheet.getCell(`A${currentRow}`).style = infoHeaderStyle;
-  worksheet.getCell(`B${currentRow}`).value = data.ref;
+  const infoData = [
+    { label: 'GUIA:', value: data.guia },
+    { label: 'FILE:', value: data.file },
+    { label: 'REF:', value: data.ref },
+    { label: 'N° PAX:', value: data.nPax },
+    { label: 'HOTEL:', value: data.hotel }
+  ];
 
-  currentRow++;
-  worksheet.getCell(`A${currentRow}`).value = 'N° PAX:';
-  worksheet.getCell(`A${currentRow}`).style = infoHeaderStyle;
-  worksheet.getCell(`B${currentRow}`).value = data.nPax;
-  
-  currentRow++;
-  worksheet.getCell(`A${currentRow}`).value = 'HOTEL:';
-  worksheet.getCell(`A${currentRow}`).style = infoHeaderStyle;
-  worksheet.getCell(`B${currentRow}`).value = data.hotel;
-  
-  // --- Services Table ---
-  currentRow += 2;
-  const headerRow = worksheet.getRow(currentRow);
-  headerRow.values = ['FECHA', 'HORA', 'SERVICIO', 'VUELO', 'GUIA', 'BUS', 'CHOFER', 'OBSERVACIONES'];
-  headerRow.eachCell(cell => cell.style = tableHeaderStyle);
-  currentRow++;
-
-  data.services.forEach(service => {
-    const row = worksheet.addRow({
-      fecha: service.fecha || '',
-      hora: service.hora || '',
-      servicio: service.servicio || '',
-      vuelo: service.vuelo || '',
-      guia: service.guia || '',
-      bus: service.bus || '',
-      chofer: service.chofer ? service.chofer.replace(/^CONT\s/i, '') : '',
-      observaciones: service.observaciones || ''
-    });
-
-    row.eachCell(cell => {
-        cell.style = tableCellStyle;
-        if(cell.address.includes('A') || cell.address.includes('B')){
-            cell.alignment = {...(cell.alignment || {}), horizontal: 'center' };
-        }
-    });
-    
-    row.height = 25; // Set row height for wrapped text
-    currentRow++;
+  let currentRowNum = 2;
+  infoData.forEach(info => {
+    worksheet.getCell(`A${currentRowNum}`).value = info.label;
+    worksheet.getCell(`A${currentRowNum}`).style = infoHeaderStyle;
+    worksheet.mergeCells(`B${currentRowNum}:H${currentRowNum}`);
+    worksheet.getCell(`B${currentRowNum}`).value = info.value;
+    currentRowNum++;
   });
 
-  // --- Observations and Note ---
-  currentRow += 2;
-  if (data.observations) {
-    worksheet.getCell(`A${currentRow}`).value = 'OBSERVACIONES:';
-    worksheet.getCell(`A${currentRow}`).style = infoHeaderStyle;
-    worksheet.mergeCells(`B${currentRow}:H${currentRow}`);
-    worksheet.getCell(`B${currentRow}`).value = data.observations;
-    worksheet.getCell(`B${currentRow}`).alignment = { wrapText: true, vertical: 'top' };
-    currentRow += Math.max(1, Math.ceil((data.observations.length || 0) / 100)); // rough height calculation
-  }
+
+  // --- Services Table ---
+  currentRowNum = 8; // Start table headers at row 8
+  const headerRow = worksheet.getRow(currentRowNum);
+  headerRow.values = ['FECHA', 'HORA', 'SERVICIO', 'VUELO', 'GUIA', 'BUS', 'CHOFER', 'OBSERVACIONES'];
+  headerRow.eachCell(cell => cell.style = tableHeaderStyle);
   
-  currentRow++;
-  if (data.nota) {
-    worksheet.getCell(`A${currentRow}`).value = 'NOTA:';
-    worksheet.getCell(`A${currentRow}`).style = infoHeaderStyle;
-    worksheet.mergeCells(`B${currentRow}:H${currentRow}`);
-    worksheet.getCell(`B${currentRow}`).value = data.nota;
-    worksheet.getCell(`B${currentRow}`).alignment = { wrapText: true, vertical: 'top' };
+  if(data.services.length > 0) {
+      data.services.forEach(service => {
+        const row = worksheet.addRow({
+          fecha: service.fecha || '',
+          hora: service.hora || '',
+          servicio: service.servicio || '',
+          vuelo: service.vuelo || '',
+          guia: service.guia || '',
+          bus: service.bus || '',
+          chofer: service.chofer ? service.chofer.replace(/^CONT\s/i, '') : '',
+          observaciones: service.observaciones || ''
+        });
+
+        row.eachCell({ includeEmpty: true }, (cell) => {
+            cell.style = tableCellStyle;
+            if (['A','B'].some(c => cell.address.startsWith(c))) {
+                cell.alignment = {...(cell.alignment || {}), horizontal: 'center' };
+            }
+        });
+        row.height = 25;
+      });
+  } else {
+    // Add a blank row if no services to maintain structure
+    worksheet.addRow([]);
   }
+
+  // --- Observations and Note Section ---
+  let finalRow = worksheet.lastRow ? worksheet.lastRow.number + 2 : currentRowNum + 2;
+
+  const defaultObs = 'La caja chica cubre 1 botella de agua por día para cada pax, guía y chofer. No incluye transfers ni servicios en el lago.';
+  worksheet.getCell(`A${finalRow}`).value = 'OBS:';
+  worksheet.getCell(`A${finalRow}`).style = infoHeaderStyle;
+  worksheet.mergeCells(`B${finalRow}:H${finalRow}`);
+  worksheet.getCell(`B${finalRow}`).value = defaultObs;
+  worksheet.getCell(`B${finalRow}`).style = noteSectionStyle;
+  worksheet.getRow(finalRow).height = 30;
+  finalRow += 2;
+
+  const defaultNote = 'TODOS LOS GUIAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA';
+  worksheet.getCell(`A${finalRow}`).value = 'NOTA:';
+  worksheet.getCell(`A${finalRow}`).style = infoHeaderStyle;
+  worksheet.mergeCells(`B${finalRow}:H${finalRow}`);
+  worksheet.getCell(`B${finalRow}`).value = data.nota || defaultNote;
+  worksheet.getCell(`B${finalRow}`).style = noteSectionStyle;
+  worksheet.getRow(finalRow).height = 45;
+  
+  const lastContentRow = worksheet.lastRow ? worksheet.lastRow.number : finalRow;
+
+  // --- Apply General Borders ---
+  for(let i = 2; i <= lastContentRow; i++) {
+    const row = worksheet.getRow(i);
+    // Apply border to each cell from A to H
+    for(let j = 1; j <= 8; j++) {
+       const cell = row.getCell(j);
+       const currentBorder = cell.border || {};
+       cell.border = {
+         top: currentBorder.top || { style: 'thin' },
+         left: currentBorder.left || { style: 'thin' },
+         bottom: currentBorder.bottom || { style: 'thin' },
+         right: currentBorder.right || { style: 'thin' },
+       };
+    }
+  }
+
 
   const buffer = await workbook.xlsx.writeBuffer();
   return buffer as Buffer;
