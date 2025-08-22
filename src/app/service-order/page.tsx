@@ -244,7 +244,7 @@ export default function ServiceOrderPage() {
     if (numbersOnly.length > 2) formatted += '/' + numbersOnly.slice(2, 4);
     if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 6);
     
-    onStringSet(formatted); // Update string state
+    onStringSet(formatted);
 
     if (formatted.length === 8) {
       const parsedDate = parse(formatted, "dd/MM/yy", new Date());
@@ -383,12 +383,12 @@ export default function ServiceOrderPage() {
             <CardContent className="flex flex-col md:flex-row items-end gap-4">
                 <div className="w-full md:w-auto">
                   <Label>Fecha</Label>
-                    <div className="relative mt-1 md:w-[150px]">
+                    <div className="relative mt-1 md:w-[170px]">
                       <Input
                           value={dateString}
                           onChange={(e) => handleDateInputChange(e, setSelectedDate, setDateString)}
                           placeholder="dd/mm/yy" 
-                          className="pr-8" 
+                          className="w-full"
                        />
                        <Popover>
                           <PopoverTrigger asChild>
@@ -400,7 +400,7 @@ export default function ServiceOrderPage() {
                        </Popover>
                     </div>
                 </div>
-                <div className="flex-1 w-full md:max-w-lg"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
+                <div className="flex-1 w-full md:max-w-xl"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
                 <div><Button onClick={addActivityToItinerary} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button></div>
             </CardContent>
         </Card>
@@ -433,13 +433,13 @@ export default function ServiceOrderPage() {
                           handleServiceChange(index, 'fecha', formatted);
                       }}
                       placeholder="dd/mm/yy"
-                      className="min-w-[150px] pr-8"
+                      className="min-w-[170px]"
                     />
                     <Popover>
                         <PopoverTrigger asChild>
-                            <div className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
+                             <div className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
                                 <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                            </div>
+                             </div>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
                             <Calendar
@@ -459,14 +459,14 @@ export default function ServiceOrderPage() {
                     onChange={e => handleServiceChange(index, 'hora', e.target.value)}
                     onBlur={e => handleTimeBlur(index, e.target.value)}
                     placeholder="HH:mm" 
-                    className="min-w-[100px]"
+                    className="min-w-[120px]"
                   />
                 </TableCell>
-                <TableCell><Input className="min-w-[300px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
-                <TableCell><Input className="min-w-[120px]" value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
-                <TableCell><Input className="min-w-[70px]" value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
-                <TableCell><Input className="min-w-[120px]" value={service.chofer?.replace(/^CONT\s/i, '')} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
-                <TableCell><Input className="min-w-[200px]" value={service.observaciones} onChange={e => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[450px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[200px]" value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[100px]" value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[200px]" value={service.chofer?.replace(/^CONT\s/i, '')} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
+                <TableCell><Input className="min-w-[300px]" value={service.observaciones} onChange={e => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
                 <TableCell className="text-right"><Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
               </TableRow>
             )) : (
@@ -493,8 +493,3 @@ export default function ServiceOrderPage() {
     </div>
   );
 }
-
-
-    
-
-    
