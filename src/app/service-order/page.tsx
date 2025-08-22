@@ -42,6 +42,8 @@ const initialServiceOrderState: ServiceOrderData = {
 };
 
 const BUS_TYPES = [ { value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado (Externo)' } ];
+const SESSION_STORAGE_FILE_KEY = 'serviceOrderProgramFile';
+const SESSION_STORAGE_FILENAME_KEY = 'serviceOrderProgramFileName';
 
 export default function ServiceOrderPage() {
   const router = useRouter();
@@ -68,7 +70,7 @@ export default function ServiceOrderPage() {
   
   // State for file upload and search
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{name: string} | null>(null);
   const [excelData, setExcelData] = useState<any[][] | null>(null);
   const [fileDataProps, setFileDataProps] = useState<FileDataProps>({ fileIdRowIndex: null, columnIndex: null });
   const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
@@ -77,6 +79,63 @@ export default function ServiceOrderPage() {
   // State for adding activities
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedActivity, setSelectedActivity] = useState<string>("");
+
+   const processAndStoreFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const ws = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null });
+        setExcelData(jsonData);
+
+        // Store file content in sessionStorage
+        const base64 = btoa(new Uint8Array(data).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+        sessionStorage.setItem(SESSION_STORAGE_FILE_KEY, base64);
+        sessionStorage.setItem(SESSION_STORAGE_FILENAME_KEY, file.name);
+
+      } catch (error) {
+         toast({ title: "Error", description: "No se pudo procesar el archivo. Límite de tamaño del navegador excedido.", variant: "destructive" });
+         clearFile();
+      }
+    };
+    reader.onerror = () => {
+        toast({ title: "Error", description: "No se pudo leer el archivo.", variant: "destructive" });
+        clearFile();
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        const storedFile = sessionStorage.getItem(SESSION_STORAGE_FILE_KEY);
+        const storedFileName = sessionStorage.getItem(SESSION_STORAGE_FILENAME_KEY);
+        if (storedFile && storedFileName) {
+            try {
+                const byteString = atob(storedFile);
+                const byteNumbers = new Array(byteString.length);
+                for (let i = 0; i < byteString.length; i++) {
+                    byteNumbers[i] = byteString.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+                const file = new File([blob], storedFileName);
+                
+                setSelectedFile({ name: file.name });
+                const workbook = XLSX.read(byteArray, { type: 'array' });
+                const ws = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null });
+                setExcelData(jsonData);
+            } catch (e) {
+                console.error("Failed to load file from session storage:", e);
+                clearFile(); // Clear corrupted data
+            }
+        }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   useEffect(() => {
     if (!authLoading && !isCurrentUserAdmin) {
@@ -112,17 +171,9 @@ export default function ServiceOrderPage() {
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
+      setSelectedFile({ name: file.name });
       toast({ title: "Archivo Seleccionado", description: file.name, className: "bg-green-100 dark:bg-green-900 border-green-500" });
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const ws = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null });
-        setExcelData(jsonData);
-      };
-      reader.readAsArrayBuffer(file);
+      processAndStoreFile(file);
     }
     if (event.target) event.target.value = "";
   };
@@ -133,6 +184,8 @@ export default function ServiceOrderPage() {
     setFileSearchStatus("idle");
     setOrderData(prev => ({...prev, file: '', ref: '', nPax: ''}));
     if (fileInputRef.current) fileInputRef.current.value = "";
+    sessionStorage.removeItem(SESSION_STORAGE_FILE_KEY);
+    sessionStorage.removeItem(SESSION_STORAGE_FILENAME_KEY);
     toast({ title: "Archivo Limpiado", description: "Se ha quitado el programa." });
   }
 
@@ -268,7 +321,7 @@ export default function ServiceOrderPage() {
   const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
   const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
   const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
-  const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name }));
+  const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\s/i, '') }));
 
   const getFileNumberInputClasses = (): string => {
     let baseClasses = "bg-muted";
@@ -288,7 +341,7 @@ export default function ServiceOrderPage() {
               {/* File Upload and Search */}
               <div className="space-y-4 p-4 border rounded-lg bg-card">
                   <div className="flex items-center gap-2">
-                      <Label className="font-semibold">1. Subir Programa:</Label>
+                      <Label className="font-semibold shrink-0">Programa:</Label>
                       <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className={cn("flex-grow justify-start text-left font-normal", selectedFile && "border-green-500")}>
                           <Upload className="mr-2 h-4 w-4" />{selectedFile ? selectedFile.name : "Seleccionar archivo .xlsx"}
                       </Button>
@@ -298,7 +351,7 @@ export default function ServiceOrderPage() {
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                       <div className="flex items-end gap-2">
                           <div className="flex-grow">
-                              <Label htmlFor="file">2. Buscar File:</Label>
+                              <Label htmlFor="file">Buscar File:</Label>
                               <div className="flex items-center gap-2 mt-1">
                                 <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} placeholder="Número de file..." className={getFileNumberInputClasses()} />
                                 <Button type="button" onClick={handleSearchFile} variant="default" size="icon" disabled={!selectedFile || !orderData.file || isProcessingSearch}>
@@ -392,5 +445,3 @@ export default function ServiceOrderPage() {
     </div>
   );
 }
-
-    
