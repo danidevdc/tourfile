@@ -18,13 +18,15 @@ import {
 } from "@/lib/serviceOrderService";
 import { generateServiceOrderExcel, type ServiceOrderData, type ServiceItem } from '@/lib/serviceOrderGenerator';
 import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generator";
+import { getActivitiesFromFirestore, type Activity } from "@/lib/activityService";
+
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileDown, Trash2, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon, Clock } from "lucide-react";
+import { ArrowLeft, Loader2, FileDown, Trash2, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,7 +34,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
-import { type Activity } from "@/lib/activityService";
 
 const defaultObsText = 'LA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
 const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS REALIZADOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA';
@@ -50,7 +51,7 @@ const SESSION_STORAGE_FILENAME_KEY = 'serviceOrderProgramFileName_v2';
 
 export default function ServiceOrderPage() {
   const router = useRouter();
-  const { isLoading: authLoading, logout } = useAuth();
+  const { isLoading: authLoading } = useAuth();
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -321,7 +322,7 @@ export default function ServiceOrderPage() {
   if (authLoading || isLoading) {
     return <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
-
+  
   const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
   const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
   const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
@@ -372,110 +373,117 @@ export default function ServiceOrderPage() {
                   <div><Label>Chofer</Label><Combobox options={driverOptions} value={driverSelection.toUpperCase()} onSelect={(val) => handleSelectChange('driver', val)} placeholder="Seleccionar chofer..." className="mt-1" /></div>
               </div>
               
-              {/* --- ADD ACTIVITY --- */}
+              {/* --- ADD ACTIVITY & SUMMARY TABLE in one Card --- */}
               <Card>
-                 <CardHeader><CardTitle className="text-lg">Añadir Actividad al Itinerario</CardTitle></CardHeader>
-                 <CardContent className="flex flex-col md:flex-row items-end gap-4">
-                    <div className="w-full md:w-auto">
-                      <Label>Fecha</Label>
-                        <div className="relative mt-1">
-                          <Input
-                              value={dateString}
-                              onChange={(e) => handleDateInputChange(e, setDateString)}
-                              placeholder="dd/MM/yyyy" 
-                              className="w-full md:w-[170px]"
-                              maxLength={10}
-                           />
-                           <Popover>
-                              <PopoverTrigger asChild>
-                                 <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
-                                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                                 </button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={(date) => {setSelectedDate(date); setDateString(date ? format(date, "dd/MM/yyyy") : "")}} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
-                           </Popover>
-                        </div>
-                    </div>
-                     <div className="w-full md:w-auto">
-                        <Label>Hora</Label>
-                        <Input 
-                            value={timeString} 
-                            onChange={(e) => handleTimeInputChange(e, setTimeString)}
-                            placeholder="HH:mm" 
-                            className="mt-1 md:w-[120px]"
-                            maxLength={5}
-                        />
-                    </div>
-                    <div className="flex-1 w-full md:max-w-md"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
-                    <div><Button onClick={addActivityToItinerary} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button></div>
-                </CardContent>
-              </Card>
-
-              {/* --- SUMMARY TABLE --- */}
-              <Card>
-                <CardHeader><CardTitle>Tabla Resumen del Itinerario</CardTitle></CardHeader>
-                <CardContent><div className="overflow-x-auto"><Table><TableHeader><TableRow>
-                  <TableHead className="bg-muted/50 min-w-[170px]">Fecha</TableHead>
-                  <TableHead className="bg-muted/50 min-w-[120px]">Hora</TableHead>
-                  <TableHead className="bg-muted/50 min-w-[450px]">Servicio</TableHead>
-                  <TableHead className="bg-muted/50 min-w-[150px]">Guía</TableHead>
-                  <TableHead className="bg-muted/50 min-w-[80px]">Bus</TableHead>
-                  <TableHead className="bg-muted/50 min-w-[150px]">Chofer</TableHead>
-                  <TableHead className="bg-muted/50 min-w-[300px]">Observaciones</TableHead>
-                  <TableHead className="text-right w-[80px] bg-muted/50">Acción</TableHead>
-                </TableRow></TableHeader><TableBody>
-                  {orderData.services.length > 0 ? orderData.services.map((service, index) => (
-                    <TableRow key={index}>
-                      <TableCell>
-                         <div className="relative">
-                            <Input 
-                              value={service.fecha} 
-                              onChange={(e) => handleDateInputChange(e, (val) => handleServiceChange(index, 'fecha', val))}
-                              placeholder="dd/mm/yyyy"
-                              maxLength={10}
-                              className="min-w-[170px]"
-                            />
-                            <Popover>
-                                <PopoverTrigger asChild>
+                 <CardHeader><CardTitle className="text-lg">Itinerario</CardTitle></CardHeader>
+                 <CardContent className="space-y-4">
+                    {/* Add Activity Form */}
+                    <div className="flex flex-col md:flex-row items-end gap-4 p-4 border rounded-md bg-muted/50">
+                        <div className="w-full md:w-auto">
+                          <Label>Fecha</Label>
+                            <div className="relative mt-1">
+                              <Input
+                                  value={dateString}
+                                  onChange={(e) => handleDateInputChange(e, setDateString)}
+                                  placeholder="dd/MM/yyyy" 
+                                  className="w-full md:w-[170px]"
+                                  maxLength={10}
+                               />
+                               <Popover>
+                                  <PopoverTrigger asChild>
                                      <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
                                         <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                                      </button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <Calendar
-                                        mode="single"
-                                        selected={parse(service.fecha, "dd/MM/yyyy", new Date())}
-                                        onSelect={(date) => date && handleServiceChange(index, 'fecha', format(date, 'dd/MM/yyyy'))}
-                                        initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                          </div>
-                      </TableCell>
-                      <TableCell>
-                        <Input 
-                          value={service.hora} 
-                          onChange={(e) => handleTimeInputChange(e, (val) => handleServiceChange(index, 'hora', val))}
-                          placeholder="HH:mm" 
-                          maxLength={5}
-                          className="min-w-[120px]"
-                        />
-                      </TableCell>
-                      <TableCell><Input className="min-w-[450px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
-                      <TableCell><Input className="min-w-[150px]" value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
-                      <TableCell><Input className="min-w-[80px]" value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
-                      <TableCell><Input className="min-w-[150px]" value={service.chofer?.replace(/^CONT\s/i, '')} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
-                      <TableCell><Input className="min-w-[300px]" value={service.observaciones} onChange={e => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
-                      <TableCell className="text-right"><Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
-                    </TableRow>
-                  )) : (
-                    <TableRow><TableCell colSpan={8} className="text-center h-24 text-muted-foreground">Añade actividades para construir el itinerario.</TableCell></TableRow>
-                  )}
-                </TableBody></Table></div></CardContent>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={(date) => {setSelectedDate(date); setDateString(date ? format(date, "dd/MM/yyyy") : "")}} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
+                               </Popover>
+                            </div>
+                        </div>
+                         <div className="w-full md:w-auto">
+                            <Label>Hora</Label>
+                            <Input 
+                                value={timeString} 
+                                onChange={(e) => handleTimeInputChange(e, setTimeString)}
+                                placeholder="HH:mm" 
+                                className="mt-1 md:w-[120px]"
+                                maxLength={5}
+                            />
+                        </div>
+                        <div className="flex-1 w-full md:max-w-md"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1 w-full" /></div>
+                        <div><Button onClick={addActivityToItinerary} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button></div>
+                    </div>
+                    
+                    {/* Summary Table */}
+                    <div className="overflow-x-auto"><Table><TableHeader><TableRow>
+                      <TableHead className="bg-muted/50 min-w-[170px]">Fecha</TableHead>
+                      <TableHead className="bg-muted/50 min-w-[120px]">Hora</TableHead>
+                      <TableHead className="bg-muted/50 min-w-[450px]">Servicio</TableHead>
+                      <TableHead className="bg-muted/50 min-w-[150px]">Guía</TableHead>
+                      <TableHead className="bg-muted/50 min-w-[80px]">Bus</TableHead>
+                      <TableHead className="bg-muted/50 min-w-[150px]">Chofer</TableHead>
+                      <TableHead className="bg-muted/50 min-w-[300px]">Observaciones</TableHead>
+                      <TableHead className="text-right w-[80px] bg-muted/50">Acción</TableHead>
+                    </TableRow></TableHeader><TableBody>
+                      {orderData.services.length > 0 ? orderData.services.map((service, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
+                             <div className="relative">
+                                <Input 
+                                  value={service.fecha} 
+                                  onChange={(e) => handleDateInputChange(e, (val) => handleServiceChange(index, 'fecha', val))}
+                                  placeholder="dd/MM/yyyy"
+                                  maxLength={10}
+                                  className="min-w-[170px]"
+                                />
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                         <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
+                                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                                         </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <Calendar
+                                            mode="single"
+                                            selected={parse(service.fecha, "dd/MM/yyyy", new Date())}
+                                            onSelect={(date) => date && handleServiceChange(index, 'fecha', format(date, 'dd/MM/yyyy'))}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                              </div>
+                          </TableCell>
+                          <TableCell>
+                            <Input 
+                              value={service.hora} 
+                              onChange={(e) => handleTimeInputChange(e, (val) => handleServiceChange(index, 'hora', val))}
+                              onBlur={(e) => {
+                                const raw = e.target.value.replace(/[^0-9]/g, '');
+                                if (raw.length === 4) {
+                                    handleServiceChange(index, 'hora', `${raw.slice(0,2)}:${raw.slice(2,4)}`)
+                                }
+                              }}
+                              placeholder="HH:mm" 
+                              maxLength={5}
+                              className="min-w-[120px]"
+                            />
+                          </TableCell>
+                          <TableCell><Input className="min-w-[450px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
+                          <TableCell><Input className="min-w-[150px]" value={service.guia} onChange={e => handleServiceChange(index, 'guia', e.target.value)} /></TableCell>
+                          <TableCell><Input className="min-w-[80px]" value={service.bus} onChange={e => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
+                          <TableCell><Input className="min-w-[150px]" value={service.chofer?.replace(/^CONT\s/i, '')} onChange={e => handleServiceChange(index, 'chofer', e.target.value)} /></TableCell>
+                          <TableCell><Input className="min-w-[300px]" value={service.observaciones} onChange={e => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
+                          <TableCell className="text-right"><Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
+                        </TableRow>
+                      )) : (
+                        <TableRow><TableCell colSpan={8} className="text-center h-24 text-muted-foreground">Añade actividades para construir el itinerario.</TableCell></TableRow>
+                      )}
+                    </TableBody></Table></div>
+                </CardContent>
               </Card>
 
+
               {/* --- FINAL NOTES --- */}
-              <Accordion type="single" collapsible className="w-full">
+              <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
                   <AccordionItem value="item-1">
                     <AccordionTrigger className="text-lg font-medium">Observaciones y Notas Finales</AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-4">
