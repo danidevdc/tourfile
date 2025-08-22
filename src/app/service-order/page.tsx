@@ -327,8 +327,8 @@ export default function ServiceOrderPage() {
                       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
                       {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile} title="Limpiar archivo"><Trash2 className="h-4 w-4"/></Button>}
                   </div>
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                        <div className="md:col-span-1">
+                   <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                        <div className="md:col-span-2">
                             <Label htmlFor="file">Buscar File:</Label>
                             <div className="flex items-center gap-2 mt-1">
                                 <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} placeholder="Número de file..." className={cn(fileSearchStatus === "found" && "border-green-500")} />
@@ -337,7 +337,7 @@ export default function ServiceOrderPage() {
                                 </Button>
                             </div>
                         </div>
-                        <div className="md:col-span-1"><Label htmlFor="ref">Ref (Nombre Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-500")} /></div>
+                        <div className="md:col-span-3"><Label htmlFor="ref">Ref (Nombre Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-500")} /></div>
                         <div className="md:col-span-1"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-500")} /></div>
                   </div>
                   {fileSearchStatus === "not_found" && (<div className="flex items-center gap-2 text-destructive text-sm"><XCircle className="h-4 w-4" /> File no encontrado.</div>)}
@@ -437,3 +437,5 @@ export default function ServiceOrderPage() {
     </div>
   );
 }
+
+    
