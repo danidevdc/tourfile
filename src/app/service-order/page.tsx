@@ -16,7 +16,7 @@ import {
   type Hotel,
   type Driver,
 } from "@/lib/serviceOrderService";
-import { getActivitiesFromFirestore, type Activity } from "@/lib/activityService";
+import { getActivitiesFromFirestore } from "@/lib/activityService";
 import { generateServiceOrderExcel, type ServiceOrderData, type ServiceItem } from '@/lib/serviceOrderGenerator';
 import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generator";
 
@@ -33,6 +33,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import { type Activity } from "@/lib/activityService";
 
 const defaultObsText = 'LA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
 const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS REALIZADOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA';
@@ -242,12 +243,12 @@ export default function ServiceOrderPage() {
 
     if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
     if (numbersOnly.length > 2) formatted += '/' + numbersOnly.slice(2, 4);
-    if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 6);
+    if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 8);
     
     onStringSet(formatted);
 
-    if (formatted.length === 8) {
-      const parsedDate = parse(formatted, "dd/MM/yy", new Date());
+    if (formatted.length === 10) {
+      const parsedDate = parse(formatted, "dd/MM/yyyy", new Date());
       if (!isNaN(parsedDate.getTime())) {
         onDateSet(parsedDate);
       } else {
@@ -266,7 +267,7 @@ export default function ServiceOrderPage() {
       }
       const activityData = activities.find(a => a.name === selectedActivity);
       const newService: ServiceItem = {
-          fecha: format(selectedDate, "dd/MM/yy"),
+          fecha: format(selectedDate, "dd/MM/yyyy"),
           hora: activityData?.defaultTime || "09:00",
           servicio: activityData?.name || selectedActivity,
           vuelo: '',
@@ -387,7 +388,7 @@ export default function ServiceOrderPage() {
                       <Input
                           value={dateString}
                           onChange={(e) => handleDateInputChange(e, setSelectedDate, setDateString)}
-                          placeholder="dd/mm/yy" 
+                          placeholder="dd/mm/yyyy" 
                           className="w-full"
                        />
                        <Popover>
@@ -396,7 +397,7 @@ export default function ServiceOrderPage() {
                                 <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                              </div>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={(date) => {setSelectedDate(date); setDateString(date ? format(date, "dd/MM/yy") : "")}} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
+                          <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={(date) => {setSelectedDate(date); setDateString(date ? format(date, "dd/MM/yyyy") : "")}} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
                        </Popover>
                     </div>
                 </div>
@@ -429,10 +430,10 @@ export default function ServiceOrderPage() {
                           let formatted = '';
                           if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
                           if (numbersOnly.length > 2) formatted += '/' + numbersOnly.slice(2, 4);
-                          if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 6);
+                          if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 8);
                           handleServiceChange(index, 'fecha', formatted);
                       }}
-                      placeholder="dd/mm/yy"
+                      placeholder="dd/mm/yyyy"
                       className="min-w-[170px]"
                     />
                     <Popover>
@@ -444,8 +445,8 @@ export default function ServiceOrderPage() {
                         <PopoverContent className="w-auto p-0">
                             <Calendar
                                 mode="single"
-                                selected={parse(service.fecha, "dd/MM/yy", new Date())}
-                                onSelect={(date) => date && handleServiceChange(index, 'fecha', format(date, 'dd/MM/yy'))}
+                                selected={parse(service.fecha, "dd/MM/yyyy", new Date())}
+                                onSelect={(date) => date && handleServiceChange(index, 'fecha', format(date, 'dd/MM/yyyy'))}
                                 disabled={(date) => isBefore(date, startOfToday())}
                                 initialFocus
                             />
@@ -479,7 +480,7 @@ export default function ServiceOrderPage() {
             <AccordionItem value="item-1">
               <AccordionTrigger className="text-lg font-medium">Observaciones y Notas Finales</AccordionTrigger>
               <AccordionContent className="space-y-4 pt-4">
-                <div><Label htmlFor="observaciones">Observaciones Generales</Label><Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={3}/></div>
+                <div><Label htmlFor="observaciones">Observaciones Generales</Label><Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observaciones', e.target.value)} className="mt-1" rows={3}/></div>
                 <div><Label htmlFor="nota">Nota (Pie de página)</Label><Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/></div>
               </AccordionContent>
             </AccordionItem>
