@@ -233,6 +233,26 @@ export default function ServiceOrderPage() {
     setBusTypeSelection(value);
     setDriverSelection('');
   }
+  
+  const handleDateInputChange = (e: ChangeEvent<HTMLInputElement>, onDateSet: (date: Date | undefined) => void, onStringSet: (value: string) => void) => {
+    const rawValue = e.target.value;
+    const numbersOnly = rawValue.replace(/[^0-9]/g, '');
+    let formattedDate = '';
+
+    if (numbersOnly.length > 0) formattedDate = numbersOnly.slice(0, 2);
+    if (numbersOnly.length > 2) formattedDate += '/' + numbersOnly.slice(2, 4);
+    if (numbersOnly.length > 4) formattedDate += '/' + numbersOnly.slice(4, 8);
+    
+    onStringSet(formattedDate);
+
+    const parsedDate = parse(formattedDate, "dd/MM/yyyy", new Date());
+    if (!isNaN(parsedDate.getTime()) && formattedDate.length === 10) {
+      onDateSet(parsedDate);
+    } else {
+      onDateSet(undefined);
+    }
+  };
+
 
   const addActivityToItinerary = () => {
       if (!selectedDate || !selectedActivity) {
@@ -355,20 +375,20 @@ export default function ServiceOrderPage() {
             <CardHeader><CardTitle>Añadir Actividad al Itinerario</CardTitle></CardHeader>
             <CardContent className="flex flex-col md:flex-row items-end gap-4">
                 <div className="w-full md:w-auto"><Label>Fecha</Label>
-                    <Popover><PopoverTrigger asChild>
-                       <div className="relative mt-1 md:w-[150px]">
-                          <Input
-                              value={selectedDate ? format(selectedDate, "dd/MM/yy") : ''}
-                              onChange={(e) => {
-                                const parsedDate = parse(e.target.value, "dd/MM/yy", new Date());
-                                if (!isNaN(parsedDate.getTime())) {
-                                  setSelectedDate(parsedDate);
-                                }
-                              }}
-                              placeholder="dd/MM/yy" className="pr-8" />
-                          <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" />
-                       </div>
-                    </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent></Popover>
+                    <div className="relative mt-1 md:w-[170px]">
+                      <Input
+                          value={selectedDate ? format(selectedDate, "dd/MM/yyyy") : ''}
+                          onChange={(e) => handleDateInputChange(e, setSelectedDate, (val) => setSelectedDate(parse(val, "dd/MM/yyyy", new Date())))}
+                          placeholder="DD/MM/YYYY" 
+                          className="pr-8" 
+                       />
+                       <Popover>
+                          <PopoverTrigger asChild>
+                             <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" />
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
+                       </Popover>
+                    </div>
                 </div>
                 <div className="flex-1 w-full md:max-w-lg"><Label>Actividad</Label><Combobox options={activityOptions} value={selectedActivity} onSelect={setSelectedActivity} placeholder="Buscar actividad..." className="mt-1" /></div>
                 <div><Button onClick={addActivityToItinerary} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button></div>
@@ -378,24 +398,48 @@ export default function ServiceOrderPage() {
         <Card className="shadow-lg">
           <CardHeader><CardTitle>Tabla Resumen del Itinerario</CardTitle></CardHeader>
           <CardContent><div className="overflow-x-auto"><Table><TableHeader><TableRow>
-            <TableHead className="w-[140px] bg-muted/50">Fecha</TableHead>
-            <TableHead className="w-[100px] bg-muted/50">Hora</TableHead>
-            <TableHead className="w-[400px] bg-muted/50">Servicio</TableHead>
-            <TableHead className="w-[180px] bg-muted/50">Guía</TableHead>
-            <TableHead className="w-[80px] bg-muted/50">Bus</TableHead>
-            <TableHead className="w-[180px] bg-muted/50">Chofer</TableHead>
+            <TableHead className="w-[170px] bg-muted/50">Fecha</TableHead>
+            <TableHead className="w-[120px] bg-muted/50">Hora</TableHead>
+            <TableHead className="w-[450px] bg-muted/50">Servicio</TableHead>
+            <TableHead className="w-[200px] bg-muted/50">Guía</TableHead>
+            <TableHead className="w-[100px] bg-muted/50">Bus</TableHead>
+            <TableHead className="w-[200px] bg-muted/50">Chofer</TableHead>
             <TableHead className="w-[300px] bg-muted/50">Observaciones</TableHead>
             <TableHead className="text-right w-[80px] bg-muted/50">Acción</TableHead>
           </TableRow></TableHeader><TableBody>
             {orderData.services.length > 0 ? orderData.services.map((service, index) => (
               <TableRow key={index}>
                 <TableCell>
-                  <Input 
-                    value={service.fecha} 
-                    onChange={e => handleServiceChange(index, 'fecha', e.target.value)} 
-                    placeholder="dd/MM/yy"
-                    className="min-w-[120px]"
-                  />
+                  <div className="relative">
+                    <Input 
+                      value={service.fecha} 
+                      onChange={(e) => {
+                          const rawValue = e.target.value;
+                          const numbersOnly = rawValue.replace(/[^0-9]/g, '');
+                          let formattedDate = '';
+                          if (numbersOnly.length > 0) formattedDate = numbersOnly.slice(0, 2);
+                          if (numbersOnly.length > 2) formattedDate += '/' + numbersOnly.slice(2, 4);
+                          if (numbersOnly.length > 4) formattedDate += '/' + numbersOnly.slice(4, 8);
+                          handleServiceChange(index, 'fecha', formattedDate);
+                      }}
+                      placeholder="DD/MM/YYYY"
+                      className="min-w-[150px] pr-8"
+                    />
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer" />
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <Calendar
+                                mode="single"
+                                selected={parse(service.fecha, "dd/MM/yy", new Date())}
+                                onSelect={(date) => date && handleServiceChange(index, 'fecha', format(date, 'dd/MM/yy'))}
+                                disabled={(date) => isBefore(date, startOfToday())}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Input 
@@ -403,7 +447,7 @@ export default function ServiceOrderPage() {
                     onChange={e => handleServiceChange(index, 'hora', e.target.value)}
                     onBlur={e => handleTimeBlur(index, e.target.value)}
                     placeholder="HH:mm" 
-                    className="min-w-[80px]"
+                    className="min-w-[100px]"
                   />
                 </TableCell>
                 <TableCell><Input className="min-w-[300px]" value={service.servicio} onChange={e => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
@@ -437,5 +481,6 @@ export default function ServiceOrderPage() {
     </div>
   );
 }
+
 
     
