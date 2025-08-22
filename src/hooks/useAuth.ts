@@ -70,7 +70,10 @@ export function useAuth() {
     setIsLoading(true);
     try {
       await signOut(auth);
-      sessionStorage.removeItem(SESSION_ID_KEY);
+      // Clear all session storage to ensure a clean slate
+      if (typeof window !== 'undefined') {
+        sessionStorage.clear();
+      }
       
       router.push('/login');
 
@@ -487,3 +490,5 @@ export function useAuth() {
     incrementUserReportCountBy,
   };
 }
+
+    
