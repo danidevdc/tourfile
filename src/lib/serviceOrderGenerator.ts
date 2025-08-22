@@ -51,7 +51,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
    const tableHeaderStyle: Partial<ExcelJS.Style> = {
     font: { name: 'Calibri', size: 11, bold: true },
     fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } },
-    alignment: { horizontal: 'center', vertical: 'middle' },
+    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
     border: {
       top: { style: 'thin' }, left: { style: 'thin' },
       bottom: { style: 'thin' }, right: { style: 'thin' }
@@ -77,7 +77,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   titleCell.style = titleStyle;
   worksheet.getRow(1).height = 20;
 
-  // --- Info Section ---
+  // --- Info Section (Rows 2-6) ---
   const infoData = [
     { label: 'GUIA:', value: data.guia },
     { label: 'FILE:', value: data.file },
@@ -90,15 +90,18 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   infoData.forEach(info => {
     worksheet.getCell(`A${currentRowNum}`).value = info.label;
     worksheet.getCell(`A${currentRowNum}`).style = infoHeaderStyle;
-    worksheet.mergeCells(`B${currentRowNum}:H${currentRowNum}`);
+    
+    // Merge B & C for the value, and D to H for an empty spacer
+    worksheet.mergeCells(`B${currentRowNum}:C${currentRowNum}`);
     worksheet.getCell(`B${currentRowNum}`).value = info.value;
+    worksheet.mergeCells(`D${currentRowNum}:H${currentRowNum}`);
+
     currentRowNum++;
   });
 
 
-  // --- Services Table ---
-  currentRowNum = 8; // Start table headers at row 8
-  const headerRow = worksheet.getRow(currentRowNum);
+  // --- Services Table (Starts at row 8) ---
+  const headerRow = worksheet.getRow(8);
   headerRow.values = ['FECHA', 'HORA', 'SERVICIO', 'VUELO', 'GUIA', 'BUS', 'CHOFER', 'OBSERVACIONES'];
   headerRow.eachCell(cell => cell.style = tableHeaderStyle);
   
@@ -129,16 +132,16 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   }
 
   // --- Observations and Note Section ---
-  let finalRow = worksheet.lastRow ? worksheet.lastRow.number + 2 : currentRowNum + 2;
+  let finalRow = (worksheet.lastRow?.number || 8) + 2; // Add a space after the table
 
-  const defaultObs = 'La caja chica cubre 1 botella de agua por día para cada pax, guía y chofer. No incluye transfers ni servicios en el lago.';
+  const defaultObs = 'La caja chica cubre 1 botella de agua por día para cada pax, guía y chofer. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
   worksheet.getCell(`A${finalRow}`).value = 'OBS:';
   worksheet.getCell(`A${finalRow}`).style = infoHeaderStyle;
   worksheet.mergeCells(`B${finalRow}:H${finalRow}`);
-  worksheet.getCell(`B${finalRow}`).value = defaultObs;
+  worksheet.getCell(`B${finalRow}`).value = data.observations || defaultObs;
   worksheet.getCell(`B${finalRow}`).style = noteSectionStyle;
   worksheet.getRow(finalRow).height = 30;
-  finalRow += 2;
+  finalRow++; // Move to the next line directly
 
   const defaultNote = 'TODOS LOS GUIAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA';
   worksheet.getCell(`A${finalRow}`).value = 'NOTA:';
@@ -148,7 +151,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   worksheet.getCell(`B${finalRow}`).style = noteSectionStyle;
   worksheet.getRow(finalRow).height = 45;
   
-  const lastContentRow = worksheet.lastRow ? worksheet.lastRow.number : finalRow;
+  const lastContentRow = worksheet.lastRow?.number || finalRow;
 
   // --- Apply General Borders ---
   for(let i = 2; i <= lastContentRow; i++) {
@@ -157,6 +160,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
     for(let j = 1; j <= 8; j++) {
        const cell = row.getCell(j);
        const currentBorder = cell.border || {};
+       // Apply border only if one doesn't exist from a merge
        cell.border = {
          top: currentBorder.top || { style: 'thin' },
          left: currentBorder.left || { style: 'thin' },
@@ -165,7 +169,6 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
        };
     }
   }
-
 
   const buffer = await workbook.xlsx.writeBuffer();
   return buffer as Buffer;
