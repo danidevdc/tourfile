@@ -5,28 +5,24 @@ import { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Plane, Search, AlertTriangle, ArrowLeft } from "lucide-react";
+import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, Calendar as CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format, parse } from "date-fns";
+import { es } from 'date-fns/locale';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import type { FindFlightOutput } from "@/ai/flows/flight-types";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 function FlightSearchCard() {
   const [flightNumber, setFlightNumber] = useState('');
-  const [flightDate, setFlightDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [flightDate, setFlightDate] = useState<Date | undefined>(new Date());
   const [isLoading, setIsLoading] = useState(false);
   const [searchResult, setSearchResult] = useState<FindFlightOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const parsedDate = parse(e.target.value, 'yyyy-MM-dd', new Date());
-      setFlightDate(format(parsedDate, 'yyyy-MM-dd'));
-    } catch {
-      // Ignore invalid date formats during input
-    }
-  };
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const handleSearch = async () => {
     if (!flightNumber || !flightDate) {
@@ -39,7 +35,7 @@ function FlightSearchCard() {
     try {
       const result = await findFlight({
         flightNumber,
-        date: flightDate,
+        date: format(flightDate, 'yyyy-MM-dd'),
         transferType: 'TRF IN' 
       });
       if (!result.flightFound) {
@@ -74,13 +70,32 @@ function FlightSearchCard() {
             onChange={(e) => setFlightNumber(e.target.value.toUpperCase())}
             className="flex-grow"
           />
-          <Input 
-            type="date"
-            value={flightDate}
-            onChange={handleDateChange}
-            className="w-full sm:w-auto"
-            required
-          />
+          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant={"outline"}
+                    className={cn(
+                        "w-full sm:w-[280px] justify-start text-left font-normal",
+                        !flightDate && "text-muted-foreground"
+                    )}
+                >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {flightDate ? format(flightDate, "dd/MM/yyyy") : <span>Seleccionar fecha</span>}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+                <Calendar
+                    mode="single"
+                    selected={flightDate}
+                    onSelect={(date) => {
+                        setFlightDate(date);
+                        setIsCalendarOpen(false);
+                    }}
+                    initialFocus
+                    locale={es}
+                />
+            </PopoverContent>
+          </Popover>
           <Button onClick={handleSearch} disabled={isLoading || !flightNumber || !flightDate} className="w-full sm:w-auto">
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
             Buscar Vuelo
