@@ -36,3 +36,4 @@ export const flightExpertPrompt = ai.definePrompt({
     Date: {{{date}}}
   `,
 });
+
