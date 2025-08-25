@@ -39,7 +39,7 @@ const flightExpertPrompt = ai.definePrompt({
   tools: [googleAI.googleSearchTool],
 });
 
-const findFlightFlow = ai.defineFlow(
+export const findFlight = ai.defineFlow(
   {
     name: 'findFlightFlow',
     inputSchema: FindFlightInputSchema,
@@ -53,11 +53,3 @@ const findFlightFlow = ai.defineFlow(
     return output;
   }
 );
-
-
-// Exported async wrapper function to be used as a Server Action
-export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
-  // Execute the flow and return its output.
-  // This wrapper ensures Next.js can correctly handle the server action.
-  return findFlightFlow(input);
-}
