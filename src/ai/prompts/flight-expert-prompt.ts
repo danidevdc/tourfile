@@ -4,19 +4,19 @@
  * This file defines the Genkit prompt for the flight data expert.
  */
 import { ai } from '@/ai/genkit';
-import { FindFlightInputSchema, FindFlightOutputSchema } from '@/ai/flows/flight-types';
+import { FindFlightOutputSchema } from '@/ai/flows/flight-types';
 import { z } from 'zod';
 
 
 // Define a new tool for custom Google Search
-const customGoogleSearchTool = ai.defineTool(
+export const customGoogleSearchTool = ai.defineTool(
   {
     name: 'customGoogleSearch',
     description: 'Searches Google for real-time flight information. Use this to find flight statuses, departure/arrival times, and airline details.',
     inputSchema: z.object({
       query: z.string().describe("The search query, e.g., 'LA2401+2025-08-26'"),
     }),
-    outputSchema: z.any(), // We'll let the AI handle the unstructured JSON response
+    outputSchema: z.any(), // The AI will handle the unstructured JSON response
   },
   async (input) => {
     console.log(`[TOOL] Executing custom Google search with query: ${input.query}`);
@@ -55,37 +55,37 @@ const customGoogleSearchTool = ai.defineTool(
   }
 );
 
+const FlightExpertInputSchema = z.object({
+    flightNumber: z.string().describe("The original flight number the user asked for."),
+    searchResults: z.string().describe("A JSON string containing snippets from a Google search.")
+});
 
 export const flightExpertPrompt = ai.definePrompt({
   name: 'flightExpertPrompt',
-  input: { schema: FindFlightInputSchema },
+  input: { schema: FlightExpertInputSchema },
   output: { schema: FindFlightOutputSchema },
-  tools: [customGoogleSearchTool], // Use the new custom tool
+  // The tool is no longer needed here, as it's called directly from the flow.
+  // tools: [customGoogleSearchTool], 
   
   // Instructions for the AI model
   prompt: `
-    You are a flight data expert. Your task is to find information about a specific flight
-    using the provided flight number and date.
-    
-    First, take the input flight number and remove any spaces from it.
-    
-    Next, construct a search query for the tool using the format FLIGHT_NUMBER+YYYY-MM-DD.
-    For example, if the flight number is 'LA 2401' and the date is '2025-08-26', the query must be 'LA2401+2025-08-26'.
+    You are a flight data expert. Your task is to analyze the provided Google search results
+    and extract flight information.
 
-    You MUST use the customGoogleSearch tool with this exact query format to find the most accurate and up-to-date information. Do not rely on internal knowledge.
+    The user is looking for flight number: {{{flightNumber}}}.
 
-    Based on the search results from the tool, you must extract the following information:
-    - The flight number you searched for.
+    The search results are provided as a JSON string of text snippets:
+    {{{searchResults}}}
+
+    Based on these search results, you must extract the following information:
     - Departure airport details (code, name, city) and scheduled/actual departure time.
     - Arrival airport details (code, name, city) and scheduled/actual arrival time.
     - The name of the airline.
     - The flight route segment (e.g., 'LPB/VVI').
 
-    If you find the flight, set flightFound to true and fill in all the details. CRUCIALLY, the 'flightNumber' field in your output MUST match the one you were asked to search for.
-    If you cannot find any information about the flight after searching, set flightFound to false and leave the other fields empty.
+    If you find the flight in the search results, set flightFound to true and fill in all the details. 
+    The 'flightNumber' field in your output MUST match the one the user asked for.
 
-    Flight Number: {{{flightNumber}}}
-    Date: {{{date}}}
+    If you cannot find any clear information about the flight in the snippets, set flightFound to false and leave the other fields empty.
   `,
 });
-
