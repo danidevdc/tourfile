@@ -20,7 +20,8 @@ import {
   recordActivityTimeUsage, 
   getSuggestedTimeForActivity,
 } from "@/lib/serviceOrderService";
-import { findFlight, type FindFlightOutput } from "@/ai/flows/find-flight-flow"; // Import the new flight flow
+import { findFlight } from "@/ai/flows/find-flight-flow"; 
+import type { FindFlightOutput, FindFlightInput } from "@/ai/flows/flight-types";
 import { generateServiceOrderExcel, type ServiceOrderData, type ServiceItem } from '@/lib/serviceOrderGenerator';
 import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generator";
 import { ItineraryEditModal } from '@/components/service-order/ItineraryEditModal';
@@ -317,11 +318,13 @@ export default function ServiceOrderPage() {
     toast({ title: "Buscando vuelo...", description: `Buscando ${flightSearchNumber} para el ${serviceDate}` });
 
     try {
-        const flightInfo = await findFlight({
+        const flightInput: FindFlightInput = {
             flightNumber: flightSearchNumber,
             date: format(parsedDate, 'yyyy-MM-dd'),
             transferType: newService.servicio as 'TRF IN' | 'TRF OUT',
-        });
+        };
+        
+        const flightInfo: FindFlightOutput = await findFlight(flightInput);
 
         if (!flightInfo.flightFound) {
             toast({ title: "Vuelo no encontrado", description: "No se encontró información para ese vuelo. Revisa el número y la fecha.", variant: "destructive" });
@@ -528,11 +531,29 @@ export default function ServiceOrderPage() {
                     <div className="overflow-x-auto border rounded-md">
                         <Table>
                             <TableHeader>
-                                <TableRow><TableHead className="border bg-muted/50" style={{width: '86px'}}>Fecha</TableHead><TableHead className="border bg-muted/50" style={{width: '56px'}}>Hora</TableHead><TableHead className="border bg-muted/50">Servicio</TableHead><TableHead className="border bg-muted/50" style={{width: '70px'}}>Vuelo</TableHead><TableHead className="border bg-muted/50" style={{width: '85px'}}>Guía</TableHead><TableHead className="border bg-muted/50" style={{width: '70px'}}>Bus</TableHead><TableHead className="border bg-muted/50" style={{width: '80px'}}>Chofer</TableHead><TableHead className="border bg-muted/50">Observaciones</TableHead></TableRow>
+                                <TableRow>
+                                  <TableHead className="border bg-muted/50" style={{ width: '86px' }}>Fecha</TableHead>
+                                  <TableHead className="border bg-muted/50" style={{ width: '56px' }}>Hora</TableHead>
+                                  <TableHead className="border bg-muted/50">Servicio</TableHead>
+                                  <TableHead className="border bg-muted/50" style={{ width: '70px' }}>Vuelo</TableHead>
+                                  <TableHead className="border bg-muted/50" style={{ width: '85px' }}>Guía</TableHead>
+                                  <TableHead className="border bg-muted/50" style={{ width: '70px' }}>Bus</TableHead>
+                                  <TableHead className="border bg-muted/50" style={{ width: '80px' }}>Chofer</TableHead>
+                                  <TableHead className="border bg-muted/50">Observaciones</TableHead>
+                                </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {orderData.services.length > 0 ? orderData.services.map((service, index) => (
-                                    <TableRow key={index}><TableCell className="border">{service.fecha}</TableCell><TableCell className="border">{service.hora}</TableCell><TableCell className="border">{service.servicio}</TableCell><TableCell className="border">{service.vuelo}</TableCell><TableCell className="border">{service.guia}</TableCell><TableCell className="border">{service.bus}</TableCell><TableCell className="border">{service.chofer?.replace(/^CONT\s/i, '')}</TableCell><TableCell className="border">{service.observaciones}</TableCell></TableRow>
+                                    <TableRow key={index}>
+                                      <TableCell className="border">{service.fecha}</TableCell>
+                                      <TableCell className="border">{service.hora}</TableCell>
+                                      <TableCell className="border">{service.servicio}</TableCell>
+                                      <TableCell className="border">{service.vuelo}</TableCell>
+                                      <TableCell className="border">{service.guia}</TableCell>
+                                      <TableCell className="border">{service.bus}</TableCell>
+                                      <TableCell className="border">{service.chofer?.replace(/^CONT\s/i, '')}</TableCell>
+                                      <TableCell className="border">{service.observaciones}</TableCell>
+                                    </TableRow>
                                 )) : (
                                     <TableRow><TableCell colSpan={8} className="text-center h-24 text-muted-foreground border">El itinerario está vacío.</TableCell></TableRow>
                                 )}
