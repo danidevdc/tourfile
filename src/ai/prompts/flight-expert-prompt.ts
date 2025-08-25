@@ -1,7 +1,7 @@
 
 /**
  * @fileOverview Defines the Genkit prompt for the flight data expert.
- * This prompt uses the AI's built-in search tool to find flight data.
+ * This file defines the Genkit prompt for the flight data expert.
  */
 
 import { ai } from '@/ai/genkit';
@@ -36,5 +36,3 @@ export const flightExpertPrompt = ai.definePrompt({
     Date: {{{date}}}
   `,
 });
-
-    
