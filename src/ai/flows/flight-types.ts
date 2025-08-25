@@ -25,6 +25,7 @@ export type FindFlightInput = z.infer<typeof FindFlightInputSchema>;
 
 export const FindFlightOutputSchema = z.object({
   flightFound: z.boolean().describe('Whether a flight was successfully found based on the search results.'),
+  flightNumber: z.string().optional().describe("The flight number that was found (e.g., 'OB305')."),
   departure: z.object({
     airport: AirportInfoSchema,
     time: FlightTimeSchema,
