@@ -6,7 +6,7 @@
 
 import { ai } from '@/ai/genkit';
 import { FindFlightInputSchema, FindFlightOutputSchema } from '@/ai/flows/flight-types';
-import { googleAI } from '@genkit-ai/googleai';
+import { googleSearch } from '@genkit-ai/googleai';
 
 
 export const flightExpertPrompt = ai.definePrompt({
@@ -15,7 +15,7 @@ export const flightExpertPrompt = ai.definePrompt({
   output: { schema: FindFlightOutputSchema },
   
   // Add the Google Search tool to enable real-time web searches.
-  tools: [googleAI.googleSearch()],
+  tools: [googleSearch],
 
   // Instructions for the AI model
   prompt: `
