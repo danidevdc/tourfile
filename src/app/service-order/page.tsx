@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
-import { format, isBefore, startOfToday, parse, subHours } from 'date-fns';
+import { format, isBefore, startOfToday, parse } from 'date-fns';
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -32,7 +32,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileDown, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon, Edit, Plane } from "lucide-react"; // Added Plane icon
+import { ArrowLeft, Loader2, FileDown, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon, Edit, Plane } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -94,6 +94,8 @@ export default function ServiceOrderPage() {
   const [fileDataProps, setFileDataProps] = useState<FileDataProps>({ fileIdRowIndex: null, columnIndex: null });
   const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
   const [isProcessingSearch, setIsProcessingSearch] = useState(false);
+
+  const [isAddServiceDisabled, setIsAddServiceDisabled] = useState(true);
 
 
    const processAndStoreFile = (file: File) => {
@@ -171,7 +173,17 @@ export default function ServiceOrderPage() {
     }
     if(!authLoading) loadInitialData();
   }, [authLoading, toast]);
-  
+
+  // Effect to control the "Add Service" button
+  useEffect(() => {
+      const { fecha, servicio, hora } = newService;
+      if (fecha.trim() && servicio.trim() && hora.trim()) {
+          setIsAddServiceDisabled(false);
+      } else {
+          setIsAddServiceDisabled(true);
+      }
+  }, [newService]);
+
   
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -339,11 +351,13 @@ export default function ServiceOrderPage() {
 
         if (newService.servicio === 'TRF OUT' && flightInfo.departure && flightInfo.departure.time.actual) {
             const departureTime = parse(flightInfo.departure.time.actual, 'HH:mm', new Date());
-            newTime = format(subHours(departureTime, 2), 'HH:mm');
+            const pickupTime = new Date(departureTime.getTime() - 2 * 60 * 60 * 1000); // Subtract 2 hours
+            newTime = format(pickupTime, 'HH:mm');
             newObservation = `VUELO SALE ${flightInfo.departure.time.actual} ${flightInfo.departure.airport.code}/${flightInfo.arrival?.airport.code || '???'}`;
         } else if (newService.servicio === 'TRF IN' && flightInfo.arrival && flightInfo.arrival.time.actual) {
             const arrivalTime = parse(flightInfo.arrival.time.actual, 'HH:mm', new Date());
-            newTime = format(subHours(arrivalTime, 1), 'HH:mm');
+            const pickupTime = new Date(arrivalTime.getTime() - 1 * 60 * 60 * 1000); // Subtract 1 hour
+            newTime = format(pickupTime, 'HH:mm');
             newObservation = `VUELO LLEGA ${flightInfo.arrival.time.actual} ${flightInfo.departure?.airport.code || '???'}/${flightInfo.arrival.airport.code}`;
         } else {
              toast({ title: "Datos de vuelo incompletos", description: "Se encontró el vuelo, pero faltan los horarios de llegada/salida.", variant: "destructive" });
@@ -427,7 +441,7 @@ export default function ServiceOrderPage() {
   const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\s/i, '') }));
   const activityOptions = (activities || []).filter(a => a && a.name).map(a => ({ value: a.name.toUpperCase(), label: a.name }));
   
-  const isAddServiceDisabled =
+  const isBaseDataMissing =
     !orderData.file.trim() ||
     !orderData.ref.trim() ||
     !orderData.nPax.trim() ||
