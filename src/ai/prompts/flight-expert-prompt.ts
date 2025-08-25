@@ -15,7 +15,7 @@ export const flightExpertPrompt = ai.definePrompt({
   output: { schema: FindFlightOutputSchema },
   
   // Add the Google Search tool to enable real-time web searches.
-  tools: [googleAI.googleSearchTool()],
+  tools: [googleAI.googleSearch()],
 
   // Instructions for the AI model
   prompt: `
