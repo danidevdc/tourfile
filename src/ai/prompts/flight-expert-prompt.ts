@@ -38,8 +38,16 @@ const customGoogleSearchTool = ai.defineTool(
         return { error: `API request failed with status ${response.status}` };
       }
       const data = await response.json();
-      // Return the search results, specifically the 'items' if they exist
-      return data.items || []; 
+      
+      // Instead of returning the full complex object, return a simplified list of snippets.
+      // This gives the AI cleaner data to work with.
+      if (data.items && data.items.length > 0) {
+        const snippets = data.items.map((item: any) => item.snippet).filter(Boolean);
+        console.log(`[TOOL] Returning ${snippets.length} snippets to AI.`);
+        return snippets;
+      }
+      
+      return []; // Return an empty array if no items are found
     } catch (e) {
       console.error("[TOOL] Fetch request to Google Search API failed:", e);
       return { error: "Failed to fetch search results." };
