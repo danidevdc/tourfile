@@ -18,7 +18,6 @@ const FlightTimeSchema = z.object({
 export const FindFlightInputSchema = z.object({
   flightNumber: z.string().describe("The flight number to search for (e.g., 'OB304', 'AA923')."),
   date: z.string().describe("The date of the flight in yyyy-MM-dd format."),
-  transferType: z.enum(['LLEGADA', 'SALIDA']).describe("Whether the flight is an arrival ('LLEGADA' coming to La Paz) or a departure ('SALIDA' leaving from La Paz)."),
 });
 export type FindFlightInput = z.infer<typeof FindFlightInputSchema>;
 

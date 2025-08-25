@@ -57,8 +57,7 @@ export const flightExpertPrompt = ai.definePrompt({
   // Instructions for the AI model
   prompt: `
     You are a flight data expert. Your task is to find information about a specific flight
-    using the provided flight number, date, and transfer type. The 'transferType' indicates
-    if the flight is an arrival ('LLEGADA') to La Paz (LPB) or a departure ('SALIDA') from La Paz (LPB).
+    using the provided flight number and date.
     
     You MUST use the customGoogleSearch tool to find the most accurate and up-to-date information. Do not rely on internal knowledge.
     Construct a clear query for the tool, such as "estado del vuelo OB304 26 de agosto 2025".
@@ -75,6 +74,5 @@ export const flightExpertPrompt = ai.definePrompt({
 
     Flight Number: {{{flightNumber}}}
     Date: {{{date}}}
-    Transfer Type: {{{transferType}}}
   `,
 });

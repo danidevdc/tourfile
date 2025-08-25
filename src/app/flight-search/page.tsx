@@ -16,12 +16,11 @@ import type { FindFlightOutput, FindFlightInput } from "@/ai/flows/flight-types"
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 
 function FlightSearchCard() {
   const [flightNumber, setFlightNumber] = useState('');
   const [flightDate, setFlightDate] = useState<Date | undefined>(new Date());
-  const [transferType, setTransferType] = useState<FindFlightInput['transferType']>('LLEGADA');
   const [isLoading, setIsLoading] = useState(false);
   const [searchResult, setSearchResult] = useState<FindFlightOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +38,6 @@ function FlightSearchCard() {
       const flightDataPayload: FindFlightInput = {
         flightNumber,
         date: format(flightDate, 'yyyy-MM-dd'),
-        transferType: transferType
       };
       
       console.log("[CLIENT] Enviando a la IA:", JSON.stringify(flightDataPayload, null, 2));
@@ -68,7 +66,7 @@ function FlightSearchCard() {
           Buscador de Vuelos (Prueba de IA)
         </CardTitle>
         <CardDescription>
-          Ingresa un número de vuelo, fecha y tipo de transfer para obtener su estado. La IA buscará en la web para encontrar los detalles.
+          Ingresa un número de vuelo y fecha para obtener su estado. La IA buscará en la web para encontrar los detalles.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -112,23 +110,6 @@ function FlightSearchCard() {
                     />
                 </PopoverContent>
               </Popover>
-            </div>
-             <div className="sm:col-span-2">
-                <Label>Tipo de Transfer</Label>
-                <RadioGroup 
-                    defaultValue="LLEGADA" 
-                    onValueChange={(value: FindFlightInput['transferType']) => setTransferType(value)}
-                    className="mt-2 grid grid-cols-2 gap-4"
-                >
-                    <Label htmlFor="trf-in" className="flex items-center space-x-2 border rounded-md p-3 hover:bg-accent hover:text-accent-foreground cursor-pointer has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:checked]:border-primary">
-                        <RadioGroupItem value="LLEGADA" id="trf-in" />
-                        <span>Llegada a LPB</span>
-                    </Label>
-                    <Label htmlFor="trf-out" className="flex items-center space-x-2 border rounded-md p-3 hover:bg-accent hover:text-accent-foreground cursor-pointer has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:checked]:border-primary">
-                        <RadioGroupItem value="SALIDA" id="trf-out" />
-                        <span>Salida de LPB</span>
-                    </Label>
-                </RadioGroup>
             </div>
         </div>
         <div className="mt-4">
