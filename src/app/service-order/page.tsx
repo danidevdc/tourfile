@@ -535,7 +535,7 @@ export default function ServiceOrderPage() {
                                   <TableHead className="border bg-muted/50" style={{ width: '86px' }}>Fecha</TableHead>
                                   <TableHead className="border bg-muted/50" style={{ width: '56px' }}>Hora</TableHead>
                                   <TableHead className="border bg-muted/50">Servicio</TableHead>
-                                  <TableHead className="border bg-muted/50" style={{ width: '70px' }}>Vuelo</TableHead>
+                                  <TableHead className="border bg-muted/50" style={{ width: '75px' }}>Vuelo</TableHead>
                                   <TableHead className="border bg-muted/50" style={{ width: '85px' }}>Guía</TableHead>
                                   <TableHead className="border bg-muted/50" style={{ width: '70px' }}>Bus</TableHead>
                                   <TableHead className="border bg-muted/50" style={{ width: '80px' }}>Chofer</TableHead>

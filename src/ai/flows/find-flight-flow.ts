@@ -14,53 +14,23 @@ import {
 } from './flight-types';
 
 
-const findRealFlightInfoTool = ai.defineTool(
-  {
-    name: 'findRealFlightInfo',
-    description: 'Searches for real-time flight information for a given flight number and date. The primary airport of reference, unless specified otherwise, is El Alto International Airport (LPB) in La Paz, Bolivia.',
-    inputSchema: FindFlightInputSchema,
-    outputSchema: FindFlightOutputSchema,
-  },
-  async (input) => {
-    // In a real application, this would make an API call to a flight data provider.
-    // For this demonstration, we will return realistic mock data.
-    console.log(`Tool: Simulating flight search for ${input.flightNumber} on ${input.date}`);
-
-    // Mock data simulation based on flight number
-    const mocks: {[key: string]: Partial<FindFlightOutput>} = {
-        'OB304': {
-            flightFound: true,
-            airline: 'Boliviana de Aviación',
-            departure: { airport: { code: 'LPB', name: 'El Alto International', city: 'La Paz' }, time: { scheduled: '07:40', actual: '07:45' } },
-            arrival: { airport: { code: 'UYU', name: 'Joya Andina Airport', city: 'Uyuni' }, time: { scheduled: '08:40', actual: '08:48' } },
-        },
-        'AV638': {
-            flightFound: true,
-            airline: 'Avianca',
-            departure: { airport: { code: 'BOG', name: 'El Dorado International', city: 'Bogota' }, time: { scheduled: '14:00', actual: '14:00' } },
-            arrival: { airport: { code: 'LPB', name: 'El Alto International', city: 'La Paz' }, time: { scheduled: '17:00', actual: '17:00' } },
-        },
-        'AA923': {
-            flightFound: true,
-            airline: 'American Airlines',
-            departure: { airport: { code: 'MIA', name: 'Miami International', city: 'Miami' }, time: { scheduled: '21:30', actual: '21:35' } },
-            arrival: { airport: { code: 'LPB', name: 'El Alto International', city: 'La Paz' }, time: { scheduled: '05:00', actual: '05:05' } },
-        }
-    };
-    
-    const flightKey = input.flightNumber.toUpperCase().trim();
-    return (mocks[flightKey] as FindFlightOutput) || { flightFound: false };
-  }
-);
-
-
-const prompt = ai.definePrompt({
-  name: 'findFlightPrompt',
+const flightExpertPrompt = ai.definePrompt({
+  name: 'flightExpertPrompt',
   input: {schema: FindFlightInputSchema},
   output: {schema: FindFlightOutputSchema},
-  tools: [findRealFlightInfoTool],
-  prompt: `Based on the user's request for flight number {{flightNumber}} on {{date}} for a {{transferType}}, use the findRealFlightInfo tool to get the flight details. Your primary reference airport is El Alto (LPB). Return the full details provided by the tool. If the flight is not found, ensure flightFound is false.`,
+  system: `You are an expert flight logistics coordinator. Your primary task is to find real-time flight information based on user input.
+
+Key Instructions:
+1.  You MUST use your web search capabilities to get accurate, real-time flight information.
+2.  Prioritize searching on Google Flights first. If you cannot find the information there, use FlightRadar24 as a secondary source.
+3.  The user's reference airport is ALWAYS El Alto International Airport (LPB) in La Paz, Bolivia. Use this to determine if a flight is an arrival ('TRF IN') or departure ('TRF OUT').
+4.  Based on the flight number, date, and transfer type (TRF IN/OUT), find the scheduled and actual times for departure and arrival, and the corresponding airport details (code, name, city).
+5.  If you successfully find the flight, populate the output schema and set 'flightFound' to true.
+6.  If after searching you cannot find any information for the requested flight, you MUST return 'flightFound' as false. Do not guess or invent data.
+`,
+  prompt: `Find flight details for flight number {{flightNumber}} on {{date}}. This is a {{transferType}} operation relative to La Paz (LPB).`,
 });
+
 
 const findFlightFlow = ai.defineFlow(
   {
@@ -69,7 +39,7 @@ const findFlightFlow = ai.defineFlow(
     outputSchema: FindFlightOutputSchema,
   },
   async (input) => {
-    const {output} = await prompt(input);
+    const {output} = await flightExpertPrompt(input);
     if (!output || !output.flightFound) {
       return { flightFound: false };
     }
