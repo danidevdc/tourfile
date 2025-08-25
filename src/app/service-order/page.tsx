@@ -42,9 +42,13 @@ const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHA
 
 const initialServiceOrderState: ServiceOrderData = {
   guia: '', file: '', ref: '', nPax: '', hotel: '',
-  services: [{ fecha: '', hora: '09:00', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: '' }],
+  services: [], // Start with empty services, will be built from the form
   observations: defaultObsText,
   nota: defaultNotaText
+};
+
+const initialNewServiceState: ServiceItem = {
+    fecha: '', hora: '09:00', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
 };
 
 const BUS_TYPES = [ { value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado (Externo)' } ];
@@ -68,8 +72,10 @@ export default function ServiceOrderPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [orderData, setOrderData] = useState<ServiceOrderData>(initialServiceOrderState);
+  const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
 
   const [busTypeSelection, setBusTypeSelection] = useState('');
+  const [choferSelection, setChoferSelection] = useState('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<{name: string} | null>(null);
@@ -155,21 +161,6 @@ export default function ServiceOrderPage() {
     if(!authLoading) loadInitialData();
   }, [authLoading, toast]);
   
-  useEffect(() => {
-      // Update guide name in services when main guide changes
-      if (orderData.guia) {
-          const selectedGuide = guides.find(g => g.fullName.toUpperCase() === orderData.guia.toUpperCase());
-          if (selectedGuide) {
-              setOrderData(prev => ({
-                  ...prev,
-                  services: prev.services.map(service => ({
-                      ...service,
-                      guia: selectedGuide.firstName.toUpperCase()
-                  }))
-              }));
-          }
-      }
-  }, [orderData.guia, guides]);
   
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -239,29 +230,18 @@ export default function ServiceOrderPage() {
     setOrderData(prev => ({ ...prev, [field]: value.toUpperCase() }));
   };
   
-  const handleSelectChange = (type: 'guide' | 'hotel' | 'chofer', value: string) => {
+  const handleSelectChange = (type: 'guide' | 'hotel', value: string) => {
     const upperValue = value.toUpperCase();
     if (type === 'guide') setOrderData(prev => ({ ...prev, guia: upperValue }));
     else if (type === 'hotel') setOrderData(prev => ({ ...prev, hotel: upperValue }));
-    else if (type === 'chofer') {
-        const updatedServices = orderData.services.map(s => ({...s, chofer: upperValue}));
-        setOrderData(prev => ({...prev, services: updatedServices}));
-    }
   };
 
   const handleBusTypeChange = (value: string) => {
     setBusTypeSelection(value);
-    setOrderData(prev => ({
-        ...prev,
-        services: prev.services.map(s => ({
-            ...s,
-            bus: value === 'CONT.' ? 'CONT.' : value,
-            chofer: '' // Reset chofer when bus type changes
-        }))
-    }));
+    setChoferSelection(''); // Reset chofer when bus type changes
   }
-  
-  const handleDateInputChange = (e: ChangeEvent<HTMLInputElement>, index: number) => {
+
+  const handleDateInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value;
     const numbersOnly = rawValue.replace(/[^0-9]/g, '');
     let formatted = '';
@@ -270,10 +250,10 @@ export default function ServiceOrderPage() {
     if (numbersOnly.length > 2) formatted += '/' + numbersOnly.slice(2, 4);
     if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 8);
     
-    handleServiceChange(index, 'fecha', formatted);
+    setNewService(prev => ({...prev, fecha: formatted}));
   };
   
-  const handleTimeInputChange = (e: ChangeEvent<HTMLInputElement>, index: number) => {
+  const handleTimeInputChange = (e: ChangeEvent<HTMLInputElement>) => {
       const rawValue = e.target.value;
       const numbersOnly = rawValue.replace(/[^0-9]/g, '');
       let formatted = '';
@@ -281,37 +261,33 @@ export default function ServiceOrderPage() {
       if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
       if (numbersOnly.length > 2) formatted += ':' + numbersOnly.slice(2, 4);
 
-      handleServiceChange(index, 'hora', formatted);
+      setNewService(prev => ({...prev, hora: formatted}));
   };
 
-  const handleTimeInputBlur = (e: React.FocusEvent<HTMLInputElement>, index: number) => {
+  const handleTimeInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
       const rawValue = e.target.value.replace(/[^\d]/g, '');
       if (rawValue.length >= 2) {
           const hours = rawValue.slice(0, 2);
           const minutes = rawValue.slice(2, 4) || '00';
-          handleServiceChange(index, 'hora', `${hours}:${minutes}`);
+          setNewService(prev => ({...prev, hora: `${hours}:${minutes}`}));
       }
   };
 
-  const handleServiceChange = (index: number, field: keyof ServiceItem, value: string) => {
-    const updatedServices = [...orderData.services];
-    updatedServices[index] = { ...updatedServices[index], [field]: value.toUpperCase() };
-    setOrderData(prev => ({ ...prev, services: updatedServices }));
+  const handleNewServiceChange = (field: keyof ServiceItem, value: string) => {
+    setNewService(prev => ({ ...prev, [field]: value.toUpperCase() }));
   };
 
   const addNewServiceRow = () => {
-      const lastService = orderData.services[orderData.services.length - 1];
-      const newService: ServiceItem = {
-        fecha: lastService.fecha,
-        hora: "09:00",
-        servicio: '',
-        vuelo: '',
-        guia: lastService.guia,
-        bus: lastService.bus,
-        chofer: lastService.chofer,
-        observaciones: ''
-      };
-      setOrderData(prev => ({ ...prev, services: [...prev.services, newService]}));
+    const selectedGuide = guides.find(g => g.fullName.toUpperCase() === orderData.guia.toUpperCase());
+    const serviceToAdd: ServiceItem = {
+      ...newService,
+      guia: selectedGuide ? selectedGuide.firstName.toUpperCase() : '',
+      bus: busTypeSelection === 'CONT.' ? 'CONT.' : busTypeSelection,
+      chofer: choferSelection,
+    };
+    setOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd]}));
+    // Reset form for next entry
+    setNewService({ ...initialNewServiceState, fecha: newService.fecha });
   }
   
   const handleSaveFromModal = (updatedServices: ServiceItem[]) => {
@@ -348,6 +324,7 @@ export default function ServiceOrderPage() {
   const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
   const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
   const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\s/i, '') }));
+  const activityOptions = (activities || []).filter(a => a && a.name).map(a => ({ value: a.name.toUpperCase(), label: a.name }));
   
   const isAddServiceDisabled =
     !orderData.file.trim() ||
@@ -355,17 +332,12 @@ export default function ServiceOrderPage() {
     !orderData.nPax.trim() ||
     !orderData.guia.trim() ||
     !busTypeSelection.trim() ||
-    !orderData.services[0]?.chofer?.trim();
+    !choferSelection.trim();
 
 
   if (authLoading || isLoading) {
     return <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
-  
-  const activityOptions = (activities || [])
-    .filter(a => a && a.name) // Filter out undefined or null activities/names
-    .map(a => ({ value: a.name.toUpperCase(), label: a.name }));
-  
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background space-y-6">
@@ -408,38 +380,37 @@ export default function ServiceOrderPage() {
                   <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia.toUpperCase()} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1" /></div>
                   <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel.toUpperCase()} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1" /></div>
                   <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={handleBusTypeChange}><SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{BUS_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
-                   <div><Label>Chofer</Label><Combobox options={driverOptions} value={orderData.services[0]?.chofer?.toUpperCase() || ''} onSelect={(val) => handleSelectChange('chofer', val)} placeholder="Seleccionar chofer..." className="mt-1" /></div>
+                   <div><Label>Chofer</Label><Combobox options={driverOptions} value={choferSelection.toUpperCase()} onSelect={(val) => setChoferSelection(val)} placeholder="Seleccionar chofer..." className="mt-1" /></div>
               </div>
               
-              {/* --- DYNAMIC ITINERARY FORM --- */}
+                {/* --- Add Itinerary Item Form --- */}
                 <div className="space-y-4 p-4 border rounded-lg">
-                    <h3 className="text-lg font-medium">Itinerario Dinámico</h3>
-                    {orderData.services.map((service, index) => (
-                        <div key={index} className="grid grid-cols-1 md:grid-cols-12 items-end gap-2 p-2 border-b last:border-b-0">
-                             <div className="md:col-span-2">
-                                <Label>Fecha</Label>
-                                <div className="relative mt-1">
-                                    <Input 
-                                      value={service.fecha} 
-                                      onChange={(e) => handleDateInputChange(e, index)} 
-                                      placeholder="dd/MM/yyyy" 
-                                      maxLength={10} 
-                                    />
-                                    <Popover>
-                                        <PopoverTrigger asChild><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"><CalendarIcon className="h-4 w-4 text-muted-foreground" /></button></PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={service.fecha ? parse(service.fecha, "dd/MM/yyyy", new Date()) : undefined} onSelect={(date) => date && handleServiceChange(index, 'fecha', format(date, "dd/MM/yyyy"))} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
-                                    </Popover>
-                                </div>
+                    <h3 className="text-lg font-medium">Añadir Servicio al Itinerario</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-12 items-end gap-2 p-2">
+                        <div className="md:col-span-3">
+                            <Label>Fecha</Label>
+                            <div className="relative mt-1">
+                                <Input 
+                                    value={newService.fecha} 
+                                    onChange={(e) => handleDateInputChange(e)} 
+                                    placeholder="dd/MM/yyyy" 
+                                    maxLength={10} 
+                                />
+                                <Popover>
+                                    <PopoverTrigger asChild><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"><CalendarIcon className="h-4 w-4 text-muted-foreground" /></button></PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={newService.fecha ? parse(newService.fecha, "dd/MM/yyyy", new Date()) : undefined} onSelect={(date) => date && handleNewServiceChange('fecha', format(date, "dd/MM/yyyy"))} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
+                                </Popover>
                             </div>
-                            <div className="md:col-span-2"><Label>Hora</Label><Input value={service.hora} onChange={(e) => handleTimeInputChange(e, index)} onBlur={(e) => handleTimeInputBlur(e, index)} placeholder="HH:mm" maxLength={5} className="mt-1"/></div>
-                            <div className="md:col-span-8"><Label>Actividad</Label><Combobox options={activityOptions} value={service.servicio.toUpperCase()} onSelect={(val) => handleServiceChange(index, 'servicio', val)} placeholder="Buscar actividad..." className="mt-1"/></div>
                         </div>
-                    ))}
-                    <Button onClick={addNewServiceRow} variant="outline" size="sm" className="bg-blue-100 hover:bg-blue-200 border-blue-300 text-blue-800" disabled={isAddServiceDisabled}>
-                        <PlusCircle className="mr-2 h-4 w-4"/>Añadir Fila de Servicio
-                    </Button>
+                        <div className="md:col-span-6"><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio.toUpperCase()} onSelect={(val) => handleNewServiceChange('servicio', val)} placeholder="Buscar actividad..." className="w-full mt-1"/></div>
+                        <div className="md:col-span-2"><Label>Hora</Label><Input value={newService.hora} onChange={(e) => handleTimeInputChange(e)} onBlur={(e) => handleTimeInputBlur(e)} placeholder="HH:mm" maxLength={5} className="mt-1"/></div>
+                        <div className="md:col-span-1">
+                            <Button onClick={addNewServiceRow} variant="outline" size="icon" className="bg-blue-100 hover:bg-blue-200 border-blue-300 text-blue-800 w-full" disabled={isAddServiceDisabled}>
+                                <PlusCircle className="h-5 w-5"/>
+                            </Button>
+                        </div>
+                    </div>
                 </div>
-
 
               {/* --- SUMMARY & EDIT --- */}
               <Card>
@@ -458,16 +429,16 @@ export default function ServiceOrderPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="bg-muted/50 w-[120px]">Fecha</TableHead>
-                                    <TableHead className="bg-muted/50 w-[100px]">Hora</TableHead>
+                                    <TableHead className="bg-muted/50 min-w-[120px]">Fecha</TableHead>
+                                    <TableHead className="bg-muted/50 min-w-[100px]">Hora</TableHead>
                                     <TableHead className="bg-muted/50">Servicio</TableHead>
-                                    <TableHead className="bg-muted/50 w-[180px]">Guía</TableHead>
-                                    <TableHead className="bg-muted/50 w-[80px]">Bus</TableHead>
-                                    <TableHead className="bg-muted/50 w-[180px]">Chofer</TableHead>
+                                    <TableHead className="bg-muted/50 min-w-[180px]">Guía</TableHead>
+                                    <TableHead className="bg-muted/50 min-w-[80px]">Bus</TableHead>
+                                    <TableHead className="bg-muted/50 min-w-[180px]">Chofer</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {orderData.services.filter(s => s.servicio).length > 0 ? orderData.services.filter(s => s.servicio).map((service, index) => (
+                                {orderData.services.length > 0 ? orderData.services.map((service, index) => (
                                     <TableRow key={index}>
                                         <TableCell>{service.fecha}</TableCell>
                                         <TableCell>{service.hora}</TableCell>
@@ -496,8 +467,8 @@ export default function ServiceOrderPage() {
               )}
 
               <Card>
-                <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
-                    <AccordionItem value="item-1" className="border-b-0">
+                <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="item-1">
                       <AccordionTrigger className="text-lg font-medium p-6">Observaciones y Notas Finales</AccordionTrigger>
                       <AccordionContent className="space-y-4 px-6 pb-6">
                         <div><Label htmlFor="observaciones">Observaciones Generales</Label><Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={3}/></div>
