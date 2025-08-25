@@ -17,6 +17,8 @@ import {
   type Driver,
   getActivitiesFromFirestore,
   type Activity,
+  recordActivityTimeUsage, // Import AI function
+  getSuggestedTimeForActivity, // Import AI function
 } from "@/lib/serviceOrderService";
 import { generateServiceOrderExcel, type ServiceOrderData, type ServiceItem } from '@/lib/serviceOrderGenerator';
 import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generator";
@@ -278,6 +280,15 @@ export default function ServiceOrderPage() {
   const handleNewServiceChange = (field: keyof ServiceItem, value: string) => {
     setNewService(prev => ({ ...prev, [field]: value.toUpperCase() }));
   };
+  
+  const handleActivitySelect = async (activityName: string) => {
+      handleNewServiceChange('servicio', activityName);
+      // AI-POWERED SUGGESTION:
+      const suggestedTime = await getSuggestedTimeForActivity(activityName);
+      if (suggestedTime) {
+          handleNewServiceChange('hora', suggestedTime);
+      }
+  };
 
   const addNewServiceRow = () => {
     const selectedGuide = guides.find(g => g.fullName.toUpperCase() === orderData.guia.toUpperCase());
@@ -288,7 +299,8 @@ export default function ServiceOrderPage() {
       chofer: choferSelection,
     };
     setOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd]}));
-    setNewService(prev => ({...initialNewServiceState, fecha: '', servicio: '', hora: '09:00'}));
+    // Reset the new service form for the next entry
+    setNewService(initialNewServiceState);
   }
   
   const handleSaveFromModal = (updatedServices: ServiceItem[]) => {
@@ -304,6 +316,14 @@ export default function ServiceOrderPage() {
         toast({ title: "Datos incompletos", description: "El nombre del guía y el file son obligatorios.", variant: "destructive" });
         return;
       }
+      
+      // AI LEARNING STEP: Record time usage for each service in the order
+      for (const service of orderData.services) {
+          if(service.servicio && service.hora) {
+              await recordActivityTimeUsage(service.servicio, service.hora);
+          }
+      }
+
       const buffer = await generateServiceOrderExcel(orderData);
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
@@ -390,7 +410,7 @@ export default function ServiceOrderPage() {
                   <CardTitle className="text-lg">Añadir Servicio al Itinerario</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-12 items-end gap-2 p-2">
+                  <div className="grid grid-cols-1 md:grid-cols-12 items-end gap-4 p-2">
                       <div className="md:col-span-3">
                           <Label>Fecha</Label>
                           <div className="relative mt-1">
@@ -423,7 +443,7 @@ export default function ServiceOrderPage() {
                               </Popover>
                           </div>
                       </div>
-                      <div className="md:col-span-6"><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio.toUpperCase()} onSelect={(val) => handleNewServiceChange('servicio', val)} placeholder="Buscar actividad..." className="w-full mt-1"/></div>
+                      <div className="md:col-span-6"><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio.toUpperCase()} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="w-full mt-1"/></div>
                       <div className="md:col-span-2"><Label>Hora</Label><Input value={newService.hora} onChange={(e) => handleTimeInputChange(e)} onBlur={(e) => handleTimeInputBlur(e)} placeholder="HH:mm" maxLength={5} className="mt-1"/></div>
                       <div className="md:col-span-1">
                           <Button onClick={addNewServiceRow} variant="outline" size="icon" className="bg-blue-100 hover:bg-blue-200 border-blue-300 text-blue-800 w-full" disabled={isAddServiceDisabled}>

@@ -9,6 +9,8 @@ import {
   addDoc,
   deleteDoc,
   writeBatch,
+  runTransaction,
+  getDoc,
 } from 'firebase/firestore';
 
 // --- Interface Definitions ---
@@ -36,13 +38,6 @@ export interface Guide {
 
 export interface ServiceOrderGuide extends Guide {
   fullName: string;
-}
-
-// --- Default Data for Initialization ---
-export async function initializeDefaultServiceOrderData(): Promise<void> {
-  if (!db) throw new Error("Firestore not initialized.");
-  // Data is now managed manually via the Admin UI. This function is kept for potential future use.
-  return Promise.resolve();
 }
 
 // --- Data Fetching Functions ---
@@ -141,3 +136,67 @@ export const deleteGuide = (id: string) => deleteDoc(doc(db!, 'guides', id));
 export const deleteHotel = (id: string) => deleteDoc(doc(db!, 'hotels', id));
 export const deleteActivity = (id: string) => deleteDoc(doc(db!, 'activities', id));
 export const deleteDriver = (id: string) => deleteDoc(doc(db!, 'drivers', id));
+
+
+// --- AI/Learning Functions ---
+
+/**
+ * Records the usage of a specific time for an activity to build suggestions.
+ * @param activityName The name of the activity.
+ * @param time The time used for the activity (e.g., "09:00").
+ */
+export async function recordActivityTimeUsage(activityName: string, time: string): Promise<void> {
+  if (!db || !activityName || !/^\d{2}:\d{2}$/.test(time)) return;
+
+  const suggestionRef = doc(db, 'activityTimeSuggestions', activityName.toUpperCase());
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const suggestionDoc = await transaction.get(suggestionRef);
+      if (!suggestionDoc.exists()) {
+        transaction.set(suggestionRef, {
+          activityName: activityName.toUpperCase(),
+          timeCounts: { [time]: 1 },
+        });
+      } else {
+        const currentCounts = suggestionDoc.data().timeCounts || {};
+        const newCount = (currentCounts[time] || 0) + 1;
+        transaction.update(suggestionRef, {
+          [`timeCounts.${time}`]: newCount,
+        });
+      }
+    });
+  } catch (error) {
+    console.error(`Failed to record time usage for ${activityName}:`, error);
+    // Fail silently to not interrupt user flow
+  }
+}
+
+/**
+ * Gets the most frequently used time for a given activity.
+ * @param activityName The name of the activity.
+ * @returns The most popular time as a string (e.g., "09:00") or null if no data exists.
+ */
+export async function getSuggestedTimeForActivity(activityName: string): Promise<string | null> {
+  if (!db || !activityName) return null;
+
+  const suggestionRef = doc(db, 'activityTimeSuggestions', activityName.toUpperCase());
+  try {
+    const suggestionDoc = await getDoc(suggestionRef);
+    if (suggestionDoc.exists()) {
+      const data = suggestionDoc.data();
+      const timeCounts = data.timeCounts;
+      if (timeCounts && Object.keys(timeCounts).length > 0) {
+        // Find the time with the highest count
+        const mostPopularTime = Object.keys(timeCounts).reduce((a, b) =>
+          timeCounts[a] > timeCounts[b] ? a : b
+        );
+        return mostPopularTime;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error(`Failed to get suggested time for ${activityName}:`, error);
+    return null;
+  }
+}
