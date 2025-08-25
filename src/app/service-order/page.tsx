@@ -377,7 +377,7 @@ export default function ServiceOrderPage() {
               </div>
 
                {/* --- MAIN DETAILS --- */}
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg bg-card">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 p-4 border rounded-lg bg-card">
                   <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia.toUpperCase()} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1" /></div>
                   <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel.toUpperCase()} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1" /></div>
                   <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={handleBusTypeChange}><SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{BUS_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
@@ -452,26 +452,30 @@ export default function ServiceOrderPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="bg-muted/50 min-w-[120px]">Fecha</TableHead>
-                                    <TableHead className="bg-muted/50 min-w-[100px]">Hora</TableHead>
-                                    <TableHead className="bg-muted/50">Servicio</TableHead>
-                                    <TableHead className="bg-muted/50 min-w-[180px]">Guía</TableHead>
-                                    <TableHead className="bg-muted/50 min-w-[80px]">Bus</TableHead>
-                                    <TableHead className="bg-muted/50 min-w-[180px]">Chofer</TableHead>
+                                    <TableHead className="bg-muted/50 border" style={{width: '86px'}}>Fecha</TableHead>
+                                    <TableHead className="bg-muted/50 border" style={{width: '56px'}}>Hora</TableHead>
+                                    <TableHead className="bg-muted/50 border">Servicio</TableHead>
+                                    <TableHead className="bg-muted/50 border" style={{width: '70px'}}>Vuelo</TableHead>
+                                    <TableHead className="bg-muted/50 border" style={{width: '150px'}}>Guía</TableHead>
+                                    <TableHead className="bg-muted/50 border" style={{width: '70px'}}>Bus</TableHead>
+                                    <TableHead className="bg-muted/50 border" style={{width: '80px'}}>Chofer</TableHead>
+                                    <TableHead className="bg-muted/50 border">Observaciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {orderData.services.length > 0 ? orderData.services.map((service, index) => (
                                     <TableRow key={index}>
-                                        <TableCell>{service.fecha}</TableCell>
-                                        <TableCell>{service.hora}</TableCell>
-                                        <TableCell>{service.servicio}</TableCell>
-                                        <TableCell>{service.guia}</TableCell>
-                                        <TableCell>{service.bus}</TableCell>
-                                        <TableCell>{service.chofer?.replace(/^CONT\s/i, '')}</TableCell>
+                                        <TableCell className="border">{service.fecha}</TableCell>
+                                        <TableCell className="border">{service.hora}</TableCell>
+                                        <TableCell className="border">{service.servicio}</TableCell>
+                                        <TableCell className="border">{service.vuelo}</TableCell>
+                                        <TableCell className="border">{service.guia}</TableCell>
+                                        <TableCell className="border">{service.bus}</TableCell>
+                                        <TableCell className="border">{service.chofer?.replace(/^CONT\s/i, '')}</TableCell>
+                                        <TableCell className="border">{service.observaciones}</TableCell>
                                     </TableRow>
                                 )) : (
-                                    <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">El itinerario está vacío.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={8} className="text-center h-24 text-muted-foreground border">El itinerario está vacío.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>
