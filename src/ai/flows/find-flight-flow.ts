@@ -10,6 +10,8 @@
 import { flightExpertPrompt, customGoogleSearchTool } from '@/ai/prompts/flight-expert-prompt';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
 import { z } from 'zod';
+import { parse, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 
 // The exported function that will be the Server Action
@@ -17,8 +19,18 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     console.log("[SERVER] Received from client:", JSON.stringify(input, null, 2));
 
     // --- User's Approach: Build the query directly in the code ---
-    const query = `${input.flightNumber.replace(/\s/g, '')}+${input.date}`;
-    console.log(`[SERVER] Constructed search query: ${query}`);
+    
+    // Parse the incoming YYYY-MM-DD date string
+    const parsedDate = parse(input.date, 'yyyy-MM-dd', new Date());
+
+    // Format the date into a more search-friendly, natural language format
+    // e.g., "27 de agosto de 2025"
+    const friendlyDate = format(parsedDate, "d 'de' MMMM 'de' yyyy", { locale: es });
+
+    // Construct a more natural search query
+    const query = `vuelo ${input.flightNumber.replace(/\s/g, '')} en ${friendlyDate}`;
+
+    console.log(`[SERVER] Constructed natural search query: ${query}`);
 
     // --- Call the Google Search tool directly ---
     const searchResults = await customGoogleSearchTool.run({ query });
@@ -34,7 +46,7 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     console.log("[SERVER] AI response:", JSON.stringify(result.output, null, 2));
     
     if (!result.output || !result.output.flightFound) {
-      return { flightFound: false };
+      return { flightFound: false, flightNumber: input.flightNumber };
     }
     
     // Ensure the flight number from the original input is in the final output
