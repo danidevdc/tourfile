@@ -32,7 +32,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileDown, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon, Edit, Plane } from "lucide-react";
+import { ArrowLeft, Loader2, FileDown, PlusCircle, Upload, Search, CheckCircle2, XCircle, Calendar as CalendarIcon, Edit, Plane } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -353,12 +353,12 @@ export default function ServiceOrderPage() {
             const departureTime = parse(flightInfo.departure.time.actual, 'HH:mm', new Date());
             const pickupTime = new Date(departureTime.getTime() - 2 * 60 * 60 * 1000); // Subtract 2 hours
             newTime = format(pickupTime, 'HH:mm');
-            newObservation = `VUELO SALE ${flightInfo.departure.time.actual} ${flightInfo.departure.airport.code}/${flightInfo.arrival?.airport.code || '???'}`;
+            newObservation = `EL VUELO SALE A LAS ${flightInfo.departure.time.actual}`;
         } else if (newService.servicio === 'TRF IN' && flightInfo.arrival && flightInfo.arrival.time.actual) {
             const arrivalTime = parse(flightInfo.arrival.time.actual, 'HH:mm', new Date());
             const pickupTime = new Date(arrivalTime.getTime() - 1 * 60 * 60 * 1000); // Subtract 1 hour
             newTime = format(pickupTime, 'HH:mm');
-            newObservation = `VUELO LLEGA ${flightInfo.arrival.time.actual} ${flightInfo.departure?.airport.code || '???'}/${flightInfo.arrival.airport.code}`;
+            newObservation = `EL VUELO LLEGA A LAS ${flightInfo.arrival.time.actual}`;
         } else {
              toast({ title: "Datos de vuelo incompletos", description: "Se encontró el vuelo, pero faltan los horarios de llegada/salida.", variant: "destructive" });
              setIsSearchingFlight(false);
