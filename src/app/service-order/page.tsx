@@ -233,7 +233,7 @@ export default function ServiceOrderPage() {
              const paxRaw = excelData[i]?.[colIdx];
              if (paxRaw !== null && paxRaw !== undefined) {
                  const paxValue = String(paxRaw).trim();
-                 if (/^\d{1,2}$/.test(paxValue) || /^\d+\s*\+\s*\d+$/.test(paxValue)) {
+                 if (/^\\d{1,2}$/.test(paxValue) || /^\\d+\\s*\\+\\s*\\d+$/.test(paxValue)) {
                      pax = paxValue; break;
                  }
              }
@@ -288,7 +288,7 @@ export default function ServiceOrderPage() {
   };
 
   const handleTimeInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-      const rawValue = e.target.value.replace(/[^\d]/g, '');
+      const rawValue = e.target.value.replace(/[^\\d]/g, '');
       if (rawValue.length >= 2 && rawValue.length <=4) {
           const hours = rawValue.slice(0, 2);
           const minutes = rawValue.slice(2, 4).padEnd(2, '0');
@@ -348,17 +348,21 @@ export default function ServiceOrderPage() {
 
         let newTime = '';
         let newObservation = '';
+        let flightTime = '';
+        let segment = flightInfo.flightSegment || '';
 
-        if (newService.servicio === 'TRF OUT' && flightInfo.departure && flightInfo.departure.time.actual) {
-            const departureTime = parse(flightInfo.departure.time.actual, 'HH:mm', new Date());
+        if (newService.servicio === 'TRF OUT' && flightInfo.departure?.time.actual) {
+            flightTime = flightInfo.departure.time.actual;
+            const departureTime = parse(flightTime, 'HH:mm', new Date());
             const pickupTime = new Date(departureTime.getTime() - 2 * 60 * 60 * 1000); // Subtract 2 hours
             newTime = format(pickupTime, 'HH:mm');
-            newObservation = `EL VUELO SALE A LAS ${flightInfo.departure.time.actual}`;
-        } else if (newService.servicio === 'TRF IN' && flightInfo.arrival && flightInfo.arrival.time.actual) {
-            const arrivalTime = parse(flightInfo.arrival.time.actual, 'HH:mm', new Date());
+            newObservation = `EL VUELO SALE A LAS ${flightTime} ${segment}`;
+        } else if (newService.servicio === 'TRF IN' && flightInfo.arrival?.time.actual) {
+            flightTime = flightInfo.arrival.time.actual;
+            const arrivalTime = parse(flightTime, 'HH:mm', new Date());
             const pickupTime = new Date(arrivalTime.getTime() - 1 * 60 * 60 * 1000); // Subtract 1 hour
             newTime = format(pickupTime, 'HH:mm');
-            newObservation = `EL VUELO LLEGA A LAS ${flightInfo.arrival.time.actual}`;
+            newObservation = `EL VUELO LLEGA A LAS ${flightTime} ${segment}`;
         } else {
              toast({ title: "Datos de vuelo incompletos", description: "Se encontró el vuelo, pero faltan los horarios de llegada/salida.", variant: "destructive" });
              setIsSearchingFlight(false);
@@ -369,7 +373,7 @@ export default function ServiceOrderPage() {
             ...prev,
             vuelo: normalizedFlightNumber,
             hora: newTime,
-            observaciones: newObservation
+            observaciones: newObservation.trim()
         }));
 
         toast({ title: "Vuelo encontrado", description: "Hora y observaciones actualizadas.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
@@ -438,7 +442,7 @@ export default function ServiceOrderPage() {
   
   const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
   const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
-  const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\s/i, '') }));
+  const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\\s/i, '') }));
   const activityOptions = (activities || []).filter(a => a && a.name).map(a => ({ value: a.name.toUpperCase(), label: a.name }));
   
   const isBaseDataMissing =
@@ -572,7 +576,7 @@ export default function ServiceOrderPage() {
                                       <TableCell className="border">{service.vuelo}</TableCell>
                                       <TableCell className="border">{service.guia}</TableCell>
                                       <TableCell className="border">{service.bus}</TableCell>
-                                      <TableCell className="border">{service.chofer?.replace(/^CONT\s/i, '')}</TableCell>
+                                      <TableCell className="border">{service.chofer?.replace(/^CONT\\s/i, '')}</TableCell>
                                       <TableCell className="border">{service.observaciones}</TableCell>
                                     </TableRow>
                                 )) : (

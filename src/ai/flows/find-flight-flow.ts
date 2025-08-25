@@ -1,6 +1,8 @@
 'use server';
 /**
  * @fileOverview A flight information retrieval AI agent.
+ * This agent uses a tool-based approach to first perform a targeted web search
+ * for a flight and then extracts structured data from the results.
  *
  * - findFlight - A function that handles finding flight details.
  */
@@ -18,19 +20,23 @@ const flightExpertPrompt = ai.definePrompt({
   name: 'flightExpertPrompt',
   input: {schema: FindFlightInputSchema},
   output: {schema: FindFlightOutputSchema},
+  // By enabling the googleSearch tool, we instruct the model to use it when needed
+  // to fulfill the user's request. This is more reliable than a generic instruction.
+  tools: [ai.googleSearch],
   system: `You are an expert flight logistics coordinator. Your primary task is to find flight information based on a flight number and date by searching the web.
 
-You must follow this search strategy in order:
-1. First, perform a general web search on Google for the flight.
-2. If you cannot find the information, then search specifically on Google Flights.
-3. If you still cannot find reliable information, search on FlightRadar24.
+You will be given a flight number, a date, and a transfer type.
+Your task is to use your search tool to find the flight details and then extract the following information:
+1. The scheduled departure and arrival times.
+2. The departure and arrival airport codes (e.g., LPB, VVI).
+3. The name of the airline.
 
 Key Instructions:
-1. Use the information from the first successful search to populate the response.
-2. The user's reference airport is ALWAYS El Alto International Airport (LPB) in La Paz, Bolivia. Use this to determine if a flight is an arrival ('TRF IN') or departure ('TRF OUT').
-3. Based on the flight number, date, and transfer type (TRF IN/OUT), find the scheduled and actual times for departure and arrival, and the corresponding airport details (code, name, city).
-4. If you successfully find the flight, populate the output schema and set 'flightFound' to true.
-5. If after following all search steps you cannot find any reliable information for the requested flight, you MUST return 'flightFound' as false. Do not guess or invent data.
+- Based on the flight number, date, and transfer type (TRF IN/OUT), find the scheduled and actual times for departure and arrival.
+- Populate the output schema with the data you find. The 'flightSegment' should be in the format 'DEPARTURE_CODE/ARRIVAL_CODE'.
+- The user's reference airport is ALWAYS El Alto International Airport (LPB) in La Paz, Bolivia.
+- If you successfully find the flight, populate the output schema and set 'flightFound' to true.
+- If after searching you cannot find any reliable information for the requested flight, you MUST return 'flightFound' as false. Do not guess or invent data.
 `,
   prompt: `Find flight details for flight number {{flightNumber}} on {{date}}. This is a {{transferType}} operation relative to La Paz (LPB).`,
 });
