@@ -9,7 +9,7 @@
 
 import { ai } from '@/ai/genkit';
 import { FindFlightInputSchema, FindFlightOutputSchema, type FindFlightInput, type FindFlightOutput } from './flight-types';
-import { googleSearchTool } from '@genkit-ai/googleai/tools';
+import { googleAI } from '@genkit-ai/googleai';
 
 const flightExpertPrompt = ai.definePrompt({
   name: 'flightExpertPrompt',
@@ -37,7 +37,7 @@ const flightExpertPrompt = ai.definePrompt({
   
   // Configuration to enable the search tool
   config: {
-    tools: [googleSearchTool],
+    tools: [googleAI.googleSearchTool],
   },
 });
 
