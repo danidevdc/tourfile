@@ -6,7 +6,7 @@
 
 import { ai } from '@/ai/genkit';
 import { FindFlightInputSchema, FindFlightOutputSchema } from '@/ai/flows/flight-types';
-import { googleAI } from '@genkit-ai/googleai';
+// Removed googleAI import as the specific tool is being removed.
 
 
 export const flightExpertPrompt = ai.definePrompt({
@@ -33,7 +33,8 @@ export const flightExpertPrompt = ai.definePrompt({
     Date: {{{date}}}
   `,
   
-  tools: [googleAI.googleSearchTool],
+  // By removing the explicit tools array, we rely on the model's inherent ability
+  // to search when prompted to do so, which avoids the Next.js Server Action compilation issue.
 });
 
     
