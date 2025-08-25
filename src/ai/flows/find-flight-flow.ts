@@ -35,10 +35,8 @@ const flightExpertPrompt = ai.definePrompt({
     Date: {{{date}}}
   `,
   
-  // Configuration to enable the search tool
-  config: {
-    tools: [googleAI.googleSearchTool],
-  },
+  // The 'tools' array should be a top-level property, not inside 'config'.
+  tools: [googleAI.googleSearchTool],
 });
 
 const findFlightFlow = ai.defineFlow(
