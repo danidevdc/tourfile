@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, Calendar as CalendarIcon, ArrowRightLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
 import { es } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -46,13 +46,15 @@ function FlightSearchCard() {
       
       console.log("[CLIENT] Respuesta de la IA:", JSON.stringify(result, null, 2));
       
-      if (!result.flightFound) {
-        setError(`Vuelo ${flightNumber} no encontrado para la fecha seleccionada. Verifica los datos e intenta de nuevo.`);
+      if (result.errorMessage) {
+          setError(`Error del servidor: ${result.errorMessage}. Revisa la consola para más detalles.`);
+      } else if (!result.flightFound) {
+        setError(`Vuelo ${flightNumber} no encontrado. La IA no pudo confirmar los detalles en la web. Verifica los datos e intenta de nuevo.`);
       }
       setSearchResult(result);
     } catch (e) {
       console.error(e);
-      setError("Ocurrió un error al buscar el vuelo. Revisa la consola para más detalles.");
+      setError("Ocurrió un error inesperado al buscar el vuelo. Revisa la consola para más detalles.");
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +96,7 @@ function FlightSearchCard() {
                         )}
                     >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {flightDate ? format(flightDate, "dd/MM/yyyy") : <span>Seleccionar fecha</span>}
+                        {flightDate ? format(flightDate, "dd 'de' MMMM, yyyy", { locale: es}) : <span>Seleccionar fecha</span>}
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -131,6 +133,7 @@ function FlightSearchCard() {
                   <div className="text-center">
                     <p className="font-bold text-xl">{searchResult.departure?.airport.code}</p>
                     <p className="text-xs">{searchResult.departure?.time.scheduled}</p>
+                    <p className="text-xs text-green-600 dark:text-green-400">{searchResult.departure?.time.actual}</p>
                   </div>
                   <div className="flex-grow flex items-center justify-center mx-4">
                     <ArrowRightLeft className="h-5 w-5 text-muted-foreground"/>
@@ -138,6 +141,7 @@ function FlightSearchCard() {
                    <div className="text-center">
                     <p className="font-bold text-xl">{searchResult.arrival?.airport.code}</p>
                     <p className="text-xs">{searchResult.arrival?.time.scheduled}</p>
+                     <p className="text-xs text-green-600 dark:text-green-400">{searchResult.arrival?.time.actual}</p>
                   </div>
               </div>
            </div>

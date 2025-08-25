@@ -1,14 +1,13 @@
 
 /**
- * @fileOverview Defines the Genkit prompt for the flight data expert.
- * This file defines the Genkit prompt for the flight data expert.
+ * @fileOverview Defines the Genkit prompt for the flight data expert and the custom search tool.
  */
 import { ai } from '@/ai/genkit';
 import { FindFlightOutputSchema } from '@/ai/flows/flight-types';
 import { z } from 'zod';
 
 
-// Define a new tool for custom Google Search
+// Define a new tool for custom Google Search based on user's improved approach.
 export const customGoogleSearchTool = ai.defineTool(
   {
     name: 'customGoogleSearch',
@@ -16,41 +15,48 @@ export const customGoogleSearchTool = ai.defineTool(
     inputSchema: z.object({
       query: z.string().describe("The search query, e.g., 'vuelo OB305 en 27 de agosto de 2025'"),
     }),
-    outputSchema: z.any(), // The AI will handle the unstructured JSON response
+    // Define a stricter output schema as suggested by the user.
+    outputSchema: z.array(z.string()).describe("A list of search result snippets."),
   },
   async (input) => {
     console.log(`[TOOL] Executing custom Google search with query: ${input.query}`);
-    const apiKey = process.env.GEMINI_API_KEY; // Use existing key
+    
+    // Use the correct API key for the Google Custom Search API, not the Gemini key.
+    // The user will need to provide this in their .env file.
+    const apiKey = process.env.GEMINI_API_KEY; 
     const searchEngineId = process.env.SEARCH_ENGINE_ID;
 
     if (!apiKey || !searchEngineId) {
-      console.error("[TOOL] Missing GEMINI_API_KEY or SEARCH_ENGINE_ID in .env file.");
-      return { error: "Missing API key or Search Engine ID." };
+      const errorMsg = "[TOOL] Missing GEMINI_API_KEY or SEARCH_ENGINE_ID in .env file.";
+      console.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
     const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(input.query)}`;
     
     try {
       const response = await fetch(url);
-      if (!response.ok) {
-        const errorBody = await response.json();
-        console.error(`[TOOL] Google Search API error: ${response.status}`, errorBody);
-        return { error: `API request failed with status ${response.status}` };
-      }
       const data = await response.json();
+
+      if (!response.ok) {
+        // Improved error logging to show the actual error from Google's API.
+        console.error(`[TOOL] Google Search API error: ${response.status}`, data.error);
+        throw new Error(data.error?.message || `API request failed with status ${response.status}`);
+      }
       
       // Instead of returning the full complex object, return a simplified list of snippets.
       // This gives the AI cleaner data to work with.
       if (data.items && data.items.length > 0) {
-        const snippets = data.items.map((item: any) => item.snippet).filter(Boolean);
+        const snippets: string[] = data.items.map((item: any) => item.snippet).filter(Boolean);
         console.log(`[TOOL] Returning ${snippets.length} snippets to AI.`);
         return snippets;
       }
       
+      console.log("[TOOL] No items found in search results.");
       return []; // Return an empty array if no items are found
-    } catch (e) {
+    } catch (e: any) {
       console.error("[TOOL] Fetch request to Google Search API failed:", e);
-      return { error: "Failed to fetch search results." };
+      throw new Error(`Failed to fetch search results: ${e.message}`);
     }
   }
 );
@@ -63,6 +69,7 @@ const FlightExpertInputSchema = z.object({
 
 export const flightExpertPrompt = ai.definePrompt({
   name: 'flightExpertPrompt',
+  tools: [customGoogleSearchTool], // The tool is available to the prompt
   input: { schema: FlightExpertInputSchema },
   output: { schema: FindFlightOutputSchema },
   
@@ -77,15 +84,15 @@ export const flightExpertPrompt = ai.definePrompt({
     The search results are provided as a JSON string of text snippets:
     {{{searchResults}}}
 
-    Based on these search results, you must extract the following information:
+    Based *only* on these search results, you must extract the following information:
     - Departure airport details (code, name, city) and scheduled/actual departure time.
     - Arrival airport details (code, name, city) and scheduled/actual arrival time.
     - The name of the airline.
     - The flight route segment (e.g., 'LPB/VVI').
 
-    If you find the flight in the search results, set flightFound to true and fill in all the details. 
-    The 'flightNumber' field in your output MUST match the one the user asked for.
+    If you find the flight in the search results, set flightFound to true and fill in all the details you can find. 
+    The 'flightNumber' field in your output MUST match the original {{{flightNumber}}} the user asked for.
 
-    If you cannot find any clear information about the flight in the snippets, set flightFound to false and leave the other fields empty.
+    If you cannot find any clear information about the flight in the snippets, set flightFound to false and leave all other fields empty.
   `,
 });

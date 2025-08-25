@@ -12,7 +12,7 @@ const AirportInfoSchema = z.object({
 
 const FlightTimeSchema = z.object({
   scheduled: z.string().describe("The scheduled time in HH:mm format."),
-  actual: z.string().describe("The actual or estimated time in HH:mm format."),
+  actual: z.string().optional().describe("The actual or estimated time in HH:mm format."),
 });
 
 export const FindFlightInputSchema = z.object({
@@ -34,7 +34,8 @@ export const FindFlightOutputSchema = z.object({
     time: FlightTimeSchema,
   }).optional(),
   airline: z.string().optional().describe("The name of the airline (e.g., 'Boliviana de Aviación')."),
-  flightSegment: z.string().optional().describe("The flight route segment as 'DEPARTURE_CODE/ARRIVAL_CODE' (e.g., 'LPB/VVI').")
+  flightSegment: z.string().optional().describe("The flight route segment as 'DEPARTURE_CODE/ARRIVAL_CODE' (e.g., 'LPB/VVI')."),
+  errorMessage: z.string().optional().describe("An error message if the search flow failed.")
 });
 
 export type FindFlightOutput = z.infer<typeof FindFlightOutputSchema>;
