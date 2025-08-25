@@ -6,7 +6,7 @@
 
 import { ai } from '@/ai/genkit';
 import { FindFlightInputSchema, FindFlightOutputSchema } from '@/ai/flows/flight-types';
-import { googleSearch } from '@genkit-ai/googleai';
+import { googleSearch } from '@genkit-ai/googleai/tools';
 
 
 export const flightExpertPrompt = ai.definePrompt({
