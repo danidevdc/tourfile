@@ -377,7 +377,7 @@ export default function ServiceOrderPage() {
               </div>
 
                {/* --- MAIN DETAILS --- */}
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg bg-card">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg bg-card">
                   <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia.toUpperCase()} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1" /></div>
                   <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel.toUpperCase()} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1" /></div>
                   <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={handleBusTypeChange}><SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{BUS_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
@@ -452,14 +452,14 @@ export default function ServiceOrderPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="bg-muted/50 border" style={{width: '86px'}}>Fecha</TableHead>
-                                    <TableHead className="bg-muted/50 border" style={{width: '56px'}}>Hora</TableHead>
-                                    <TableHead className="bg-muted/50 border">Servicio</TableHead>
-                                    <TableHead className="bg-muted/50 border" style={{width: '70px'}}>Vuelo</TableHead>
-                                    <TableHead className="bg-muted/50 border" style={{width: '150px'}}>Guía</TableHead>
-                                    <TableHead className="bg-muted/50 border" style={{width: '70px'}}>Bus</TableHead>
-                                    <TableHead className="bg-muted/50 border" style={{width: '80px'}}>Chofer</TableHead>
-                                    <TableHead className="bg-muted/50 border">Observaciones</TableHead>
+                                    <TableHead className="border bg-muted/50" style={{width: '86px'}}>Fecha</TableHead>
+                                    <TableHead className="border bg-muted/50" style={{width: '56px'}}>Hora</TableHead>
+                                    <TableHead className="border bg-muted/50">Servicio</TableHead>
+                                    <TableHead className="border bg-muted/50" style={{width: '70px'}}>Vuelo</TableHead>
+                                    <TableHead className="border bg-muted/50" style={{width: '85px'}}>Guía</TableHead>
+                                    <TableHead className="border bg-muted/50" style={{width: '70px'}}>Bus</TableHead>
+                                    <TableHead className="border bg-muted/50" style={{width: '80px'}}>Chofer</TableHead>
+                                    <TableHead className="border bg-muted/50">Observaciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -492,7 +492,7 @@ export default function ServiceOrderPage() {
                       onClose={() => setIsModalOpen(false)}
                    />
               )}
-               <Card>
+              <Card>
                 <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1">
                       <AccordionTrigger className="text-lg font-medium p-6">Observaciones y Notas Finales</AccordionTrigger>
