@@ -35,7 +35,6 @@ const flightExpertPrompt = ai.definePrompt({
     Date: {{{date}}}
   `,
   
-  // The 'tools' array should be a top-level property, not inside 'config'.
   tools: [googleAI.googleSearchTool],
 });
 
@@ -46,10 +45,15 @@ export const findFlight = ai.defineFlow(
     outputSchema: FindFlightOutputSchema,
   },
   async (input) => {
-    const { output } = await flightExpertPrompt(input);
-    if (!output || !output.flightFound) {
+    console.log("[SERVER] Recibido de la IA:", JSON.stringify(input, null, 2));
+
+    const result = await flightExpertPrompt(input);
+    
+    console.log("[SERVER] Respuesta de la IA:", JSON.stringify(result.output, null, 2));
+    
+    if (!result.output || !result.output.flightFound) {
       return { flightFound: false };
     }
-    return output;
+    return result.output;
   }
 );

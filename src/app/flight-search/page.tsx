@@ -33,11 +33,16 @@ function FlightSearchCard() {
     setError(null);
     setSearchResult(null);
     try {
-      const result = await findFlight({
+      const flightDataPayload = {
         flightNumber,
         date: format(flightDate, 'yyyy-MM-dd'),
-        transferType: 'TRF IN' 
-      });
+        transferType: 'TRF IN' as const
+      };
+      
+      console.log("[CLIENT] Enviando a la IA:", JSON.stringify(flightDataPayload, null, 2));
+
+      const result = await findFlight(flightDataPayload);
+      
       if (!result.flightFound) {
         setError(`Vuelo ${flightNumber} no encontrado para la fecha seleccionada. Verifica los datos e intenta de nuevo.`);
       }
