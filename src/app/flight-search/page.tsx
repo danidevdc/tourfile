@@ -43,6 +43,8 @@ function FlightSearchCard() {
 
       const result = await findFlight(flightDataPayload);
       
+      console.log("[CLIENT] Respuesta de la IA:", JSON.stringify(result, null, 2));
+      
       if (!result.flightFound) {
         setError(`Vuelo ${flightNumber} no encontrado para la fecha seleccionada. Verifica los datos e intenta de nuevo.`);
       }
