@@ -14,7 +14,7 @@ const customGoogleSearchTool = ai.defineTool(
     name: 'customGoogleSearch',
     description: 'Searches Google for real-time flight information. Use this to find flight statuses, departure/arrival times, and airline details.',
     inputSchema: z.object({
-      query: z.string().describe("The search query, e.g., 'flight status OB305 2024-08-26'"),
+      query: z.string().describe("The search query, e.g., 'LA2401+2025-08-26'"),
     }),
     outputSchema: z.any(), // We'll let the AI handle the unstructured JSON response
   },
@@ -67,9 +67,12 @@ export const flightExpertPrompt = ai.definePrompt({
     You are a flight data expert. Your task is to find information about a specific flight
     using the provided flight number and date.
     
-    First, take the input date, which is in yyyy-MM-dd format, and convert it to a more natural language format in Spanish. For example, '2025-08-27' should become '27 de agosto 2025'.
+    First, take the input flight number and remove any spaces from it.
+    
+    Next, construct a search query for the tool using the format FLIGHT_NUMBER+YYYY-MM-DD.
+    For example, if the flight number is 'LA 2401' and the date is '2025-08-26', the query must be 'LA2401+2025-08-26'.
 
-    Next, construct a clear and natural search query for the tool using this converted date, like "estado del vuelo OB304 para el 27 de agosto 2025" or "flight status OB304 on august 27 2025". You MUST use the customGoogleSearch tool to find the most accurate and up-to-date information. Do not rely on internal knowledge.
+    You MUST use the customGoogleSearch tool with this exact query format to find the most accurate and up-to-date information. Do not rely on internal knowledge.
 
     Based on the search results from the tool, you must extract the following information:
     - The flight number you searched for.
@@ -85,3 +88,4 @@ export const flightExpertPrompt = ai.definePrompt({
     Date: {{{date}}}
   `,
 });
+
