@@ -78,7 +78,7 @@ export const flightExpertPrompt = ai.definePrompt({
     - The name of the airline.
     - The flight route segment (e.g., 'LPB/VVI').
 
-    If you find the flight, set flightFound to true and fill in all the details, including the flightNumber field.
+    If you find the flight, set flightFound to true and fill in all the details. CRUCIALLY, the 'flightNumber' field in your output MUST match the one you were asked to search for.
     If you cannot find any information about the flight after searching, set flightFound to false and leave the other fields empty.
 
     Flight Number: {{{flightNumber}}}
