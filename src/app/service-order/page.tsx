@@ -300,7 +300,9 @@ export default function ServiceOrderPage() {
 
   const handleFlightSearch = async () => {
     const serviceDate = newService.fecha;
-    if (!flightSearchNumber || !serviceDate) {
+    const normalizedFlightNumber = flightSearchNumber.replace(/\s/g, '').toUpperCase();
+
+    if (!normalizedFlightNumber || !serviceDate) {
       toast({ title: "Datos incompletos", description: "Ingresa un número de vuelo y una fecha para buscar.", variant: "destructive" });
       return;
     }
@@ -315,11 +317,11 @@ export default function ServiceOrderPage() {
     }
 
     setIsSearchingFlight(true);
-    toast({ title: "Buscando vuelo...", description: `Buscando ${flightSearchNumber} para el ${serviceDate}` });
+    toast({ title: "Buscando vuelo...", description: `Buscando ${normalizedFlightNumber} para el ${serviceDate}` });
 
     try {
         const flightInput: FindFlightInput = {
-            flightNumber: flightSearchNumber,
+            flightNumber: normalizedFlightNumber,
             date: format(parsedDate, 'yyyy-MM-dd'),
             transferType: newService.servicio as 'TRF IN' | 'TRF OUT',
         };
@@ -328,25 +330,30 @@ export default function ServiceOrderPage() {
 
         if (!flightInfo.flightFound) {
             toast({ title: "Vuelo no encontrado", description: "No se encontró información para ese vuelo. Revisa el número y la fecha.", variant: "destructive" });
+            setIsSearchingFlight(false);
             return;
         }
 
         let newTime = '';
         let newObservation = '';
 
-        if (newService.servicio === 'TRF OUT' && flightInfo.departure) {
+        if (newService.servicio === 'TRF OUT' && flightInfo.departure && flightInfo.departure.time.actual) {
             const departureTime = parse(flightInfo.departure.time.actual, 'HH:mm', new Date());
             newTime = format(subHours(departureTime, 2), 'HH:mm');
             newObservation = `VUELO SALE ${flightInfo.departure.time.actual} ${flightInfo.departure.airport.code}/${flightInfo.arrival?.airport.code || '???'}`;
-        } else if (newService.servicio === 'TRF IN' && flightInfo.arrival) {
+        } else if (newService.servicio === 'TRF IN' && flightInfo.arrival && flightInfo.arrival.time.actual) {
             const arrivalTime = parse(flightInfo.arrival.time.actual, 'HH:mm', new Date());
             newTime = format(subHours(arrivalTime, 1), 'HH:mm');
             newObservation = `VUELO LLEGA ${flightInfo.arrival.time.actual} ${flightInfo.departure?.airport.code || '???'}/${flightInfo.arrival.airport.code}`;
+        } else {
+             toast({ title: "Datos de vuelo incompletos", description: "Se encontró el vuelo, pero faltan los horarios de llegada/salida.", variant: "destructive" });
+             setIsSearchingFlight(false);
+             return;
         }
         
         setNewService(prev => ({
             ...prev,
-            vuelo: flightSearchNumber.toUpperCase(),
+            vuelo: normalizedFlightNumber,
             hora: newTime,
             observaciones: newObservation
         }));
