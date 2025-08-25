@@ -40,18 +40,6 @@ const flightExpertPrompt = ai.definePrompt({
 
 // The exported function that will be the Server Action
 export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
-  return await findFlightFlow(input);
-}
-
-
-// The internal Genkit flow
-const findFlightFlow = ai.defineFlow(
-  {
-    name: 'findFlightFlow',
-    inputSchema: FindFlightInputSchema,
-    outputSchema: FindFlightOutputSchema,
-  },
-  async (input) => {
     console.log("[SERVER] Recibido de la IA:", JSON.stringify(input, null, 2));
 
     const result = await flightExpertPrompt(input);
@@ -62,5 +50,4 @@ const findFlightFlow = ai.defineFlow(
       return { flightFound: false };
     }
     return result.output;
-  }
-);
+}
