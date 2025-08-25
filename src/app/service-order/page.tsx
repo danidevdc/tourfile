@@ -27,7 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileDown, Trash2, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon, Edit } from "lucide-react";
+import { ArrowLeft, Loader2, FileDown, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon, Edit } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -286,9 +286,11 @@ export default function ServiceOrderPage() {
   };
 
   const handleTimeInputBlur = (e: React.FocusEvent<HTMLInputElement>, index: number) => {
-      const rawValue = e.target.value.replace(/[^0-9]/g, '');
-      if (rawValue.length === 4) {
-          handleServiceChange(index, 'hora', `${rawValue.slice(0,2)}:${rawValue.slice(2,4)}`);
+      const rawValue = e.target.value.replace(/[^\d]/g, '');
+      if (rawValue.length >= 2) {
+          const hours = rawValue.slice(0, 2);
+          const minutes = rawValue.slice(2, 4) || '00';
+          handleServiceChange(index, 'hora', `${hours}:${minutes}`);
       }
   };
 
@@ -343,14 +345,26 @@ export default function ServiceOrderPage() {
       setIsGenerating(false);
     }
   };
+  
+  const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
+  const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
+  const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\s/i, '') }));
+  
+  const isAddServiceDisabled =
+    !orderData.file.trim() ||
+    !orderData.ref.trim() ||
+    !orderData.nPax.trim() ||
+    !orderData.guia.trim() ||
+    !busTypeSelection.trim() ||
+    !orderData.services[0]?.chofer?.trim();
+
 
   if (authLoading || isLoading) {
     return <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
   
-  const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
-  const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
-  const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\s/i, '') }));
+  const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
+  
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background space-y-6">
@@ -370,7 +384,7 @@ export default function ServiceOrderPage() {
                           <Upload className="mr-2 h-4 w-4" />{selectedFile ? selectedFile.name : "Seleccionar archivo .xlsx"}
                       </Button>
                       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
-                      {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile} title="Limpiar archivo"><Trash2 className="h-4 w-4"/></Button>}
+                      {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile} title="Limpiar archivo"><PlusCircle className="h-4 w-4 rotate-45"/></Button>}
                   </div>
                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                         <div className="md:col-span-3">
@@ -417,10 +431,10 @@ export default function ServiceOrderPage() {
                                 </div>
                             </div>
                             <div className="md:col-span-2"><Label>Hora</Label><Input value={service.hora} onChange={(e) => handleTimeInputChange(e, index)} onBlur={(e) => handleTimeInputBlur(e, index)} placeholder="HH:mm" maxLength={5} className="mt-1"/></div>
-                            <div className="md:col-span-8"><Label>Actividad</Label><Combobox options={activities} value={service.servicio.toUpperCase()} onSelect={(val) => handleServiceChange(index, 'servicio', val)} placeholder="Buscar actividad..." className="mt-1"/></div>
+                            <div className="md:col-span-8"><Label>Actividad</Label><Combobox options={activityOptions} value={service.servicio.toUpperCase()} onSelect={(val) => handleServiceChange(index, 'servicio', val)} placeholder="Buscar actividad..." className="mt-1"/></div>
                         </div>
                     ))}
-                    <Button onClick={addNewServiceRow} variant="outline" size="sm" className="bg-blue-100 hover:bg-blue-200 border-blue-300 text-blue-800">
+                    <Button onClick={addNewServiceRow} variant="outline" size="sm" className="bg-blue-100 hover:bg-blue-200 border-blue-300 text-blue-800" disabled={isAddServiceDisabled}>
                         <PlusCircle className="mr-2 h-4 w-4"/>Añadir Fila de Servicio
                     </Button>
                 </div>
@@ -480,8 +494,6 @@ export default function ServiceOrderPage() {
                    />
               )}
 
-
-              {/* --- FINAL NOTES --- */}
               <Card>
                 <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
                     <AccordionItem value="item-1" className="border-b-0">
