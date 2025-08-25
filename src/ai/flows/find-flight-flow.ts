@@ -38,7 +38,14 @@ const flightExpertPrompt = ai.definePrompt({
   tools: [googleAI.googleSearchTool],
 });
 
-export const findFlight = ai.defineFlow(
+// The exported function that will be the Server Action
+export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
+  return await findFlightFlow(input);
+}
+
+
+// The internal Genkit flow
+const findFlightFlow = ai.defineFlow(
   {
     name: 'findFlightFlow',
     inputSchema: FindFlightInputSchema,
