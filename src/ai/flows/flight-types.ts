@@ -1,4 +1,3 @@
-'use server';
 /**
  * @fileOverview Shared types for the flight-finding AI agent.
  */
