@@ -288,7 +288,7 @@ export default function ServiceOrderPage() {
       chofer: choferSelection,
     };
     setOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd]}));
-    setNewService(initialNewServiceState); // Reset for next entry
+    setNewService(prev => ({...prev, fecha: '', servicio: '', hora: '09:00'})); // Reset for next entry
   }
   
   const handleSaveFromModal = (updatedServices: ServiceItem[]) => {
@@ -492,8 +492,7 @@ export default function ServiceOrderPage() {
                       onClose={() => setIsModalOpen(false)}
                    />
               )}
-
-              <Card>
+               <Card>
                 <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1">
                       <AccordionTrigger className="text-lg font-medium p-6">Observaciones y Notas Finales</AccordionTrigger>
