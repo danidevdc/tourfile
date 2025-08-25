@@ -27,7 +27,7 @@ const flightExpertPrompt = ai.definePrompt({
 
 You will be given a flight number, a date, and a transfer type.
 Your task is to use your search tool to find the flight details and then extract the following information:
-1. The scheduled departure and arrival times.
+1. The scheduled and actual departure and arrival times.
 2. The departure and arrival airport codes (e.g., LPB, VVI).
 3. The name of the airline.
 
