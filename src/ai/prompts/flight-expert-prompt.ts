@@ -24,7 +24,7 @@ export const customGoogleSearchTool = ai.defineTool(
     const searchEngineId = process.env.SEARCH_ENGINE_ID;
 
     if (!apiKey || !searchEngineId) {
-      console.error("[TOOL] Missing GOOGLE_API_KEY or SEARCH_ENGINE_ID in .env file.");
+      console.error("[TOOL] Missing GEMINI_API_KEY or SEARCH_ENGINE_ID in .env file.");
       return { error: "Missing API key or Search Engine ID." };
     }
 
