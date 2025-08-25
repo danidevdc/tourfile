@@ -6,7 +6,7 @@
 
 import { ai } from '@/ai/genkit';
 import { FindFlightInputSchema, FindFlightOutputSchema } from '@/ai/flows/flight-types';
-// Removed googleAI import as the specific tool is being removed.
+import { googleAI } from '@genkit-ai/googleai';
 
 
 export const flightExpertPrompt = ai.definePrompt({
@@ -14,6 +14,9 @@ export const flightExpertPrompt = ai.definePrompt({
   input: { schema: FindFlightInputSchema },
   output: { schema: FindFlightOutputSchema },
   
+  // Add the Google Search tool to enable real-time web searches.
+  tools: [googleAI.googleSearchTool()],
+
   // Instructions for the AI model
   prompt: `
     You are a flight data expert. Your task is to find information about a specific flight
@@ -32,9 +35,6 @@ export const flightExpertPrompt = ai.definePrompt({
     Flight Number: {{{flightNumber}}}
     Date: {{{date}}}
   `,
-  
-  // By removing the explicit tools array, we rely on the model's inherent ability
-  // to search when prompted to do so, which avoids the Next.js Server Action compilation issue.
 });
 
     
