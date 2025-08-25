@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
-import { format, isBefore, startOfToday } from 'date-fns';
+import { format, isBefore, startOfToday, parse } from 'date-fns';
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -18,7 +18,7 @@ import {
 } from "@/lib/serviceOrderService";
 import { generateServiceOrderExcel, type ServiceOrderData, type ServiceItem } from '@/lib/serviceOrderGenerator';
 import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generator";
-import { getActivitiesFromFirestore, type Activity } from "@/lib/activityService";
+import { getActivitiesFromFirestore } from "@/lib/activityService";
 import { ItineraryEditModal } from '@/components/service-order/ItineraryEditModal';
 
 
@@ -63,7 +63,9 @@ export default function ServiceOrderPage() {
   const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
   const [ownDrivers, setOwnDrivers] = useState<Driver[]>([]);
   const [externalDrivers, setExternalDrivers] = useState<Driver[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activities, setActivities] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [orderData, setOrderData] = useState<ServiceOrderData>(initialServiceOrderState);
@@ -142,7 +144,7 @@ export default function ServiceOrderPage() {
           setGuides(fetchedGuides);
           setHotels(fetchedHotels);
           setAllDrivers(fetchedDrivers);
-          setActivities(fetchedActivities);
+          setActivities(fetchedActivities.map(a => ({ value: a.name.toUpperCase(), label: a.name })));
           setOwnDrivers(fetchedDrivers.filter(d => !d.name.startsWith('CONT ')));
           setExternalDrivers(fetchedDrivers.filter(d => d.name.startsWith('CONT ')));
         } catch (error) {
@@ -238,10 +240,14 @@ export default function ServiceOrderPage() {
     setOrderData(prev => ({ ...prev, [field]: value.toUpperCase() }));
   };
   
-  const handleSelectChange = (type: 'guide' | 'hotel', value: string) => {
+  const handleSelectChange = (type: 'guide' | 'hotel' | 'chofer', value: string) => {
     const upperValue = value.toUpperCase();
     if (type === 'guide') setOrderData(prev => ({ ...prev, guia: upperValue }));
     else if (type === 'hotel') setOrderData(prev => ({ ...prev, hotel: upperValue }));
+    else if (type === 'chofer') {
+        const updatedServices = orderData.services.map(s => ({...s, chofer: upperValue}));
+        setOrderData(prev => ({...prev, services: updatedServices}));
+    }
   };
 
   const handleBusTypeChange = (value: string) => {
@@ -251,12 +257,12 @@ export default function ServiceOrderPage() {
         services: prev.services.map(s => ({
             ...s,
             bus: value === 'CONT.' ? 'CONT.' : value,
-            chofer: ''
+            chofer: '' // Reset chofer when bus type changes
         }))
     }));
   }
   
-  const handleDateInputChange = (e: ChangeEvent<HTMLInputElement>, onStateChange: (value: string) => void) => {
+  const handleDateInputChange = (e: ChangeEvent<HTMLInputElement>, index: number) => {
     const rawValue = e.target.value;
     const numbersOnly = rawValue.replace(/[^0-9]/g, '');
     let formatted = '';
@@ -265,10 +271,10 @@ export default function ServiceOrderPage() {
     if (numbersOnly.length > 2) formatted += '/' + numbersOnly.slice(2, 4);
     if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 8);
     
-    onStateChange(formatted);
+    handleServiceChange(index, 'fecha', formatted);
   };
   
-  const handleTimeInputChange = (e: ChangeEvent<HTMLInputElement>, onStateChange: (value: string) => void) => {
+  const handleTimeInputChange = (e: ChangeEvent<HTMLInputElement>, index: number) => {
       const rawValue = e.target.value;
       const numbersOnly = rawValue.replace(/[^0-9]/g, '');
       let formatted = '';
@@ -276,13 +282,13 @@ export default function ServiceOrderPage() {
       if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
       if (numbersOnly.length > 2) formatted += ':' + numbersOnly.slice(2, 4);
 
-      onStateChange(formatted);
+      handleServiceChange(index, 'hora', formatted);
   };
 
-  const handleTimeInputBlur = (e: React.FocusEvent<HTMLInputElement>, onStateChange: (value: string) => void) => {
+  const handleTimeInputBlur = (e: React.FocusEvent<HTMLInputElement>, index: number) => {
       const rawValue = e.target.value.replace(/[^0-9]/g, '');
       if (rawValue.length === 4) {
-          onStateChange(`${rawValue.slice(0,2)}:${rawValue.slice(2,4)}`);
+          handleServiceChange(index, 'hora', `${rawValue.slice(0,2)}:${rawValue.slice(2,4)}`);
       }
   };
 
@@ -306,14 +312,6 @@ export default function ServiceOrderPage() {
       };
       setOrderData(prev => ({ ...prev, services: [...prev.services, newService]}));
   }
-
-  const removeService = (index: number) => {
-    if (orderData.services.length <= 1) {
-        toast({ title: "Acción no permitida", description: "Debe haber al menos un servicio.", variant: "destructive"});
-        return;
-    }
-    setOrderData(prev => ({ ...prev, services: prev.services.filter((_, i) => i !== index) }));
-  };
   
   const handleSaveFromModal = (updatedServices: ServiceItem[]) => {
       setOrderData(prev => ({...prev, services: updatedServices}));
@@ -352,12 +350,11 @@ export default function ServiceOrderPage() {
   
   const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
   const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
-  const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
   const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\s/i, '') }));
 
   return (
-    <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background">
-      <div className="w-full max-w-7xl mb-4"><Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back"><ArrowLeft className="h-5 w-5" /></Button></div>
+    <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background space-y-6">
+      <div className="w-full max-w-7xl"><Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back"><ArrowLeft className="h-5 w-5" /></Button></div>
 
        <Card className="w-full max-w-7xl shadow-lg">
           <CardHeader>
@@ -392,34 +389,40 @@ export default function ServiceOrderPage() {
               </div>
 
                {/* --- MAIN DETAILS --- */}
-               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-card">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg bg-card">
                   <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia.toUpperCase()} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1" /></div>
                   <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel.toUpperCase()} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1" /></div>
                   <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={handleBusTypeChange}><SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{BUS_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
+                   <div><Label>Chofer</Label><Combobox options={driverOptions} value={orderData.services[0]?.chofer?.toUpperCase() || ''} onSelect={(val) => handleSelectChange('chofer', val)} placeholder="Seleccionar chofer..." className="mt-1" /></div>
               </div>
               
               {/* --- DYNAMIC ITINERARY FORM --- */}
                 <div className="space-y-4 p-4 border rounded-lg">
                     <h3 className="text-lg font-medium">Itinerario Dinámico</h3>
                     {orderData.services.map((service, index) => (
-                        <div key={index} className="flex flex-col md:flex-row items-end gap-2 p-2 border-b last:border-b-0">
-                             <div className="w-full md:w-auto">
+                        <div key={index} className="grid grid-cols-1 md:grid-cols-12 items-end gap-2 p-2 border-b last:border-b-0">
+                             <div className="md:col-span-2">
                                 <Label>Fecha</Label>
                                 <div className="relative mt-1">
-                                    <Input value={service.fecha} onChange={(e) => handleDateInputChange(e, (val) => handleServiceChange(index, 'fecha', val))} placeholder="dd/MM/yyyy" className="w-full md:w-[150px]" maxLength={10} />
+                                    <Input 
+                                      value={service.fecha} 
+                                      onChange={(e) => handleDateInputChange(e, index)} 
+                                      placeholder="dd/MM/yyyy" 
+                                      maxLength={10} 
+                                    />
                                     <Popover>
-                                        <PopoverTrigger asChild><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer" onClick={(e) => e.stopPropagation()}><CalendarIcon className="h-4 w-4 text-muted-foreground" /></button></PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" onFocusOutside={(e) => e.preventDefault()}><Calendar mode="single" selected={service.fecha ? new Date(service.fecha.split('/').reverse().join('-')) : undefined} onSelect={(date) => handleServiceChange(index, 'fecha', date ? format(date, "dd/MM/yyyy") : "")} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
+                                        <PopoverTrigger asChild><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"><CalendarIcon className="h-4 w-4 text-muted-foreground" /></button></PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={service.fecha ? parse(service.fecha, "dd/MM/yyyy", new Date()) : undefined} onSelect={(date) => date && handleServiceChange(index, 'fecha', format(date, "dd/MM/yyyy"))} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
                                     </Popover>
                                 </div>
                             </div>
-                            <div className="w-full md:w-[120px]"><Label>Hora</Label><Input value={service.hora} onChange={(e) => handleTimeInputChange(e, (val) => handleServiceChange(index, 'hora', val))} onBlur={(e) => handleTimeInputBlur(e, (val) => handleServiceChange(index, 'hora', val))} placeholder="HH:mm" maxLength={5} className="mt-1"/></div>
-                            <div className="flex-1 w-full md:w-auto"><Label>Actividad</Label><Combobox options={activityOptions} value={service.servicio.toUpperCase()} onSelect={(val) => handleServiceChange(index, 'servicio', val)} placeholder="Buscar actividad..." className="mt-1"/></div>
-                            <div className="w-full md:w-[180px]"><Label>Chofer</Label><Combobox options={driverOptions} value={service.chofer?.toUpperCase() || ''} onSelect={(val) => handleServiceChange(index, 'chofer', val)} placeholder="Seleccionar chofer..." className="mt-1" /></div>
-                            <div><Button variant="destructive" size="icon" onClick={() => removeService(index)}><Trash2 className="h-4 w-4"/></Button></div>
+                            <div className="md:col-span-2"><Label>Hora</Label><Input value={service.hora} onChange={(e) => handleTimeInputChange(e, index)} onBlur={(e) => handleTimeInputBlur(e, index)} placeholder="HH:mm" maxLength={5} className="mt-1"/></div>
+                            <div className="md:col-span-8"><Label>Actividad</Label><Combobox options={activities} value={service.servicio.toUpperCase()} onSelect={(val) => handleServiceChange(index, 'servicio', val)} placeholder="Buscar actividad..." className="mt-1"/></div>
                         </div>
                     ))}
-                    <Button onClick={addNewServiceRow} variant="outline"><PlusCircle className="mr-2 h-4 w-4"/>Añadir Servicio</Button>
+                    <Button onClick={addNewServiceRow} variant="outline" size="sm" className="bg-blue-100 hover:bg-blue-200 border-blue-300 text-blue-800">
+                        <PlusCircle className="mr-2 h-4 w-4"/>Añadir Fila de Servicio
+                    </Button>
                 </div>
 
 
@@ -440,12 +443,12 @@ export default function ServiceOrderPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="bg-muted/50">Fecha</TableHead>
-                                    <TableHead className="bg-muted/50">Hora</TableHead>
+                                    <TableHead className="bg-muted/50 w-[120px]">Fecha</TableHead>
+                                    <TableHead className="bg-muted/50 w-[100px]">Hora</TableHead>
                                     <TableHead className="bg-muted/50">Servicio</TableHead>
-                                    <TableHead className="bg-muted/50">Guía</TableHead>
-                                    <TableHead className="bg-muted/50">Bus</TableHead>
-                                    <TableHead className="bg-muted/50">Chofer</TableHead>
+                                    <TableHead className="bg-muted/50 w-[180px]">Guía</TableHead>
+                                    <TableHead className="bg-muted/50 w-[80px]">Bus</TableHead>
+                                    <TableHead className="bg-muted/50 w-[180px]">Chofer</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -479,15 +482,17 @@ export default function ServiceOrderPage() {
 
 
               {/* --- FINAL NOTES --- */}
-              <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
-                  <AccordionItem value="item-1">
-                    <AccordionTrigger className="text-lg font-medium">Observaciones y Notas Finales</AccordionTrigger>
-                    <AccordionContent className="space-y-4 pt-4">
-                      <div><Label htmlFor="observaciones">Observaciones Generales</Label><Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={3}/></div>
-                      <div><Label htmlFor="nota">Nota (Pie de página)</Label><Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/></div>
-                    </AccordionContent>
-                  </AccordionItem>
-              </Accordion>
+              <Card>
+                <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+                    <AccordionItem value="item-1" className="border-b-0">
+                      <AccordionTrigger className="text-lg font-medium p-6">Observaciones y Notas Finales</AccordionTrigger>
+                      <AccordionContent className="space-y-4 px-6 pb-6">
+                        <div><Label htmlFor="observaciones">Observaciones Generales</Label><Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={3}/></div>
+                        <div><Label htmlFor="nota">Nota (Pie de página)</Label><Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/></div>
+                      </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+              </Card>
 
               {/* --- DOWNLOAD --- */}
               <Card>
@@ -500,5 +505,3 @@ export default function ServiceOrderPage() {
     </div>
   );
 }
-
-    
