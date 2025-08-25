@@ -42,7 +42,7 @@ export function ItineraryEditModal({ services, guides, drivers, onSave, onClose 
 
         if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
         if (numbersOnly.length > 2) formatted += '/' + numbersOnly.slice(2, 4);
-        if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 8);
+        if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 6); // Changed to 6 for yy
         
         handleServiceChange(index, 'fecha', formatted);
     };
@@ -93,8 +93,8 @@ export function ItineraryEditModal({ services, guides, drivers, onSave, onClose 
                                             <Input
                                                 value={service.fecha}
                                                 onChange={(e) => handleDateInputChange(e, index)}
-                                                placeholder="dd/MM/yyyy"
-                                                maxLength={10}
+                                                placeholder="dd/MM/yy"
+                                                maxLength={8}
                                             />
                                             <Popover open={openPopoverIndex === index} onOpenChange={(isOpen) => setOpenPopoverIndex(isOpen ? index : null)}>
                                                 <PopoverTrigger asChild>
@@ -103,10 +103,10 @@ export function ItineraryEditModal({ services, guides, drivers, onSave, onClose 
                                                 <PopoverContent className="w-auto p-0">
                                                     <Calendar
                                                         mode="single"
-                                                        selected={service.fecha ? parse(service.fecha, "dd/MM/yyyy", new Date()) : undefined}
+                                                        selected={service.fecha ? parse(service.fecha, "dd/MM/yy", new Date()) : undefined}
                                                         onSelect={(date) => {
                                                             if(date) {
-                                                                handleServiceChange(index, 'fecha', format(date, 'dd/MM/yyyy'));
+                                                                handleServiceChange(index, 'fecha', format(date, 'dd/MM/yy'));
                                                                 setOpenPopoverIndex(null); // Close popover on select
                                                             }
                                                         }}

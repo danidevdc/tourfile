@@ -271,7 +271,7 @@ export default function ServiceOrderPage() {
 
     if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
     if (numbersOnly.length > 2) formatted += '/' + numbersOnly.slice(2, 4);
-    if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 8);
+    if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 6); // Changed to 6 for yy
     
     setNewService(prev => ({...prev, fecha: formatted}));
   };
@@ -321,10 +321,10 @@ export default function ServiceOrderPage() {
     
     let parsedDate;
     try {
-        parsedDate = parse(serviceDate, 'dd/MM/yyyy', new Date());
+        parsedDate = parse(serviceDate, 'dd/MM/yy', new Date());
         if (isNaN(parsedDate.getTime())) throw new Error("Invalid date");
     } catch(e) {
-        toast({ title: "Fecha inválida", description: "Por favor, usa el formato dd/MM/yyyy.", variant: "destructive" });
+        toast({ title: "Fecha inválida", description: "Por favor, usa el formato dd/MM/yy.", variant: "destructive" });
         return;
     }
 
@@ -512,10 +512,10 @@ export default function ServiceOrderPage() {
                       <div className="md:col-span-2">
                           <Label>Fecha</Label>
                           <div className="relative mt-1">
-                              <Input value={newService.fecha} onChange={(e) => handleDateInputChange(e)} placeholder="dd/MM/yyyy" maxLength={10} />
+                              <Input value={newService.fecha} onChange={(e) => handleDateInputChange(e)} placeholder="dd/MM/yy" maxLength={8} />
                               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                   <PopoverTrigger asChild><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"><CalendarIcon className="h-4 w-4 text-muted-foreground" /></button></PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={newService.fecha ? parse(newService.fecha, "dd/MM/yyyy", new Date()) : undefined} onSelect={(date) => { if (date) { handleNewServiceChange('fecha', format(date, "dd/MM/yyyy")); setIsCalendarOpen(false); } }} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
+                                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={newService.fecha ? parse(newService.fecha, "dd/MM/yy", new Date()) : undefined} onSelect={(date) => { if (date) { handleNewServiceChange('fecha', format(date, "dd/MM/yy")); setIsCalendarOpen(false); } }} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
                               </Popover>
                           </div>
                       </div>
