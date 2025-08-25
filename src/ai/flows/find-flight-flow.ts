@@ -13,7 +13,7 @@ import { FindFlightInput, FindFlightOutput } from './flight-types';
 export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
   console.log(`[FlightScraper] Starting search for ${input.flightNumber} on ${input.date}`);
 
-  // Headless browser options
+  // Headless browser options with no-sandbox argument for compatibility with server environments.
   const browser = await puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
