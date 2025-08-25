@@ -1,62 +1,73 @@
+
 'use server';
 /**
- * @fileOverview A flight information retrieval AI agent.
- * This agent uses a tool-based approach to first perform a targeted web search
- * for a flight and then extracts structured data from the results.
+ * @fileOverview A flight information retrieval agent using direct web scraping.
+ * This agent uses Puppeteer to scrape flight data from a reliable source.
  *
- * - findFlight - A function that handles finding flight details.
+ * - findFlight - A function that handles finding flight details via scraping.
  */
 
-import {ai} from '@/ai/genkit';
-import {
-  FindFlightInput,
-  FindFlightInputSchema,
-  FindFlightOutput,
-  FindFlightOutputSchema
-} from './flight-types';
-
-
-const flightExpertPrompt = ai.definePrompt({
-  name: 'flightExpertPrompt',
-  input: {schema: FindFlightInputSchema},
-  output: {schema: FindFlightOutputSchema},
-  // By enabling the googleSearch tool, we instruct the model to use it when needed
-  // to fulfill the user's request. This is more reliable than a generic instruction.
-  tools: [ai.googleSearch],
-  system: `You are an expert flight logistics coordinator. Your primary task is to find flight information based on a flight number and date by searching the web.
-
-You will be given a flight number, a date, and a transfer type.
-Your task is to use your search tool to find the flight details and then extract the following information:
-1. The scheduled and actual departure and arrival times.
-2. The departure and arrival airport codes (e.g., LPB, VVI).
-3. The name of the airline.
-
-Key Instructions:
-- Based on the flight number, date, and transfer type (TRF IN/OUT), find the scheduled and actual times for departure and arrival.
-- Populate the output schema with the data you find. The 'flightSegment' should be in the format 'DEPARTURE_CODE/ARRIVAL_CODE'.
-- The user's reference airport is ALWAYS El Alto International Airport (LPB) in La Paz, Bolivia.
-- If you successfully find the flight, populate the output schema and set 'flightFound' to true.
-- If after searching you cannot find any reliable information for the requested flight, you MUST return 'flightFound' as false. Do not guess or invent data.
-`,
-  prompt: `Find flight details for flight number {{flightNumber}} on {{date}}. This is a {{transferType}} operation relative to La Paz (LPB).`,
-});
-
-
-const findFlightFlow = ai.defineFlow(
-  {
-    name: 'findFlightFlow',
-    inputSchema: FindFlightInputSchema,
-    outputSchema: FindFlightOutputSchema,
-  },
-  async (input) => {
-    const {output} = await flightExpertPrompt(input);
-    if (!output || !output.flightFound) {
-      return { flightFound: false };
-    }
-    return output;
-  }
-);
+import puppeteer from 'puppeteer';
+import { FindFlightInput, FindFlightOutput } from './flight-types';
 
 export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
-  return findFlightFlow(input);
+  console.log(`[FlightScraper] Starting search for ${input.flightNumber} on ${input.date}`);
+
+  // Headless browser options
+  const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+
+  const page = await browser.newPage();
+
+  try {
+    const searchUrl = `https://www.google.com/search?q=flight+${input.flightNumber}+on+${input.date}`;
+    await page.goto(searchUrl, { waitUntil: 'networkidle2' });
+
+    // Wait for the main flight result container to be visible
+    await page.waitForSelector('div[data-lahe]', { timeout: 10000 });
+
+    const flightData = await page.evaluate(() => {
+        // This code runs in the browser context
+        const departureEl = document.querySelector('div[data-lahe] .B63pAb .d22G1e');
+        const departureTime = departureEl?.textContent?.trim() || null;
+        const departureAirport = departureEl?.nextElementSibling?.textContent?.trim() || null;
+
+        const arrivalEl = document.querySelector('div[data-lahe] .B63pAb .d22G1e:nth-child(2)');
+        const arrivalTime = arrivalEl?.textContent?.trim() || null;
+        const arrivalAirport = arrivalEl?.nextElementSibling?.textContent?.trim() || null;
+
+        const airlineEl = document.querySelector('div[data-lahe] .B63pAb > div > span:last-child');
+        const airlineName = airlineEl?.textContent?.trim() || null;
+
+        if (!departureTime || !arrivalTime || !departureAirport || !arrivalAirport) {
+            return { flightFound: false };
+        }
+        
+        return {
+            flightFound: true,
+            departure: {
+                airport: { code: departureAirport },
+                time: { scheduled: departureTime, actual: departureTime }, // Assume scheduled and actual are the same from this source
+            },
+            arrival: {
+                airport: { code: arrivalAirport },
+                time: { scheduled: arrivalTime, actual: arrivalTime },
+            },
+            airline: airlineName,
+            flightSegment: `${departureAirport}/${arrivalAirport}`
+        };
+    });
+
+    console.log(`[FlightScraper] Data extracted:`, flightData);
+    await browser.close();
+    return flightData as FindFlightOutput;
+
+  } catch (error) {
+    console.error(`[FlightScraper] Error scraping flight data for ${input.flightNumber}:`, error);
+    await browser.close();
+    // Ensure we always return the correct object shape on error
+    return { flightFound: false };
+  }
 }
