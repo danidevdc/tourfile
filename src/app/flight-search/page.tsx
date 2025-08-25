@@ -63,13 +63,6 @@ function FlightSearchCard() {
       </CardHeader>
       <CardContent>
         <div className="flex flex-col sm:flex-row items-center gap-4">
-          <Input 
-            type="text" 
-            placeholder="Ej: OB305" 
-            value={flightNumber} 
-            onChange={(e) => setFlightNumber(e.target.value.toUpperCase())}
-            className="flex-grow"
-          />
           <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
             <PopoverTrigger asChild>
                 <Button
@@ -96,6 +89,13 @@ function FlightSearchCard() {
                 />
             </PopoverContent>
           </Popover>
+           <Input 
+            type="text" 
+            placeholder="Ej: OB305" 
+            value={flightNumber} 
+            onChange={(e) => setFlightNumber(e.target.value.toUpperCase())}
+            className="flex-grow"
+          />
           <Button onClick={handleSearch} disabled={isLoading || !flightNumber || !flightDate} className="w-full sm:w-auto">
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
             Buscar Vuelo
