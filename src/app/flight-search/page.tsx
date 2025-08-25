@@ -21,7 +21,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 function FlightSearchCard() {
   const [flightNumber, setFlightNumber] = useState('');
   const [flightDate, setFlightDate] = useState<Date | undefined>(new Date());
-  const [transferType, setTransferType] = useState<FindFlightInput['transferType']>('TRF IN');
+  const [transferType, setTransferType] = useState<FindFlightInput['transferType']>('LLEGADA');
   const [isLoading, setIsLoading] = useState(false);
   const [searchResult, setSearchResult] = useState<FindFlightOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -116,16 +116,16 @@ function FlightSearchCard() {
              <div className="sm:col-span-2">
                 <Label>Tipo de Transfer</Label>
                 <RadioGroup 
-                    defaultValue="TRF IN" 
+                    defaultValue="LLEGADA" 
                     onValueChange={(value: FindFlightInput['transferType']) => setTransferType(value)}
                     className="mt-2 grid grid-cols-2 gap-4"
                 >
                     <Label htmlFor="trf-in" className="flex items-center space-x-2 border rounded-md p-3 hover:bg-accent hover:text-accent-foreground cursor-pointer has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:checked]:border-primary">
-                        <RadioGroupItem value="TRF IN" id="trf-in" />
+                        <RadioGroupItem value="LLEGADA" id="trf-in" />
                         <span>Llegada a LPB</span>
                     </Label>
                     <Label htmlFor="trf-out" className="flex items-center space-x-2 border rounded-md p-3 hover:bg-accent hover:text-accent-foreground cursor-pointer has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:checked]:border-primary">
-                        <RadioGroupItem value="TRF OUT" id="trf-out" />
+                        <RadioGroupItem value="SALIDA" id="trf-out" />
                         <span>Salida de LPB</span>
                     </Label>
                 </RadioGroup>

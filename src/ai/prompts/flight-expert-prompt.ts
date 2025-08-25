@@ -3,6 +3,7 @@
  * @fileOverview Defines the Genkit prompt for the flight data expert.
  * This file defines the Genkit prompt for the flight data expert.
  */
+import { googleSearch } from '@genkit-ai/googleai/tools';
 import { ai } from '@/ai/genkit';
 import { FindFlightInputSchema, FindFlightOutputSchema } from '@/ai/flows/flight-types';
 
@@ -11,14 +12,15 @@ export const flightExpertPrompt = ai.definePrompt({
   name: 'flightExpertPrompt',
   input: { schema: FindFlightInputSchema },
   output: { schema: FindFlightOutputSchema },
+  tools: [googleSearch],
   
   // Instructions for the AI model
   prompt: `
     You are a flight data expert. Your task is to find information about a specific flight
     using the provided flight number, date, and transfer type. The 'transferType' indicates
-    if the flight is an arrival ('TRF IN') to La Paz (LPB) or a departure ('TRF OUT') from La Paz (LPB).
+    if the flight is an arrival ('LLEGADA') to La Paz (LPB) or a departure ('SALIDA') from La Paz (LPB).
     
-    You must use your internal knowledge to find the most accurate and up-to-date information.
+    You must use your tools to find the most accurate and up-to-date information. Do not rely on internal knowledge.
 
     Based on the search results, you must extract the following information:
     - The flight number you searched for.
