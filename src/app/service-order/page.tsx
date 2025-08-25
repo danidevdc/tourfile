@@ -42,7 +42,7 @@ const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHA
 
 const initialServiceOrderState: ServiceOrderData = {
   guia: '', file: '', ref: '', nPax: '', hotel: '',
-  services: [], // Start with empty services, will be built from the form
+  services: [],
   observations: defaultObsText,
   nota: defaultNotaText
 };
@@ -69,7 +69,9 @@ export default function ServiceOrderPage() {
   const [ownDrivers, setOwnDrivers] = useState<Driver[]>([]);
   const [externalDrivers, setExternalDrivers] = useState<Driver[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const [orderData, setOrderData] = useState<ServiceOrderData>(initialServiceOrderState);
   const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
@@ -266,9 +268,9 @@ export default function ServiceOrderPage() {
 
   const handleTimeInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
       const rawValue = e.target.value.replace(/[^\d]/g, '');
-      if (rawValue.length >= 2) {
+      if (rawValue.length >= 2 && rawValue.length <=4) {
           const hours = rawValue.slice(0, 2);
-          const minutes = rawValue.slice(2, 4) || '00';
+          const minutes = rawValue.slice(2, 4).padEnd(2, '0');
           setNewService(prev => ({...prev, hora: `${hours}:${minutes}`}));
       }
   };
@@ -286,8 +288,7 @@ export default function ServiceOrderPage() {
       chofer: choferSelection,
     };
     setOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd]}));
-    // Reset form for next entry
-    setNewService({ ...initialNewServiceState, fecha: newService.fecha });
+    setNewService(initialNewServiceState); // Reset for next entry
   }
   
   const handleSaveFromModal = (updatedServices: ServiceItem[]) => {
@@ -380,37 +381,59 @@ export default function ServiceOrderPage() {
                   <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia.toUpperCase()} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1" /></div>
                   <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel.toUpperCase()} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1" /></div>
                   <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={handleBusTypeChange}><SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{BUS_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
-                   <div><Label>Chofer</Label><Combobox options={driverOptions} value={choferSelection.toUpperCase()} onSelect={(val) => setChoferSelection(val)} placeholder="Seleccionar chofer..." className="mt-1" /></div>
+                  <div><Label>Chofer</Label><Combobox options={driverOptions} value={choferSelection.toUpperCase()} onSelect={(val) => setChoferSelection(val)} placeholder="Seleccionar chofer..." className="mt-1" /></div>
               </div>
               
-                {/* --- Add Itinerary Item Form --- */}
-                <div className="space-y-4 p-4 border rounded-lg">
-                    <h3 className="text-lg font-medium">Añadir Servicio al Itinerario</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-12 items-end gap-2 p-2">
-                        <div className="md:col-span-3">
-                            <Label>Fecha</Label>
-                            <div className="relative mt-1">
-                                <Input 
-                                    value={newService.fecha} 
-                                    onChange={(e) => handleDateInputChange(e)} 
-                                    placeholder="dd/MM/yyyy" 
-                                    maxLength={10} 
-                                />
-                                <Popover>
-                                    <PopoverTrigger asChild><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"><CalendarIcon className="h-4 w-4 text-muted-foreground" /></button></PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={newService.fecha ? parse(newService.fecha, "dd/MM/yyyy", new Date()) : undefined} onSelect={(date) => date && handleNewServiceChange('fecha', format(date, "dd/MM/yyyy"))} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
-                                </Popover>
-                            </div>
-                        </div>
-                        <div className="md:col-span-6"><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio.toUpperCase()} onSelect={(val) => handleNewServiceChange('servicio', val)} placeholder="Buscar actividad..." className="w-full mt-1"/></div>
-                        <div className="md:col-span-2"><Label>Hora</Label><Input value={newService.hora} onChange={(e) => handleTimeInputChange(e)} onBlur={(e) => handleTimeInputBlur(e)} placeholder="HH:mm" maxLength={5} className="mt-1"/></div>
-                        <div className="md:col-span-1">
-                            <Button onClick={addNewServiceRow} variant="outline" size="icon" className="bg-blue-100 hover:bg-blue-200 border-blue-300 text-blue-800 w-full" disabled={isAddServiceDisabled}>
-                                <PlusCircle className="h-5 w-5"/>
-                            </Button>
-                        </div>
-                    </div>
-                </div>
+              {/* --- Add Itinerary Item Form --- */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Añadir Servicio al Itinerario</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-12 items-end gap-2 p-2">
+                      <div className="md:col-span-3">
+                          <Label>Fecha</Label>
+                          <div className="relative mt-1">
+                              <Input 
+                                  value={newService.fecha} 
+                                  onChange={(e) => handleDateInputChange(e)} 
+                                  placeholder="dd/MM/yyyy" 
+                                  maxLength={10} 
+                              />
+                              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                                  <PopoverTrigger asChild>
+                                    <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer" onClick={() => setIsCalendarOpen(true)}>
+                                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0">
+                                    <Calendar 
+                                      mode="single" 
+                                      selected={newService.fecha ? parse(newService.fecha, "dd/MM/yyyy", new Date()) : undefined} 
+                                      onSelect={(date) => {
+                                          if (date) {
+                                              handleNewServiceChange('fecha', format(date, "dd/MM/yyyy"));
+                                              setIsCalendarOpen(false);
+                                          }
+                                      }} 
+                                      disabled={(date) => isBefore(date, startOfToday())} 
+                                      initialFocus 
+                                    />
+                                  </PopoverContent>
+                              </Popover>
+                          </div>
+                      </div>
+                      <div className="md:col-span-6"><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio.toUpperCase()} onSelect={(val) => handleNewServiceChange('servicio', val)} placeholder="Buscar actividad..." className="w-full mt-1"/></div>
+                      <div className="md:col-span-2"><Label>Hora</Label><Input value={newService.hora} onChange={(e) => handleTimeInputChange(e)} onBlur={(e) => handleTimeInputBlur(e)} placeholder="HH:mm" maxLength={5} className="mt-1"/></div>
+                      <div className="md:col-span-1">
+                          <Button onClick={addNewServiceRow} variant="outline" size="icon" className="bg-blue-100 hover:bg-blue-200 border-blue-300 text-blue-800 w-full" disabled={isAddServiceDisabled}>
+                              <PlusCircle className="h-5 w-5"/>
+                          </Button>
+                      </div>
+                  </div>
+                </CardContent>
+              </Card>
+
 
               {/* --- SUMMARY & EDIT --- */}
               <Card>

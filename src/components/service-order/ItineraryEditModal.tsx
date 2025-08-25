@@ -3,10 +3,10 @@
 
 import { useState, useEffect, type ChangeEvent } from 'react';
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ServiceItem, ServiceOrderGuide, Driver } from '@/lib/serviceOrderService';
+import { type ServiceItem, type ServiceOrderGuide, type Driver } from '@/lib/serviceOrderService';
 import { Save, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -23,9 +23,9 @@ interface ItineraryEditModalProps {
 
 export function ItineraryEditModal({ services, guides, drivers, onSave, onClose }: ItineraryEditModalProps) {
     const [editableServices, setEditableServices] = useState<ServiceItem[]>([]);
+    const [openPopoverIndex, setOpenPopoverIndex] = useState<number | null>(null);
 
     useEffect(() => {
-        // Deep copy of services to avoid modifying original state directly
         setEditableServices(JSON.parse(JSON.stringify(services)));
     }, [services]);
 
@@ -96,7 +96,7 @@ export function ItineraryEditModal({ services, guides, drivers, onSave, onClose 
                                                 placeholder="dd/MM/yyyy"
                                                 maxLength={10}
                                             />
-                                            <Popover>
+                                            <Popover open={openPopoverIndex === index} onOpenChange={(isOpen) => setOpenPopoverIndex(isOpen ? index : null)}>
                                                 <PopoverTrigger asChild>
                                                     <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"><CalendarIcon className="h-4 w-4 text-muted-foreground" /></button>
                                                 </PopoverTrigger>
@@ -104,7 +104,12 @@ export function ItineraryEditModal({ services, guides, drivers, onSave, onClose 
                                                     <Calendar
                                                         mode="single"
                                                         selected={service.fecha ? parse(service.fecha, "dd/MM/yyyy", new Date()) : undefined}
-                                                        onSelect={(date) => date && handleServiceChange(index, 'fecha', format(date, 'dd/MM/yyyy'))}
+                                                        onSelect={(date) => {
+                                                            if(date) {
+                                                                handleServiceChange(index, 'fecha', format(date, 'dd/MM/yyyy'));
+                                                                setOpenPopoverIndex(null); // Close popover on select
+                                                            }
+                                                        }}
                                                         disabled={(date) => isBefore(date, startOfToday())}
                                                         initialFocus
                                                     />
@@ -133,5 +138,3 @@ export function ItineraryEditModal({ services, guides, drivers, onSave, onClose 
         </Dialog>
     );
 }
-
-    
