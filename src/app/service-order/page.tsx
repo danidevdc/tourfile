@@ -15,10 +15,11 @@ import {
   type ServiceOrderGuide,
   type Hotel,
   type Driver,
+  getActivitiesFromFirestore,
+  type Activity,
 } from "@/lib/serviceOrderService";
 import { generateServiceOrderExcel, type ServiceOrderData, type ServiceItem } from '@/lib/serviceOrderGenerator';
 import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generator";
-import { getActivitiesFromFirestore } from "@/lib/activityService";
 import { ItineraryEditModal } from '@/components/service-order/ItineraryEditModal';
 
 
@@ -63,9 +64,7 @@ export default function ServiceOrderPage() {
   const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
   const [ownDrivers, setOwnDrivers] = useState<Driver[]>([]);
   const [externalDrivers, setExternalDrivers] = useState<Driver[]>([]);
-  const [activities, setActivities] = useState<
-    Array<{ value: string; label: string }>
-  >([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [orderData, setOrderData] = useState<ServiceOrderData>(initialServiceOrderState);
@@ -144,7 +143,7 @@ export default function ServiceOrderPage() {
           setGuides(fetchedGuides);
           setHotels(fetchedHotels);
           setAllDrivers(fetchedDrivers);
-          setActivities(fetchedActivities.map(a => ({ value: a.name.toUpperCase(), label: a.name })));
+          setActivities(fetchedActivities);
           setOwnDrivers(fetchedDrivers.filter(d => !d.name.startsWith('CONT ')));
           setExternalDrivers(fetchedDrivers.filter(d => d.name.startsWith('CONT ')));
         } catch (error) {
@@ -363,7 +362,9 @@ export default function ServiceOrderPage() {
     return <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
   
-  const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
+  const activityOptions = (activities || [])
+    .filter(a => a && a.name) // Filter out undefined or null activities/names
+    .map(a => ({ value: a.name.toUpperCase(), label: a.name }));
   
 
   return (
