@@ -3,28 +3,68 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // User profiles are readable/writable only by the user themselves, or readable by an admin.
-    match /userProfiles/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      // Admins can read all profiles to display in the admin user list.
-      allow list: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    // Helper function to check if a user is authenticated.
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if the requesting user is an admin.
+    // It reads the isAdmin field from the user's own profile document.
+    function isAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Expense rules are readable by any authenticated user, but only writable by admins.
-    match /expenseRules/{ruleId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    // Generated report summaries are creatable by any authenticated user, but only readable by admins for analytics.
-    match /generatedReports/{reportId} {
-      allow create: if request.auth != null;
-      allow list: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    // Fallback security rule for any other path - deny all access.
+    // Default deny all reads and writes to prevent accidental access.
     match /{document=**} {
       allow read, write: if false;
+    }
+    
+    // activityTimeSuggestions: Any logged-in user can read and write.
+    // This allows the app to learn from user input and provide suggestions.
+    match /activityTimeSuggestions/{activityName} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // generatedReports: Logged-in users can create reports. Admins can read all.
+    match /generatedReports/{reportId} {
+      allow create: if isAuthenticated();
+      allow read: if isAdmin();
+      allow update, delete: if false; // Reports should be immutable
+    }
+
+    // Guides, Hotels, Drivers, Activities: Logged-in users can read. Admins can write.
+    // This allows the UI selectors to be populated for all users.
+    match /guides/{guideId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    match /hotels/{hotelId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    match /drivers/{driverId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    match /activities/{activityId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // expenseRules: Only admins can read or write.
+    // This logic is sensitive and should only be managed by administrators.
+    match /expenseRules/{ruleId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // userProfiles: Users can read their own profile. Admins can read/write all profiles.
+    match /userProfiles/{userId} {
+      allow read, update: if request.auth.uid == userId || isAdmin();
+      allow create: if isAuthenticated(); // Allow creation on registration.
+      allow delete: if isAdmin();
     }
   }
 }
