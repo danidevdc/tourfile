@@ -288,7 +288,7 @@ export default function ServiceOrderPage() {
       chofer: choferSelection,
     };
     setOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd]}));
-    setNewService(prev => ({...prev, fecha: '', servicio: '', hora: '09:00'})); // Reset for next entry
+    setNewService(prev => ({...initialNewServiceState, fecha: '', servicio: '', hora: '09:00'}));
   }
   
   const handleSaveFromModal = (updatedServices: ServiceItem[]) => {
@@ -377,7 +377,7 @@ export default function ServiceOrderPage() {
               </div>
 
                {/* --- MAIN DETAILS --- */}
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 p-4 border rounded-lg bg-card">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg bg-card">
                   <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia.toUpperCase()} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1" /></div>
                   <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel.toUpperCase()} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1" /></div>
                   <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={handleBusTypeChange}><SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{BUS_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
@@ -402,7 +402,7 @@ export default function ServiceOrderPage() {
                               />
                               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                   <PopoverTrigger asChild>
-                                    <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer" onClick={() => setIsCalendarOpen(true)}>
+                                    <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
                                       <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                                     </button>
                                   </PopoverTrigger>
