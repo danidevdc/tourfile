@@ -481,7 +481,7 @@ export function useAuth() {
     login,
     register,
     logout: () => logout(false), // Public logout is never silent
-    sendPasswordReset: sendPasswordReset,
+    sendPasswordReset,
     checkEmailExists,
     getCurrentUserUsername, 
     getCurrentUserDetails,
