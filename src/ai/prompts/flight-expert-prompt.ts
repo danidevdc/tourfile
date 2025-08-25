@@ -14,7 +14,7 @@ export const customGoogleSearchTool = ai.defineTool(
     name: 'customGoogleSearch',
     description: 'Searches Google for real-time flight information. Use this to find flight statuses, departure/arrival times, and airline details.',
     inputSchema: z.object({
-      query: z.string().describe("The search query, e.g., 'LA2401+2025-08-26'"),
+      query: z.string().describe("The search query, e.g., 'vuelo OB305 en 27 de agosto de 2025'"),
     }),
     outputSchema: z.any(), // The AI will handle the unstructured JSON response
   },
@@ -57,15 +57,14 @@ export const customGoogleSearchTool = ai.defineTool(
 
 const FlightExpertInputSchema = z.object({
     flightNumber: z.string().describe("The original flight number the user asked for."),
-    searchResults: z.string().describe("A JSON string containing snippets from a Google search.")
+    searchResults: z.string().describe("A JSON string containing snippets from a Google search."),
+    searchContext: z.string().describe("Provides context on the type of search performed, e.g., for a specific date or a general search.")
 });
 
 export const flightExpertPrompt = ai.definePrompt({
   name: 'flightExpertPrompt',
   input: { schema: FlightExpertInputSchema },
   output: { schema: FindFlightOutputSchema },
-  // The tool is no longer needed here, as it's called directly from the flow.
-  // tools: [customGoogleSearchTool], 
   
   // Instructions for the AI model
   prompt: `
@@ -73,6 +72,7 @@ export const flightExpertPrompt = ai.definePrompt({
     and extract flight information.
 
     The user is looking for flight number: {{{flightNumber}}}.
+    Context of the search: {{{searchContext}}}
 
     The search results are provided as a JSON string of text snippets:
     {{{searchResults}}}

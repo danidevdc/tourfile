@@ -18,32 +18,44 @@ import { es } from 'date-fns/locale';
 export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
     console.log("[SERVER] Received from client:", JSON.stringify(input, null, 2));
 
-    // --- User's Approach: Build the query directly in the code ---
+    // --- 1. First Attempt: Search with the specific date ---
     
     // Parse the incoming YYYY-MM-DD date string
     const parsedDate = parse(input.date, 'yyyy-MM-dd', new Date());
-
     // Format the date into a more search-friendly, natural language format
-    // e.g., "27 de agosto de 2025"
     const friendlyDate = format(parsedDate, "d 'de' MMMM 'de' yyyy", { locale: es });
-
     // Construct a more natural search query
-    const query = `vuelo ${input.flightNumber.replace(/\s/g, '')} en ${friendlyDate}`;
+    const queryWithDate = `vuelo ${input.flightNumber.replace(/\s/g, '')} en ${friendlyDate}`;
+    console.log(`[SERVER] Attempt 1: Constructed natural search query: ${queryWithDate}`);
 
-    console.log(`[SERVER] Constructed natural search query: ${query}`);
-
-    // --- Call the Google Search tool directly ---
-    const searchResults = await customGoogleSearchTool.run({ query });
+    // Call the Google Search tool directly
+    let searchResults = await customGoogleSearchTool.run({ query: queryWithDate });
+    console.log("[SERVER] Snippets from Google Search (Attempt 1):", searchResults);
     
-    console.log("[SERVER] Snippets from Google Search:", searchResults);
-
-    // --- Pass the search results to the AI for interpretation ---
-    const result = await flightExpertPrompt({ 
+    let result = await flightExpertPrompt({ 
         flightNumber: input.flightNumber,
-        searchResults: JSON.stringify(searchResults) 
+        searchResults: JSON.stringify(searchResults),
+        searchContext: `Búsqueda para el ${friendlyDate}.`
     });
     
-    console.log("[SERVER] AI response:", JSON.stringify(result.output, null, 2));
+    // --- 2. Second Attempt (Fallback): If not found, search without the date ---
+    if (!result.output || !result.output.flightFound) {
+        console.log(`[SERVER] Flight not found with date. Fallback to searching with flight number only.`);
+        const queryWithoutDate = `vuelo ${input.flightNumber.replace(/\s/g, '')}`;
+        console.log(`[SERVER] Attempt 2: Constructed general query: ${queryWithoutDate}`);
+
+        searchResults = await customGoogleSearchTool.run({ query: queryWithoutDate });
+        console.log("[SERVER] Snippets from Google Search (Attempt 2):", searchResults);
+
+        // Call the AI again with the new search results and a different context
+        result = await flightExpertPrompt({
+            flightNumber: input.flightNumber,
+            searchResults: JSON.stringify(searchResults),
+            searchContext: "Búsqueda general sin fecha específica. Devuelve la información más reciente que encuentres."
+        });
+    }
+
+    console.log("[SERVER] Final AI response:", JSON.stringify(result.output, null, 2));
     
     if (!result.output || !result.output.flightFound) {
       return { flightFound: false, flightNumber: input.flightNumber };
@@ -55,5 +67,3 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
       flightNumber: input.flightNumber,
     };
 }
-
-    
