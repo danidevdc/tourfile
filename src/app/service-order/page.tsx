@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
-import { format, isBefore, startOfToday, parse } from 'date-fns';
+import { format, isBefore, startOfToday, parse, subHours } from 'date-fns';
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -17,9 +17,10 @@ import {
   type Driver,
   getActivitiesFromFirestore,
   type Activity,
-  recordActivityTimeUsage, // Import AI function
-  getSuggestedTimeForActivity, // Import AI function
+  recordActivityTimeUsage, 
+  getSuggestedTimeForActivity,
 } from "@/lib/serviceOrderService";
+import { findFlight, type FindFlightOutput } from "@/ai/flows/find-flight-flow"; // Import the new flight flow
 import { generateServiceOrderExcel, type ServiceOrderData, type ServiceItem } from '@/lib/serviceOrderGenerator';
 import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generator";
 import { ItineraryEditModal } from '@/components/service-order/ItineraryEditModal';
@@ -30,7 +31,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileDown, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon, Edit } from "lucide-react";
+import { ArrowLeft, Loader2, FileDown, PlusCircle, Upload, Search, CheckCircle2, XCircle, CalendarIcon, Edit, Plane } from "lucide-react"; // Added Plane icon
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -77,6 +78,11 @@ export default function ServiceOrderPage() {
 
   const [orderData, setOrderData] = useState<ServiceOrderData>(initialServiceOrderState);
   const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
+
+  // New state for flight search
+  const [isSearchingFlight, setIsSearchingFlight] = useState(false);
+  const [showFlightSearch, setShowFlightSearch] = useState(false);
+  const [flightSearchNumber, setFlightSearchNumber] = useState('');
 
   const [busTypeSelection, setBusTypeSelection] = useState('');
   const [choferSelection, setChoferSelection] = useState('');
@@ -283,12 +289,75 @@ export default function ServiceOrderPage() {
   
   const handleActivitySelect = async (activityName: string) => {
       handleNewServiceChange('servicio', activityName);
-      // AI-POWERED SUGGESTION:
+      setShowFlightSearch(activityName === 'TRF IN' || activityName === 'TRF OUT');
+      
       const suggestedTime = await getSuggestedTimeForActivity(activityName);
       if (suggestedTime) {
           handleNewServiceChange('hora', suggestedTime);
       }
   };
+
+  const handleFlightSearch = async () => {
+    const serviceDate = newService.fecha;
+    if (!flightSearchNumber || !serviceDate) {
+      toast({ title: "Datos incompletos", description: "Ingresa un número de vuelo y una fecha para buscar.", variant: "destructive" });
+      return;
+    }
+    
+    let parsedDate;
+    try {
+        parsedDate = parse(serviceDate, 'dd/MM/yyyy', new Date());
+        if (isNaN(parsedDate.getTime())) throw new Error("Invalid date");
+    } catch(e) {
+        toast({ title: "Fecha inválida", description: "Por favor, usa el formato dd/MM/yyyy.", variant: "destructive" });
+        return;
+    }
+
+    setIsSearchingFlight(true);
+    toast({ title: "Buscando vuelo...", description: `Buscando ${flightSearchNumber} para el ${serviceDate}` });
+
+    try {
+        const flightInfo = await findFlight({
+            flightNumber: flightSearchNumber,
+            date: format(parsedDate, 'yyyy-MM-dd'),
+            transferType: newService.servicio as 'TRF IN' | 'TRF OUT',
+        });
+
+        if (!flightInfo.flightFound) {
+            toast({ title: "Vuelo no encontrado", description: "No se encontró información para ese vuelo. Revisa el número y la fecha.", variant: "destructive" });
+            return;
+        }
+
+        let newTime = '';
+        let newObservation = '';
+
+        if (newService.servicio === 'TRF OUT' && flightInfo.departure) {
+            const departureTime = parse(flightInfo.departure.time.actual, 'HH:mm', new Date());
+            newTime = format(subHours(departureTime, 2), 'HH:mm');
+            newObservation = `VUELO SALE ${flightInfo.departure.time.actual} ${flightInfo.departure.airport.code}/${flightInfo.arrival?.airport.code || '???'}`;
+        } else if (newService.servicio === 'TRF IN' && flightInfo.arrival) {
+            const arrivalTime = parse(flightInfo.arrival.time.actual, 'HH:mm', new Date());
+            newTime = format(subHours(arrivalTime, 1), 'HH:mm');
+            newObservation = `VUELO LLEGA ${flightInfo.arrival.time.actual} ${flightInfo.departure?.airport.code || '???'}/${flightInfo.arrival.airport.code}`;
+        }
+        
+        setNewService(prev => ({
+            ...prev,
+            vuelo: flightSearchNumber.toUpperCase(),
+            hora: newTime,
+            observaciones: newObservation
+        }));
+
+        toast({ title: "Vuelo encontrado", description: "Hora y observaciones actualizadas.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+
+    } catch (error) {
+        console.error("Flight search flow error:", error);
+        toast({ title: "Error en búsqueda", description: "No se pudo obtener la información del vuelo.", variant: "destructive" });
+    } finally {
+        setIsSearchingFlight(false);
+    }
+  };
+
 
   const addNewServiceRow = () => {
     const selectedGuide = guides.find(g => g.fullName.toUpperCase() === orderData.guia.toUpperCase());
@@ -301,6 +370,8 @@ export default function ServiceOrderPage() {
     setOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd]}));
     // Reset the new service form for the next entry
     setNewService(initialNewServiceState);
+    setShowFlightSearch(false);
+    setFlightSearchNumber('');
   }
   
   const handleSaveFromModal = (updatedServices: ServiceItem[]) => {
@@ -317,7 +388,6 @@ export default function ServiceOrderPage() {
         return;
       }
       
-      // AI LEARNING STEP: Record time usage for each service in the order
       for (const service of orderData.services) {
           if(service.servicio && service.hora) {
               await recordActivityTimeUsage(service.servicio, service.hora);
@@ -411,39 +481,26 @@ export default function ServiceOrderPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-12 items-end gap-4 p-2">
-                      <div className="md:col-span-3">
+                      <div className="md:col-span-2">
                           <Label>Fecha</Label>
                           <div className="relative mt-1">
-                              <Input 
-                                  value={newService.fecha} 
-                                  onChange={(e) => handleDateInputChange(e)} 
-                                  placeholder="dd/MM/yyyy" 
-                                  maxLength={10} 
-                              />
+                              <Input value={newService.fecha} onChange={(e) => handleDateInputChange(e)} placeholder="dd/MM/yyyy" maxLength={10} />
                               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                                  <PopoverTrigger asChild>
-                                    <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
-                                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0">
-                                    <Calendar 
-                                      mode="single" 
-                                      selected={newService.fecha ? parse(newService.fecha, "dd/MM/yyyy", new Date()) : undefined} 
-                                      onSelect={(date) => {
-                                          if (date) {
-                                              handleNewServiceChange('fecha', format(date, "dd/MM/yyyy"));
-                                              setIsCalendarOpen(false);
-                                          }
-                                      }} 
-                                      disabled={(date) => isBefore(date, startOfToday())} 
-                                      initialFocus 
-                                    />
-                                  </PopoverContent>
+                                  <PopoverTrigger asChild><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"><CalendarIcon className="h-4 w-4 text-muted-foreground" /></button></PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={newService.fecha ? parse(newService.fecha, "dd/MM/yyyy", new Date()) : undefined} onSelect={(date) => { if (date) { handleNewServiceChange('fecha', format(date, "dd/MM/yyyy")); setIsCalendarOpen(false); } }} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
                               </Popover>
                           </div>
                       </div>
-                      <div className="md:col-span-6"><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio.toUpperCase()} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="w-full mt-1"/></div>
+                      <div className={cn("md:col-span-4", showFlightSearch && "md:col-span-3")}><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio.toUpperCase()} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="w-full mt-1"/></div>
+                      {showFlightSearch && (
+                        <div className="md:col-span-3">
+                           <Label>Buscar Vuelo</Label>
+                           <div className="flex items-center gap-1 mt-1">
+                             <Input value={flightSearchNumber} onChange={(e) => setFlightSearchNumber(e.target.value)} placeholder="Ej: OB304" />
+                             <Button type="button" onClick={handleFlightSearch} disabled={isSearchingFlight} size="icon"><Plane className={cn("h-4 w-4", isSearchingFlight && "animate-pulse")} /></Button>
+                           </div>
+                        </div>
+                      )}
                       <div className="md:col-span-2"><Label>Hora</Label><Input value={newService.hora} onChange={(e) => handleTimeInputChange(e)} onBlur={(e) => handleTimeInputBlur(e)} placeholder="HH:mm" maxLength={5} className="mt-1"/></div>
                       <div className="md:col-span-1">
                           <Button onClick={addNewServiceRow} variant="outline" size="icon" className="bg-blue-100 hover:bg-blue-200 border-blue-300 text-blue-800 w-full" disabled={isAddServiceDisabled}>
@@ -471,29 +528,11 @@ export default function ServiceOrderPage() {
                     <div className="overflow-x-auto border rounded-md">
                         <Table>
                             <TableHeader>
-                                <TableRow>
-                                    <TableHead className="border bg-muted/50" style={{width: '86px'}}>Fecha</TableHead>
-                                    <TableHead className="border bg-muted/50" style={{width: '56px'}}>Hora</TableHead>
-                                    <TableHead className="border bg-muted/50">Servicio</TableHead>
-                                    <TableHead className="border bg-muted/50" style={{width: '70px'}}>Vuelo</TableHead>
-                                    <TableHead className="border bg-muted/50" style={{width: '85px'}}>Guía</TableHead>
-                                    <TableHead className="border bg-muted/50" style={{width: '70px'}}>Bus</TableHead>
-                                    <TableHead className="border bg-muted/50" style={{width: '80px'}}>Chofer</TableHead>
-                                    <TableHead className="border bg-muted/50">Observaciones</TableHead>
-                                </TableRow>
+                                <TableRow><TableHead className="border bg-muted/50" style={{width: '86px'}}>Fecha</TableHead><TableHead className="border bg-muted/50" style={{width: '56px'}}>Hora</TableHead><TableHead className="border bg-muted/50">Servicio</TableHead><TableHead className="border bg-muted/50" style={{width: '70px'}}>Vuelo</TableHead><TableHead className="border bg-muted/50" style={{width: '85px'}}>Guía</TableHead><TableHead className="border bg-muted/50" style={{width: '70px'}}>Bus</TableHead><TableHead className="border bg-muted/50" style={{width: '80px'}}>Chofer</TableHead><TableHead className="border bg-muted/50">Observaciones</TableHead></TableRow>
                             </TableHeader>
                             <TableBody>
                                 {orderData.services.length > 0 ? orderData.services.map((service, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell className="border">{service.fecha}</TableCell>
-                                        <TableCell className="border">{service.hora}</TableCell>
-                                        <TableCell className="border">{service.servicio}</TableCell>
-                                        <TableCell className="border">{service.vuelo}</TableCell>
-                                        <TableCell className="border">{service.guia}</TableCell>
-                                        <TableCell className="border">{service.bus}</TableCell>
-                                        <TableCell className="border">{service.chofer?.replace(/^CONT\s/i, '')}</TableCell>
-                                        <TableCell className="border">{service.observaciones}</TableCell>
-                                    </TableRow>
+                                    <TableRow key={index}><TableCell className="border">{service.fecha}</TableCell><TableCell className="border">{service.hora}</TableCell><TableCell className="border">{service.servicio}</TableCell><TableCell className="border">{service.vuelo}</TableCell><TableCell className="border">{service.guia}</TableCell><TableCell className="border">{service.bus}</TableCell><TableCell className="border">{service.chofer?.replace(/^CONT\s/i, '')}</TableCell><TableCell className="border">{service.observaciones}</TableCell></TableRow>
                                 )) : (
                                     <TableRow><TableCell colSpan={8} className="text-center h-24 text-muted-foreground border">El itinerario está vacío.</TableCell></TableRow>
                                 )}
