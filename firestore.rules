@@ -4,61 +4,71 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --- User Profiles ---
-    // Users can read/update their own profile. Admins can read any profile.
+    // Users can read and update their own profile.
+    // Admins can read any profile, but cannot delete their own profile through a client.
     match /userProfiles/{userId} {
-      allow read: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true);
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && request.auth.uid == userId;
-      // Admins can delete any profile except their own.
-      allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true && request.auth.uid != userId;
-    }
-
-    // --- Master Data: Accessible to authenticated users ---
-    // Authenticated users can read. Admins can write.
-    match /guides/{guideId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    match /hotels/{hotelId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    match /drivers/{driverId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    match /activities/{activityId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId;
+      // Deletion of users should be handled by a backend process or admin SDK for security.
+      allow delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true && request.auth.uid != userId;
     }
     
-    // --- Business Logic & App Data ---
-    
-    // Expense rules can be read by authenticated users, written by admins.
-    match /expenseRules/{ruleId} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    // Flight data can be read by authenticated users, written by admins.
-    match /dailyFlights/{flightId} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-    
-    // Generated reports can be created by any authenticated user. Only admins can read all reports.
+    // --- Generated Reports Log ---
+    // Any authenticated user can create a report log entry. Only admins can read the full list.
     match /generatedReports/{reportId} {
-      allow read: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+      allow read: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
       allow create: if request.auth != null;
-      allow write: if false; // Users cannot update/delete reports after creation.
+      allow update, delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // --- Master Data Collections (Guides, Hotels, etc.) ---
+    // Any authenticated user can read master data. Only admins can write/delete.
+    function canReadMasterData() {
+      return request.auth != null;
+    }
+    function canWriteMasterData() {
+      return get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    match /guides/{guideId} {
+      allow read: if canReadMasterData();
+      allow write, delete: if canWriteMasterData();
     }
     
-    // Activity time suggestions can be read and updated by any authenticated user.
-    match /activityTimeSuggestions/{activityId} {
-        allow read, write: if request.auth != null;
+    match /hotels/{hotelId} {
+      allow read: if canReadMasterData();
+      allow write, delete: if canWriteMasterData();
+    }
+    
+    match /drivers/{driverId} {
+      allow read: if canReadMasterData();
+      allow write, delete: if canWriteMasterData();
+    }
+    
+    match /activities/{activityId} {
+      allow read: if canReadMasterData();
+      allow write, delete: if canWriteMasterData();
+    }
+    
+    match /expenseRules/{ruleId} {
+      allow read: if canReadMasterData();
+      allow write, delete: if canWriteMasterData();
+    }
+
+    match /activityTimeSuggestions/{suggestionId} {
+        allow read, write: if request.auth != null; // Allow any authenticated user to contribute
+    }
+
+    // --- Flight Data ---
+    // Only admins should be able to trigger sync (write) and view the data.
+    match /dailyFlights/{flightId} {
+      allow read, write, delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Fallback rule: deny all other access
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
