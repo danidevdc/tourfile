@@ -77,7 +77,7 @@ async function fetchFlightsForDate(flightDate: Date, type: 'arrivals' | 'departu
     params.set('dep_iata', 'LPB');
   }
 
-  const url = `http://api.aviationstack.com/v1/flights?${params.toString()}&flight_date=${dateString}`;
+  const url = `https://api.aviationstack.com/v1/flights?${params.toString()}&flight_date=${dateString}`;
   console.log(`[SYNC] Calling AviationStack URL: ${url}`);
 
   const response = await fetch(url, { cache: 'no-store' });
