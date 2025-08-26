@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart } from "lucide-react";
+import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart, Plane } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
@@ -174,7 +174,7 @@ export default function AdminDashboardPage() {
             <AdminLinkCard 
               href="/admin/data"
               icon={Database}
-              title="Administrar Datos"
+              title="Administrar Datos Maestros"
               description="Añade, edita o elimina guías, hoteles, choferes y actividades."
             />
              <AdminLinkCard 
@@ -194,6 +194,12 @@ export default function AdminDashboardPage() {
               icon={Users}
               title="Administrar Usuarios"
               description="Visualiza todos los usuarios registrados y sus estadísticas de uso."
+            />
+            <AdminLinkCard 
+              href="/admin/data/flights"
+              icon={Plane}
+              title="Sincronizar Vuelos"
+              description="Gestiona y sincroniza los datos de vuelos desde la API externa."
             />
           </div>
         </CardContent>
@@ -265,5 +271,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-    

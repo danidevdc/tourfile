@@ -40,16 +40,16 @@ function FlightSearchCard() {
         date: format(flightDate, 'yyyy-MM-dd'),
       };
       
-      console.log("[CLIENT] Enviando a la IA:", JSON.stringify(flightDataPayload, null, 2));
+      console.log("[CLIENT] Buscando en la base de datos local:", JSON.stringify(flightDataPayload, null, 2));
 
       const result = await findFlight(flightDataPayload);
       
-      console.log("[CLIENT] Respuesta de la IA:", JSON.stringify(result, null, 2));
+      console.log("[CLIENT] Respuesta de la base de datos:", JSON.stringify(result, null, 2));
       
       if (result.errorMessage) {
-          setError(`Error del servidor: ${result.errorMessage}. Revisa la consola para más detalles.`);
+          setError(`Error del servidor: ${result.errorMessage}.`);
       } else if (!result.flightFound) {
-        setError(`Vuelo ${flightNumber} no encontrado. La IA no pudo confirmar los detalles en la web. Verifica los datos e intenta de nuevo.`);
+        setError(`Vuelo ${flightNumber} no encontrado. Verifica los datos o sincroniza los vuelos desde el panel de administración.`);
       }
       setSearchResult(result);
     } catch (e) {
@@ -65,10 +65,10 @@ function FlightSearchCard() {
        <CardHeader>
         <CardTitle className="text-2xl font-bold text-primary flex items-center gap-3">
           <Plane className="h-8 w-8" />
-          Buscador de Vuelos (Prueba de IA)
+          Buscador de Vuelos
         </CardTitle>
         <CardDescription>
-          Ingresa un número de vuelo y fecha para obtener su estado. La IA buscará en la web para encontrar los detalles.
+          Ingresa un número de vuelo y fecha para obtener su estado desde la base de datos local.
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -12,6 +12,8 @@ import {
   runTransaction,
   getDoc,
 } from 'firebase/firestore';
+import { getFlightFromFirestore } from './flightSyncService';
+import { format } from 'date-fns';
 
 // --- Interface Definitions ---
 
@@ -38,6 +40,17 @@ export interface Guide {
 
 export interface ServiceOrderGuide extends Guide {
   fullName: string;
+}
+
+export interface ServiceItem {
+  fecha: string;
+  hora: string;
+  servicio: string;
+  vuelo?: string;
+  guia?: string;
+  bus?: string;
+  chofer?: string;
+  observaciones?: string;
 }
 
 // --- Data Fetching Functions ---
@@ -198,5 +211,53 @@ export async function getSuggestedTimeForActivity(activityName: string): Promise
   } catch (error) {
     console.error(`Failed to get suggested time for ${activityName}:`, error);
     return null;
+  }
+}
+
+/**
+ * Searches for a flight in the local Firestore database and returns a formatted ServiceItem.
+ * @param flightNumber The flight number to search.
+ * @param serviceDate The date of the service in dd/MM/yy format.
+ * @param transferType 'TRF IN' or 'TRF OUT'.
+ * @returns A promise that resolves to a partial ServiceItem with flight details.
+ */
+export async function getFlightServiceDetails(
+  flightNumber: string,
+  serviceDate: string,
+  transferType: 'TRF IN' | 'TRF OUT'
+): Promise<Partial<ServiceItem>> {
+  try {
+    const date = parse(serviceDate, 'dd/MM/yy', new Date());
+    const dateString = format(date, 'yyyy-MM-dd');
+    const flight = await getFlightFromFirestore(flightNumber, dateString);
+
+    if (!flight) {
+      return { vuelo: flightNumber.toUpperCase() }; // Return flight number even if not found
+    }
+
+    let newTime = '';
+    let newObservation = '';
+    const segment = `${flight.departure.iata}/${flight.arrival.iata}`;
+
+    if (transferType === 'TRF IN' && flight.arrival.actual) {
+      const arrivalTime = flight.arrival.actual;
+      const pickupTime = new Date(arrivalTime.getTime() - 1 * 60 * 60 * 1000); // 1 hour before
+      newTime = format(pickupTime, 'HH:mm');
+      newObservation = `EL VUELO LLEGA A LAS ${format(arrivalTime, 'HH:mm')} ${segment}`;
+    } else if (transferType === 'TRF OUT' && flight.departure.actual) {
+      const departureTime = flight.departure.actual;
+      const pickupTime = new Date(departureTime.getTime() - 2 * 60 * 60 * 1000); // 2 hours before
+      newTime = format(pickupTime, 'HH:mm');
+      newObservation = `EL VUELO SALE A LAS ${format(departureTime, 'HH:mm')} ${segment}`;
+    }
+
+    return {
+      vuelo: flight.flight.iata,
+      hora: newTime || flight.type === 'arrival' ? format(flight.arrival.scheduled, 'HH:mm') : format(flight.departure.scheduled, 'HH:mm'),
+      observaciones: newObservation.trim(),
+    };
+  } catch (error) {
+    console.error(`Error getting flight service details for ${flightNumber}:`, error);
+    return { vuelo: flightNumber.toUpperCase() }; // Graceful fallback
   }
 }

@@ -429,13 +429,13 @@ export default function DataManagementPage() {
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
       <div className="w-full max-w-4xl mb-4 flex justify-between items-center">
-        <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back">
+        <Button variant="default" size="icon" onClick={() => router.push('/admin/dashboard')} aria-label="Go to Admin Dashboard">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
       <Card className="w-full max-w-4xl shadow-lg">
         <CardHeader>
-          <CardTitle className="text-3xl font-headline text-center text-primary">Administrar Datos</CardTitle>
+          <CardTitle className="text-3xl font-headline text-center text-primary">Administrar Datos Maestros</CardTitle>
           <CardDescription className="text-center">
             Añade, elimina o sube listas de datos para los generadores. Los registros duplicados se marcarán en amarillo.
           </CardDescription>
@@ -470,5 +470,3 @@ export default function DataManagementPage() {
     </div>
   );
 }
-
-    

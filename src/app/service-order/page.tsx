@@ -19,10 +19,10 @@ import {
   type Activity,
   recordActivityTimeUsage, 
   getSuggestedTimeForActivity,
+  getFlightServiceDetails, // Import the new function
+  type ServiceItem,
 } from "@/lib/serviceOrderService";
-import { findFlight } from "@/ai/flows/find-flight-flow"; 
-import type { FindFlightOutput, FindFlightInput } from "@/ai/flows/flight-types";
-import { generateServiceOrderExcel, type ServiceOrderData, type ServiceItem } from '@/lib/serviceOrderGenerator';
+import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generator";
 import { ItineraryEditModal } from '@/components/service-order/ItineraryEditModal';
 
@@ -311,78 +311,37 @@ export default function ServiceOrderPage() {
   };
 
   const handleFlightSearch = async () => {
-    const serviceDate = newService.fecha;
+    const { servicio, fecha } = newService;
     const normalizedFlightNumber = flightSearchNumber.replace(/\s/g, '').toUpperCase();
-
-    if (!normalizedFlightNumber || !serviceDate) {
-      toast({ title: "Datos incompletos", description: "Ingresa un número de vuelo y una fecha para buscar.", variant: "destructive" });
+  
+    if (!normalizedFlightNumber || !fecha || (servicio !== 'TRF IN' && servicio !== 'TRF OUT')) {
+      toast({ title: "Datos incompletos", description: "Ingresa un número de vuelo, fecha y selecciona un tipo de transfer (TRF IN/OUT).", variant: "destructive" });
       return;
     }
-    
-    let parsedDate;
-    try {
-        parsedDate = parse(serviceDate, 'dd/MM/yy', new Date());
-        if (isNaN(parsedDate.getTime())) throw new Error("Invalid date");
-    } catch(e) {
-        toast({ title: "Fecha inválida", description: "Por favor, usa el formato dd/MM/yy.", variant: "destructive" });
-        return;
-    }
-
+  
     setIsSearchingFlight(true);
-    toast({ title: "Buscando vuelo...", description: `Buscando ${normalizedFlightNumber} para el ${serviceDate}` });
-
+    toast({ title: "Buscando vuelo...", description: `Buscando ${normalizedFlightNumber} para el ${fecha}` });
+  
     try {
-        const flightInput: FindFlightInput = {
-            flightNumber: normalizedFlightNumber,
-            date: format(parsedDate, 'yyyy-MM-dd'),
-            transferType: newService.servicio as 'TRF IN' | 'TRF OUT',
-        };
-        
-        const flightInfo: FindFlightOutput = await findFlight(flightInput);
-
-        if (!flightInfo.flightFound) {
-            toast({ title: "Vuelo no encontrado", description: "No se encontró información para ese vuelo. Revisa el número y la fecha.", variant: "destructive" });
-            setIsSearchingFlight(false);
-            return;
-        }
-
-        let newTime = '';
-        let newObservation = '';
-        let flightTime = '';
-        let segment = flightInfo.flightSegment || '';
-
-        if (newService.servicio === 'TRF OUT' && flightInfo.departure?.time.actual) {
-            flightTime = flightInfo.departure.time.actual;
-            const departureTime = parse(flightTime, 'HH:mm', new Date());
-            const pickupTime = new Date(departureTime.getTime() - 2 * 60 * 60 * 1000); // Subtract 2 hours
-            newTime = format(pickupTime, 'HH:mm');
-            newObservation = `EL VUELO SALE A LAS ${flightTime} ${segment}`;
-        } else if (newService.servicio === 'TRF IN' && flightInfo.arrival?.time.actual) {
-            flightTime = flightInfo.arrival.time.actual;
-            const arrivalTime = parse(flightTime, 'HH:mm', new Date());
-            const pickupTime = new Date(arrivalTime.getTime() - 1 * 60 * 60 * 1000); // Subtract 1 hour
-            newTime = format(pickupTime, 'HH:mm');
-            newObservation = `EL VUELO LLEGA A LAS ${flightTime} ${segment}`;
-        } else {
-             toast({ title: "Datos de vuelo incompletos", description: "Se encontró el vuelo, pero faltan los horarios de llegada/salida.", variant: "destructive" });
-             setIsSearchingFlight(false);
-             return;
-        }
-        
+      const flightDetails = await getFlightServiceDetails(normalizedFlightNumber, fecha, servicio);
+  
+      if (flightDetails.observaciones) {
         setNewService(prev => ({
-            ...prev,
-            vuelo: normalizedFlightNumber,
-            hora: newTime,
-            observaciones: newObservation.trim()
+          ...prev,
+          vuelo: flightDetails.vuelo,
+          hora: flightDetails.hora || prev.hora,
+          observaciones: flightDetails.observaciones,
         }));
-
         toast({ title: "Vuelo encontrado", description: "Hora y observaciones actualizadas.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
-
+      } else {
+        setNewService(prev => ({ ...prev, vuelo: flightDetails.vuelo }));
+        toast({ title: "Vuelo no encontrado en BD", description: "No se encontró información del vuelo. Verifica los datos o sincroniza los vuelos.", variant: "destructive" });
+      }
     } catch (error) {
-        console.error("Flight search flow error:", error);
-        toast({ title: "Error en búsqueda", description: "No se pudo obtener la información del vuelo.", variant: "destructive" });
+      console.error("Flight search error:", error);
+      toast({ title: "Error en búsqueda", description: "No se pudo obtener la información del vuelo.", variant: "destructive" });
     } finally {
-        setIsSearchingFlight(false);
+      setIsSearchingFlight(false);
     }
   };
 
@@ -488,8 +447,8 @@ export default function ServiceOrderPage() {
                                 </Button>
                             </div>
                         </div>
-                        <div className="md:col-span-7"><Label htmlFor="ref">Ref (Nombre Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-500 bg-green-50 dark:bg-green-900/20")} /></div>
-                        <div className="md:col-span-2"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-500 bg-green-50 dark:bg-green-900/20")} /></div>
+                        <div className="md:col-span-7"><Label htmlFor="ref">Ref (Nombre Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-50 dark:bg-green-900/20")} /></div>
+                        <div className="md:col-span-2"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className={cn("mt-1", fileSearchStatus === "found" && "border-green-50 dark:bg-green-900/20")} /></div>
                   </div>
                   {fileSearchStatus === "not_found" && (<div className="flex items-center gap-2 text-destructive text-sm"><XCircle className="h-4 w-4" /> File no encontrado.</div>)}
               </div>
