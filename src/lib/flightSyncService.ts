@@ -82,9 +82,18 @@ async function fetchFlightsForDate(flightDate: Date, type: 'arrivals' | 'departu
 
   const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) {
-    const errorBody = await response.json();
+    let errorBody: any = {};
+    try {
+      // Try to parse the error response as JSON
+      errorBody = await response.json();
+    } catch (e) {
+      // If parsing fails, the response is likely text or HTML
+      const errorText = await response.text();
+      errorBody.message = errorText || `HTTP Error ${response.status}`;
+    }
     console.error(`[SYNC] AviationStack API Error for ${type} on ${dateString}:`, errorBody);
-    throw new Error(`API request failed for ${type} on ${dateString}.`);
+    const errorMessage = errorBody?.error?.message || errorBody.message || `API request failed for ${type} on ${dateString}.`;
+    throw new Error(errorMessage);
   }
 
   const jsonResponse = await response.json();
