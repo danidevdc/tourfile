@@ -81,17 +81,21 @@ async function fetchFlightsForDate(flightDate: Date, type: 'arrivals' | 'departu
   console.log(`[SYNC] Calling AviationStack URL: ${url}`);
 
   const response = await fetch(url, { cache: 'no-store' });
+  
   if (!response.ok) {
-    let errorBody: any = {};
+    const errorText = await response.text();
+    let errorBody: any = { message: errorText || `HTTP Error ${response.status}` };
+
     try {
-      // Try to parse the error response as JSON
-      errorBody = await response.json();
+      // Try to parse the error text as JSON, maybe it's a structured error
+      const parsedJson = JSON.parse(errorText);
+      errorBody = parsedJson;
     } catch (e) {
-      // If parsing fails, the response is likely text or HTML
-      const errorText = await response.text();
-      errorBody.message = errorText || `HTTP Error ${response.status}`;
+      // It wasn't JSON, so we stick with the text response
     }
+    
     console.error(`[SYNC] AviationStack API Error for ${type} on ${dateString}:`, errorBody);
+    
     const errorMessage = errorBody?.error?.message || errorBody.message || `API request failed for ${type} on ${dateString}.`;
     throw new Error(errorMessage);
   }
@@ -310,3 +314,5 @@ export async function getFlightsForDate(date: string): Promise<StoredFlight[]> {
         return timeA - timeB;
     });
 }
+
+    
