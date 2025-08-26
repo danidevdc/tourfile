@@ -22,6 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarIcon } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 export default function ManageFlightsPage() {
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
