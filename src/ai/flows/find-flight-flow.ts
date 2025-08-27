@@ -117,12 +117,18 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     // Step 3: Call the API endpoint with date filters
     const url = `https://aeroapi.flightaware.com/aeroapi/flights/${flightIdent}?start=${startDate}&end=${endDate}`;
     
+    // --- SERVER-SIDE LOGGING ---
+    console.log(`[SERVER] Requesting URL: ${url}`);
+    
     const response = await fetch(url, {
       headers: { 'x-apikey': apiKey },
       cache: 'no-store' // Avoid caching flight data
     });
 
     const responseBody = await response.json();
+    
+    // --- SERVER-SIDE LOGGING ---
+    console.log('[SERVER] Raw API Response:', JSON.stringify(responseBody, null, 2));
 
     if (!response.ok) {
         const errorMessage = responseBody.title || responseBody.detail || `API request failed with status ${response.status}.`;
