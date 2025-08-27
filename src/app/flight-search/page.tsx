@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { getApiUsageStats, type ApiUsageStats } from '@/lib/apiUsageService';
+import { getApiUsageStats, checkAndIncrementApiUsage, type ApiUsageStats } from '@/lib/apiUsageService';
 
 function ApiUsageStatusCard({ usageStats, isLoading }: { usageStats: ApiUsageStats | null, isLoading: boolean }) {
   return (
@@ -73,9 +73,14 @@ function FlightSearchCard({ onSearchSuccess }: { onSearchSuccess: () => void }) 
       setError("Por favor, ingresa el número de vuelo y selecciona una fecha.");
       return;
     }
+    
+    // Increment counter on button click, before doing anything else.
+    await checkAndIncrementApiUsage('AeroAPI');
+    
     setIsLoading(true);
     setError(null);
     setSearchResult(null);
+    
     try {
       const flightDataPayload: FindFlightInput = {
         flightNumber,

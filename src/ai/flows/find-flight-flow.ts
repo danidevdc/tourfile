@@ -103,9 +103,6 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
 export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
   try {
     const apiKey = getApiKey(); // First, check for API key.
-
-    // Increment usage counter but do not restrict the call based on the result.
-    await checkAndIncrementApiUsage('AeroAPI');
     
     // Step 1: Normalize the flight number
     const flightIdent = normalizeIdent(input.flightNumber);
