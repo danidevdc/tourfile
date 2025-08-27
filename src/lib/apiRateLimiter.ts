@@ -1,5 +1,5 @@
 
-'use client';
+'use server';
 
 import { db } from '@/lib/firebase';
 import {
@@ -34,6 +34,9 @@ export interface ApiUsageStats {
  * @returns A promise that resolves to an object { allowed: boolean }.
  */
 export async function checkApiLimit(apiName: ApiName): Promise<{ allowed: boolean }> {
+  // IMPORTANT: This query requires a composite index in Firestore.
+  // If you see an error in the console with a link to create an index, please click it.
+  // The index will be on the 'apiUsage' collection, with fields 'apiName' (ascending) and 'timestamp' (ascending).
   if (!db) {
     console.error("Firestore not initialized. Cannot check API limit.");
     // Fail open or closed? Failing closed is safer.
