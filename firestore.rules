@@ -3,40 +3,58 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if a user is an admin.
-    // It reads the user's own profile from the userProfiles collection.
-    function isUserAdmin(userId) {
-      return get(/databases/$(database)/documents/userProfiles/$(userId)).data.isAdmin == true;
-    }
-
+  
     // --- User Profiles ---
+    // Users can read and update their own profile.
     match /userProfiles/{userId} {
-      // A user can read and update their own profile.
-      // An admin can read any profile.
-      allow read, update: if request.auth.uid == userId || isUserAdmin(request.auth.uid);
-      
-      // A user can create their own profile document (e.g., during registration).
-      allow create: if request.auth.uid == userId;
-
-      // Only an admin can delete a user profile (and they can't delete their own).
-      allow delete: if isUserAdmin(request.auth.uid) && request.auth.uid != userId;
-    }
-
-    // --- Generated Reports ---
-    // Any authenticated user can create a report record.
-    match /generatedReports/{reportId} {
-        allow create: if request.auth != null;
-        // Only admins can view the full list of reports.
-        allow list, read: if isUserAdmin(request.auth.uid);
+      allow read, update: if request.auth.uid == userId;
+      // Admins can do anything with user profiles
+      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
     
-    // --- Master Data Collections (Guides, Hotels, etc.) ---
-    // Any authenticated user can READ the master data lists for the generators.
-    // Only ADMINS can WRITE (create, update, delete) to these lists.
-    match /{collectionName}/{docId} where collectionName in ['guides', 'hotels', 'drivers', 'activities', 'expenseRules', 'activityTimeSuggestions'] {
+    // --- Data Management (For Admin Panel) ---
+    // Any authenticated user can read this data for the generators.
+    match /guides/{guideId} {
       allow read: if request.auth != null;
-      allow write: if isUserAdmin(request.auth.uid);
+      allow write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
+    match /hotels/{hotelId} {
+      allow read: if request.auth != null;
+      allow write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    match /drivers/{driverId} {
+      allow read: if request.auth != null;
+      allow write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    match /activities/{activityId} {
+      allow read: if request.auth != null;
+      allow write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // --- Rule Management (For Admin Panel) ---
+    // Only admins can read and write expense rules.
+    match /expenseRules/{ruleId} {
+      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // --- Generated Report Logging (For Admin Panel) ---
+    // Any authenticated user can create a report log entry. Only admins can read them.
+    match /generatedReports/{reportId} {
+      allow create: if request.auth != null;
+      allow read: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // --- Activity Time Suggestions (For Service Order AI) ---
+    // Any authenticated user can write to this collection to improve suggestions.
+    match /activityTimeSuggestions/{activityName} {
+        allow read, write: if request.auth != null;
+    }
+    
+    // --- Flight Search Counter ---
+    // Any authenticated user can create or update a counter document for flight searches.
+    match /flightSearchStats/{day} {
+      allow read, write: if request.auth != null;
+    }
+
   }
 }
