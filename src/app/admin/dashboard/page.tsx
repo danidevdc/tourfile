@@ -195,12 +195,6 @@ export default function AdminDashboardPage() {
               title="Administrar Usuarios"
               description="Visualiza todos los usuarios registrados y sus estadísticas de uso."
             />
-            <AdminLinkCard 
-              href="/admin/data/flights"
-              icon={Plane}
-              title="Sincronizar Vuelos"
-              description="Gestiona y sincroniza los datos de vuelos desde la API externa."
-            />
           </div>
         </CardContent>
       </Card>
