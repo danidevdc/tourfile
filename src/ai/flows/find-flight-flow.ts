@@ -5,7 +5,7 @@
  *
  * - findFlight - The exported server action to find flight details.
  */
-import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { addDays, format, isSameDay, parseISO, startOfDay, endOfDay } from 'date-fns';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
 import { checkAndIncrementApiUsage } from '@/lib/apiUsageService';
 
@@ -95,23 +95,29 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
   try {
     const apiKey = getApiKey(); // First, check for API key.
 
+    /*
+    // --- API LIMITING TEMPORARILY DISABLED FOR DEBUGGING ---
     // Then, check the rate limit before proceeding.
     const limitCheck = await checkAndIncrementApiUsage('AeroAPI');
     if (!limitCheck.allowed) {
+      console.log('[SERVER] API limit check failed. Aborting request.');
       return {
         flightFound: false,
         flightNumber: input.flightNumber,
         errorMessage: "Límite de API excedido. Por favor, espera un minuto antes de volver a intentarlo."
       };
     }
-
+    */
+    
     // Step 1: Normalize the flight number
     const flightIdent = normalizeIdent(input.flightNumber);
     
     // Step 2: Prepare date range for the API query according to docs
+    // The API expects a range. For a single day, we use the day itself as start
+    // and the next day as the end (since 'end' is exclusive).
     const targetDate = parseISO(input.date);
-    const startDate = format(startOfDay(targetDate), "yyyy-MM-dd'T'HH:mm:ss'Z'");
-    const endDate = format(endOfDay(targetDate), "yyyy-MM-dd'T'HH:mm:ss'Z'");
+    const startDate = format(targetDate, "yyyy-MM-dd");
+    const endDate = format(addDays(targetDate, 1), "yyyy-MM-dd");
 
 
     // Step 3: Call the API endpoint with date filters
@@ -131,6 +137,14 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     console.log('[SERVER] Raw API Response:', JSON.stringify(responseBody, null, 2));
 
     if (!response.ok) {
+        // If the API itself returns an error (like 429 Too Many Requests), handle it here.
+        if (response.status === 429) {
+            return {
+                flightFound: false,
+                flightNumber: input.flightNumber,
+                errorMessage: "El límite de la API de FlightAware ha sido excedido. Por favor, inténtalo de nuevo más tarde."
+            };
+        }
         const errorMessage = responseBody.title || responseBody.detail || `API request failed with status ${response.status}.`;
         return { flightFound: false, flightNumber: input.flightNumber, errorMessage };
     }
