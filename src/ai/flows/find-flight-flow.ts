@@ -5,7 +5,7 @@
  *
  * - findFlight - The exported server action to find flight details.
  */
-import { format, parseISO, startOfDay, endOfDay, addDays } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
 import { checkAndIncrementApiUsage } from '@/lib/apiUsageService';
 
@@ -109,7 +109,6 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     const flightIdent = normalizeIdent(input.flightNumber);
     
     // Step 2: Prepare date range for the API query according to docs
-    // The `end` parameter is exclusive, so we use the day after the target date.
     const targetDate = parseISO(input.date);
     const startDate = format(startOfDay(targetDate), "yyyy-MM-dd'T'HH:mm:ss'Z'");
     const endDate = format(endOfDay(targetDate), "yyyy-MM-dd'T'HH:mm:ss'Z'");

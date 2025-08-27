@@ -25,7 +25,6 @@ export interface ApiUsageStats {
   hour: number;
   day: number;
   month: number;
-  total: number;
 }
 
 function getUsageDocumentId(apiName: ApiName): string {
@@ -66,8 +65,8 @@ export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ all
         const lastUpdate = (data.lastUpdate as Timestamp)?.toDate();
         monthCount = data.monthCount || 0;
         
+        // Only use the minuteCount if we are in the exact same minute of the same hour of the same day.
         if (lastUpdate && lastUpdate.getUTCDate() === currentDay && lastUpdate.getUTCHours() === currentHour && lastUpdate.getUTCMinutes() === currentMinute) {
-          // If we are in the same minute, use the existing count
           minuteCount = data.minuteCount || 0;
         }
       }
@@ -81,7 +80,6 @@ export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ all
       const updatePayload: { [key: string]: any } = {
         lastUpdate: serverTimestamp(),
         monthCount: increment(1),
-        totalCount: increment(1),
         apiName: apiName // Ensure apiName is always present
       };
       
@@ -102,7 +100,6 @@ export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ all
         // If the document doesn't exist, it's the first call for the month.
         updatePayload.createdAt = serverTimestamp();
         updatePayload.monthCount = 1;
-        updatePayload.totalCount = 1;
         updatePayload.dayCount = 1;
         updatePayload.hourCount = 1;
         updatePayload.minuteCount = 1;
@@ -128,7 +125,7 @@ export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ all
 export async function getApiUsageStats(apiName: ApiName): Promise<ApiUsageStats> {
   if (!db) {
     console.error("[FATAL] Firestore not initialized.");
-    return { minute: 0, hour: 0, day: 0, month: 0, total: 0 };
+    return { minute: 0, hour: 0, day: 0, month: 0 };
   }
 
   const docId = getUsageDocumentId(apiName);
@@ -137,7 +134,7 @@ export async function getApiUsageStats(apiName: ApiName): Promise<ApiUsageStats>
   try {
     const docSnap = await getDoc(usageDocRef);
     if (!docSnap.exists()) {
-      return { minute: 0, hour: 0, day: 0, month: 0, total: 0 };
+      return { minute: 0, hour: 0, day: 0, month: 0 };
     }
     const data = docSnap.data();
     
@@ -154,10 +151,9 @@ export async function getApiUsageStats(apiName: ApiName): Promise<ApiUsageStats>
       hour: isSameHour ? data.hourCount || 0 : 0,
       day: isSameDay ? data.dayCount || 0 : 0,
       month: data.monthCount || 0,
-      total: data.totalCount || 0
     };
   } catch (error) {
     console.error("[ERROR] Error fetching API usage stats:", error);
-    return { minute: 0, hour: 0, day: 0, month: 0, total: 0 };
+    return { minute: 0, hour: 0, day: 0, month: 0 };
   }
 }
