@@ -24,35 +24,21 @@ function ApiUsageStatusCard({ usageStats, isLoading }: { usageStats: ApiUsageSta
         <CardTitle className="text-xl flex items-center gap-2">
           <GaugeCircle className="text-primary"/> Uso de API (AeroAPI)
         </CardTitle>
-        <CardDescription>Consultas a la API de FlightAware. Los contadores se resetean según el periodo.</CardDescription>
+        <CardDescription>Contador de búsquedas realizadas. Se resetea cada día (UTC).</CardDescription>
       </CardHeader>
       <CardContent>
          {isLoading ? (
-            <div className="flex justify-center items-center h-48">
+            <div className="flex justify-center items-center h-24">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
          ) : usageStats ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
-                <span className="text-sm font-medium text-muted-foreground">Minuto</span>
-                <span className="font-bold text-2xl text-foreground">{usageStats.minute}</span>
+            <div className="flex flex-col items-center p-4 bg-muted rounded-lg">
+                <span className="text-sm font-medium text-muted-foreground">Consultas Hoy (UTC)</span>
+                <span className="font-bold text-5xl text-foreground mt-2">{usageStats.day}</span>
               </div>
-              <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
-                <span className="text-sm font-medium text-muted-foreground">Hora</span>
-                <span className="font-bold text-2xl text-foreground">{usageStats.hour}</span>
-              </div>
-               <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
-                <span className="text-sm font-medium text-muted-foreground">Día (UTC)</span>
-                <span className="font-bold text-2xl text-foreground">{usageStats.day}</span>
-              </div>
-              <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
-                <span className="text-sm font-medium text-muted-foreground">Mes (UTC)</span>
-                <span className="font-bold text-2xl text-foreground">{usageStats.month}</span>
-              </div>
-            </div>
           ) : (
-            <div className="flex justify-center items-center h-48">
-                <p className="text-muted-foreground">No hay datos de uso de API.</p>
+            <div className="flex justify-center items-center h-24">
+                <p className="text-muted-foreground">No hay datos de uso.</p>
             </div>
           )}
       </CardContent>
