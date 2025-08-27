@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, ArrowRightLeft, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, Calendar as CalendarIcon, PlaneTakeoff, PlaneLanding } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import type { FindFlightOutput, FindFlightInput } from "@/ai/flows/flight-types";
@@ -80,7 +80,7 @@ function FlightSearchCard() {
                  <Input
                     id="flight-number"
                     type="text" 
-                    placeholder="Ej: AAL923, OAL305" 
+                    placeholder="Ej: AAL923, OB305" 
                     value={flightNumber} 
                     onChange={(e) => setFlightNumber(e.target.value.toUpperCase())}
                     className="mt-1"
@@ -126,21 +126,34 @@ function FlightSearchCard() {
           </div>
         )}
         {searchResult?.flightFound && (
-           <div className="mt-6 text-sm text-card-foreground bg-green-100 dark:bg-green-900/30 p-4 rounded-lg space-y-3 border border-green-500">
-              <p className="font-bold text-lg text-green-800 dark:text-green-200">Vuelo {searchResult.flightNumber}</p>
+           <div className="mt-6 text-sm text-card-foreground bg-green-50 dark:bg-green-900/20 p-4 rounded-lg space-y-4 border border-green-200 dark:border-green-800">
+              <h3 className="font-bold text-lg text-green-800 dark:text-green-200 text-center">Vuelo Encontrado: {searchResult.flightNumber}</h3>
               <div className="flex items-center text-base">
-                  <div className="text-center flex-1">
-                    <p className="font-bold text-xl">{searchResult.departure?.airport.code}</p>
-                    <p className="text-xs">{searchResult.departure?.airport.name}</p>
-                    <p className="font-mono mt-1 text-xl font-bold">{searchResult.departure?.time.scheduled}</p>
+                  {/* --- Departure --- */}
+                  <div className="w-5/12 text-center">
+                    <PlaneTakeoff className="mx-auto h-6 w-6 text-muted-foreground mb-1"/>
+                    <p className="font-bold text-2xl text-foreground">{searchResult.departure?.airport.code}</p>
+                    <p className="font-mono text-3xl font-bold text-primary">{searchResult.departure?.time.scheduled}</p>
+                    <p className="text-xs text-muted-foreground truncate">{searchResult.departure?.airport.city}</p>
                   </div>
-                  <div className="flex-grow-0 flex items-center justify-center mx-4">
-                    <ArrowRightLeft className="h-5 w-5 text-muted-foreground"/>
+                  
+                  {/* --- Flight Path --- */}
+                  <div className="w-2/12 flex items-center justify-center">
+                     <div className="w-full flex items-center">
+                        <span className="w-2 h-2 rounded-full bg-muted-foreground/50"></span>
+                        <div className="flex-grow border-b-2 border-dotted border-muted-foreground/50"></div>
+                        <Plane className="h-4 w-4 text-muted-foreground -ml-1 -mr-1" />
+                        <div className="flex-grow border-b-2 border-dotted border-muted-foreground/50"></div>
+                        <span className="w-2 h-2 rounded-full bg-muted-foreground/50"></span>
+                    </div>
                   </div>
-                   <div className="text-center flex-1">
-                    <p className="font-bold text-xl">{searchResult.arrival?.airport.code}</p>
-                     <p className="text-xs">{searchResult.arrival?.airport.name}</p>
-                    <p className="font-mono mt-1 text-xl font-bold">{searchResult.arrival?.time.scheduled}</p>
+
+                  {/* --- Arrival --- */}
+                   <div className="w-5/12 text-center">
+                    <PlaneLanding className="mx-auto h-6 w-6 text-muted-foreground mb-1"/>
+                    <p className="font-bold text-2xl text-foreground">{searchResult.arrival?.airport.code}</p>
+                    <p className="font-mono text-3xl font-bold text-primary">{searchResult.arrival?.time.scheduled}</p>
+                    <p className="text-xs text-muted-foreground truncate">{searchResult.arrival?.airport.city}</p>
                   </div>
               </div>
            </div>
