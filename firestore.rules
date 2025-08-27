@@ -1,60 +1,50 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // --- User Profiles ---
-    // Users can read and update their own profile.
+
+    // User Profiles:
+    // - Users can read their own profile.
+    // - Admins can read any profile.
+    // - Users can create their own profile during registration.
+    // - Users can update specific fields like session ID, last sign-in, or report count.
+    // - Admins can update/delete any profile.
     match /userProfiles/{userId} {
-      allow read, update: if request.auth.uid == userId;
-      // Admins can do anything with user profiles
-      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-    
-    // --- Data Management (For Admin Panel) ---
-    // Any authenticated user can read this data for the generators.
-    match /guides/{guideId} {
-      allow read: if request.auth != null;
-      allow write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-    match /hotels/{hotelId} {
-      allow read: if request.auth != null;
-      allow write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-    match /drivers/{driverId} {
-      allow read: if request.auth != null;
-      allow write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-    match /activities/{activityId} {
-      allow read: if request.auth != null;
-      allow write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+      allow read: if request.auth.uid == userId || request.auth.token.isAdmin == true;
+      allow create: if request.auth.uid == userId;
+      allow update: if (request.auth.uid == userId && request.resource.data.keys().hasAny(['activeSessionId', 'lastSignInTime', 'generatedReportsCount']))
+                    || request.auth.token.isAdmin == true;
+      allow delete: if request.auth.token.isAdmin == true;
     }
 
-    // --- Rule Management (For Admin Panel) ---
-    // Only admins can read and write expense rules.
-    match /expenseRules/{ruleId} {
-      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-    
-    // --- Generated Report Logging (For Admin Panel) ---
-    // Any authenticated user can create a report log entry. Only admins can read them.
+    // Generated Reports (Log of downloaded files):
+    // - Any authenticated user can create a report record.
+    // - Only admins can read the full list.
     match /generatedReports/{reportId} {
       allow create: if request.auth != null;
-      allow read: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+      allow read, write, delete: if request.auth.token.isAdmin == true;
     }
 
-    // --- Activity Time Suggestions (For Service Order AI) ---
-    // Any authenticated user can write to this collection to improve suggestions.
-    match /activityTimeSuggestions/{activityName} {
-        allow read, write: if request.auth != null;
+    // Expense Rules (Business Logic for Petty Cash):
+    // - ANY authenticated user can READ the rules to generate reports.
+    // - ONLY admins can create, update, or delete the rules.
+    match /expenseRules/{ruleId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth.token.isAdmin == true;
     }
     
-    // --- Flight Search Counter ---
-    // Any authenticated user can create or update a counter document for flight searches.
+    // Master Data (Guides, Hotels, Drivers, Activities):
+    // - ANY authenticated user can READ this data to populate dropdowns.
+    // - ONLY admins can create, update, or delete this data.
+    match /{collection}/{docId} where collection in ['guides', 'hotels', 'drivers', 'activities', 'activityTimeSuggestions'] {
+       allow read: if request.auth != null;
+       allow write: if request.auth.token.isAdmin == true;
+    }
+    
+    // Flight Search Stats:
+    // - Any authenticated user can read/write (increment) the stats.
     match /flightSearchStats/{day} {
       allow read, write: if request.auth != null;
     }
-
   }
 }
