@@ -7,7 +7,7 @@
  */
 import { addDays, format, isSameDay, parseISO, startOfDay, endOfDay, subHours } from 'date-fns';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
-import { checkAndIncrementApiUsage } from '@/lib/apiUsageService';
+// import { checkAndIncrementApiUsage } from '@/lib/apiUsageService';
 
 
 function getApiKey(): string {
@@ -40,8 +40,8 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
 
   // Filter flights to find one that involves La Paz airport (El Alto)
   const laPazFlight = apiData.flights.find((f: any) => 
-    (f.origin?.code_iata === 'LPB' && f.origin?.city?.toLowerCase().includes('la paz')) ||
-    (f.destination?.code_iata === 'LPB' && f.destination?.city?.toLowerCase().includes('la paz'))
+    (f.origin?.code_iata === 'LPB' && f.origin?.name?.toLowerCase().includes('el alto')) ||
+    (f.destination?.code_iata === 'LPB' && f.destination?.name?.toLowerCase().includes('el alto'))
   );
 
   if (!laPazFlight) {
@@ -80,7 +80,6 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
       },
       time: {
         scheduled: formatTime(flight.scheduled_out)!,
-        actual: formatTime(flight.actual_out),
       },
     },
     arrival: {
@@ -91,7 +90,6 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
       },
       time: {
         scheduled: formatTime(flight.scheduled_in)!,
-        actual: formatTime(flight.actual_in),
       },
     },
     flightSegment: `${flight.origin?.code_iata}/${flight.destination?.code_iata}`,

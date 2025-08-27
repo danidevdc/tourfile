@@ -132,8 +132,7 @@ function FlightSearchCard() {
                   <div className="text-center flex-1">
                     <p className="font-bold text-xl">{searchResult.departure?.airport.code}</p>
                     <p className="text-xs">{searchResult.departure?.airport.name}</p>
-                    <p className="font-mono mt-1 text-sm">Sale: {searchResult.departure?.time.scheduled}</p>
-                    <p className="font-mono text-xs text-green-600 dark:text-green-400">Real: {searchResult.departure?.time.actual}</p>
+                    <p className="font-mono mt-1 text-xl font-bold">{searchResult.departure?.time.scheduled}</p>
                   </div>
                   <div className="flex-grow-0 flex items-center justify-center mx-4">
                     <ArrowRightLeft className="h-5 w-5 text-muted-foreground"/>
@@ -141,8 +140,7 @@ function FlightSearchCard() {
                    <div className="text-center flex-1">
                     <p className="font-bold text-xl">{searchResult.arrival?.airport.code}</p>
                      <p className="text-xs">{searchResult.arrival?.airport.name}</p>
-                    <p className="font-mono mt-1 text-sm">Llega: {searchResult.arrival?.time.scheduled}</p>
-                     <p className="font-mono text-xs text-green-600 dark:text-green-400">Real: {searchResult.arrival?.time.actual}</p>
+                    <p className="font-mono mt-1 text-xl font-bold">{searchResult.arrival?.time.scheduled}</p>
                   </div>
               </div>
            </div>

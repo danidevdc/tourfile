@@ -23,7 +23,6 @@ const AirportInfoSchema = z.object({
 
 const FlightTimeSchema = z.object({
   scheduled: z.string().describe("The scheduled time in HH:mm format."),
-  actual: z.string().optional().describe("The actual or estimated time in HH:mm format."),
 });
 
 export const FindFlightOutputSchema = z.object({
