@@ -1,36 +1,34 @@
 
 'use server';
 /**
- * @fileOverview Finds real-time flight information by calling the AviationStack API directly.
- * This version is adapted for the AviationStack FREE plan, which does not support date-based searches.
+ * @fileOverview Finds real-time flight information by calling the FlightAware AeroAPI.
  *
- * - findFlight - The exported server action to find flight details from the AviationStack API.
+ * - findFlight - The exported server action to find flight details.
  */
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
 
 
-// Helper to get the API key from environment variables
 function getApiKey(): string {
-  const apiKey = process.env.NEXT_PUBLIC_AVIATIONSTACK_API_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_AEROAPI_KEY;
   if (!apiKey) {
-    throw new Error("AviationStack API key is missing. Please set NEXT_PUBLIC_AVIATIONSTACK_API_KEY in your .env.local file.");
+    throw new Error("AeroAPI key is missing. Please set NEXT_PUBLIC_AEROAPI_KEY in your .env file.");
   }
   return apiKey;
 }
 
-
-// Maps the API response to our app's FindFlightOutput format
-function mapApiResponseToFlightOutput(apiData: any): FindFlightOutput {
-  if (!apiData) {
-    return { flightFound: false };
+// Maps the AeroAPI response to our app's FindFlightOutput format
+function mapApiResponseToFlightOutput(apiData: any, inputFlightNumber: string): FindFlightOutput {
+  if (!apiData || !apiData.flights || apiData.flights.length === 0) {
+    return { flightFound: false, flightNumber: inputFlightNumber };
   }
+
+  const flight = apiData.flights[0];
 
   const formatTime = (dateStr: string | null | undefined): string | undefined => {
     if (!dateStr) return undefined;
     try {
-      // API returns ISO 8601 format (e.g., "2025-08-27T10:40:00+00:00")
-      return format(new Date(dateStr), 'HH:mm');
+      return format(parseISO(dateStr), 'HH:mm');
     } catch (e) {
       console.warn("Invalid date for formatting:", dateStr, e);
       return undefined;
@@ -39,89 +37,69 @@ function mapApiResponseToFlightOutput(apiData: any): FindFlightOutput {
 
   return {
     flightFound: true,
-    flightNumber: apiData.flight.iata,
-    airline: apiData.airline.name,
+    flightNumber: flight.ident,
+    airline: flight.airline.name || flight.airline.shortname,
     departure: {
       airport: {
-        code: apiData.departure.iata,
-        name: apiData.departure.airport,
-        city: apiData.departure.timezone,
+        code: flight.origin.code_iata,
+        name: flight.origin.name,
+        city: flight.origin.city,
       },
       time: {
-        scheduled: formatTime(apiData.departure.scheduled)!,
-        actual: formatTime(apiData.departure.actual),
+        scheduled: formatTime(flight.scheduled_out)!,
+        actual: formatTime(flight.actual_out),
       },
     },
     arrival: {
       airport: {
-        code: apiData.arrival.iata,
-        name: apiData.arrival.airport,
-        city: apiData.arrival.timezone,
+        code: flight.destination.code_iata,
+        name: flight.destination.name,
+        city: flight.destination.city,
       },
       time: {
-        scheduled: formatTime(apiData.arrival.scheduled)!,
-        actual: formatTime(apiData.arrival.actual),
+        scheduled: formatTime(flight.scheduled_in)!,
+        actual: formatTime(flight.actual_in),
       },
     },
-    flightSegment: `${apiData.departure.iata}/${apiData.arrival.iata}`,
+    flightSegment: `${flight.origin.code_iata}/${flight.destination.code_iata}`,
   };
 }
 
 
 /**
- * Finds a flight by calling the AviationStack API directly.
- * This is a server action that can be called from client components.
+ * Finds a flight by calling the AeroAPI.
  */
 export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
-  console.log("[SERVER] Calling AviationStack API for:", JSON.stringify(input, null, 2));
+  console.log("[SERVER] Calling AeroAPI for:", JSON.stringify(input, null, 2));
 
   try {
     const apiKey = getApiKey();
-    const flightIata = input.flightNumber.replace(/\s/g, '').toUpperCase();
-    const params = new URLSearchParams({
-        access_key: apiKey,
-        flight_iata: flightIata,
-        limit: '1',
-    });
-
-    const url = `https://api.aviationstack.com/v1/flights?${params.toString()}`;
+    const flightIdent = input.flightNumber.replace(/\s/g, '').toUpperCase();
+    const url = `https://aeroapi.flightaware.com/aeroapi/flights/${flightIdent}?start=${input.date}`;
     
     console.log(`[SERVER] Fetching URL: ${url}`);
-    const response = await fetch(url, { cache: 'no-store' });
+    
+    const response = await fetch(url, {
+      headers: {
+        'x-apikey': apiKey
+      },
+      cache: 'no-store'
+    });
+
+    const responseBody = await response.json();
 
     if (!response.ok) {
-        const errorText = await response.text();
-        let errorBody: any = {};
-        try {
-            // Try to parse as JSON first
-            errorBody = JSON.parse(errorText);
-        } catch {
-            // If it fails, it's likely plain text or HTML
-            errorBody.message = errorText || `HTTP Error ${response.status}`;
-        }
-        const errorMessage = errorBody?.error?.message || errorBody.message || `API request failed with status ${response.status}.`;
-        console.error("[SERVER] AviationStack API Error:", errorMessage);
-        return { flightFound: false, errorMessage };
-    }
-
-    const jsonResponse = await response.json();
-    const flightData = jsonResponse.data?.[0];
-
-    if (!flightData) {
-      console.log("[SERVER] No flight data returned from API for this criteria.");
-      return { 
-          flightFound: false, 
-          flightNumber: input.flightNumber,
-          errorMessage: `Vuelo ${input.flightNumber} no encontrado.`
-      };
+        const errorMessage = responseBody.title || responseBody.detail || `API request failed with status ${response.status}.`;
+        console.error("[SERVER] AeroAPI Error:", errorMessage, JSON.stringify(responseBody, null, 2));
+        return { flightFound: false, flightNumber: input.flightNumber, errorMessage };
     }
     
-    console.log("[SERVER] Found flight data from API:", JSON.stringify(flightData, null, 2));
-    const result = mapApiResponseToFlightOutput(flightData);
+    console.log("[SERVER] Found flight data from API:", JSON.stringify(responseBody, null, 2));
+    const result = mapApiResponseToFlightOutput(responseBody, input.flightNumber);
 
     return {
         ...result,
-        flightNumber: input.flightNumber,
+        flightNumber: input.flightNumber, // Return the original requested number for consistency
     };
 
   } catch (e: any) {

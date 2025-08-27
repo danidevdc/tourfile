@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Shared types for the flight-finding agent.
  * These types are used for API communication.
@@ -6,9 +7,9 @@
 import {z} from 'genkit';
 
 // Schema for input when a user searches for a flight.
-// Date is removed to comply with the free tier of AviationStack API.
 export const FindFlightInputSchema = z.object({
   flightNumber: z.string().describe("The flight number to search for (e.g., 'OB304', 'AA923')."),
+  date: z.string().describe("The date of the flight in 'YYYY-MM-DD' format."),
 });
 export type FindFlightInput = z.infer<typeof FindFlightInputSchema>;
 
@@ -27,7 +28,7 @@ const FlightTimeSchema = z.object({
 
 export const FindFlightOutputSchema = z.object({
   flightFound: z.boolean().describe('Whether a flight was successfully found.'),
-  flightNumber: z.string().optional().describe("The flight number that was found (e.g., 'OB305')."),
+  flightNumber: z.string().optional().describe("The flight number that was found (e.g., 'AAL923')."),
   departure: z.object({
     airport: AirportInfoSchema,
     time: FlightTimeSchema,
@@ -36,8 +37,8 @@ export const FindFlightOutputSchema = z.object({
     airport: AirportInfoSchema,
     time: FlightTimeSchema,
   }).optional(),
-  airline: z.string().optional().describe("The name of the airline (e.g., 'Boliviana de Aviación')."),
-  flightSegment: z.string().optional().describe("The flight route segment as 'DEPARTURE_CODE/ARRIVAL_CODE' (e.g., 'LPB/VVI')."),
+  airline: z.string().optional().describe("The name of the airline (e.g., 'American Airlines')."),
+  flightSegment: z.string().optional().describe("The flight route segment as 'DEPARTURE_CODE/ARRIVAL_CODE' (e.g., 'MIA/LPB')."),
   errorMessage: z.string().optional().describe("An error message if the search flow failed.")
 });
 
