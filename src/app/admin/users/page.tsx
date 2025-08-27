@@ -146,8 +146,8 @@ export default function AdminUsersPage() {
                     <TableHead className="text-center">Admin</TableHead>
                     <TableHead>Fecha de Registro</TableHead>
                     <TableHead>Último Ingreso</TableHead>
-                    <TableHead className="text-center">Reportes Julio (Manual)</TableHead>
-                    <TableHead className="text-center">Reportes Agosto (Sistema)</TableHead>
+                    <TableHead className="text-center">Reportes Julio</TableHead>
+                    <TableHead className="text-center">Reportes Agosto</TableHead>
                     <TableHead className="text-center">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
