@@ -45,9 +45,13 @@ function FlightSearchCard() {
       console.log("[CLIENT] API Response:", JSON.stringify(result, null, 2));
       
       if (result.errorMessage) {
-          setError(`Error del servidor: ${result.errorMessage}.`);
+          if (result.errorMessage.includes("No flight found for this date")) {
+            setError(`No se encontró ningún vuelo para el número "${flightNumber}" en la fecha seleccionada. Por favor, verifica si el vuelo opera ese día.`);
+          } else {
+            setError(`Error: ${result.errorMessage}`);
+          }
       } else if (!result.flightFound) {
-        setError(`Vuelo ${flightNumber} no encontrado para la fecha seleccionada.`);
+        setError(`Vuelo ${flightNumber} no encontrado. Revisa los datos e inténtalo de nuevo.`);
       }
       setSearchResult(result);
     } catch (e) {
