@@ -5,7 +5,7 @@
  *
  * - findFlight - The exported server action to find flight details.
  */
-import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay, addDays } from 'date-fns';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
 import { checkAndIncrementApiUsage } from '@/lib/apiUsageService';
 
@@ -31,7 +31,11 @@ function normalizeIdent(flightNumber: string): string {
 // Maps the AeroAPI response to our app's FindFlightOutput format
 function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string): FindFlightOutput {
   if (!apiData || !apiData.flights || apiData.flights.length === 0) {
-    return { flightFound: false, flightNumber: originalFlightNumber, errorMessage: `No flights found for the given ident.` };
+    return { 
+        flightFound: false, 
+        flightNumber: originalFlightNumber, 
+        errorMessage: `No flight found for this date. Please check if the flight operates on the selected day.` 
+    };
   }
 
   // With start/end params, the API should only return flights for the correct day.
@@ -46,6 +50,7 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
       // For HH:mm, this is generally what users expect to see.
       return format(parseISO(dateStr), 'HH:mm');
     } catch (e) {
+      console.error(`Error formatting date: ${dateStr}`, e);
       return undefined;
     }
   };
@@ -103,10 +108,12 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     // Step 1: Normalize the flight number
     const flightIdent = normalizeIdent(input.flightNumber);
     
-    // Step 2: Prepare date range for the API query
+    // Step 2: Prepare date range for the API query according to docs
+    // The `end` parameter is exclusive, so we use the day after the target date.
     const targetDate = parseISO(input.date);
-    const startDate = startOfDay(targetDate).toISOString();
-    const endDate = endOfDay(targetDate).toISOString();
+    const startDate = format(startOfDay(targetDate), "yyyy-MM-dd'T'HH:mm:ss'Z'");
+    const endDate = format(endOfDay(targetDate), "yyyy-MM-dd'T'HH:mm:ss'Z'");
+
 
     // Step 3: Call the API endpoint with date filters
     const url = `https://aeroapi.flightaware.com/aeroapi/flights/${flightIdent}?start=${startDate}&end=${endDate}`;
@@ -125,14 +132,6 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     
     // Step 4: Map the API response to our output format
     const result = mapApiResponseToFlightOutput(responseBody, input.flightNumber);
-
-    // If the flight is not found for any reason, return the original requested number for context.
-    if(!result.flightFound) {
-        return {
-            ...result,
-            flightNumber: input.flightNumber,
-        };
-    }
     
     return result;
 
