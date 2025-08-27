@@ -1,12 +1,12 @@
 
 'use server';
 /**
- * @fileOverview Finds flight information by calling the AviationStack API directly.
- * This file replaces the previous Firestore-based implementation for direct API testing.
+ * @fileOverview Finds real-time flight information by calling the AviationStack API directly.
+ * This version is adapted for the AviationStack FREE plan, which does not support date-based searches.
  *
  * - findFlight - The exported server action to find flight details from the AviationStack API.
  */
-import { format, parse } from 'date-fns';
+import { format } from 'date-fns';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
 
 
@@ -81,7 +81,6 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     const params = new URLSearchParams({
         access_key: apiKey,
         flight_iata: flightIata,
-        flight_date: input.date,
         limit: '1',
     });
 
@@ -94,8 +93,10 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
         const errorText = await response.text();
         let errorBody: any = {};
         try {
+            // Try to parse as JSON first
             errorBody = JSON.parse(errorText);
         } catch {
+            // If it fails, it's likely plain text or HTML
             errorBody.message = errorText || `HTTP Error ${response.status}`;
         }
         const errorMessage = errorBody?.error?.message || errorBody.message || `API request failed with status ${response.status}.`;
@@ -111,7 +112,7 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
       return { 
           flightFound: false, 
           flightNumber: input.flightNumber,
-          errorMessage: `Vuelo ${input.flightNumber} no encontrado en la API para la fecha ${input.date}.`
+          errorMessage: `Vuelo ${input.flightNumber} no encontrado.`
       };
     }
     

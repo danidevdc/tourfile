@@ -1,14 +1,14 @@
 /**
  * @fileOverview Shared types for the flight-finding agent.
- * These types are used both for API communication and Firestore storage.
+ * These types are used for API communication.
  */
 
 import {z} from 'genkit';
 
 // Schema for input when a user searches for a flight.
+// Date is removed to comply with the free tier of AviationStack API.
 export const FindFlightInputSchema = z.object({
   flightNumber: z.string().describe("The flight number to search for (e.g., 'OB304', 'AA923')."),
-  date: z.string().describe("The date of the flight in yyyy-MM-dd format."),
 });
 export type FindFlightInput = z.infer<typeof FindFlightInputSchema>;
 

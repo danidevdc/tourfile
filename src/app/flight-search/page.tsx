@@ -1,34 +1,27 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, Calendar as CalendarIcon, ArrowRightLeft } from "lucide-react";
+import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, ArrowRightLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { format } from "date-fns";
-import { es } from 'date-fns/locale';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import type { FindFlightOutput, FindFlightInput } from "@/ai/flows/flight-types";
 import { useAuth } from "@/hooks/useAuth";
-import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 
 
 function FlightSearchCard() {
   const [flightNumber, setFlightNumber] = useState('');
-  const [flightDate, setFlightDate] = useState<Date | undefined>(new Date());
   const [isLoading, setIsLoading] = useState(false);
   const [searchResult, setSearchResult] = useState<FindFlightOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const handleSearch = async () => {
-    if (!flightNumber || !flightDate) {
-      setError("Por favor, ingresa el número de vuelo y la fecha.");
+    if (!flightNumber) {
+      setError("Por favor, ingresa el número de vuelo.");
       return;
     }
     setIsLoading(true);
@@ -37,7 +30,6 @@ function FlightSearchCard() {
     try {
       const flightDataPayload: FindFlightInput = {
         flightNumber,
-        date: format(flightDate, 'yyyy-MM-dd'),
       };
       
       console.log("[CLIENT] Calling API with:", JSON.stringify(flightDataPayload, null, 2));
@@ -49,7 +41,7 @@ function FlightSearchCard() {
       if (result.errorMessage) {
           setError(`Error del servidor: ${result.errorMessage}.`);
       } else if (!result.flightFound) {
-        setError(`Vuelo ${flightNumber} no encontrado. Verifica el número y la fecha.`);
+        setError(`Vuelo ${flightNumber} no encontrado. Verifica el número.`);
       }
       setSearchResult(result);
     } catch (e) {
@@ -65,14 +57,14 @@ function FlightSearchCard() {
        <CardHeader>
         <CardTitle className="text-2xl font-bold text-primary flex items-center gap-3">
           <Plane className="h-8 w-8" />
-          Buscador de Vuelos (API Directa)
+          Buscador de Vuelos en Tiempo Real
         </CardTitle>
         <CardDescription>
-          Ingresa un número de vuelo y fecha para obtener su estado desde la API de AviationStack.
+          Ingresa un número de vuelo para obtener su estado actual desde la API de AviationStack (Plan Gratuito).
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
             <div>
                  <Label htmlFor="flight-number">N° de Vuelo</Label>
                  <Input
@@ -84,38 +76,9 @@ function FlightSearchCard() {
                     className="mt-1"
                   />
             </div>
-            <div>
-              <Label>Fecha de Vuelo</Label>
-              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                <PopoverTrigger asChild>
-                    <Button
-                        variant={"outline"}
-                        className={cn(
-                            "w-full justify-start text-left font-normal mt-1",
-                            !flightDate && "text-muted-foreground"
-                        )}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {flightDate ? format(flightDate, "dd 'de' MMMM, yyyy", { locale: es}) : <span>Seleccionar fecha</span>}
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                    <Calendar
-                        mode="single"
-                        selected={flightDate}
-                        onSelect={(date) => {
-                            setFlightDate(date);
-                            setIsCalendarOpen(false);
-                        }}
-                        initialFocus
-                        locale={es}
-                    />
-                </PopoverContent>
-              </Popover>
-            </div>
         </div>
         <div className="mt-4">
-             <Button onClick={handleSearch} disabled={isLoading || !flightNumber || !flightDate} className="w-full">
+             <Button onClick={handleSearch} disabled={isLoading || !flightNumber} className="w-full">
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                 Buscar Vuelo
               </Button>
@@ -155,13 +118,10 @@ export default function FlightSearchPage() {
     const router = useRouter();
     const { isCurrentUserAdmin, isLoading } = useAuth();
 
-    useEffect(() => {
-        if (!isLoading && !isCurrentUserAdmin) {
-            router.replace('/');
-        }
-    }, [isLoading, isCurrentUserAdmin, router]);
-
-    if (isLoading || !isCurrentUserAdmin) {
+    // The page is now public, so we remove the admin check redirection.
+    // Anyone can search for a flight.
+    
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />

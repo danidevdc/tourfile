@@ -57,6 +57,24 @@ export default function HomePage() {
                 <ArrowRight className="h-8 w-8 ml-auto text-accent-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
               </Button>
             </Link>
+            
+            <Link href="/flight-search" passHref>
+              <Button
+                variant="outline" 
+                className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-primary/20 hover:border-primary text-primary"
+              >
+                <Plane className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                <div className="text-left flex-grow">
+                  <span className="block text-2xl font-bold">
+                    Buscador de Vuelos
+                  </span>
+                  <span className="block text-sm font-normal text-muted-foreground">
+                    Consulta el estado de vuelos en tiempo real
+                  </span>
+                </div>
+                <ArrowRight className="h-8 w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+              </Button>
+            </Link>
 
             {!authLoading && isCurrentUserAdmin && (
               <>
@@ -75,23 +93,6 @@ export default function HomePage() {
                       </span>
                     </div>
                     <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-                  </Button>
-                </Link>
-                <Link href="/flight-search" passHref>
-                  <Button
-                    variant="outline" 
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-primary/20 hover:border-primary text-primary"
-                  >
-                    <Plane className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
-                    <div className="text-left flex-grow">
-                      <span className="block text-2xl font-bold">
-                        Buscador de Vuelos
-                      </span>
-                      <span className="block text-sm font-normal text-muted-foreground">
-                        Herramienta de prueba para IA
-                      </span>
-                    </div>
-                    <ArrowRight className="h-8 w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
                   </Button>
                 </Link>
               </>
