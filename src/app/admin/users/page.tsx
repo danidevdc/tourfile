@@ -22,7 +22,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { getAugustReports, type ReportInfo } from '@/lib/reportService';
+import { getAugustReports } from '@/lib/reportService';
 
 
 export default function AdminUsersPage() {
@@ -71,12 +71,26 @@ export default function AdminUsersPage() {
     }
   }, [isCurrentUserAdmin, authLoading, router, getAllUserProfiles, toast]);
 
+  const processedUsers = useMemo(() => {
+    return users.map(user => {
+      const totalReports = user.generatedReportsCount || 0;
+      const augustCount = user.email ? augustReportCounts[user.email.toLowerCase()] || 0 : 0;
+      const julyCount = Math.max(0, totalReports - augustCount); // Ensure it's not negative
+
+      return {
+        ...user,
+        julyReports: julyCount,
+        augustReports: augustCount,
+      };
+    });
+  }, [users, augustReportCounts]);
+
 
   const totals = useMemo(() => {
-    const totalJuly = users.reduce((sum, user) => sum + (user.generatedReportsCount || 0), 0);
-    const totalAugust = Object.values(augustReportCounts).reduce((sum, count) => sum + count, 0);
+    const totalJuly = processedUsers.reduce((sum, user) => sum + user.julyReports, 0);
+    const totalAugust = processedUsers.reduce((sum, user) => sum + user.augustReports, 0);
     return { july: totalJuly, august: totalAugust };
-  }, [users, augustReportCounts]);
+  }, [processedUsers]);
 
 
   const handleDeleteUser = async () => {
@@ -152,7 +166,7 @@ export default function AdminUsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
+                  {processedUsers.map((user) => (
                     <TableRow key={user.uid}>
                       <TableCell className="font-medium">{user.email}</TableCell>
                       <TableCell className="text-center">
@@ -168,8 +182,8 @@ export default function AdminUsersPage() {
                       <TableCell>
                         {user.lastSignInTime ? format(user.lastSignInTime, 'dd/MM/yyyy HH:mm', { locale: es }) : 'Nunca'}
                       </TableCell>
-                       <TableCell className="text-center font-medium">{user.generatedReportsCount || 0}</TableCell>
-                       <TableCell className="text-center font-medium">{user.email ? augustReportCounts[user.email.toLowerCase()] || 0 : 0}</TableCell>
+                       <TableCell className="text-center font-medium">{user.julyReports}</TableCell>
+                       <TableCell className="text-center font-medium">{user.augustReports}</TableCell>
                       <TableCell className="text-center">
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
