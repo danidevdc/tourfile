@@ -1,62 +1,58 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // User Profiles
+    // --- User Profiles (userProfiles collection) ---
     match /userProfiles/{userId} {
-      // Users can read/update their own profile
-      allow read, update: if request.auth.uid == userId;
-      // Admins can read any profile (for the admin dashboard)
-      allow get: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-      // Users can create their own profile upon registration
-      allow create: if request.auth.uid == userId;
-      // Only admins can delete profiles (except their own via this rule)
-      allow delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true && request.auth.uid != userId;
+      // READ: 
+      // 1. A user can read their own profile.
+      // 2. An admin user can read any profile (for user management panels).
+      allow read: if request.auth != null && 
+                     (request.auth.uid == userId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true);
+                     
+      // CREATE: A user can create their own profile document, typically during registration.
+      // The UID in the path must match the UID of the logged-in user.
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // UPDATE: A user can update their own profile.
+      allow update: if request.auth != null && request.auth.uid == userId;
+
+      // DELETE:
+      // Only an admin can delete a user's profile.
+      // A user cannot delete their own profile through this rule to prevent accidental self-deletion.
+      allow delete: if request.auth != null &&
+                       get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // --- Generated Reports (generatedReports collection) ---
+    // Any authenticated user can create (save) a report.
+    // Reading is restricted to admins to view analytics.
+    match /generatedReports/{reportId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null && 
+                     get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+      // No update/delete from client for data integrity.
+    }
+
+    // --- Business Logic Rules (expenseRules collection) ---
+    // Reading is allowed by any authenticated user (needed for the generator).
+    // Writing (create, update, delete) is restricted to admins.
+    match /expenseRules/{ruleId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && 
+                        get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
     
-    // List of all user profiles
-    match /userProfiles/{document=**} {
-        // Only admins can list all user profiles
-        allow list: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    // Generated Reports logs
-    match /generatedReports/{reportId} {
-      // Any authenticated user can create a report log entry
-      allow create: if request.auth != null;
-      // Only admins can read the full list of reports
-      allow list, get: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    // API Usage Counters
-    // Any authenticated user can read and write to the counters collection.
-    // The logic in the Cloud Function securely handles increments.
-    match /apiUsageCounters/{docId} {
-      allow read, write: if request.auth != null;
-    }
-
-    // Master Data (Guides, Hotels, Drivers, Activities) and Expense Rules
-    // Any authenticated user can read this data to populate dropdowns and generate reports.
-    // Write access is limited to admins via application logic, but rules allow writes
-    // for simplicity, relying on the UI to restrict access.
-    match /guides/{guideId} {
-      allow read, write: if request.auth != null;
-    }
-    match /hotels/{hotelId} {
-      allow read, write: if request.auth != null;
-    }
-    match /drivers/{driverId} {
-      allow read, write: if request.auth != null;
-    }
-    match /activities/{activityId} {
-      allow read, write: if request.auth != null;
-    }
-    match /expenseRules/{ruleId} {
-       allow read, write: if request.auth != null;
-    }
-     match /activityTimeSuggestions/{activityId} {
-      allow read, write: if request.auth != null;
+    // --- Master Data (guides, hotels, drivers, activities) ---
+    // Any authenticated user can read this data to populate dropdowns in generators.
+    // Writing is restricted to admins via the data management page.
+    match /{collectionId}/{docId} 
+        where collectionId in ['guides', 'hotels', 'drivers', 'activities', 'activityTimeSuggestions'] {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+                      get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
   }
 }

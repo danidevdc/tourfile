@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, Calendar as CalendarIcon, PlaneTakeoff, PlaneLanding, GaugeCircle } from "lucide-react";
+import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, Calendar as CalendarIcon, PlaneTakeoff, PlaneLanding } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import type { FindFlightOutput, FindFlightInput } from "@/ai/flows/flight-types";
@@ -15,39 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { getApiUsageStats, checkAndIncrementApiUsage, type ApiUsageStats } from '@/lib/apiUsageService';
 
-function SearchCounterCard({ usageStats, isLoading }: { usageStats: ApiUsageStats | null, isLoading: boolean }) {
-  return (
-    <Card className="w-full max-w-2xl shadow-lg rounded-xl mt-6 border-primary/20">
-      <CardHeader>
-        <CardTitle className="text-xl flex items-center gap-2">
-          <GaugeCircle className="text-primary"/> Búsquedas Realizadas Hoy
-        </CardTitle>
-        <CardDescription>Contador de búsquedas de vuelos. Se resetea cada día (UTC).</CardDescription>
-      </CardHeader>
-      <CardContent>
-         {isLoading ? (
-            <div className="flex justify-center items-center h-24">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-         ) : usageStats ? (
-            <div className="flex flex-col items-center p-4 bg-muted rounded-lg">
-                <span className="text-sm font-medium text-muted-foreground">Consultas</span>
-                <span className="font-bold text-5xl text-foreground mt-2">{usageStats.day}</span>
-              </div>
-          ) : (
-            <div className="flex justify-center items-center h-24">
-                <p className="text-muted-foreground">No hay datos de uso.</p>
-            </div>
-          )}
-      </CardContent>
-    </Card>
-  );
-}
-
-
-function FlightSearchCard({ onSearchSuccess }: { onSearchSuccess: () => void }) {
+function FlightSearchCard() {
   const [flightNumber, setFlightNumber] = useState('');
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [isLoading, setIsLoading] = useState(false);
@@ -65,10 +34,6 @@ function FlightSearchCard({ onSearchSuccess }: { onSearchSuccess: () => void }) 
     setSearchResult(null);
     
     try {
-      // Step 1: Increment the counter first and wait for it to complete.
-      await checkAndIncrementApiUsage('AeroAPI');
-      
-      // Step 2: Now that the counter is incremented, search for the flight.
       const flightDataPayload: FindFlightInput = {
         flightNumber,
         date: format(date, 'yyyy-MM-dd'),
@@ -91,8 +56,6 @@ function FlightSearchCard({ onSearchSuccess }: { onSearchSuccess: () => void }) 
       console.error(e);
       setError("Ocurrió un error inesperado al buscar el vuelo. Revisa la consola para más detalles.");
     } finally {
-      // Step 3: After everything is done, trigger the UI refresh for the counter.
-      onSearchSuccess();
       setIsLoading(false);
     }
   };
@@ -202,29 +165,6 @@ export default function FlightSearchPage() {
     const router = useRouter();
     const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
     
-    const [apiUsage, setApiUsage] = useState<ApiUsageStats | null>(null);
-    const [isUsageLoading, setIsUsageLoading] = useState(true);
-
-    const fetchApiUsage = async () => {
-        setIsUsageLoading(true);
-        try {
-            const stats = await getApiUsageStats('AeroAPI');
-            setApiUsage(stats);
-        } catch (error) {
-            console.error("Failed to fetch API usage stats:", error);
-            setApiUsage(null);
-        } finally {
-            setIsUsageLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (!authLoading && isCurrentUserAdmin) {
-            fetchApiUsage();
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [authLoading, isCurrentUserAdmin]);
-
     if (authLoading) {
         return (
             <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -251,8 +191,7 @@ export default function FlightSearchPage() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </div>
-            <FlightSearchCard onSearchSuccess={fetchApiUsage} />
-            <SearchCounterCard usageStats={apiUsage} isLoading={isUsageLoading} />
+            <FlightSearchCard />
         </div>
     );
 }
