@@ -125,7 +125,7 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     
     const response = await fetch(url, {
       headers: { 'x-apikey': apiKey },
-      cache: 'no-store'
+      cache: 'no-store' // Avoid caching flight data
     });
 
     const responseBody = await response.json();
