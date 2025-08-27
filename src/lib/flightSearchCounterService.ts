@@ -4,7 +4,7 @@
 import { db } from '@/lib/firebase';
 import { doc, getDoc, runTransaction, DocumentReference } from 'firebase/firestore';
 import { format } from 'date-fns';
-import { utcToZonedTime } from 'date-fns-tz';
+import { toZonedTime } from 'date-fns-tz';
 
 // Interface for the data we'll show in the chart
 export interface FlightSearchStat {
@@ -32,7 +32,7 @@ export async function incrementFlightSearchCount(): Promise<void> {
 
   // Get current time and convert it to the target timezone (GMT-4)
   const nowUtc = new Date();
-  const zonedDate = utcToZonedTime(nowUtc, TIME_ZONE);
+  const zonedDate = toZonedTime(nowUtc, TIME_ZONE);
   
   // Use the date and hour from the converted time
   const dateKey = format(zonedDate, 'yyyy-MM-dd'); // e.g., "2024-08-01"
@@ -81,7 +81,7 @@ export async function getTodaysFlightSearchStats(): Promise<FlightSearchStat[]> 
 
   // Get the current date in the target timezone to fetch the correct document
   const nowUtc = new Date();
-  const zonedDate = utcToZonedTime(nowUtc, TIME_ZONE);
+  const zonedDate = toZonedTime(nowUtc, TIME_ZONE);
   const dateKey = format(zonedDate, 'yyyy-MM-dd');
 
   const statDocRef: DocumentReference<DailyStats> = doc(db, 'flightSearchStats', dateKey) as DocumentReference<DailyStats>;
