@@ -52,8 +52,10 @@ export default function AdminUsersPage() {
 
             const counts: { [email: string]: number } = {};
             augustReports.forEach(report => {
-                const email = report.generatedBy.toLowerCase();
-                counts[email] = (counts[email] || 0) + 1;
+                if (report.generatedBy) {
+                    const email = report.generatedBy.toLowerCase();
+                    counts[email] = (counts[email] || 0) + 1;
+                }
             });
             setAugustReportCounts(counts);
 
@@ -71,9 +73,9 @@ export default function AdminUsersPage() {
 
 
   const totals = useMemo(() => {
-    const totalJune = users.reduce((sum, user) => sum + (user.generatedReportsCount || 0), 0);
+    const totalJuly = users.reduce((sum, user) => sum + (user.generatedReportsCount || 0), 0);
     const totalAugust = Object.values(augustReportCounts).reduce((sum, count) => sum + count, 0);
-    return { june: totalJune, august: totalAugust };
+    return { july: totalJuly, august: totalAugust };
   }, [users, augustReportCounts]);
 
 
@@ -144,7 +146,7 @@ export default function AdminUsersPage() {
                     <TableHead className="text-center">Admin</TableHead>
                     <TableHead>Fecha de Registro</TableHead>
                     <TableHead>Último Ingreso</TableHead>
-                    <TableHead className="text-center">Reportes Junio (Manual)</TableHead>
+                    <TableHead className="text-center">Reportes Julio (Manual)</TableHead>
                     <TableHead className="text-center">Reportes Agosto (Sistema)</TableHead>
                     <TableHead className="text-center">Acciones</TableHead>
                   </TableRow>
@@ -167,7 +169,7 @@ export default function AdminUsersPage() {
                         {user.lastSignInTime ? format(user.lastSignInTime, 'dd/MM/yyyy HH:mm', { locale: es }) : 'Nunca'}
                       </TableCell>
                        <TableCell className="text-center font-medium">{user.generatedReportsCount || 0}</TableCell>
-                       <TableCell className="text-center font-medium">{augustReportCounts[user.email.toLowerCase()] || 0}</TableCell>
+                       <TableCell className="text-center font-medium">{user.email ? augustReportCounts[user.email.toLowerCase()] || 0 : 0}</TableCell>
                       <TableCell className="text-center">
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -209,7 +211,7 @@ export default function AdminUsersPage() {
                 <TableFooter>
                     <TableRow className="bg-muted/50 hover:bg-muted">
                         <TableCell colSpan={4} className="font-bold text-right">TOTALES</TableCell>
-                        <TableCell className="text-center font-bold">{totals.june}</TableCell>
+                        <TableCell className="text-center font-bold">{totals.july}</TableCell>
                         <TableCell className="text-center font-bold">{totals.august}</TableCell>
                         <TableCell></TableCell>
                     </TableRow>

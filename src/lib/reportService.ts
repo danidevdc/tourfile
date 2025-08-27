@@ -10,6 +10,7 @@ import {
   query,
   where,
 } from 'firebase/firestore';
+import { toZonedTime } from 'date-fns-tz';
 
 export interface ReportInfo {
   id: string; // Firestore document ID
@@ -58,7 +59,7 @@ export async function getAllReportsFromFirestore(): Promise<ReportInfo[]> {
 
 
 /**
- * Fetches all reports generated in August 2024.
+ * Fetches all reports generated in August 2024, considering the Bolivia timezone.
  */
 export async function getAugustReports(): Promise<ReportInfo[]> {
   if (!db) {
@@ -67,15 +68,16 @@ export async function getAugustReports(): Promise<ReportInfo[]> {
   }
   try {
     const reportsRef = collection(db, 'generatedReports');
-    
-    // Define the start and end of August 2024
-    const startDate = new Date('2024-08-01T00:00:00Z');
-    const endDate = new Date('2024-08-31T23:59:59Z');
+    const TIME_ZONE = 'America/La_Paz'; // GMT-4
+
+    // Define the start and end of August 2024 in the target timezone
+    const startDate = toZonedTime(new Date('2024-08-01T00:00:00.000Z'), TIME_ZONE);
+    const endDate = toZonedTime(new Date('2024-09-01T00:00:00.000Z'), TIME_ZONE);
 
     const q = query(
       reportsRef,
       where('generationDate', '>=', startDate),
-      where('generationDate', '<=', endDate)
+      where('generationDate', '<', endDate) // Use '<' with the start of the next month for accuracy
     );
     
     const querySnapshot = await getDocs(q);
