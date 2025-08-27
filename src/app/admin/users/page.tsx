@@ -75,11 +75,11 @@ export default function AdminUsersPage() {
     return users.map(user => {
       const totalReports = user.generatedReportsCount || 0;
       const augustCount = user.email ? augustReportCounts[user.email.toLowerCase()] || 0 : 0;
-      const julyCount = Math.max(0, totalReports - augustCount); // The rest are from July
+      const anterioresCount = Math.max(0, totalReports - augustCount);
 
       return {
         ...user,
-        julyReports: julyCount,
+        anterioresReports: anterioresCount,
         augustReports: augustCount,
       };
     });
@@ -87,9 +87,9 @@ export default function AdminUsersPage() {
 
 
   const totals = useMemo(() => {
-    const totalJuly = processedUsers.reduce((sum, user) => sum + user.julyReports, 0);
+    const totalAnteriores = processedUsers.reduce((sum, user) => sum + user.anterioresReports, 0);
     const totalAugust = processedUsers.reduce((sum, user) => sum + user.augustReports, 0);
-    return { july: totalJuly, august: totalAugust };
+    return { anteriores: totalAnteriores, august: totalAugust };
   }, [processedUsers]);
 
 
@@ -160,7 +160,7 @@ export default function AdminUsersPage() {
                     <TableHead className="text-center">Admin</TableHead>
                     <TableHead>Fecha de Registro</TableHead>
                     <TableHead>Último Ingreso</TableHead>
-                    <TableHead className="text-center">Reportes Julio</TableHead>
+                    <TableHead className="text-center">Anteriores</TableHead>
                     <TableHead className="text-center">Reportes Agosto</TableHead>
                     <TableHead className="text-center">Acciones</TableHead>
                   </TableRow>
@@ -182,7 +182,7 @@ export default function AdminUsersPage() {
                       <TableCell>
                         {user.lastSignInTime ? format(user.lastSignInTime, 'dd/MM/yyyy HH:mm', { locale: es }) : 'Nunca'}
                       </TableCell>
-                       <TableCell className="text-center font-medium">{user.julyReports}</TableCell>
+                       <TableCell className="text-center font-medium">{user.anterioresReports}</TableCell>
                        <TableCell className="text-center font-medium">{user.augustReports}</TableCell>
                       <TableCell className="text-center">
                         <AlertDialog>
@@ -225,7 +225,7 @@ export default function AdminUsersPage() {
                 <TableFooter>
                     <TableRow className="bg-muted/50 hover:bg-muted">
                         <TableCell colSpan={4} className="font-bold text-right">TOTALES</TableCell>
-                        <TableCell className="text-center font-bold">{totals.july}</TableCell>
+                        <TableCell className="text-center font-bold">{totals.anteriores}</TableCell>
                         <TableCell className="text-center font-bold">{totals.august}</TableCell>
                         <TableCell></TableCell>
                     </TableRow>
