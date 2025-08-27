@@ -301,7 +301,7 @@ export default function ServiceOrderPage() {
 
   const handleFlightSearch = async () => {
     const { servicio, fecha } = newService;
-    const normalizedFlightNumber = flightSearchNumber.replace(/\s/g, '').toUpperCase();
+    const normalizedFlightNumber = flightSearchNumber.trim().toUpperCase();
   
     if (!normalizedFlightNumber || (servicio !== 'TRF IN' && servicio !== 'TRF OUT') || !fecha) {
       toast({ title: "Datos incompletos", description: "Selecciona una fecha, tipo de transfer (IN/OUT) e ingresa un número de vuelo.", variant: "destructive" });
@@ -315,24 +315,25 @@ export default function ServiceOrderPage() {
     try {
       const flightInput: FindFlightInput = {
         flightNumber: normalizedFlightNumber,
-        date: fecha, // date is in YYYY-MM-DD format
+        date: fecha,
       }
       const flightDetails = await findFlight(flightInput);
 
       if (flightDetails.flightFound && flightDetails.departure?.time.scheduled && flightDetails.arrival?.time.scheduled) {
         let newTime = '';
         let newObservation = '';
+        const flightSegment = flightDetails.flightSegment || 'N/A';
 
         if (servicio === 'TRF IN') {
             const arrivalTime = parse(flightDetails.arrival.time.scheduled, 'HH:mm', new Date());
             const pickupTime = subHours(arrivalTime, 1);
             newTime = format(pickupTime, 'HH:mm');
-            newObservation = `VUELO LLEGA ${flightDetails.arrival.time.scheduled}. ${flightDetails.flightSegment}`;
+            newObservation = `VUELO LLEGA ${flightDetails.arrival.time.scheduled}. ${flightSegment}`;
         } else { // TRF OUT
             const departureTime = parse(flightDetails.departure.time.scheduled, 'HH:mm', new Date());
             const pickupTime = subHours(departureTime, 2);
             newTime = format(pickupTime, 'HH:mm');
-            newObservation = `VUELO SALE ${flightDetails.departure.time.scheduled}. ${flightDetails.flightSegment}`;
+            newObservation = `VUELO SALE ${flightDetails.departure.time.scheduled}. ${flightSegment}`;
         }
 
         setNewService(prev => ({
@@ -357,7 +358,7 @@ export default function ServiceOrderPage() {
 
   const addNewServiceRow = () => {
     const selectedGuide = guides.find(g => g.fullName.toUpperCase() === orderData.guia.toUpperCase());
-    const formattedDate = format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yy');
+    const formattedDate = format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy');
 
     const serviceToAdd: ServiceItem = {
       ...newService,
