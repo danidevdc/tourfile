@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { getAllReportsFromFirestore, type ReportInfo } from '@/lib/reportService';
-import { getApiUsageStats, type ApiUsageStats } from '@/lib/apiRateLimiter'; // Import new service
+import { getApiUsageStats, type ApiUsageStats } from '@/lib/apiUsageService'; // Import new service
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
@@ -90,6 +90,7 @@ export default function AdminDashboardPage() {
             const fetchData = async () => {
               setIsLoadingData(true);
               try {
+                // Fetch all data in parallel
                 const [reports, usageStats] = await Promise.all([
                   getAllReportsFromFirestore(),
                   getApiUsageStats('AeroAPI')
@@ -212,7 +213,7 @@ export default function AdminDashboardPage() {
             <CardTitle className="text-xl flex items-center gap-2">
               <GaugeCircle className="text-primary"/> Uso de API (Vuelos)
             </CardTitle>
-            <CardDescription>Consultas realizadas a la API de AeroAPI.</CardDescription>
+            <CardDescription>Consultas a AeroAPI. Los contadores se resetean según el periodo.</CardDescription>
           </CardHeader>
           <CardContent>
              {isLoadingData ? (
@@ -223,15 +224,19 @@ export default function AdminDashboardPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
                     <span className="font-medium">Último minuto:</span>
-                    <span className={`font-bold text-lg ${apiUsage.lastMinute > 4 ? 'text-destructive' : 'text-foreground'}`}>{apiUsage.lastMinute} / 5</span>
+                    <span className={`font-bold text-lg ${apiUsage.minute > 4 ? 'text-destructive' : 'text-foreground'}`}>{apiUsage.minute} / 5</span>
                   </div>
                   <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
                     <span className="font-medium">Última hora:</span>
-                    <span className="font-bold text-lg text-foreground">{apiUsage.lastHour}</span>
+                    <span className="font-bold text-lg text-foreground">{apiUsage.hour}</span>
+                  </div>
+                   <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="font-medium">Día actual (UTC):</span>
+                    <span className="font-bold text-lg text-foreground">{apiUsage.day}</span>
                   </div>
                   <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="font-medium">Últimas 24 horas:</span>
-                    <span className="font-bold text-lg text-foreground">{apiUsage.last24Hours}</span>
+                    <span className="font-medium">Mes actual (UTC):</span>
+                    <span className={`font-bold text-lg ${apiUsage.month > 450 ? 'text-destructive' : 'text-foreground'}`}>{apiUsage.month} / 500</span>
                   </div>
                 </div>
               ) : (

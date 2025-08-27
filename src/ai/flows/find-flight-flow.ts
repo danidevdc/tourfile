@@ -7,7 +7,7 @@
  */
 import { format, parseISO } from 'date-fns';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
-import { checkApiLimit } from '@/lib/apiRateLimiter';
+import { checkAndIncrementApiUsage } from '@/lib/apiUsageService';
 
 
 function getApiKey(): string {
@@ -75,7 +75,7 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
 
   try {
     // Check rate limit before proceeding
-    const limitCheck = await checkApiLimit('AeroAPI');
+    const limitCheck = await checkAndIncrementApiUsage('AeroAPI');
     if (!limitCheck.allowed) {
       return {
         flightFound: false,

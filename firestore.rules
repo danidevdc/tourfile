@@ -1,63 +1,60 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Helper function to check for admin role
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
-    
-    // User Profiles: Users can read/update their own profile. Admins can read any.
+
+    // --- User Profiles ---
+    // Logged-in users can read and update their own profile.
+    // Only admins can delete profiles.
     match /userProfiles/{userId} {
-      allow read: if request.auth.uid == userId || isAdmin();
-      allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId;
-      allow delete: if isAdmin(); // Only admins can delete
-    }
-
-    // Guides, Hotels, Activities, Drivers: Authenticated users can read. Admins can write.
-    match /guides/{guideId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-    match /hotels/{hotelId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-     match /activities/{activityId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-     match /drivers/{driverId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-
-    // Expense Rules: Authenticated users can read. Admins can write.
-    match /expenseRules/{ruleId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-
-    // Generated Reports: Authenticated users can create. Admins can read all.
-    match /generatedReports/{reportId} {
-      allow create: if request.auth != null;
-      allow read: if isAdmin();
-      allow write: if false; // Disallow update/delete for now
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null; // Allow new users to create their profile
+      allow delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
     
-    // API Usage: Any authenticated user can create a log entry. Admins can read.
-    match /apiUsage/{usageId} {
-        allow create: if request.auth != null;
-        allow read: if isAdmin();
-        allow update, delete: if false; // Logs are immutable
+    // Admins can read all user profiles.
+    match /userProfiles/{userId} {
+       allow list: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Activity Time Suggestions: Authenticated users can create and update.
+    // --- Master Data (Guides, Hotels, Drivers, Activities) ---
+    // Any authenticated user can read this data.
+    // Only admins can create, update, or delete it.
+    match /{collectionName}/{docId} 
+        where collectionName in ['guides', 'hotels', 'drivers', 'activities'] {
+      allow read: if request.auth != null;
+      allow write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // --- Generated Reports (History) ---
+    // Any authenticated user can create a report record (write).
+    // Only admins can read the full list of generated reports.
+    match /generatedReports/{reportId} {
+       allow create: if request.auth != null;
+       allow read, list, delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // --- Expense Rules for Petty Cash ---
+    // Any authenticated user can read the rules.
+    // Only admins can create, update, or delete rules.
+     match /expenseRules/{ruleId} {
+      allow read: if request.auth != null;
+      allow write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // --- Activity Time Suggestions (for Service Orders) ---
+    // Authenticated users can read and write to learn from usage.
     match /activityTimeSuggestions/{activityId} {
-      allow read, write: if request.auth != null;
+        allow read, write: if request.auth != null;
+    }
+
+    // --- API Usage Counters ---
+    // Allow authenticated users to create and update their usage count.
+    // Admins can read the counters for the dashboard.
+    match /apiUsageCounters/{counterId} {
+       allow write: if request.auth != null;
+       allow read: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
   }
 }
