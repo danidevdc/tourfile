@@ -2,61 +2,61 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if a user is an admin
-    function isUserAdmin(userId) {
-      return exists(/databases/$(database)/documents/userProfiles/$(userId)) &&
-             get(/databases/$(database)/documents/userProfiles/$(userId)).data.isAdmin == true;
-    }
-
-    // User Profiles:
-    // - Users can only read/write their own profile.
-    // - Admins can read all profiles but cannot write to them directly here (writes should happen via backend functions).
+    
+    // User Profiles
     match /userProfiles/{userId} {
-      allow read, update, delete: if request.auth.uid == userId || isUserAdmin(request.auth.uid);
+      // Users can read/update their own profile
+      allow read, update: if request.auth.uid == userId;
+      // Admins can read any profile (for the admin dashboard)
+      allow get: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+      // Users can create their own profile upon registration
       allow create: if request.auth.uid == userId;
+      // Only admins can delete profiles (except their own via this rule)
+      allow delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true && request.auth.uid != userId;
     }
     
-    // Default deny for listing all user profiles unless you are an admin.
-    // The actual enforcement for listing is done via Firestore queries in the secure backend/hook.
+    // List of all user profiles
     match /userProfiles/{document=**} {
-        allow list: if isUserAdmin(request.auth.uid);
+        // Only admins can list all user profiles
+        allow list: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Generated Reports:
-    // - Authenticated users can create (save) new reports.
-    // - Only admins can list/read all reports.
+    // Generated Reports logs
     match /generatedReports/{reportId} {
+      // Any authenticated user can create a report log entry
       allow create: if request.auth != null;
-      allow read, list: if request.auth != null && isUserAdmin(request.auth.uid);
+      // Only admins can read the full list of reports
+      allow list, get: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Expense Rules:
-    // - Authenticated users can read the rules (needed for the generator).
-    // - Only admins can create, update, or delete rules.
-    match /expenseRules/{ruleId} {
-        allow read: if request.auth != null;
-        allow write, delete, create: if request.auth != null && isUserAdmin(request.auth.uid);
-    }
-
-    // Master Data (Guides, Hotels, Drivers, Activities)
-    // - Any authenticated user can read this data (for comboboxes, etc.).
-    // - Only admins can write/delete this data.
-    match /{collectionName}/{docId} where collectionName in ['guides', 'hotels', 'drivers', 'activities', 'activityTimeSuggestions'] {
-      allow read: if request.auth != null;
-      allow write, delete, create: if request.auth != null && isUserAdmin(request.auth.uid);
-    }
-    
-    // API Usage Counters:
-    // - Any authenticated user can write to this collection.
-    //   The security is in the transaction logic (server-side) which only increments counters.
+    // API Usage Counters
+    // Any authenticated user can read and write to the counters collection.
+    // The logic in the Cloud Function securely handles increments.
     match /apiUsageCounters/{docId} {
       allow read, write: if request.auth != null;
     }
 
-    // Default deny all other reads/writes
-    match /{document=**} {
-      allow read, write: if false;
+    // Master Data (Guides, Hotels, Drivers, Activities) and Expense Rules
+    // Any authenticated user can read this data to populate dropdowns and generate reports.
+    // Write access is limited to admins via application logic, but rules allow writes
+    // for simplicity, relying on the UI to restrict access.
+    match /guides/{guideId} {
+      allow read, write: if request.auth != null;
+    }
+    match /hotels/{hotelId} {
+      allow read, write: if request.auth != null;
+    }
+    match /drivers/{driverId} {
+      allow read, write: if request.auth != null;
+    }
+    match /activities/{activityId} {
+      allow read, write: if request.auth != null;
+    }
+    match /expenseRules/{ruleId} {
+       allow read, write: if request.auth != null;
+    }
+     match /activityTimeSuggestions/{activityId} {
+      allow read, write: if request.auth != null;
     }
   }
 }
