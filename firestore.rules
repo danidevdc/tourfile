@@ -3,57 +3,56 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is the owner of a profile
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    // Helper function to check if a user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // Helper function to check if a user is an admin
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    // Helper function to get user profile data
+    function getUserProfile(uid) {
+      return get(/databases/$(database)/documents/userProfiles/$(uid)).data;
     }
 
-    // Rules for userProfiles collection
+    // Helper function to check if the requesting user is an admin
+    function isRequestingUserAdmin() {
+      return isAuthenticated() && getUserProfile(request.auth.uid).isAdmin == true;
+    }
+
+    // --- User Profiles ---
+    // Allow users to read their own profile.
+    // Allow any authenticated user to create their own profile during registration.
+    // Allow admins to read any profile and update/delete profiles.
     match /userProfiles/{userId} {
-      // Admins can read any profile
-      allow read: if isAdmin();
-      // Users can only read their own profile
-      allow read: if isOwner(userId);
-      // Users can create their own profile (on registration)
-      allow create: if isOwner(userId);
-      // Users can only update their own profile
-      allow update: if isOwner(userId);
-       // Admins can delete any profile except their own
-      allow delete: if isAdmin() && request.auth.uid != userId;
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isRequestingUserAdmin());
+      allow create: if isAuthenticated(); // Registration creates the profile
+      allow update, delete: if isRequestingUserAdmin();
     }
     
-    // Rules for generatedReports collection
+    // --- Generated Reports Log ---
+    // Any authenticated user can create a report log entry.
+    // Only admins can read all report logs.
     match /generatedReports/{reportId} {
-        // Only authenticated users can create reports
-        allow create: if request.auth.uid != null;
-        // Only admins can read all reports
-        allow list: if isAdmin();
-        // Individual reads could be restricted further if needed, but admin list is primary
-        allow get: if isAdmin();
-        // Only admins can update or delete
-        allow update, delete: if isAdmin();
+      allow create: if isAuthenticated();
+      allow read: if isRequestingUserAdmin();
+      allow list, update, delete: if isRequestingUserAdmin();
     }
 
-    // Rules for master data collections (guides, hotels, etc.)
-    match /{collectionName}/{docId} where collectionName in ['guides', 'hotels', 'drivers', 'activities', 'expenseRules', 'activityTimeSuggestions'] {
-        // Any authenticated user can read the master data
-        allow read: if request.auth.uid != null;
-        // Only admins can write (create, update, delete) to master data
-        allow write: if isAdmin();
+    // --- API Usage Counters ---
+    // Any authenticated user can read and write to the counters collection.
+    // The server-side logic handles the incrementing, so this is safe.
+    match /apiUsageCounters/{docId} {
+      allow read, write: if isAuthenticated();
     }
     
-    // Rules for API usage counters
-    match /apiUsageCounters/{docId} {
-        // Any authenticated user can read and write to the counters.
-        // The logic is handled securely in server-side functions (transactions),
-        // so this broad permission is safe in this context.
-        allow read, write: if request.auth.uid != null;
+    // --- Master Data Collections (guides, hotels, etc.) ---
+    // Only admins can read, create, update, or delete these records.
+    match /{collectionName}/{docId} where collectionName in ['guides', 'hotels', 'drivers', 'activities', 'expenseRules', 'activityTimeSuggestions'] {
+      allow read, write, create, delete: if isRequestingUserAdmin();
+    }
+    
+    // Default deny all other reads/writes
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
