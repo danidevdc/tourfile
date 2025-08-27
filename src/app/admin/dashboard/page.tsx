@@ -5,12 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart, Plane, GaugeCircle } from "lucide-react";
+import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { getAllReportsFromFirestore, type ReportInfo } from '@/lib/reportService';
-import { getApiUsageStats, type ApiUsageStats } from '@/lib/apiUsageService'; // Import new service
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
@@ -74,7 +73,6 @@ export default function AdminDashboardPage() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [guideUsage, setGuideUsage] = useState<GuideUsageData[]>([]);
   const [monthlyReports, setMonthlyReports] = useState<MonthlyReportData[]>([]);
-  const [apiUsage, setApiUsage] = useState<ApiUsageStats | null>(null);
 
 
   useEffect(() => {
@@ -91,13 +89,8 @@ export default function AdminDashboardPage() {
               setIsLoadingData(true);
               try {
                 // Fetch all data in parallel
-                const [reports, usageStats] = await Promise.all([
-                  getAllReportsFromFirestore(),
-                  getApiUsageStats('AeroAPI')
-                ]);
+                const reports = await getAllReportsFromFirestore();
                 
-                setApiUsage(usageStats);
-
                 if (reports.length > 0) {
                     // Process guide usage data
                     const guideCounts: { [key: string]: number } = {};
@@ -207,47 +200,8 @@ export default function AdminDashboardPage() {
         </CardContent>
       </Card>
       
-      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-1 gap-6">
         <Card className="shadow-lg lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-xl flex items-center gap-2">
-              <GaugeCircle className="text-primary"/> Uso de API (Vuelos)
-            </CardTitle>
-            <CardDescription>Consultas a AeroAPI. Los contadores se resetean según el periodo.</CardDescription>
-          </CardHeader>
-          <CardContent>
-             {isLoadingData ? (
-                <div className="flex justify-center items-center h-48">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-             ) : apiUsage ? (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="font-medium">Último minuto:</span>
-                    <span className="font-bold text-lg text-foreground">{apiUsage.minute}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="font-medium">Última hora:</span>
-                    <span className="font-bold text-lg text-foreground">{apiUsage.hour}</span>
-                  </div>
-                   <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="font-medium">Día actual (UTC):</span>
-                    <span className="font-bold text-lg text-foreground">{apiUsage.day}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span className="font-medium">Mes actual (UTC):</span>
-                    <span className="font-bold text-lg text-foreground">{apiUsage.month}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex justify-center items-center h-48">
-                    <p className="text-muted-foreground">No hay datos de uso de API.</p>
-                </div>
-              )}
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-lg lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
               <LineChart className="text-primary"/> Reportes por Mes

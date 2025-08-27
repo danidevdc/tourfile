@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, Calendar as CalendarIcon, PlaneTakeoff, PlaneLanding } from "lucide-react";
+import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, Calendar as CalendarIcon, PlaneTakeoff, PlaneLanding, GaugeCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import type { FindFlightOutput, FindFlightInput } from "@/ai/flows/flight-types";
@@ -15,9 +15,53 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { getApiUsageStats, type ApiUsageStats } from '@/lib/apiUsageService';
+
+function ApiUsageStatusCard({ usageStats, isLoading }: { usageStats: ApiUsageStats | null, isLoading: boolean }) {
+  return (
+    <Card className="w-full max-w-2xl shadow-lg rounded-xl mt-6 border-primary/20">
+      <CardHeader>
+        <CardTitle className="text-xl flex items-center gap-2">
+          <GaugeCircle className="text-primary"/> Uso de API (AeroAPI)
+        </CardTitle>
+        <CardDescription>Consultas a la API de FlightAware. Los contadores se resetean según el periodo.</CardDescription>
+      </CardHeader>
+      <CardContent>
+         {isLoading ? (
+            <div className="flex justify-center items-center h-48">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+         ) : usageStats ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
+                <span className="text-sm font-medium text-muted-foreground">Minuto</span>
+                <span className="font-bold text-2xl text-foreground">{usageStats.minute}</span>
+              </div>
+              <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
+                <span className="text-sm font-medium text-muted-foreground">Hora</span>
+                <span className="font-bold text-2xl text-foreground">{usageStats.hour}</span>
+              </div>
+               <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
+                <span className="text-sm font-medium text-muted-foreground">Día (UTC)</span>
+                <span className="font-bold text-2xl text-foreground">{usageStats.day}</span>
+              </div>
+              <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
+                <span className="text-sm font-medium text-muted-foreground">Mes (UTC)</span>
+                <span className="font-bold text-2xl text-foreground">{usageStats.month}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-center items-center h-48">
+                <p className="text-muted-foreground">No hay datos de uso de API.</p>
+            </div>
+          )}
+      </CardContent>
+    </Card>
+  );
+}
 
 
-function FlightSearchCard() {
+function FlightSearchCard({ onSearchSuccess }: { onSearchSuccess: () => void }) {
   const [flightNumber, setFlightNumber] = useState('');
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [isLoading, setIsLoading] = useState(false);
@@ -38,11 +82,7 @@ function FlightSearchCard() {
         date: format(date, 'yyyy-MM-dd'),
       };
       
-      console.log("[CLIENT] Calling API with:", JSON.stringify(flightDataPayload, null, 2));
-
       const result = await findFlight(flightDataPayload);
-      
-      console.log("[CLIENT] API Response:", JSON.stringify(result, null, 2));
       
       if (result.errorMessage) {
           if (result.errorMessage.includes("No flight found for this date")) {
@@ -59,6 +99,7 @@ function FlightSearchCard() {
       setError("Ocurrió un error inesperado al buscar el vuelo. Revisa la consola para más detalles.");
     } finally {
       setIsLoading(false);
+      onSearchSuccess(); // Callback to refresh stats
     }
   };
 
@@ -165,9 +206,32 @@ function FlightSearchCard() {
 
 export default function FlightSearchPage() {
     const router = useRouter();
-    const { isCurrentUserAdmin, isLoading } = useAuth();
+    const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
     
-    if (isLoading) {
+    const [apiUsage, setApiUsage] = useState<ApiUsageStats | null>(null);
+    const [isUsageLoading, setIsUsageLoading] = useState(true);
+
+    const fetchApiUsage = async () => {
+        setIsUsageLoading(true);
+        try {
+            const stats = await getApiUsageStats('AeroAPI');
+            setApiUsage(stats);
+        } catch (error) {
+            console.error("Failed to fetch API usage stats:", error);
+            setApiUsage(null);
+        } finally {
+            setIsUsageLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!authLoading && isCurrentUserAdmin) {
+            fetchApiUsage();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [authLoading, isCurrentUserAdmin]);
+
+    if (authLoading) {
         return (
             <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -175,6 +239,17 @@ export default function FlightSearchPage() {
         );
     }
     
+    // Redirect non-admins away
+    if (!isCurrentUserAdmin) {
+        router.replace('/');
+        return (
+            <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
+                <p>Redirigiendo...</p>
+                <Loader2 className="h-12 w-12 animate-spin text-primary ml-4" />
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col items-center justify-start min-h-screen p-4 bg-background pt-8">
             <div className="w-full max-w-2xl mb-4">
@@ -182,7 +257,8 @@ export default function FlightSearchPage() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </div>
-            <FlightSearchCard />
+            <FlightSearchCard onSearchSuccess={fetchApiUsage} />
+            <ApiUsageStatusCard usageStats={apiUsage} isLoading={isUsageLoading} />
         </div>
     );
 }

@@ -11,15 +11,6 @@ import {
   getDoc
 } from 'firebase/firestore';
 
-const API_LIMITS = {
-  AeroAPI: {
-    perMinute: 5,
-    perMonth: 500,
-  },
-};
-
-type ApiName = keyof typeof API_LIMITS;
-
 export interface ApiUsageStats {
   minute: number;
   hour: number;
@@ -27,56 +18,31 @@ export interface ApiUsageStats {
   month: number;
 }
 
-function getUsageDocumentId(apiName: ApiName): string {
+function getUsageDocumentId(apiName: string): string {
     const now = new Date();
     // Creates a new document for each month to keep documents small and performant.
     return `${apiName}_${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 /**
- * Atomically increments the API usage counters and checks against limits.
+ * Atomically increments the API usage counters. This function is for tracking only and does not enforce limits.
  * @param apiName The name of the API being used.
- * @returns A promise resolving to { allowed: boolean }.
+ * @returns A promise that resolves when the transaction is complete.
  */
-export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ allowed: boolean }> {
+export async function checkAndIncrementApiUsage(apiName: string): Promise<void> {
   if (!db) {
-    console.error("[FATAL] Firestore not initialized. Cannot check API usage.");
-    return { allowed: false };
+    console.error("[FATAL] Firestore not initialized. Cannot increment API usage.");
+    return;
   }
   
-  const limits = API_LIMITS[apiName];
   const docId = getUsageDocumentId(apiName);
   const usageDocRef = doc(db, 'apiUsageCounters', docId);
 
   try {
-    const allowed = await runTransaction(db, async (transaction) => {
+    await runTransaction(db, async (transaction) => {
       const usageDoc = await transaction.get(usageDocRef);
-
       const now = new Date();
-      const currentMinute = now.getUTCMinutes();
-      const currentHour = now.getUTCHours();
-      const currentDay = now.getUTCDate();
       
-      let minuteCount = 0;
-      let monthCount = 0;
-
-      if (usageDoc.exists()) {
-        const data = usageDoc.data();
-        const lastUpdate = (data.lastUpdate as Timestamp)?.toDate();
-        monthCount = data.monthCount || 0;
-        
-        // Only use the minuteCount if we are in the exact same minute of the same hour of the same day.
-        if (lastUpdate && lastUpdate.getUTCDate() === currentDay && lastUpdate.getUTCHours() === currentHour && lastUpdate.getUTCMinutes() === currentMinute) {
-          minuteCount = data.minuteCount || 0;
-        }
-      }
-      
-      // Check limits BEFORE incrementing
-      if (minuteCount >= limits.perMinute || monthCount >= limits.perMonth) {
-        return false; // Return false from transaction to indicate limit reached
-      }
-
-      // If we are here, it means we are allowed. Proceed with increment.
       const updatePayload: { [key: string]: any } = {
         lastUpdate: serverTimestamp(),
         monthCount: increment(1),
@@ -86,11 +52,13 @@ export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ all
       if(usageDoc.exists()) {
         const data = usageDoc.data();
         const lastUpdate = (data.lastUpdate as Timestamp)?.toDate();
+        
+        // Determine if we are in a new time window compared to the last update
+        const isNewDay = !lastUpdate || lastUpdate.getUTCDate() !== now.getUTCDate() || lastUpdate.getUTCFullYear() !== now.getUTCFullYear() || lastUpdate.getUTCMonth() !== now.getUTCMonth();
+        const isNewHour = isNewDay || lastUpdate.getUTCHours() !== now.getUTCHours();
+        const isNewMinute = isNewHour || lastUpdate.getUTCMinutes() !== now.getUTCMinutes();
 
-        const isNewDay = !lastUpdate || lastUpdate.getUTCDate() !== currentDay;
-        const isNewHour = isNewDay || lastUpdate.getUTCHours() !== currentHour;
-        const isNewMinute = isNewHour || lastUpdate.getUTCMinutes() !== currentMinute;
-
+        // Reset counters if we are in a new window, otherwise increment
         updatePayload.dayCount = isNewDay ? 1 : increment(1);
         updatePayload.hourCount = isNewHour ? 1 : increment(1);
         updatePayload.minuteCount = isNewMinute ? 1 : increment(1);
@@ -98,6 +66,7 @@ export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ all
         transaction.update(usageDocRef, updatePayload);
       } else {
         // If the document doesn't exist, it's the first call for the month.
+        // Initialize all counters to 1.
         updatePayload.createdAt = serverTimestamp();
         updatePayload.monthCount = 1;
         updatePayload.dayCount = 1;
@@ -105,15 +74,11 @@ export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ all
         updatePayload.minuteCount = 1;
         transaction.set(usageDocRef, updatePayload);
       }
-      
-      return true; // Return true from transaction to indicate success
     });
-
-    return { allowed };
 
   } catch (error) {
     console.error(`[FATAL] Error in checkAndIncrementApiUsage transaction for ${apiName}:`, error);
-    return { allowed: false }; // Fail closed on error
+    // Don't throw, just log the error. We don't want to block the main flow for a counter error.
   }
 }
 
@@ -122,7 +87,7 @@ export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ all
  * @param apiName The name of the API.
  * @returns The current usage stats.
  */
-export async function getApiUsageStats(apiName: ApiName): Promise<ApiUsageStats> {
+export async function getApiUsageStats(apiName: string): Promise<ApiUsageStats> {
   if (!db) {
     console.error("[FATAL] Firestore not initialized.");
     return { minute: 0, hour: 0, day: 0, month: 0 };
@@ -142,9 +107,9 @@ export async function getApiUsageStats(apiName: ApiName): Promise<ApiUsageStats>
      const lastUpdate = (data.lastUpdate as Timestamp)?.toDate();
      
      // Check if the last update was in the same time window as now (all UTC)
-     const isSameMinute = lastUpdate && now.getUTCMinutes() === lastUpdate.getUTCMinutes() && now.getUTCHours() === lastUpdate.getUTCHours() && now.getUTCDate() === lastUpdate.getUTCDate() && now.getUTCFullYear() === lastUpdate.getUTCFullYear();
-     const isSameHour = lastUpdate && now.getUTCHours() === lastUpdate.getUTCHours() && now.getUTCDate() === lastUpdate.getUTCDate() && now.getUTCFullYear() === lastUpdate.getUTCFullYear();
-     const isSameDay = lastUpdate && now.getUTCDate() === lastUpdate.getUTCDate() && now.getUTCFullYear() === lastUpdate.getUTCFullYear();
+     const isSameMinute = lastUpdate && now.getUTCMinutes() === lastUpdate.getUTCMinutes() && now.getUTCHours() === lastUpdate.getUTCHours() && now.getUTCDate() === lastUpdate.getUTCDate() && now.getUTCFullYear() === lastUpdate.getUTCFullYear() && now.getUTCMonth() === lastUpdate.getUTCMonth();
+     const isSameHour = lastUpdate && now.getUTCHours() === lastUpdate.getUTCHours() && now.getUTCDate() === lastUpdate.getUTCDate() && now.getUTCFullYear() === lastUpdate.getUTCFullYear() && now.getUTCMonth() === lastUpdate.getUTCMonth();
+     const isSameDay = lastUpdate && now.getUTCDate() === lastUpdate.getUTCDate() && now.getUTCFullYear() === lastUpdate.getUTCFullYear() && now.getUTCMonth() === lastUpdate.getUTCMonth();
      
     return {
       minute: isSameMinute ? data.minuteCount || 0 : 0,
