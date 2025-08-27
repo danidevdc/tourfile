@@ -28,6 +28,7 @@ import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generato
 import { ItineraryEditModal } from '@/components/service-order/ItineraryEditModal';
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import type { FindFlightInput } from "@/ai/flows/flight-types";
+import { incrementFlightSearchCount } from "@/lib/flightSearchCounterService";
 
 
 import { Button } from "@/components/ui/button";
@@ -307,6 +308,7 @@ export default function ServiceOrderPage() {
       return;
     }
   
+    await incrementFlightSearchCount();
     setIsSearchingFlight(true);
     toast({ title: "Buscando vuelo...", description: `Buscando ${normalizedFlightNumber} para el ${fecha}...` });
   
@@ -325,17 +327,17 @@ export default function ServiceOrderPage() {
             const arrivalTime = parse(flightDetails.arrival.time.scheduled, 'HH:mm', new Date());
             const pickupTime = subHours(arrivalTime, 1);
             newTime = format(pickupTime, 'HH:mm');
-            newObservation = `VUELO LLEGA ${flightDetails.arrival.time.scheduled}. TRAMO: ${flightDetails.flightSegment}`;
+            newObservation = `VUELO LLEGA ${flightDetails.arrival.time.scheduled}. ${flightDetails.flightSegment}`;
         } else { // TRF OUT
             const departureTime = parse(flightDetails.departure.time.scheduled, 'HH:mm', new Date());
             const pickupTime = subHours(departureTime, 2);
             newTime = format(pickupTime, 'HH:mm');
-            newObservation = `VUELO SALE ${flightDetails.departure.time.scheduled}. TRAMO: ${flightDetails.flightSegment}`;
+            newObservation = `VUELO SALE ${flightDetails.departure.time.scheduled}. ${flightDetails.flightSegment}`;
         }
 
         setNewService(prev => ({
           ...prev,
-          vuelo: flightDetails.flightNumber || normalizedFlightNumber,
+          vuelo: normalizedFlightNumber,
           hora: newTime || prev.hora,
           observaciones: newObservation,
         }));
