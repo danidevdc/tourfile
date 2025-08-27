@@ -3,25 +3,23 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, Calendar as CalendarIcon, PlaneTakeoff, PlaneLanding, BarChartHorizontal, Eraser } from "lucide-react";
+import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, PlaneTakeoff, PlaneLanding, BarChartHorizontal, Eraser } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import type { FindFlightOutput, FindFlightInput } from "@/ai/flows/flight-types";
 import { useAuth } from "@/hooks/useAuth";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 import { incrementFlightSearchCount, getTodaysFlightSearchStats, type FlightSearchStat } from "@/lib/flightSearchCounterService";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 
 function FlightSearchCard() {
   const [flightNumber, setFlightNumber] = useState('');
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  // The state now holds the date as a string in 'yyyy-MM-dd' format
+  const [date, setDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [isLoading, setIsLoading] = useState(false);
   const [searchResult, setSearchResult] = useState<FindFlightOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +38,7 @@ function FlightSearchCard() {
 
   const handleClearFields = () => {
     setFlightNumber('');
-    setDate(new Date());
+    setDate(format(new Date(), 'yyyy-MM-dd'));
     setSearchResult(null);
     setError(null);
   }
@@ -62,7 +60,7 @@ function FlightSearchCard() {
       // Then, proceed with the flight search
       const flightDataPayload: FindFlightInput = {
         flightNumber,
-        date: format(date, 'yyyy-MM-dd'),
+        date: date, // Already in 'yyyy-MM-dd' format
       };
       
       const result = await findFlight(flightDataPayload);
@@ -117,29 +115,14 @@ function FlightSearchCard() {
               </div>
               <div>
                 <Label htmlFor="flight-date">Fecha</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="flight-date"
-                      variant={"outline"}
-                      className={cn(
-                        "w-full justify-start text-left font-normal mt-1",
-                        !date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : <span>Selecciona una fecha</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Input
+                    id="flight-date"
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                    className="mt-1 w-full"
+                />
               </div>
           </div>
           <div className="mt-6 flex flex-col sm:flex-row gap-2">
