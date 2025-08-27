@@ -29,9 +29,9 @@ function normalizeIdent(flightNumber: string): string {
 }
 
 // Maps the AeroAPI response to our app's FindFlightOutput format
-function mapApiResponseToFlightOutput(apiData: any, requestedDate: string, originalFlightNumber: string): FindFlightOutput {
+function mapApiResponseToFlightOutput(apiData: any, requestedDate: string): FindFlightOutput {
   if (!apiData || !apiData.flights || apiData.flights.length === 0) {
-    return { flightFound: false, flightNumber: originalFlightNumber, errorMessage: `No flights found for ident ${originalFlightNumber}.` };
+    return { flightFound: false, errorMessage: `No flights found for the given ident.` };
   }
 
   // --- Date Filtering Logic ---
@@ -54,7 +54,7 @@ function mapApiResponseToFlightOutput(apiData: any, requestedDate: string, origi
   });
 
   if (!flightForDate) {
-      return { flightFound: false, flightNumber: originalFlightNumber, errorMessage: `No flight found for ${format(targetDate, 'dd/MM/yyyy')}. Check if the flight operates on this date.` };
+      return { flightFound: false, errorMessage: `No flight found for ${format(targetDate, 'dd/MM/yyyy')}. Check if the flight operates on this date.` };
   }
   // --- End of Date Filtering ---
 
@@ -73,7 +73,7 @@ function mapApiResponseToFlightOutput(apiData: any, requestedDate: string, origi
 
   return {
     flightFound: true,
-    flightNumber: flightForDate.ident,
+    flightNumber: flightForDate.ident, // Return the official ident from the API
     airline: operatorName,
     departure: {
       airport: {
@@ -107,6 +107,9 @@ function mapApiResponseToFlightOutput(apiData: any, requestedDate: string, origi
  */
 export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
   try {
+    const apiKey = getApiKey(); // First, check for API key.
+
+    // Then, check the rate limit before proceeding.
     const limitCheck = await checkAndIncrementApiUsage('AeroAPI');
     if (!limitCheck.allowed) {
       return {
@@ -116,7 +119,6 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
       };
     }
 
-    const apiKey = getApiKey();
     // Step 1: Normalize the flight number
     const flightIdent = normalizeIdent(input.flightNumber);
     
@@ -136,12 +138,17 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     }
     
     // Step 3: Filter the results on our server
-    const result = mapApiResponseToFlightOutput(responseBody, input.date, input.flightNumber);
+    const result = mapApiResponseToFlightOutput(responseBody, input.date);
 
-    return {
-        ...result,
-        flightNumber: input.flightNumber, // Return the original requested number for consistency
-    };
+    // If the flight is not found after filtering, return the original requested number for context in the error message.
+    if(!result.flightFound) {
+        return {
+            ...result,
+            flightNumber: input.flightNumber,
+        };
+    }
+    
+    return result;
 
   } catch (e: any) {
     console.error("[FATAL] An unhandled error occurred in the findFlight flow:", e);
