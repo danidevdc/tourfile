@@ -71,9 +71,9 @@ export default function AdminUsersPage() {
 
 
   const totals = useMemo(() => {
-    const totalJuly = users.reduce((sum, user) => sum + (user.generatedReportsCount || 0), 0);
+    const totalJune = users.reduce((sum, user) => sum + (user.generatedReportsCount || 0), 0);
     const totalAugust = Object.values(augustReportCounts).reduce((sum, count) => sum + count, 0);
-    return { july: totalJuly, august: totalAugust };
+    return { june: totalJune, august: totalAugust };
   }, [users, augustReportCounts]);
 
 
@@ -144,7 +144,7 @@ export default function AdminUsersPage() {
                     <TableHead className="text-center">Admin</TableHead>
                     <TableHead>Fecha de Registro</TableHead>
                     <TableHead>Último Ingreso</TableHead>
-                    <TableHead className="text-center">Reportes Julio (Manual)</TableHead>
+                    <TableHead className="text-center">Reportes Junio (Manual)</TableHead>
                     <TableHead className="text-center">Reportes Agosto (Sistema)</TableHead>
                     <TableHead className="text-center">Acciones</TableHead>
                   </TableRow>
@@ -209,7 +209,7 @@ export default function AdminUsersPage() {
                 <TableFooter>
                     <TableRow className="bg-muted/50 hover:bg-muted">
                         <TableCell colSpan={4} className="font-bold text-right">TOTALES</TableCell>
-                        <TableCell className="text-center font-bold">{totals.july}</TableCell>
+                        <TableCell className="text-center font-bold">{totals.june}</TableCell>
                         <TableCell className="text-center font-bold">{totals.august}</TableCell>
                         <TableCell></TableCell>
                     </TableRow>
