@@ -38,9 +38,21 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
     };
   }
 
-  // With start/end params, the API should only return flights for the correct day.
-  // We can just take the first one. If there are multiple legs/diversions, the first is usually the primary one.
-  const flight = apiData.flights[0];
+  // Filter flights to find one that involves La Paz airport (El Alto)
+  const laPazFlight = apiData.flights.find((f: any) => 
+    (f.origin?.code_iata === 'LPB' && f.origin?.city?.toLowerCase() === 'la paz') ||
+    (f.destination?.code_iata === 'LPB' && f.destination?.city?.toLowerCase() === 'la paz')
+  );
+
+  if (!laPazFlight) {
+    return {
+      flightFound: false,
+      flightNumber: originalFlightNumber,
+      errorMessage: `Flight found, but it does not originate from or fly to La Paz.`
+    };
+  }
+  
+  const flight = laPazFlight;
 
   const formatTime = (dateStr: string | null | undefined): string | undefined => {
     if (!dateStr) return undefined;
@@ -97,7 +109,6 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
 
     /*
     // --- API LIMITING TEMPORARILY DISABLED FOR DEBUGGING ---
-    // Then, check the rate limit before proceeding.
     const limitCheck = await checkAndIncrementApiUsage('AeroAPI');
     if (!limitCheck.allowed) {
       console.log('[SERVER] API limit check failed. Aborting request.');
