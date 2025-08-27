@@ -21,17 +21,19 @@ function getApiKey(): string {
 // Maps the AeroAPI response to our app's FindFlightOutput format
 function mapApiResponseToFlightOutput(apiData: any, inputFlightNumber: string): FindFlightOutput {
   if (!apiData || !apiData.flights || apiData.flights.length === 0) {
+    console.log('[DEBUG] mapApiResponseToFlightOutput: No flights found in API data.');
     return { flightFound: false, flightNumber: inputFlightNumber };
   }
 
   const flight = apiData.flights[0];
+  console.log('[DEBUG] mapApiResponseToFlightOutput: Mapping flight data:', flight);
 
   const formatTime = (dateStr: string | null | undefined): string | undefined => {
     if (!dateStr) return undefined;
     try {
       return format(parseISO(dateStr), 'HH:mm');
     } catch (e) {
-      console.warn("Invalid date for formatting:", dateStr, e);
+      console.warn("[DEBUG] Invalid date for formatting:", dateStr, e);
       return undefined;
     }
   };
@@ -39,7 +41,7 @@ function mapApiResponseToFlightOutput(apiData: any, inputFlightNumber: string): 
   return {
     flightFound: true,
     flightNumber: flight.ident,
-    airline: flight.operator_name || flight.airline.name || flight.airline.shortname,
+    airline: flight.operator_name || flight.airline?.name || flight.airline?.shortname,
     departure: {
       airport: {
         code: flight.origin.code_iata,
@@ -71,24 +73,30 @@ function mapApiResponseToFlightOutput(apiData: any, inputFlightNumber: string): 
  * Finds a flight by calling the AeroAPI.
  */
 export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
-  console.log("[SERVER] Received request for:", JSON.stringify(input, null, 2));
+  console.log("--- [START] findFlight Invoked ---");
+  console.log("[DEBUG] Received request for:", JSON.stringify(input, null, 2));
 
   try {
     // Check rate limit before proceeding
+    console.log("[DEBUG] Calling checkAndIncrementApiUsage for 'AeroAPI'...");
     const limitCheck = await checkAndIncrementApiUsage('AeroAPI');
+    console.log("[DEBUG] Result from checkAndIncrementApiUsage:", limitCheck);
+
     if (!limitCheck.allowed) {
+      console.error("[ERROR] API limit check failed. Returning error to user.");
       return {
         flightFound: false,
         flightNumber: input.flightNumber,
         errorMessage: "Límite de API excedido. Por favor, espera un minuto antes de volver a intentarlo."
       };
     }
+    console.log("[DEBUG] API limit check passed. Proceeding with fetch.");
 
     const apiKey = getApiKey();
     const flightIdent = input.flightNumber.replace(/\s/g, '').toUpperCase();
     const url = `https://aeroapi.flightaware.com/aeroapi/flights/${flightIdent}?start=${input.date}`;
     
-    console.log(`[SERVER] Fetching URL: ${url}`);
+    console.log(`[DEBUG] Fetching URL: ${url}`);
     
     const response = await fetch(url, {
       headers: {
@@ -101,20 +109,21 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
 
     if (!response.ok) {
         const errorMessage = responseBody.title || responseBody.detail || `API request failed with status ${response.status}.`;
-        console.error("[SERVER] AeroAPI Error:", errorMessage, JSON.stringify(responseBody, null, 2));
+        console.error("[ERROR] AeroAPI returned an error:", errorMessage, JSON.stringify(responseBody, null, 2));
         return { flightFound: false, flightNumber: input.flightNumber, errorMessage };
     }
     
-    console.log("[SERVER] Found flight data from API:", JSON.stringify(responseBody, null, 2));
+    console.log("[DEBUG] Found flight data from API:", JSON.stringify(responseBody, null, 2));
     const result = mapApiResponseToFlightOutput(responseBody, input.flightNumber);
 
+    console.log("--- [END] findFlight Successful ---");
     return {
         ...result,
         flightNumber: input.flightNumber, // Return the original requested number for consistency
     };
 
   } catch (e: any) {
-    console.error("[SERVER] An error occurred in the findFlight flow:", e);
+    console.error("[FATAL] An unhandled error occurred in the findFlight flow:", e);
     return {
       flightFound: false,
       flightNumber: input.flightNumber,

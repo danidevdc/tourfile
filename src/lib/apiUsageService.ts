@@ -7,7 +7,8 @@ import {
   runTransaction,
   Timestamp,
   serverTimestamp,
-  increment
+  increment,
+  getDoc
 } from 'firebase/firestore';
 
 const API_LIMITS = {
@@ -40,9 +41,10 @@ function getUsageDocumentId(apiName: ApiName): string {
  */
 export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ allowed: boolean }> {
   if (!db) {
-    console.error("Firestore not initialized. Cannot check API usage.");
+    console.error("[FATAL] Firestore not initialized. Cannot check API usage.");
     return { allowed: false };
   }
+  console.log(`--- [START] checkAndIncrementApiUsage for ${apiName} ---`);
 
   const limits = API_LIMITS[apiName];
   const docId = getUsageDocumentId(apiName);
@@ -56,6 +58,8 @@ export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ all
       const currentMinute = now.getUTCMinutes();
       const currentHour = now.getUTCHours();
       const currentDay = now.getUTCDate();
+      
+      console.log(`[DEBUG] Current Time (UTC): Day=${currentDay}, Hour=${currentHour}, Minute=${currentMinute}`);
 
       let minuteCount = 0;
       let isNewMinute = true;
@@ -67,53 +71,76 @@ export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ all
         const lastUpdate = (data.lastUpdate as Timestamp)?.toDate();
         
         if (lastUpdate) {
+            console.log(`[DEBUG] Last update was at (UTC): Day=${lastUpdate.getUTCDate()}, Hour=${lastUpdate.getUTCHours()}, Minute=${lastUpdate.getUTCMinutes()}`);
             isNewDay = lastUpdate.getUTCDate() !== currentDay;
             isNewHour = isNewDay || lastUpdate.getUTCHours() !== currentHour;
             isNewMinute = isNewHour || lastUpdate.getUTCMinutes() !== currentMinute;
         }
         
         minuteCount = isNewMinute ? 0 : (data.minuteCount || 0);
+        console.log(`[DEBUG] isNewMinute: ${isNewMinute}. Current minuteCount before check: ${minuteCount}`);
+      } else {
+        console.log('[DEBUG] No existing usage document found. This is the first call for this month.');
       }
       
       // Check if limit is exceeded BEFORE incrementing
       if (minuteCount >= limits.perMinute) {
-        console.warn(`${apiName} rate limit would be exceeded. Current count: ${minuteCount}`);
+        console.warn(`[LIMIT] ${apiName} rate limit would be exceeded. Count (${minuteCount}) >= Limit (${limits.perMinute}). Blocking call.`);
         return false; // Return false from transaction to indicate limit reached
       }
+      console.log(`[DEBUG] Limit check passed. Count (${minuteCount}) < Limit (${limits.perMinute}).`);
 
       // If we are here, it means we are allowed. Proceed with increment.
-      const updatePayload = {
+      const updatePayload: { [key: string]: any } = {
         lastUpdate: serverTimestamp(),
         minuteCount: increment(1),
-        hourCount: isNewHour ? 1 : increment(1),
-        dayCount: isNewDay ? 1 : increment(1),
-        monthCount: increment(1),
+        monthCount: increment(1), // Always increment monthly and total
         totalCount: increment(1),
-        // Reset counters if it's a new time window
-        ...(isNewMinute && { minuteCount: 1 }),
-        ...(isNewHour && { hourCount: 1 }),
-        ...(isNewDay && { dayCount: 1 }),
-        ...(usageDoc.exists() === false && {
-            apiName: apiName,
-            createdAt: serverTimestamp(),
-            monthCount: 1,
-            totalCount: 1
-        })
       };
+
+      if(isNewDay) {
+        console.log('[DEBUG] It is a new day. Resetting day, hour, and minute counts.');
+        updatePayload.dayCount = 1;
+        updatePayload.hourCount = 1;
+        updatePayload.minuteCount = 1;
+      } else if (isNewHour) {
+         console.log('[DEBUG] It is a new hour. Resetting hour and minute counts.');
+        updatePayload.hourCount = 1;
+        updatePayload.minuteCount = 1;
+      } else if (isNewMinute) {
+         console.log('[DEBUG] It is a new minute. Resetting minute count.');
+        updatePayload.minuteCount = 1;
+      } else {
+        // Not a new minute, hour, or day, so just increment existing counts
+        console.log('[DEBUG] Same minute. Incrementing existing counts.');
+        updatePayload.dayCount = increment(1);
+        updatePayload.hourCount = increment(1);
+      }
       
       if (usageDoc.exists()) {
+        console.log('[DEBUG] Updating existing document with payload:', updatePayload);
         transaction.update(usageDocRef, updatePayload);
       } else {
+        // For a new doc, we need to set the base values, not increment them
+        updatePayload.apiName = apiName;
+        updatePayload.createdAt = serverTimestamp();
+        updatePayload.monthCount = 1;
+        updatePayload.totalCount = 1;
+        updatePayload.dayCount = 1;
+        updatePayload.hourCount = 1;
+        updatePayload.minuteCount = 1;
+        console.log('[DEBUG] Creating new document with payload:', updatePayload);
         transaction.set(usageDocRef, updatePayload);
       }
       
       return true; // Return true from transaction to indicate success
     });
 
+    console.log(`--- [END] checkAndIncrementApiUsage. Allowed: ${allowed} ---`);
     return { allowed };
 
   } catch (error) {
-    console.error(`Error in checkAndIncrementApiUsage transaction for ${apiName}:`, error);
+    console.error(`[FATAL] Error in checkAndIncrementApiUsage transaction for ${apiName}:`, error);
     return { allowed: false }; // Fail closed on error
   }
 }
@@ -125,7 +152,7 @@ export async function checkAndIncrementApiUsage(apiName: ApiName): Promise<{ all
  */
 export async function getApiUsageStats(apiName: ApiName): Promise<ApiUsageStats> {
   if (!db) {
-    console.error("Firestore not initialized.");
+    console.error("[FATAL] Firestore not initialized.");
     return { minute: 0, hour: 0, day: 0, month: 0, total: 0 };
   }
 
@@ -138,13 +165,17 @@ export async function getApiUsageStats(apiName: ApiName): Promise<ApiUsageStats>
       return { minute: 0, hour: 0, day: 0, month: 0, total: 0 };
     }
     const data = docSnap.data();
+    console.log("[Admin Dashboard] Fetched stats data:", data);
 
      const now = new Date();
      const lastUpdate = (data.lastUpdate as Timestamp)?.toDate();
+     
+     // Check if the last update was in the same time window as now (all UTC)
      const isSameMinute = lastUpdate && now.getUTCMinutes() === lastUpdate.getUTCMinutes() && now.getUTCHours() === lastUpdate.getUTCHours() && now.getUTCDate() === lastUpdate.getUTCDate();
      const isSameHour = lastUpdate && now.getUTCHours() === lastUpdate.getUTCHours() && now.getUTCDate() === lastUpdate.getUTCDate();
      const isSameDay = lastUpdate && now.getUTCDate() === lastUpdate.getUTCDate();
      
+     console.log(`[Admin Dashboard] isSameMinute: ${isSameMinute}, isSameHour: ${isSameHour}, isSameDay: ${isSameDay}`);
 
     return {
       minute: isSameMinute ? data.minuteCount || 0 : 0,
@@ -154,7 +185,7 @@ export async function getApiUsageStats(apiName: ApiName): Promise<ApiUsageStats>
       total: data.totalCount || 0
     };
   } catch (error) {
-    console.error("Error fetching API usage stats:", error);
+    console.error("[ERROR] Error fetching API usage stats:", error);
     return { minute: 0, hour: 0, day: 0, month: 0, total: 0 };
   }
 }
