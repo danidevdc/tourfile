@@ -5,7 +5,7 @@
  *
  * - findFlight - The exported server action to find flight details.
  */
-import { format, parseISO, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
 import { checkAndIncrementApiUsage } from '@/lib/apiUsageService';
 
@@ -29,75 +29,56 @@ function normalizeIdent(flightNumber: string): string {
 }
 
 // Maps the AeroAPI response to our app's FindFlightOutput format
-function mapApiResponseToFlightOutput(apiData: any, requestedDate: string): FindFlightOutput {
+function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string): FindFlightOutput {
   if (!apiData || !apiData.flights || apiData.flights.length === 0) {
-    return { flightFound: false, errorMessage: `No flights found for the given ident.` };
+    return { flightFound: false, flightNumber: originalFlightNumber, errorMessage: `No flights found for the given ident.` };
   }
 
-  // --- Date Filtering Logic ---
-  // The API returns all recent/scheduled flights for an ident. We must filter by the requested date.
-  const targetDate = parseISO(requestedDate);
-  const interval = { start: startOfDay(targetDate), end: endOfDay(targetDate) };
-
-  const flightForDate = apiData.flights.find((f: any) => {
-    // scheduled_out is the primary field to check for departures
-    if (f.scheduled_out) {
-      try {
-        const scheduledOutDate = parseISO(f.scheduled_out);
-        return isWithinInterval(scheduledOutDate, interval);
-      } catch(e) {
-        // Ignore flights with invalid date formats
-        return false;
-      }
-    }
-    return false;
-  });
-
-  if (!flightForDate) {
-      return { flightFound: false, errorMessage: `No flight found for ${format(targetDate, 'dd/MM/yyyy')}. Check if the flight operates on this date.` };
-  }
-  // --- End of Date Filtering ---
-
+  // With start/end params, the API should only return flights for the correct day.
+  // We can just take the first one. If there are multiple legs/diversions, the first is usually the primary one.
+  const flight = apiData.flights[0];
 
   const formatTime = (dateStr: string | null | undefined): string | undefined => {
     if (!dateStr) return undefined;
     try {
+      // The API returns ISO 8601 strings (UTC), so parseISO is correct.
+      // format will then convert it to local time based on the server's timezone.
+      // For HH:mm, this is generally what users expect to see.
       return format(parseISO(dateStr), 'HH:mm');
     } catch (e) {
       return undefined;
     }
   };
 
-  const operatorName = flightForDate.operator_name || 
-                       (flightForDate.airline ? flightForDate.airline.name : 'Unknown Airline');
+  const operatorName = flight.operator_name || (flight.airline ? flight.airline.name : 'Unknown Airline');
 
   return {
     flightFound: true,
-    flightNumber: flightForDate.ident, // Return the official ident from the API
+    flightNumber: flight.ident, // Return the official ident from the API
     airline: operatorName,
     departure: {
       airport: {
-        code: flightForDate.origin?.code_iata,
-        name: flightForDate.origin?.name,
-        city: flightForDate.origin?.city,
+        code: flight.origin?.code_iata,
+        name: flight.origin?.name,
+        city: flight.origin?.city,
       },
       time: {
-        scheduled: formatTime(flightForDate.scheduled_out)!,
-        actual: formatTime(flightForDate.actual_out),
+        scheduled: formatTime(flight.scheduled_out)!,
+        actual: formatTime(flight.actual_out),
       },
     },
     arrival: {
       airport: {
-        code: flightForDate.destination?.code_iata,
-        name: flightForDate.destination?.name,
-        city: flightForDate.destination?.city,
+        code: flight.destination?.code_iata,
+        name: flight.destination?.name,
+        city: flight.destination?.city,
       },
       time: {
-        scheduled: formatTime(flightForDate.scheduled_in)!,
-        actual: formatTime(flightForDate.actual_in),
+        scheduled: formatTime(flight.scheduled_in)!,
+        actual: formatTime(flight.actual_in),
       },
     },
-    flightSegment: `${flightForDate.origin?.code_iata}/${flightForDate.destination?.code_iata}`,
+    flightSegment: `${flight.origin?.code_iata}/${flight.destination?.code_iata}`,
   };
 }
 
@@ -122,8 +103,13 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     // Step 1: Normalize the flight number
     const flightIdent = normalizeIdent(input.flightNumber);
     
-    // Step 2: Call the API endpoint without date filters
-    const url = `https://aeroapi.flightaware.com/aeroapi/flights/${flightIdent}`;
+    // Step 2: Prepare date range for the API query
+    const targetDate = parseISO(input.date);
+    const startDate = startOfDay(targetDate).toISOString();
+    const endDate = endOfDay(targetDate).toISOString();
+
+    // Step 3: Call the API endpoint with date filters
+    const url = `https://aeroapi.flightaware.com/aeroapi/flights/${flightIdent}?start=${startDate}&end=${endDate}`;
     
     const response = await fetch(url, {
       headers: { 'x-apikey': apiKey },
@@ -137,10 +123,10 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
         return { flightFound: false, flightNumber: input.flightNumber, errorMessage };
     }
     
-    // Step 3: Filter the results on our server
-    const result = mapApiResponseToFlightOutput(responseBody, input.date);
+    // Step 4: Map the API response to our output format
+    const result = mapApiResponseToFlightOutput(responseBody, input.flightNumber);
 
-    // If the flight is not found after filtering, return the original requested number for context in the error message.
+    // If the flight is not found for any reason, return the original requested number for context.
     if(!result.flightFound) {
         return {
             ...result,
