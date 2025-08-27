@@ -12,8 +12,8 @@ import {
   runTransaction,
   getDoc,
 } from 'firebase/firestore';
-import { getFlightFromFirestore } from './flightSyncService';
-import { format } from 'date-fns';
+// import { getFlightFromFirestore } from './flightSyncService'; // This file was removed.
+import { format, parse } from 'date-fns';
 
 // --- Interface Definitions ---
 
@@ -215,12 +215,14 @@ export async function getSuggestedTimeForActivity(activityName: string): Promise
 }
 
 /**
+ * NOTE: This function is temporarily disabled as it depends on `flightSyncService` which has been removed.
  * Searches for a flight in the local Firestore database and returns a formatted ServiceItem.
  * @param flightNumber The flight number to search.
  * @param serviceDate The date of the service in dd/MM/yy format.
  * @param transferType 'TRF IN' or 'TRF OUT'.
  * @returns A promise that resolves to a partial ServiceItem with flight details.
  */
+/*
 export async function getFlightServiceDetails(
   flightNumber: string,
   serviceDate: string,
@@ -261,3 +263,4 @@ export async function getFlightServiceDetails(
     return { vuelo: flightNumber.toUpperCase() }; // Graceful fallback
   }
 }
+*/

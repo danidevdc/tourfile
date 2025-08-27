@@ -19,12 +19,13 @@ import {
   type Activity,
   recordActivityTimeUsage, 
   getSuggestedTimeForActivity,
-  getFlightServiceDetails, // Import the new function
+  // getFlightServiceDetails, // Import is temporarily disabled
   type ServiceItem,
 } from "@/lib/serviceOrderService";
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generator";
 import { ItineraryEditModal } from '@/components/service-order/ItineraryEditModal';
+import { findFlight } from "@/ai/flows/find-flight-flow";
 
 
 import { Button } from "@/components/ui/button";
@@ -311,31 +312,42 @@ export default function ServiceOrderPage() {
   };
 
   const handleFlightSearch = async () => {
-    const { servicio, fecha } = newService;
+    const { servicio } = newService;
     const normalizedFlightNumber = flightSearchNumber.replace(/\s/g, '').toUpperCase();
   
-    if (!normalizedFlightNumber || !fecha || (servicio !== 'TRF IN' && servicio !== 'TRF OUT')) {
-      toast({ title: "Datos incompletos", description: "Ingresa un número de vuelo, fecha y selecciona un tipo de transfer (TRF IN/OUT).", variant: "destructive" });
+    if (!normalizedFlightNumber || (servicio !== 'TRF IN' && servicio !== 'TRF OUT')) {
+      toast({ title: "Datos incompletos", description: "Ingresa un número de vuelo y selecciona un tipo de transfer (TRF IN/OUT).", variant: "destructive" });
       return;
     }
   
     setIsSearchingFlight(true);
-    toast({ title: "Buscando vuelo...", description: `Buscando ${normalizedFlightNumber} para el ${fecha}` });
+    toast({ title: "Buscando vuelo...", description: `Buscando ${normalizedFlightNumber} en tiempo real...` });
   
     try {
-      const flightDetails = await getFlightServiceDetails(normalizedFlightNumber, fecha, servicio);
+      const flightDetails = await findFlight({ flightNumber: normalizedFlightNumber });
   
-      if (flightDetails.observaciones) {
+      if (flightDetails.flightFound) {
+        let newTime = '';
+        let newObservation = '';
+        
+        if (servicio === 'TRF IN' && flightDetails.arrival?.time?.scheduled) {
+          newTime = flightDetails.arrival.time.scheduled;
+          newObservation = `VUELO LLEGA ${newTime}. ACTUAL: ${flightDetails.arrival.time.actual || 'N/A'}`;
+        } else if (servicio === 'TRF OUT' && flightDetails.departure?.time?.scheduled) {
+          newTime = flightDetails.departure.time.scheduled;
+          newObservation = `VUELO SALE ${newTime}. ACTUAL: ${flightDetails.departure.time.actual || 'N/A'}`;
+        }
+
         setNewService(prev => ({
           ...prev,
-          vuelo: flightDetails.vuelo,
-          hora: flightDetails.hora || prev.hora,
-          observaciones: flightDetails.observaciones,
+          vuelo: flightDetails.flightNumber || normalizedFlightNumber,
+          hora: newTime || prev.hora,
+          observaciones: newObservation,
         }));
         toast({ title: "Vuelo encontrado", description: "Hora y observaciones actualizadas.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
       } else {
-        setNewService(prev => ({ ...prev, vuelo: flightDetails.vuelo }));
-        toast({ title: "Vuelo no encontrado en BD", description: "No se encontró información del vuelo. Verifica los datos o sincroniza los vuelos.", variant: "destructive" });
+        setNewService(prev => ({ ...prev, vuelo: normalizedFlightNumber }));
+        toast({ title: "Vuelo no encontrado", description: flightDetails.errorMessage || "No se encontró información del vuelo. Se añadirá solo el número.", variant: "destructive" });
       }
     } catch (error) {
       console.error("Flight search error:", error);
@@ -390,7 +402,7 @@ export default function ServiceOrderPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(link.href);
       toast({ title: "Descarga Exitosa", className: "bg-green-100 dark:bg-green-900 border-green-500"});
     } catch(error) {
       toast({ title: "Error", description: "No se pudo generar el archivo Excel.", variant: "destructive" });
