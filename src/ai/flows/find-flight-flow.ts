@@ -7,7 +7,7 @@
  */
 import { addDays, format, isSameDay, parseISO, startOfDay, endOfDay, subHours } from 'date-fns';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
-// import { checkAndIncrementApiUsage } from '@/lib/apiUsageService';
+import { checkAndIncrementApiUsage } from '@/lib/apiUsageService';
 
 
 function getApiKey(): string {
@@ -104,17 +104,8 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
   try {
     const apiKey = getApiKey(); // First, check for API key.
 
-    /*
-    const limitCheck = await checkAndIncrementApiUsage('AeroAPI');
-    if (!limitCheck.allowed) {
-      console.log('[SERVER] API limit check failed. Aborting request.');
-      return {
-        flightFound: false,
-        flightNumber: input.flightNumber,
-        errorMessage: "Límite de API excedido. Por favor, espera un minuto antes de volver a intentarlo."
-      };
-    }
-    */
+    // Increment usage counter but do not restrict the call based on the result.
+    await checkAndIncrementApiUsage('AeroAPI');
     
     // Step 1: Normalize the flight number
     const flightIdent = normalizeIdent(input.flightNumber);

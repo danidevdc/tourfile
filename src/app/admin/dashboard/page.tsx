@@ -149,7 +149,7 @@ export default function AdminDashboardPage() {
     }
   }, [authLoading, isCurrentUserAdmin, router, toast]);
 
-  if (authLoading) {
+  if (authLoading || (!isCurrentUserAdmin && !authLoading)) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -224,7 +224,7 @@ export default function AdminDashboardPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
                     <span className="font-medium">Último minuto:</span>
-                    <span className={`font-bold text-lg ${apiUsage.minute > 4 ? 'text-destructive' : 'text-foreground'}`}>{apiUsage.minute} / 5</span>
+                    <span className="font-bold text-lg text-foreground">{apiUsage.minute}</span>
                   </div>
                   <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
                     <span className="font-medium">Última hora:</span>
@@ -236,7 +236,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
                     <span className="font-medium">Mes actual (UTC):</span>
-                    <span className={`font-bold text-lg ${apiUsage.month > 450 ? 'text-destructive' : 'text-foreground'}`}>{apiUsage.month} / 500</span>
+                    <span className="font-bold text-lg text-foreground">{apiUsage.month}</span>
                   </div>
                 </div>
               ) : (
