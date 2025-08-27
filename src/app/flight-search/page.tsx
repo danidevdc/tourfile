@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, Calendar as CalendarIcon, PlaneTakeoff, PlaneLanding, BarChartHorizontal } from "lucide-react";
+import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, Calendar as CalendarIcon, PlaneTakeoff, PlaneLanding, BarChartHorizontal, Eraser } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import type { FindFlightOutput, FindFlightInput } from "@/ai/flows/flight-types";
@@ -37,6 +37,13 @@ function FlightSearchCard() {
   useEffect(() => {
     fetchSearchStats();
   }, []);
+
+  const handleClearFields = () => {
+    setFlightNumber('');
+    setDate(new Date());
+    setSearchResult(null);
+    setError(null);
+  }
 
   const handleSearch = async () => {
     if (!flightNumber || !date) {
@@ -135,11 +142,15 @@ function FlightSearchCard() {
                 </Popover>
               </div>
           </div>
-          <div className="mt-6">
+          <div className="mt-6 flex flex-col sm:flex-row gap-2">
               <Button onClick={handleSearch} disabled={isLoading || !flightNumber || !date} className="w-full">
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                   Buscar Vuelo
-                </Button>
+              </Button>
+              <Button onClick={handleClearFields} variant="outline" className="w-full sm:w-auto">
+                  <Eraser className="mr-2 h-4 w-4" />
+                  Limpiar
+              </Button>
           </div>
           {error && (
             <div className="mt-4 text-sm text-destructive bg-destructive/10 p-3 rounded-md flex items-center gap-2">
