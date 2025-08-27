@@ -6,7 +6,9 @@ import {
   setDoc,
   serverTimestamp,
   Timestamp,
-  getDocs
+  getDocs,
+  query,
+  where,
 } from 'firebase/firestore';
 
 export interface ReportInfo {
@@ -51,5 +53,39 @@ export async function getAllReportsFromFirestore(): Promise<ReportInfo[]> {
       console.error("Error fetching reports from Firestore:", error);
       // It's better to return an empty array than to crash the admin page
       return [];
+  }
+}
+
+
+/**
+ * Fetches all reports generated in August 2024.
+ */
+export async function getAugustReports(): Promise<ReportInfo[]> {
+  if (!db) {
+    console.error("Firestore not initialized.");
+    return [];
+  }
+  try {
+    const reportsRef = collection(db, 'generatedReports');
+    
+    // Define the start and end of August 2024
+    const startDate = new Date('2024-08-01T00:00:00Z');
+    const endDate = new Date('2024-08-31T23:59:59Z');
+
+    const q = query(
+      reportsRef,
+      where('generationDate', '>=', startDate),
+      where('generationDate', '<=', endDate)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => {
+      return { id: doc.id, ...doc.data() } as ReportInfo;
+    });
+
+  } catch (error) {
+    console.error("Error fetching August reports from Firestore:", error);
+    return [];
   }
 }

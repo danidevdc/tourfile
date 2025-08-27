@@ -1,13 +1,12 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, type UserProfile } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Loader2, ArrowLeft, ShieldCheck, ShieldOff, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -23,12 +22,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { getAugustReports, type ReportInfo } from '@/lib/reportService';
 
 
 export default function AdminUsersPage() {
   const { isCurrentUserAdmin, isLoading: authLoading, getAllUserProfiles, deleteUserFromFirestore, currentUser } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [augustReportCounts, setAugustReportCounts] = useState<{ [email: string]: number }>({});
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const { toast } = useToast();
@@ -43,8 +44,19 @@ export default function AdminUsersPage() {
         const fetchData = async () => {
           setIsLoadingData(true);
           try {
-            const userProfiles = await getAllUserProfiles();
+            const [userProfiles, augustReports] = await Promise.all([
+                getAllUserProfiles(),
+                getAugustReports()
+            ]);
             setUsers(userProfiles);
+
+            const counts: { [email: string]: number } = {};
+            augustReports.forEach(report => {
+                const email = report.generatedBy.toLowerCase();
+                counts[email] = (counts[email] || 0) + 1;
+            });
+            setAugustReportCounts(counts);
+
           } catch (error) {
             console.error("Failed to fetch admin data:", error);
             toast({ title: "Error", description: "No se pudieron cargar los datos de administración.", variant: "destructive"});
@@ -56,6 +68,14 @@ export default function AdminUsersPage() {
       }
     }
   }, [isCurrentUserAdmin, authLoading, router, getAllUserProfiles, toast]);
+
+
+  const totals = useMemo(() => {
+    const totalJuly = users.reduce((sum, user) => sum + (user.generatedReportsCount || 0), 0);
+    const totalAugust = Object.values(augustReportCounts).reduce((sum, count) => sum + count, 0);
+    return { july: totalJuly, august: totalAugust };
+  }, [users, augustReportCounts]);
+
 
   const handleDeleteUser = async () => {
     if (!userToDelete || !userToDelete.uid) return;
@@ -94,17 +114,17 @@ export default function AdminUsersPage() {
   
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8 space-y-6">
-      <div className="w-full max-w-5xl">
+      <div className="w-full max-w-6xl">
         <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back" className="hover:bg-primary/90">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
 
-      <Card className="w-full max-w-5xl shadow-lg">
+      <Card className="w-full max-w-6xl shadow-lg">
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center text-primary">Administración de Usuarios</CardTitle>
           <CardDescription className="text-center">
-            Lista de todos los usuarios registrados en el sistema.
+            Lista de todos los usuarios registrados en el sistema y su actividad.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -124,7 +144,8 @@ export default function AdminUsersPage() {
                     <TableHead className="text-center">Admin</TableHead>
                     <TableHead>Fecha de Registro</TableHead>
                     <TableHead>Último Ingreso</TableHead>
-                    <TableHead className="text-center">Reportes Generados</TableHead>
+                    <TableHead className="text-center">Reportes Julio (Manual)</TableHead>
+                    <TableHead className="text-center">Reportes Agosto (Sistema)</TableHead>
                     <TableHead className="text-center">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -146,6 +167,7 @@ export default function AdminUsersPage() {
                         {user.lastSignInTime ? format(user.lastSignInTime, 'dd/MM/yyyy HH:mm', { locale: es }) : 'Nunca'}
                       </TableCell>
                        <TableCell className="text-center font-medium">{user.generatedReportsCount || 0}</TableCell>
+                       <TableCell className="text-center font-medium">{augustReportCounts[user.email.toLowerCase()] || 0}</TableCell>
                       <TableCell className="text-center">
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -184,6 +206,14 @@ export default function AdminUsersPage() {
                     </TableRow>
                   ))}
                 </TableBody>
+                <TableFooter>
+                    <TableRow className="bg-muted/50 hover:bg-muted">
+                        <TableCell colSpan={4} className="font-bold text-right">TOTALES</TableCell>
+                        <TableCell className="text-center font-bold">{totals.july}</TableCell>
+                        <TableCell className="text-center font-bold">{totals.august}</TableCell>
+                        <TableCell></TableCell>
+                    </TableRow>
+                </TableFooter>
               </Table>
             </div>
           )}
@@ -192,5 +222,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-    
