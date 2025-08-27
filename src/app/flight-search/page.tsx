@@ -199,7 +199,7 @@ function FlightSearchCard() {
         <CardHeader>
           <CardTitle className="text-xl font-bold text-primary flex items-center gap-3">
             <BarChartHorizontal className="h-6 w-6" />
-            Búsquedas de Vuelos Hoy (UTC)
+            Búsquedas Hoy (GMT-4)
           </CardTitle>
           <CardDescription>Total de búsquedas realizadas: {totalSearchesToday}</CardDescription>
         </CardHeader>

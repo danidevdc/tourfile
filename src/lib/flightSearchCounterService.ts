@@ -18,8 +18,10 @@ interface DailyStats {
   hourly: { [hour: number]: number };
 }
 
+const TIME_ZONE = 'America/La_Paz'; // GMT-4
+
 /**
- * Increments the flight search counter for the current day and hour (UTC).
+ * Increments the flight search counter for the current day and hour based on the specified timezone.
  * This function uses a transaction to ensure atomic updates.
  */
 export async function incrementFlightSearchCount(): Promise<void> {
@@ -28,10 +30,13 @@ export async function incrementFlightSearchCount(): Promise<void> {
     return;
   }
 
-  // Get current UTC date and hour
+  // Get current time and convert it to the target timezone (GMT-4)
   const nowUtc = new Date();
-  const dateKey = format(nowUtc, 'yyyy-MM-dd'); // e.g., "2024-08-01"
-  const hourKey = nowUtc.getUTCHours(); // 0-23
+  const zonedDate = utcToZonedTime(nowUtc, TIME_ZONE);
+  
+  // Use the date and hour from the converted time
+  const dateKey = format(zonedDate, 'yyyy-MM-dd'); // e.g., "2024-08-01"
+  const hourKey = zonedDate.getHours(); // 0-23 in GMT-4
 
   const statDocRef: DocumentReference<DailyStats> = doc(db, 'flightSearchStats', dateKey) as DocumentReference<DailyStats>;
 
@@ -40,7 +45,7 @@ export async function incrementFlightSearchCount(): Promise<void> {
       const statDoc = await transaction.get(statDocRef);
 
       if (!statDoc.exists()) {
-        // If document for today doesn't exist, create it
+        // If document for today (in GMT-4) doesn't exist, create it
         const newDailyStat: DailyStats = {
           total: 1,
           hourly: { [hourKey]: 1 }
@@ -65,7 +70,7 @@ export async function incrementFlightSearchCount(): Promise<void> {
 }
 
 /**
- * Retrieves the flight search statistics for the current day (UTC).
+ * Retrieves the flight search statistics for the current day based on the specified timezone.
  * @returns An array of stats formatted for the chart, or an empty array on error.
  */
 export async function getTodaysFlightSearchStats(): Promise<FlightSearchStat[]> {
@@ -74,7 +79,11 @@ export async function getTodaysFlightSearchStats(): Promise<FlightSearchStat[]> 
     return [];
   }
 
-  const dateKey = format(new Date(), 'yyyy-MM-dd');
+  // Get the current date in the target timezone to fetch the correct document
+  const nowUtc = new Date();
+  const zonedDate = utcToZonedTime(nowUtc, TIME_ZONE);
+  const dateKey = format(zonedDate, 'yyyy-MM-dd');
+
   const statDocRef: DocumentReference<DailyStats> = doc(db, 'flightSearchStats', dateKey) as DocumentReference<DailyStats>;
 
   try {
