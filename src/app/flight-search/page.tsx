@@ -17,14 +17,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { getApiUsageStats, checkAndIncrementApiUsage, type ApiUsageStats } from '@/lib/apiUsageService';
 
-function ApiUsageStatusCard({ usageStats, isLoading }: { usageStats: ApiUsageStats | null, isLoading: boolean }) {
+function SearchCounterCard({ usageStats, isLoading }: { usageStats: ApiUsageStats | null, isLoading: boolean }) {
   return (
     <Card className="w-full max-w-2xl shadow-lg rounded-xl mt-6 border-primary/20">
       <CardHeader>
         <CardTitle className="text-xl flex items-center gap-2">
-          <GaugeCircle className="text-primary"/> Uso de API (AeroAPI)
+          <GaugeCircle className="text-primary"/> Búsquedas Realizadas Hoy
         </CardTitle>
-        <CardDescription>Contador de búsquedas realizadas. Se resetea cada día (UTC).</CardDescription>
+        <CardDescription>Contador de búsquedas de vuelos. Se resetea cada día (UTC).</CardDescription>
       </CardHeader>
       <CardContent>
          {isLoading ? (
@@ -33,7 +33,7 @@ function ApiUsageStatusCard({ usageStats, isLoading }: { usageStats: ApiUsageSta
             </div>
          ) : usageStats ? (
             <div className="flex flex-col items-center p-4 bg-muted rounded-lg">
-                <span className="text-sm font-medium text-muted-foreground">Consultas Hoy (UTC)</span>
+                <span className="text-sm font-medium text-muted-foreground">Consultas</span>
                 <span className="font-bold text-5xl text-foreground mt-2">{usageStats.day}</span>
               </div>
           ) : (
@@ -102,7 +102,7 @@ function FlightSearchCard({ onSearchSuccess }: { onSearchSuccess: () => void }) 
        <CardHeader>
         <CardTitle className="text-2xl font-bold text-primary flex items-center gap-3">
           <Plane className="h-8 w-8" />
-          Buscador de Vuelos (AeroAPI)
+          Buscador de Vuelos
         </CardTitle>
         <CardDescription>
           Ingresa un número de vuelo y una fecha para obtener su estado desde la API de FlightAware.
@@ -252,7 +252,7 @@ export default function FlightSearchPage() {
               </Button>
             </div>
             <FlightSearchCard onSearchSuccess={fetchApiUsage} />
-            <ApiUsageStatusCard usageStats={apiUsage} isLoading={isUsageLoading} />
+            <SearchCounterCard usageStats={apiUsage} isLoading={isUsageLoading} />
         </div>
     );
 }
