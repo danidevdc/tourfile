@@ -289,7 +289,7 @@ export default function AdminDashboardPage() {
                 </div>
              ) : guideUsage.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={guideUsage} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <BarChart data={guideUsage} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" allowDecimals={false} tick={{ fill: 'hsl(var(--foreground))' }} />
                     <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
