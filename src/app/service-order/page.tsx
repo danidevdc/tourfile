@@ -4,7 +4,9 @@
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
-import { format, isBefore, startOfToday, parse } from 'date-fns';
+import { format, isBefore, startOfToday, parse, subHours, addHours } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
+
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -19,13 +21,13 @@ import {
   type Activity,
   recordActivityTimeUsage, 
   getSuggestedTimeForActivity,
-  // getFlightServiceDetails, // Import is temporarily disabled
   type ServiceItem,
 } from "@/lib/serviceOrderService";
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { type FileDataProps, type FileSearchStatus } from "@/lib/report-generator";
 import { ItineraryEditModal } from '@/components/service-order/ItineraryEditModal';
 import { findFlight } from "@/ai/flows/find-flight-flow";
+import type { FindFlightInput } from "@/ai/flows/flight-types";
 
 
 import { Button } from "@/components/ui/button";
@@ -33,12 +35,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileDown, PlusCircle, Upload, Search, CheckCircle2, XCircle, Calendar as CalendarIcon, Edit, Plane } from "lucide-react";
+import { ArrowLeft, Loader2, FileDown, PlusCircle, Upload, Search, CheckCircle2, XCircle, Edit, Plane } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +53,7 @@ const initialServiceOrderState: ServiceOrderData = {
 };
 
 const initialNewServiceState: ServiceItem = {
-    fecha: '', hora: '09:00', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
+    fecha: format(new Date(), 'yyyy-MM-dd'), hora: '09:00', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
 };
 
 const BUS_TYPES = [ { value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado (Externo)' } ];
@@ -76,7 +76,6 @@ export default function ServiceOrderPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const [orderData, setOrderData] = useState<ServiceOrderData>(initialServiceOrderState);
   const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
@@ -264,18 +263,6 @@ export default function ServiceOrderPage() {
     setBusTypeSelection(value);
     setChoferSelection(''); // Reset chofer when bus type changes
   }
-
-  const handleDateInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value;
-    const numbersOnly = rawValue.replace(/[^0-9]/g, '');
-    let formatted = '';
-
-    if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
-    if (numbersOnly.length > 2) formatted += '/' + numbersOnly.slice(2, 4);
-    if (numbersOnly.length > 4) formatted += '/' + numbersOnly.slice(4, 6); // Changed to 6 for yy
-    
-    setNewService(prev => ({...prev, fecha: formatted}));
-  };
   
   const handleTimeInputChange = (e: ChangeEvent<HTMLInputElement>) => {
       const rawValue = e.target.value;
@@ -312,30 +299,38 @@ export default function ServiceOrderPage() {
   };
 
   const handleFlightSearch = async () => {
-    const { servicio } = newService;
+    const { servicio, fecha } = newService;
     const normalizedFlightNumber = flightSearchNumber.replace(/\s/g, '').toUpperCase();
   
-    if (!normalizedFlightNumber || (servicio !== 'TRF IN' && servicio !== 'TRF OUT')) {
-      toast({ title: "Datos incompletos", description: "Ingresa un número de vuelo y selecciona un tipo de transfer (TRF IN/OUT).", variant: "destructive" });
+    if (!normalizedFlightNumber || (servicio !== 'TRF IN' && servicio !== 'TRF OUT') || !fecha) {
+      toast({ title: "Datos incompletos", description: "Selecciona una fecha, tipo de transfer (IN/OUT) e ingresa un número de vuelo.", variant: "destructive" });
       return;
     }
   
     setIsSearchingFlight(true);
-    toast({ title: "Buscando vuelo...", description: `Buscando ${normalizedFlightNumber} en tiempo real...` });
+    toast({ title: "Buscando vuelo...", description: `Buscando ${normalizedFlightNumber} para el ${fecha}...` });
   
     try {
-      const flightDetails = await findFlight({ flightNumber: normalizedFlightNumber });
-  
-      if (flightDetails.flightFound) {
+      const flightInput: FindFlightInput = {
+        flightNumber: normalizedFlightNumber,
+        date: fecha, // date is in YYYY-MM-DD format
+      }
+      const flightDetails = await findFlight(flightInput);
+
+      if (flightDetails.flightFound && flightDetails.departure?.time.scheduled && flightDetails.arrival?.time.scheduled) {
         let newTime = '';
         let newObservation = '';
-        
-        if (servicio === 'TRF IN' && flightDetails.arrival?.time?.scheduled) {
-          newTime = flightDetails.arrival.time.scheduled;
-          newObservation = `VUELO LLEGA ${newTime}. ACTUAL: ${flightDetails.arrival.time.actual || 'N/A'}`;
-        } else if (servicio === 'TRF OUT' && flightDetails.departure?.time?.scheduled) {
-          newTime = flightDetails.departure.time.scheduled;
-          newObservation = `VUELO SALE ${newTime}. ACTUAL: ${flightDetails.departure.time.actual || 'N/A'}`;
+
+        if (servicio === 'TRF IN') {
+            const arrivalTime = parse(flightDetails.arrival.time.scheduled, 'HH:mm', new Date());
+            const pickupTime = subHours(arrivalTime, 1);
+            newTime = format(pickupTime, 'HH:mm');
+            newObservation = `VUELO LLEGA ${flightDetails.arrival.time.scheduled}. TRAMO: ${flightDetails.flightSegment}`;
+        } else { // TRF OUT
+            const departureTime = parse(flightDetails.departure.time.scheduled, 'HH:mm', new Date());
+            const pickupTime = subHours(departureTime, 2);
+            newTime = format(pickupTime, 'HH:mm');
+            newObservation = `VUELO SALE ${flightDetails.departure.time.scheduled}. TRAMO: ${flightDetails.flightSegment}`;
         }
 
         setNewService(prev => ({
@@ -346,7 +341,7 @@ export default function ServiceOrderPage() {
         }));
         toast({ title: "Vuelo encontrado", description: "Hora y observaciones actualizadas.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
       } else {
-        setNewService(prev => ({ ...prev, vuelo: normalizedFlightNumber }));
+        setNewService(prev => ({ ...prev, vuelo: normalizedFlightNumber, observaciones: 'VUELO NO ENCONTRADO EN API' }));
         toast({ title: "Vuelo no encontrado", description: flightDetails.errorMessage || "No se encontró información del vuelo. Se añadirá solo el número.", variant: "destructive" });
       }
     } catch (error) {
@@ -360,17 +355,25 @@ export default function ServiceOrderPage() {
 
   const addNewServiceRow = () => {
     const selectedGuide = guides.find(g => g.fullName.toUpperCase() === orderData.guia.toUpperCase());
+    const formattedDate = format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yy');
+
     const serviceToAdd: ServiceItem = {
       ...newService,
+      fecha: formattedDate,
       guia: selectedGuide ? selectedGuide.firstName.toUpperCase() : '',
       bus: busTypeSelection === 'CONT.' ? 'CONT.' : busTypeSelection,
       chofer: choferSelection,
     };
     setOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd]}));
     // Reset the new service form for the next entry
-    setNewService(initialNewServiceState);
+    setNewService({
+      ...initialNewServiceState,
+      fecha: newService.fecha // Keep the date for the next entry
+    });
     setShowFlightSearch(false);
     setFlightSearchNumber('');
+    setChoferSelection('');
+    setBusTypeSelection('');
   }
   
   const handleSaveFromModal = (updatedServices: ServiceItem[]) => {
@@ -415,14 +418,6 @@ export default function ServiceOrderPage() {
   const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
   const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\\s/i, '') }));
   const activityOptions = (activities || []).filter(a => a && a.name).map(a => ({ value: a.name.toUpperCase(), label: a.name }));
-  
-  const isBaseDataMissing =
-    !orderData.file.trim() ||
-    !orderData.ref.trim() ||
-    !orderData.nPax.trim() ||
-    !orderData.guia.trim() ||
-    !busTypeSelection.trim() ||
-    !choferSelection.trim();
 
 
   if (authLoading || isLoading) {
@@ -482,15 +477,14 @@ export default function ServiceOrderPage() {
                   <div className="grid grid-cols-1 md:grid-cols-12 items-end gap-4 p-2">
                       <div className="md:col-span-2">
                           <Label>Fecha</Label>
-                          <div className="relative mt-1">
-                              <Input value={newService.fecha} onChange={(e) => handleDateInputChange(e)} placeholder="dd/MM/yy" maxLength={8} />
-                              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                                  <PopoverTrigger asChild><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"><CalendarIcon className="h-4 w-4 text-muted-foreground" /></button></PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={newService.fecha ? parse(newService.fecha, "dd/MM/yy", new Date()) : undefined} onSelect={(date) => { if (date) { handleNewServiceChange('fecha', format(date, "dd/MM/yy")); setIsCalendarOpen(false); } }} disabled={(date) => isBefore(date, startOfToday())} initialFocus /></PopoverContent>
-                              </Popover>
-                          </div>
+                          <Input 
+                            type="date" 
+                            value={newService.fecha} // Stored as yyyy-MM-dd
+                            onChange={(e) => handleNewServiceChange('fecha', e.target.value)} 
+                            className="mt-1"
+                          />
                       </div>
-                      <div className={cn("md:col-span-4", showFlightSearch && "md:col-span-3")}><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio.toUpperCase()} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="w-full mt-1"/></div>
+                      <div className={cn("md:col-span-4", showFlightSearch && "md:col-span-2")}><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio.toUpperCase()} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="w-full mt-1"/></div>
                       {showFlightSearch && (
                         <div className="md:col-span-3">
                            <Label>Buscar Vuelo</Label>
