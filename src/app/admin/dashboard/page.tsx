@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart, Plane } from "lucide-react";
+import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart, Plane, GaugeCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { getAllReportsFromFirestore, type ReportInfo } from '@/lib/reportService';
+import { getApiUsageStats, type ApiUsageStats } from '@/lib/apiRateLimiter'; // Import new service
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
@@ -73,6 +74,7 @@ export default function AdminDashboardPage() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [guideUsage, setGuideUsage] = useState<GuideUsageData[]>([]);
   const [monthlyReports, setMonthlyReports] = useState<MonthlyReportData[]>([]);
+  const [apiUsage, setApiUsage] = useState<ApiUsageStats | null>(null);
 
 
   useEffect(() => {
@@ -88,8 +90,13 @@ export default function AdminDashboardPage() {
             const fetchData = async () => {
               setIsLoadingData(true);
               try {
-                const reports = await getAllReportsFromFirestore();
+                const [reports, usageStats] = await Promise.all([
+                  getAllReportsFromFirestore(),
+                  getApiUsageStats('AeroAPI')
+                ]);
                 
+                setApiUsage(usageStats);
+
                 if (reports.length > 0) {
                     // Process guide usage data
                     const guideCounts: { [key: string]: number } = {};
@@ -199,38 +206,43 @@ export default function AdminDashboardPage() {
         </CardContent>
       </Card>
       
-      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-lg">
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="shadow-lg lg:col-span-1">
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
-              <BarChart3 className="text-primary"/> Uso por Guía
+              <GaugeCircle className="text-primary"/> Uso de API (Vuelos)
             </CardTitle>
-            <CardDescription>Top 10 guías con más reportes generados.</CardDescription>
+            <CardDescription>Consultas realizadas a la API de AeroAPI.</CardDescription>
           </CardHeader>
           <CardContent>
              {isLoadingData ? (
-                <div className="flex justify-center items-center h-64">
+                <div className="flex justify-center items-center h-48">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-             ) : guideUsage.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={guideUsage} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" allowDecimals={false} tick={{ fill: 'hsl(var(--foreground))' }} />
-                    <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
-                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
-                    <Bar dataKey="count" fill="hsl(var(--chart-1))" name="Reportes" barSize={20} />
-                  </BarChart>
-                </ResponsiveContainer>
+             ) : apiUsage ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="font-medium">Último minuto:</span>
+                    <span className={`font-bold text-lg ${apiUsage.lastMinute > 4 ? 'text-destructive' : 'text-foreground'}`}>{apiUsage.lastMinute} / 5</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="font-medium">Última hora:</span>
+                    <span className="font-bold text-lg text-foreground">{apiUsage.lastHour}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <span className="font-medium">Últimas 24 horas:</span>
+                    <span className="font-bold text-lg text-foreground">{apiUsage.last24Hours}</span>
+                  </div>
+                </div>
               ) : (
-                <div className="flex justify-center items-center h-64">
-                    <p className="text-muted-foreground">No hay suficientes datos de reportes.</p>
+                <div className="flex justify-center items-center h-48">
+                    <p className="text-muted-foreground">No hay datos de uso de API.</p>
                 </div>
               )}
           </CardContent>
         </Card>
         
-        <Card className="shadow-lg">
+        <Card className="shadow-lg lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
               <LineChart className="text-primary"/> Reportes por Mes
@@ -261,6 +273,38 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+       <div className="w-full max-w-6xl">
+         <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <BarChart3 className="text-primary"/> Uso por Guía
+            </CardTitle>
+            <CardDescription>Top 10 guías con más reportes generados.</CardDescription>
+          </CardHeader>
+          <CardContent>
+             {isLoadingData ? (
+                <div className="flex justify-center items-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+             ) : guideUsage.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={guideUsage} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" allowDecimals={false} tick={{ fill: 'hsl(var(--foreground))' }} />
+                    <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
+                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
+                    <Bar dataKey="count" fill="hsl(var(--chart-1))" name="Reportes" barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex justify-center items-center h-64">
+                    <p className="text-muted-foreground">No hay suficientes datos de reportes.</p>
+                </div>
+              )}
+          </CardContent>
+        </Card>
+       </div>
 
     </div>
   );

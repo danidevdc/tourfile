@@ -7,6 +7,7 @@
  */
 import { format, parseISO } from 'date-fns';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
+import { checkApiLimit } from '@/lib/apiRateLimiter';
 
 
 function getApiKey(): string {
@@ -38,7 +39,7 @@ function mapApiResponseToFlightOutput(apiData: any, inputFlightNumber: string): 
   return {
     flightFound: true,
     flightNumber: flight.ident,
-    airline: flight.airline.name || flight.airline.shortname,
+    airline: flight.operator_name || flight.airline.name || flight.airline.shortname,
     departure: {
       airport: {
         code: flight.origin.code_iata,
@@ -70,9 +71,19 @@ function mapApiResponseToFlightOutput(apiData: any, inputFlightNumber: string): 
  * Finds a flight by calling the AeroAPI.
  */
 export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
-  console.log("[SERVER] Calling AeroAPI for:", JSON.stringify(input, null, 2));
+  console.log("[SERVER] Received request for:", JSON.stringify(input, null, 2));
 
   try {
+    // Check rate limit before proceeding
+    const limitCheck = await checkApiLimit('AeroAPI');
+    if (!limitCheck.allowed) {
+      return {
+        flightFound: false,
+        flightNumber: input.flightNumber,
+        errorMessage: "Límite de API excedido. Por favor, espera un minuto antes de volver a intentarlo."
+      };
+    }
+
     const apiKey = getApiKey();
     const flightIdent = input.flightNumber.replace(/\s/g, '').toUpperCase();
     const url = `https://aeroapi.flightaware.com/aeroapi/flights/${flightIdent}?start=${input.date}`;
