@@ -74,9 +74,8 @@ export default function AdminUsersPage() {
   const processedUsers = useMemo(() => {
     return users.map(user => {
       const totalReports = user.generatedReportsCount || 0;
-      // FIX: Compare emails in lowercase to ensure a match.
       const augustCount = user.email ? augustReportCounts[user.email.toLowerCase()] || 0 : 0;
-      const julyCount = Math.max(0, totalReports - augustCount); // Ensure it's not negative
+      const julyCount = Math.max(0, totalReports - augustCount); // The rest are from July
 
       return {
         ...user,
