@@ -60,14 +60,18 @@ function FlightSearchCard({ onSearchSuccess }: { onSearchSuccess: () => void }) 
       return;
     }
     
-    // Increment counter on button click, before doing anything else.
-    await checkAndIncrementApiUsage('AeroAPI');
-    
     setIsLoading(true);
     setError(null);
     setSearchResult(null);
     
     try {
+      // Step 1: Increment the counter first and wait for it to complete.
+      await checkAndIncrementApiUsage('AeroAPI');
+      
+      // Step 2: Trigger the UI refresh for the counter in the parent component.
+      onSearchSuccess();
+
+      // Step 3: Proceed with the flight search.
       const flightDataPayload: FindFlightInput = {
         flightNumber,
         date: format(date, 'yyyy-MM-dd'),
@@ -90,7 +94,6 @@ function FlightSearchCard({ onSearchSuccess }: { onSearchSuccess: () => void }) 
       setError("Ocurrió un error inesperado al buscar el vuelo. Revisa la consola para más detalles.");
     } finally {
       setIsLoading(false);
-      onSearchSuccess(); // Callback to refresh stats
     }
   };
 
