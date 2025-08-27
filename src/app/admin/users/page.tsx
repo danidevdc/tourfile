@@ -22,18 +22,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { getAugustReports } from '@/lib/reportService';
+import { getAllReportsFromFirestore, type ReportInfo } from '@/lib/reportService';
 
 
 export default function AdminUsersPage() {
   const { isCurrentUserAdmin, isLoading: authLoading, getAllUserProfiles, deleteUserFromFirestore, currentUser } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [augustReportCounts, setAugustReportCounts] = useState<{ [email: string]: number }>({});
+  const [monthlyReportCounts, setMonthlyReportCounts] = useState<{ [email: string]: { [month: string]: number } }>({});
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const { toast } = useToast();
-
+  const [reportMonths, setReportMonths] = useState<string[]>([]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -44,20 +44,38 @@ export default function AdminUsersPage() {
         const fetchData = async () => {
           setIsLoadingData(true);
           try {
-            const [userProfiles, augustReports] = await Promise.all([
+            const [userProfiles, allReports] = await Promise.all([
                 getAllUserProfiles(),
-                getAugustReports()
+                getAllReportsFromFirestore()
             ]);
             setUsers(userProfiles);
 
-            const counts: { [email: string]: number } = {};
-            augustReports.forEach(report => {
-                if (report.generatedBy) {
+            const counts: { [email: string]: { [month: string]: number } } = {};
+            const months = new Set<string>();
+
+            allReports.forEach(report => {
+                if (report.generatedBy && report.generationDate && typeof report.generationDate.toDate === 'function') {
                     const email = report.generatedBy.toLowerCase();
-                    counts[email] = (counts[email] || 0) + 1;
+                    const date = report.generationDate.toDate();
+                    const monthKey = format(date, 'MMMM', { locale: es });
+                    const capitalizedMonth = monthKey.charAt(0).toUpperCase() + monthKey.slice(1);
+
+                    months.add(capitalizedMonth);
+                    
+                    if (!counts[email]) {
+                        counts[email] = {};
+                    }
+                    counts[email][capitalizedMonth] = (counts[email][capitalizedMonth] || 0) + 1;
                 }
             });
-            setAugustReportCounts(counts);
+            
+            const sortedMonths = Array.from(months).sort((a, b) => {
+              const order = ['Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio'];
+              return (order.indexOf(a) - order.indexOf(b));
+            });
+
+            setReportMonths(sortedMonths);
+            setMonthlyReportCounts(counts);
 
           } catch (error) {
             console.error("Failed to fetch admin data:", error);
@@ -71,26 +89,35 @@ export default function AdminUsersPage() {
     }
   }, [isCurrentUserAdmin, authLoading, router, getAllUserProfiles, toast]);
 
-  const processedUsers = useMemo(() => {
+ const processedUsers = useMemo(() => {
     return users.map(user => {
-      const totalReports = user.generatedReportsCount || 0;
-      const augustCount = user.email ? augustReportCounts[user.email.toLowerCase()] || 0 : 0;
-      const anterioresCount = Math.max(0, totalReports - augustCount);
+      const email = user.email ? user.email.toLowerCase() : '';
+      const monthlyData = monthlyReportCounts[email] || {};
+      const totalFromMonths = reportMonths.reduce((sum, month) => sum + (monthlyData[month] || 0), 0);
+      
+      // The total historical count, which includes July's manual count
+      const historicalTotal = user.generatedReportsCount || 0;
+      // Calculate "Anteriores" as the difference
+      const anterioresCount = Math.max(0, historicalTotal - totalFromMonths);
 
       return {
         ...user,
-        anterioresReports: anterioresCount,
-        augustReports: augustCount,
+        monthlyData: {
+          'Anteriores': anterioresCount,
+          ...monthlyData
+        },
       };
     });
-  }, [users, augustReportCounts]);
+  }, [users, monthlyReportCounts, reportMonths]);
 
+  const finalMonthsHeader = ['Anteriores', ...reportMonths];
 
   const totals = useMemo(() => {
-    const totalAnteriores = processedUsers.reduce((sum, user) => sum + user.anterioresReports, 0);
-    const totalAugust = processedUsers.reduce((sum, user) => sum + user.augustReports, 0);
-    return { anteriores: totalAnteriores, august: totalAugust };
-  }, [processedUsers]);
+    return finalMonthsHeader.reduce((acc, month) => {
+      acc[month] = processedUsers.reduce((sum, user) => sum + (user.monthlyData[month] || 0), 0);
+      return acc;
+    }, {} as { [key: string]: number });
+  }, [processedUsers, finalMonthsHeader]);
 
 
   const handleDeleteUser = async () => {
@@ -130,17 +157,17 @@ export default function AdminUsersPage() {
   
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8 space-y-6">
-      <div className="w-full max-w-6xl">
+      <div className="w-full max-w-7xl">
         <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back" className="hover:bg-primary/90">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
 
-      <Card className="w-full max-w-6xl shadow-lg">
+      <Card className="w-full max-w-7xl shadow-lg">
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center text-primary">Administración de Usuarios</CardTitle>
           <CardDescription className="text-center">
-            Lista de todos los usuarios registrados en el sistema y su actividad.
+            Lista de todos los usuarios registrados en el sistema y su actividad por mes.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -160,8 +187,10 @@ export default function AdminUsersPage() {
                     <TableHead className="text-center">Admin</TableHead>
                     <TableHead>Fecha de Registro</TableHead>
                     <TableHead>Último Ingreso</TableHead>
-                    <TableHead className="text-center">Anteriores</TableHead>
-                    <TableHead className="text-center">Reportes Agosto</TableHead>
+                    {finalMonthsHeader.map(month => (
+                      <TableHead key={month} className="text-center">Reportes {month}</TableHead>
+                    ))}
+                    <TableHead className="text-center">Total</TableHead>
                     <TableHead className="text-center">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -182,8 +211,10 @@ export default function AdminUsersPage() {
                       <TableCell>
                         {user.lastSignInTime ? format(user.lastSignInTime, 'dd/MM/yyyy HH:mm', { locale: es }) : 'Nunca'}
                       </TableCell>
-                       <TableCell className="text-center font-medium">{user.anterioresReports}</TableCell>
-                       <TableCell className="text-center font-medium">{user.augustReports}</TableCell>
+                      {finalMonthsHeader.map(month => (
+                         <TableCell key={month} className="text-center font-medium">{user.monthlyData[month] || 0}</TableCell>
+                      ))}
+                      <TableCell className="text-center font-bold">{user.generatedReportsCount || 0}</TableCell>
                       <TableCell className="text-center">
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -225,8 +256,12 @@ export default function AdminUsersPage() {
                 <TableFooter>
                     <TableRow className="bg-muted/50 hover:bg-muted">
                         <TableCell colSpan={4} className="font-bold text-right">TOTALES</TableCell>
-                        <TableCell className="text-center font-bold">{totals.anteriores}</TableCell>
-                        <TableCell className="text-center font-bold">{totals.august}</TableCell>
+                        {finalMonthsHeader.map(month => (
+                          <TableCell key={`total-${month}`} className="text-center font-bold">{totals[month] || 0}</TableCell>
+                        ))}
+                        <TableCell className="text-center font-bold">
+                          {Object.values(totals).reduce((sum, count) => sum + count, 0)}
+                        </TableCell>
                         <TableCell></TableCell>
                     </TableRow>
                 </TableFooter>
