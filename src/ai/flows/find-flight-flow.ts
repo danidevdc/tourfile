@@ -5,7 +5,7 @@
  *
  * - findFlight - The exported server action to find flight details.
  */
-import { addDays, format, isSameDay, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { addDays, format, isSameDay, parseISO, startOfDay, endOfDay, subHours } from 'date-fns';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
 import { checkAndIncrementApiUsage } from '@/lib/apiUsageService';
 
@@ -40,8 +40,8 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
 
   // Filter flights to find one that involves La Paz airport (El Alto)
   const laPazFlight = apiData.flights.find((f: any) => 
-    (f.origin?.code_iata === 'LPB' && f.origin?.city?.toLowerCase() === 'la paz') ||
-    (f.destination?.code_iata === 'LPB' && f.destination?.city?.toLowerCase() === 'la paz')
+    (f.origin?.code_iata === 'LPB' && f.origin?.city?.toLowerCase().includes('la paz')) ||
+    (f.destination?.code_iata === 'LPB' && f.destination?.city?.toLowerCase().includes('la paz'))
   );
 
   if (!laPazFlight) {
@@ -57,22 +57,21 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
   const formatTime = (dateStr: string | null | undefined): string | undefined => {
     if (!dateStr) return undefined;
     try {
-      // The API returns ISO 8601 strings (UTC), so parseISO is correct.
-      // format will then convert it to local time based on the server's timezone.
-      // For HH:mm, this is generally what users expect to see.
-      return format(parseISO(dateStr), 'HH:mm');
+      // The API returns ISO 8601 strings (UTC). Parse it.
+      const utcDate = parseISO(dateStr);
+      // Subtract 4 hours to adjust from UTC to GMT-4.
+      const adjustedDate = subHours(utcDate, 4);
+      // Format the adjusted date.
+      return format(adjustedDate, 'HH:mm');
     } catch (e) {
       console.error(`Error formatting date: ${dateStr}`, e);
       return undefined;
     }
   };
 
-  const operatorName = flight.operator_name || (flight.airline ? flight.airline.name : 'Unknown Airline');
-
   return {
     flightFound: true,
     flightNumber: flight.ident, // Return the official ident from the API
-    airline: operatorName,
     departure: {
       airport: {
         code: flight.origin?.code_iata,
@@ -108,7 +107,6 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     const apiKey = getApiKey(); // First, check for API key.
 
     /*
-    // --- API LIMITING TEMPORARILY DISABLED FOR DEBUGGING ---
     const limitCheck = await checkAndIncrementApiUsage('AeroAPI');
     if (!limitCheck.allowed) {
       console.log('[SERVER] API limit check failed. Aborting request.');

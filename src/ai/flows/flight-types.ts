@@ -37,7 +37,6 @@ export const FindFlightOutputSchema = z.object({
     airport: AirportInfoSchema,
     time: FlightTimeSchema,
   }).optional(),
-  airline: z.string().optional().describe("The name of the airline (e.g., 'American Airlines')."),
   flightSegment: z.string().optional().describe("The flight route segment as 'DEPARTURE_CODE/ARRIVAL_CODE' (e.g., 'MIA/LPB')."),
   errorMessage: z.string().optional().describe("An error message if the search flow failed.")
 });

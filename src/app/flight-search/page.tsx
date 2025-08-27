@@ -127,7 +127,7 @@ function FlightSearchCard() {
         )}
         {searchResult?.flightFound && (
            <div className="mt-6 text-sm text-card-foreground bg-green-100 dark:bg-green-900/30 p-4 rounded-lg space-y-3 border border-green-500">
-              <p className="font-bold text-lg text-green-800 dark:text-green-200">{searchResult.airline} - Vuelo {searchResult.flightNumber}</p>
+              <p className="font-bold text-lg text-green-800 dark:text-green-200">Vuelo {searchResult.flightNumber}</p>
               <div className="flex items-center text-base">
                   <div className="text-center flex-1">
                     <p className="font-bold text-xl">{searchResult.departure?.airport.code}</p>
