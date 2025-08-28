@@ -345,6 +345,15 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         }
     };
 
+    const sortedServices = [...orderData.services].sort((a, b) => {
+        const dateA = parse(a.fecha, 'dd/MM/yyyy', new Date()).getTime();
+        const dateB = parse(b.fecha, 'dd/MM/yyyy', new Date()).getTime();
+        if (dateA !== dateB) {
+            return dateA - dateB;
+        }
+        return a.hora.localeCompare(b.hora);
+    });
+
     const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
     const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
     const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\\s/i, '') }));
@@ -361,16 +370,18 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
                         <div className="space-y-4 p-4 border rounded-lg">
-                            <div className="flex items-center gap-2">
-                                <Label className="shrink-0">Programa:</Label>
-                                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className={cn("flex-grow justify-start", selectedFile && "border-green-500 font-medium text-green-700")}>
-                                    <Upload className="mr-2 h-4 w-4" />{selectedFile ? selectedFile.name : "Seleccionar .xlsx"}
-                                </Button>
-                                {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile}><Trash2 className="h-4 w-4" /></Button>}
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
-                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-                                <div className="md:col-span-3">
+                                <div className="md:col-span-4">
+                                    <Label className="shrink-0">Programa:</Label>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className={cn("flex-grow justify-start", selectedFile && "border-green-500 font-medium text-green-700")}>
+                                            <Upload className="mr-2 h-4 w-4" />{selectedFile ? selectedFile.name : "Seleccionar .xlsx"}
+                                        </Button>
+                                        {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile}><Trash2 className="h-4 w-4" /></Button>}
+                                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
+                                    </div>
+                                </div>
+                                <div className="md:col-span-2">
                                     <Label htmlFor="file">File:</Label>
                                     <div className="flex items-center gap-1 mt-1">
                                         <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} />
@@ -379,8 +390,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                         </Button>
                                     </div>
                                 </div>
-                                <div className="md:col-span-6"><Label htmlFor="ref">Ref (Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className="mt-1" /></div>
-                                <div className="md:col-span-3"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" /></div>
+                                <div className="md:col-span-4"><Label htmlFor="ref">Ref (Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className="mt-1" /></div>
+                                <div className="md:col-span-2"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" /></div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
                                 <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-card"/></div>
@@ -418,7 +429,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                   <Button onClick={() => setIsModalOpen(true)} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"><Edit className="mr-2 h-4 w-4" />Editar Completo</Button>
                                 }
                             </div>
-                            <div className="h-auto max-h-64 overflow-y-auto border rounded-md bg-card">
+                            <div className="h-64 overflow-y-auto border rounded-md bg-card">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10">
                                         <TableRow className="border-b-primary/20">
@@ -434,10 +445,12 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {orderData.services.length > 0 ? (
-                                            orderData.services.map((s, i) => (
+                                        {sortedServices.length > 0 ? (
+                                            sortedServices.map((s, i) => {
+                                                const showDate = i === 0 || sortedServices[i-1].fecha !== s.fecha;
+                                                return (
                                                 <TableRow key={i} className="font-mono border-b-primary/20">
-                                                    <TableCell className="p-2 border-r border-r-primary/20">{s.fecha}</TableCell>
+                                                    <TableCell className="p-2 border-r border-r-primary/20">{showDate ? s.fecha : ''}</TableCell>
                                                     <TableCell className="p-2 border-r border-r-primary/20">{s.hora}</TableCell>
                                                     <TableCell className="p-2 border-r border-r-primary/20 font-sans">{s.servicio}</TableCell>
                                                     <TableCell className="p-2 border-r border-r-primary/20">{s.vuelo}</TableCell>
@@ -451,7 +464,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                                         </Button>
                                                     </TableCell>
                                                 </TableRow>
-                                            ))
+                                            )})
                                         ) : (
                                             <TableRow>
                                                 <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
@@ -488,3 +501,5 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         </Sheet>
     );
 }
+
+    
