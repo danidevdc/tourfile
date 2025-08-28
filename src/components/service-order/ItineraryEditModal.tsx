@@ -117,7 +117,15 @@ export function ItineraryEditModal({ services, guides, drivers, onSave, onClose 
                                             </Popover>
                                         </div>
                                     </TableCell>
-                                    <TableCell><Input value={service.hora} onChange={(e) => handleTimeInputChange(e, index)} onBlur={(e) => handleTimeInputBlur(e, index)} placeholder="HH:mm" maxLength={5} /></TableCell>
+                                    <TableCell>
+                                        <Input 
+                                            value={service.hora} 
+                                            onChange={(e) => handleTimeInputChange(e, index)} 
+                                            onBlur={(e) => handleTimeInputBlur(e, index)} 
+                                            placeholder="HH:mm" 
+                                            maxLength={5} 
+                                        />
+                                    </TableCell>
                                     <TableCell><Input value={service.servicio} onChange={(e) => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
                                     <TableCell><Input value={service.vuelo} onChange={(e) => handleServiceChange(index, 'vuelo', e.target.value)} /></TableCell>
                                     <TableCell><Input value={service.guia} onChange={(e) => handleServiceChange(index, 'guia', e.target.value)} list={`guides-datalist-${index}`} /><datalist id={`guides-datalist-${index}`}>{guides.map(g => <option key={g.uid} value={g.fullName.toUpperCase()} />)}</datalist></TableCell>
