@@ -26,7 +26,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
-import { Loader2, PlusCircle, Upload, Search, Edit, Plane, Save } from "lucide-react";
+import { Loader2, PlusCircle, Upload, Search, Edit, Plane, Save, Trash2, XCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { FileSearchStatus } from "@/lib/report-generator";
@@ -292,6 +292,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         setShowFlightSearch(false); setFlightSearchNumber(''); setChoferSelection(''); setBusTypeSelection('');
     };
 
+    const removeServiceRow = (index: number) => {
+        setOrderData(prev => ({
+            ...prev,
+            services: prev.services.filter((_, i) => i !== index)
+        }));
+    };
+
     const handleSaveFromModal = (updatedServices: ServiceItem[]) => {
         setOrderData(prev => ({...prev, services: updatedServices}));
         setIsModalOpen(false);
@@ -339,12 +346,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                 </SheetHeader>
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
-                        <div className="space-y-2 p-4 border rounded-lg">
-                            <div className="flex items-center gap-2">
+                        <div className="space-y-4 p-4 border rounded-lg">
+                             <div className="flex items-center gap-2">
                                 <Label className="shrink-0">Programa:</Label>
-                                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className={cn("flex-grow", selectedFile && "border-green-500")}>
+                                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className={cn("flex-grow justify-start", selectedFile && "border-green-500 font-medium text-green-700")}>
                                     <Upload className="mr-2 h-4 w-4" />{selectedFile ? selectedFile.name : "Seleccionar .xlsx"}
                                 </Button>
+                                {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile}><Trash2 className="h-4 w-4" /></Button>}
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
@@ -360,34 +368,33 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                 <div className="md:col-span-6"><Label htmlFor="ref">Ref (Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className="mt-1" /></div>
                                 <div className="md:col-span-3"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" /></div>
                             </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg">
-                            <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1"/></div>
-                            <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1"/></div>
-                            <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={setBusTypeSelection}><SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
-                            <div><Label>Chofer</Label><Combobox options={driverOptions} value={choferSelection} onSelect={setChoferSelection} placeholder="Seleccionar chofer..." className="mt-1"/></div>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                                <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-background"/></div>
+                                <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1 bg-background"/></div>
+                                <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={setBusTypeSelection}><SelectTrigger className="mt-1 bg-background"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
+                                <div><Label>Chofer</Label><Combobox options={driverOptions} value={choferSelection} onSelect={setChoferSelection} placeholder="Seleccionar chofer..." className="mt-1 bg-background"/></div>
+                            </div>
                         </div>
                         
                         <div className="p-4 border rounded-lg">
                             <h3 className="font-semibold mb-2">Añadir Servicio</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-12 items-end gap-2">
-                                <div className="sm:col-span-2"><Label>Fecha</Label><Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1"/></div>
-                                <div className={cn("sm:col-span-4", showFlightSearch && "sm:col-span-2")}><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1"/></div>
+                                <div className="sm:col-span-2"><Label>Fecha</Label><Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-[150px]"/></div>
+                                <div className={cn("sm:col-span-4", showFlightSearch && "sm:col-span-2")}><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-background"/></div>
                                 {showFlightSearch && (<div className="sm:col-span-3"><Label>Buscar Vuelo</Label><div className="flex items-center gap-1 mt-1"><Input value={flightSearchNumber} onChange={(e) => setFlightSearchNumber(e.target.value)} placeholder="Ej: OB304" /><Button type="button" onClick={handleFlightSearch} disabled={isSearchingFlight} size="icon"><Plane className={cn("h-4 w-4", isSearchingFlight && "animate-pulse")} /></Button></div></div>)}
                                 <div className="sm:col-span-2"><Label>Hora</Label><Input value={newService.hora} onChange={(e) => handleNewServiceChange('hora', e.target.value)} placeholder="HH:mm" maxLength={5} className="mt-1"/></div>
-                                <div className="sm:col-span-1"><Button onClick={addNewServiceRow} variant="outline" size="icon" className="w-full" disabled={isAddServiceDisabled}><PlusCircle className="h-5 w-5"/></Button></div>
+                                <div className="sm:col-span-1"><Button onClick={addNewServiceRow} variant="default" size="icon" className="w-full bg-primary hover:bg-primary/90" disabled={isAddServiceDisabled}><PlusCircle className="h-5 w-5"/></Button></div>
                             </div>
                         </div>
 
                         <div className="p-4 border rounded-lg">
                              <div className="flex justify-between items-center mb-2">
-                                <h3 className="font-semibold">Itinerario ({orderData.services.length} servicios)</h3>
+                                <h3 className="font-semibold">Resumen ({orderData.services.length} servicios)</h3>
                                 {orderData.services.length > 0 && 
                                   <Button onClick={() => setIsModalOpen(true)} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"><Edit className="mr-2 h-4 w-4" />Editar Completo</Button>
                                 }
                             </div>
-                            <div className="border rounded-md overflow-y-auto max-h-64 border-primary/20">
+                            <div className="max-h-64 overflow-y-auto border rounded-md border-primary/20">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10">
                                         <TableRow className="border-b-primary/20">
@@ -398,7 +405,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                             <TableHead className="text-primary font-bold border-r border-r-primary/20" style={{width: '150px'}}>Guía</TableHead>
                                             <TableHead className="text-primary font-bold border-r border-r-primary/20" style={{width: '70px'}}>Bus</TableHead>
                                             <TableHead className="text-primary font-bold border-r border-r-primary/20" style={{width: '80px'}}>Chofer</TableHead>
-                                            <TableHead className="text-primary font-bold">Observaciones</TableHead>
+                                            <TableHead className="text-primary font-bold border-r border-r-primary/20">Observaciones</TableHead>
+                                            <TableHead className="text-primary font-bold" style={{width: '40px'}}></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -412,13 +420,18 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                                     <TableCell className="p-2 border-r border-r-primary/20">{s.guia}</TableCell>
                                                     <TableCell className="p-2 border-r border-r-primary/20">{s.bus}</TableCell>
                                                     <TableCell className="p-2 border-r border-r-primary/20">{s.chofer}</TableCell>
-                                                    <TableCell className="p-2">{s.observaciones}</TableCell>
+                                                    <TableCell className="p-2 border-r border-r-primary/20">{s.observaciones}</TableCell>
+                                                     <TableCell className="p-1 text-center">
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10" onClick={() => removeServiceRow(i)}>
+                                                            <XCircle className="h-4 w-4" />
+                                                        </Button>
+                                                    </TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                                                    El itinerario está vacío. Añade un servicio arriba.
+                                                <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                                                    El resumen está vacío. Añade un servicio arriba.
                                                 </TableCell>
                                             </TableRow>
                                         )}
@@ -451,3 +464,5 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         </Sheet>
     );
 }
+
+    
