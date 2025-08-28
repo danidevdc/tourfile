@@ -338,7 +338,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                     <SheetTitle className="text-2xl font-headline text-primary">{existingOrder ? "Editar Orden de Servicio" : "Crear Nueva Orden de Servicio"}</SheetTitle>
                     <SheetDescription>{existingOrder ? `Editando la orden ${existingOrder.orderName}` : "Completa los campos para generar la orden. Puedes añadir múltiples servicios."}</SheetDescription>
                 </SheetHeader>
-                <div className="flex-grow overflow-y-auto pr-6 -mr-6">
+                <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
                         <div className="space-y-2 p-4 border rounded-lg">
                             <div className="flex items-center gap-2">
@@ -384,20 +384,23 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                         <div className="p-4 border rounded-lg">
                             <div className="flex justify-between items-center mb-2">
                                 <h3 className="font-semibold">Itinerario ({orderData.services.length} servicios)</h3>
-                                <Button onClick={() => setIsModalOpen(true)} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"><Edit className="mr-2 h-4 w-4" />Editar Completo</Button>
+                                {orderData.services.length > 0 && 
+                                  <Button onClick={() => setIsModalOpen(true)} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"><Edit className="mr-2 h-4 w-4" />Editar Completo</Button>
+                                }
                             </div>
-                            <ScrollArea className="h-64 w-full rounded-md border">
+                            {/* The scrollable area height is set to h-64 (16rem / 256px) by default */}
+                            <div className="overflow-y-auto h-64 border rounded-md">
                                 <Table>
-                                     <TableHeader className="sticky top-0 bg-muted z-10">
+                                    <TableHeader className="sticky top-0 bg-muted z-10">
                                         <TableRow>
-                                            <TableHead className="w-[110px]">Fecha</TableHead>
+                                            <TableHead className="w-[120px]">Fecha</TableHead>
                                             <TableHead className="w-[80px]">Hora</TableHead>
-                                            <TableHead>Servicio</TableHead>
+                                            <TableHead className="w-[250px]">Servicio</TableHead>
                                             <TableHead className="w-[100px]">Vuelo</TableHead>
                                             <TableHead className="w-[180px]">Guía</TableHead>
                                             <TableHead className="w-[80px]">Bus</TableHead>
                                             <TableHead className="w-[180px]">Chofer</TableHead>
-                                            <TableHead className="w-[250px]">Observaciones</TableHead>
+                                            <TableHead className="w-[300px]">Observaciones</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -423,7 +426,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                         )}
                                     </TableBody>
                                 </Table>
-                            </ScrollArea>
+                            </div>
                         </div>
 
                         {isModalOpen && <ItineraryEditModal services={orderData.services} guides={guides} drivers={allDrivers} onSave={handleSaveFromModal} onClose={() => setIsModalOpen(false)} />}
