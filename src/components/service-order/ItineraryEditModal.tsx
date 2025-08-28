@@ -66,7 +66,7 @@ export function ItineraryEditModal({ services, guides, drivers, onSave, onClose 
 
     return (
         <Dialog open={true} onOpenChange={onClose}>
-            <DialogContent className="max-w-none w-full h-full flex flex-col p-4">
+            <DialogContent className="max-w-none w-[95vw] h-[90vh] flex flex-col p-4">
                 <DialogHeader className="p-2 border-b">
                     <DialogTitle className="text-2xl">Editor de Itinerario Avanzado</DialogTitle>
                 </DialogHeader>
@@ -74,15 +74,15 @@ export function ItineraryEditModal({ services, guides, drivers, onSave, onClose 
                 <div className="flex-grow overflow-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow className="sticky top-0 bg-background z-10">
+                            <TableRow className="sticky top-0 bg-background z-10 hover:bg-background">
                                 <TableHead className="w-[150px]">Fecha</TableHead>
                                 <TableHead className="w-[100px]">Hora</TableHead>
-                                <TableHead className="min-w-[300px]">Servicio</TableHead>
+                                <TableHead className="w-[300px]">Servicio</TableHead>
                                 <TableHead className="w-[150px]">Vuelo</TableHead>
                                 <TableHead className="w-[200px]">Guía</TableHead>
                                 <TableHead className="w-[100px]">Bus</TableHead>
                                 <TableHead className="w-[200px]">Chofer</TableHead>
-                                <TableHead className="min-w-[300px]">Observaciones</TableHead>
+                                <TableHead className="w-[300px]">Observaciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -120,7 +120,7 @@ export function ItineraryEditModal({ services, guides, drivers, onSave, onClose 
                                     <TableCell><Input value={service.hora} onChange={(e) => handleTimeInputChange(e, index)} onBlur={(e) => handleTimeInputBlur(e, index)} placeholder="HH:mm" maxLength={5} /></TableCell>
                                     <TableCell><Input value={service.servicio} onChange={(e) => handleServiceChange(index, 'servicio', e.target.value)} /></TableCell>
                                     <TableCell><Input value={service.vuelo} onChange={(e) => handleServiceChange(index, 'vuelo', e.target.value)} /></TableCell>
-                                    <TableCell><Input value={service.guia} onChange={(e) => handleServiceChange(index, 'guia', e.target.value)} list={`guides-datalist-${index}`} /><datalist id={`guides-datalist-${index}`}>{guides.map(g => <option key={g.uid} value={g.firstName.toUpperCase()} />)}</datalist></TableCell>
+                                    <TableCell><Input value={service.guia} onChange={(e) => handleServiceChange(index, 'guia', e.target.value)} list={`guides-datalist-${index}`} /><datalist id={`guides-datalist-${index}`}>{guides.map(g => <option key={g.uid} value={g.fullName.toUpperCase()} />)}</datalist></TableCell>
                                     <TableCell><Input value={service.bus} onChange={(e) => handleServiceChange(index, 'bus', e.target.value)} /></TableCell>
                                     <TableCell><Input value={service.chofer} onChange={(e) => handleServiceChange(index, 'chofer', e.target.value)} list={`drivers-datalist-${index}`} /><datalist id={`drivers-datalist-${index}`}>{drivers.map(d => <option key={d.id} value={d.name.toUpperCase()} />)}</datalist></TableCell>
                                     <TableCell><Input value={service.observaciones} onChange={(e) => handleServiceChange(index, 'observaciones', e.target.value)} /></TableCell>
