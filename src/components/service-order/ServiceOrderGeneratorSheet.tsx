@@ -35,8 +35,9 @@ const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHA
 
 const SESSION_STORAGE_FILE_KEY = 'serviceOrderProgramFile_v2';
 const SESSION_STORAGE_FILENAME_KEY = 'serviceOrderProgramFileName_v2';
+// Set initial state for date and time to empty strings
 const initialNewServiceState: ServiceItem = {
-    fecha: format(new Date(), 'yyyy-MM-dd'), hora: '09:00', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
+    fecha: '', hora: '', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
 };
 
 interface ServiceOrderGeneratorSheetProps {
@@ -256,7 +257,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         handleNewServiceChange('servicio', activityName);
         setShowFlightSearch(activityName === 'TRF IN' || activityName === 'TRF OUT');
         const suggestedTime = await getSuggestedTimeForActivity(activityName);
-        if (suggestedTime) handleNewServiceChange('hora', suggestedTime);
+        if (suggestedTime) {
+            handleNewServiceChange('hora', suggestedTime);
+        } else if (newService.hora && !showFlightSearch) {
+            // If there's no suggestion, but there was a time from a previous selection, clear it
+            // but not if we are about to search for a flight
+            setNewService(prev => ({...prev, hora: ''}));
+        }
     };
     
     const handleFlightSearch = async () => {
@@ -268,7 +275,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         await incrementFlightSearchCount();
         setIsSearchingFlight(true);
         try {
+            // The date from the input is yyyy-MM-dd, which is what the API expects.
             const flightDetails = await findFlight({ flightNumber: normalizedFlightNumber, date: fecha });
+
             if (flightDetails.flightFound && flightDetails.departure?.time.scheduled && flightDetails.arrival?.time.scheduled) {
                 let newTime = '', newObservation = '';
                 const flightSegment = flightDetails.flightSegment || 'N/A';
@@ -305,7 +314,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         };
         recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
         setOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd] }));
-        setNewService(prev => ({ ...initialNewServiceState, fecha: prev.fecha }));
+        // Reset new service form, keeping Bus and Chofer selections for convenience
+        setNewService(initialNewServiceState);
         setShowFlightSearch(false); 
         setFlightSearchNumber('');
     };
