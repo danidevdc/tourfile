@@ -36,6 +36,9 @@ const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHA
 
 const SESSION_STORAGE_FILE_KEY = 'serviceOrderProgramFile_v2';
 const SESSION_STORAGE_FILENAME_KEY = 'serviceOrderProgramFileName_v2';
+const initialNewServiceState: ServiceItem = {
+    fecha: format(new Date(), 'yyyy-MM-dd'), hora: '09:00', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
+};
 
 interface ServiceOrderGeneratorSheetProps {
     isOpen: boolean;
@@ -73,9 +76,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         guia: '', file: '', ref: '', nPax: '', hotel: '', services: [],
         observations: defaultObsText, nota: defaultNotaText
     });
-    const [newService, setNewService] = useState<ServiceItem>({
-        fecha: format(new Date(), 'yyyy-MM-dd'), hora: '09:00', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
-    });
+    const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
     const [busTypeSelection, setBusTypeSelection] = useState('');
     const [choferSelection, setChoferSelection] = useState('');
 
@@ -324,7 +325,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
-            <SheetContent className="w-full sm:max-w-4xl flex flex-col">
+            <SheetContent side="top" className="w-full h-full max-h-screen flex flex-col sm:max-w-full">
                 <SheetHeader>
                     <SheetTitle className="text-2xl font-headline text-primary">{existingOrder ? "Editar Orden de Servicio" : "Crear Nueva Orden de Servicio"}</SheetTitle>
                     <SheetDescription>{existingOrder ? `Editando la orden ${existingOrder.orderName}` : "Completa los campos para generar la orden. Puedes añadir múltiples servicios."}</SheetDescription>
@@ -410,3 +411,4 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
     );
 }
 
+    
