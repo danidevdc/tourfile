@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -21,7 +20,7 @@ service cloud.firestore {
     }
 
     // --- Master Data (Guides, Hotels, etc.) ---
-    // Anyone logged in can read. Admins have full write access to certain collections.
+    // Anyone logged in can read. Admins can manage writes.
     match /guides/{docId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
@@ -34,16 +33,14 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
-    
+    // Rule for Activities is now more granular to allow learning
     match /activities/{activityId} {
-      // Anyone logged in can read activity data.
       allow read: if request.auth != null;
-      // Admins can create and delete activities, or update any field.
       allow create, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-      // Any authenticated user can update the suggestion fields, but only admins can change the name.
+      // Allow update if user is admin OR if they are only changing the suggestion-related fields
       allow update: if request.auth != null && 
-                    (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true ||
-                     (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suggestedTime', 'timeCounts'])));
+        (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true ||
+         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timeCounts', 'suggestedTime'])));
     }
     
     // --- Business Logic Rules ---
@@ -65,12 +62,7 @@ service cloud.firestore {
     match /flightSearchStats/{day} {
       allow read, write: if request.auth != null;
     }
-    
-    // --- Learning Data for AI/Suggestions --- DEPRECATED, MOVED TO 'activities' collection
-    match /activityTimeSuggestions/{activityName} {
-      allow read, write: if request.auth != null;
-    }
-    
+
     // --- Service Orders ---
     // Only admins can create, read, update, or delete service orders.
     match /serviceOrders/{orderId} {
