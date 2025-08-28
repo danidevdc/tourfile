@@ -149,11 +149,11 @@ export default function ServiceOrderListPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Nombre de la Orden</TableHead>
-                            <TableHead>Creado Por</TableHead>
-                            <TableHead>Guía Asignado</TableHead>
-                            <TableHead>Fecha de Creación</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
+                            <TableHead className="w-[20%]">Nombre de la Orden</TableHead>
+                            <TableHead className="w-[15%]">Creado Por</TableHead>
+                            <TableHead className="w-[20%]">Guía Asignado</TableHead>
+                            <TableHead className="w-[20%]">Fecha de Creación</TableHead>
+                            <TableHead className="text-right w-[25%]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

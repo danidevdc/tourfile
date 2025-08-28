@@ -179,10 +179,11 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
 
     const handleSearchFile = async () => {
         if (!selectedFile || !excelData || !orderData.file) {
-            toast({ title: "Datos incompletos", variant: "destructive" }); return;
+            toast({ title: "Datos incompletos", description: "Selecciona un archivo e ingresa un número de file.", variant: "destructive" }); return;
         }
         setIsProcessingSearch(true); setFileSearchStatus("searching");
         await new Promise(resolve => setTimeout(resolve, 300));
+        
         let found = false, colIdx = -1, rowIdx = -1;
         for (let j = 0; j < excelData[0].length; j++) {
             for (let i = 0; i < excelData.length; i++) {
@@ -192,25 +193,36 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
             }
             if (found) break;
         }
+
         if (found) {
             setFileSearchStatus("found");
             const groupName = String(excelData[rowIdx + 1]?.[colIdx] || "No encontrado").toUpperCase();
+            
+            // --- Improved PAX search logic ---
             let pax = "N/A";
+            // Start searching from row after group name (rowIdx + 2)
             for (let i = rowIdx + 2; i < excelData.length; i++) {
                 const paxRaw = excelData[i]?.[colIdx];
                 if (paxRaw !== null && paxRaw !== undefined) {
                     const paxValue = String(paxRaw).trim();
-                    if (/^\\d{1,2}$/.test(paxValue) || /^\\d+\\s*\\+\\s*\\d+$/.test(paxValue)) {
-                        pax = paxValue; break;
+                    // Regex for "number+number" format (allows spaces)
+                    const plusFormatRegex = /^\d+\s*\+\s*\d+$/;
+                    // Regex for a 1 or 2 digit number
+                    const numberRegex = /^\d{1,2}$/;
+
+                    if (numberRegex.test(paxValue) || plusFormatRegex.test(paxValue)) {
+                        pax = paxValue;
+                        break; // Found it, stop searching
                     }
                 }
             }
+            
             setOrderData(prev => ({ ...prev, ref: groupName, nPax: pax }));
-            toast({ title: "Búsqueda Exitosa", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+            toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
         } else {
             setFileSearchStatus("not_found");
             setOrderData(prev => ({ ...prev, ref: '', nPax: '' }));
-            toast({ title: "Búsqueda Fallida", variant: "destructive" });
+            toast({ title: "Búsqueda Fallida", description: "Número de file no encontrado en el programa.", variant: "destructive" });
         }
         setIsProcessingSearch(false);
     };
@@ -240,7 +252,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         const { servicio, fecha } = newService;
         const normalizedFlightNumber = flightSearchNumber.trim().toUpperCase();
         if (!normalizedFlightNumber || (servicio !== 'TRF IN' && servicio !== 'TRF OUT') || !fecha) {
-            toast({ title: "Datos incompletos", variant: "destructive" }); return;
+            toast({ title: "Datos incompletos", description: "Se requiere Actividad (TRF IN/OUT), fecha y N° de vuelo.", variant: "destructive" }); return;
         }
         await incrementFlightSearchCount();
         setIsSearchingFlight(true);
@@ -259,13 +271,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                     newObservation = `VUELO SALE ${flightDetails.departure.time.scheduled}. ${flightSegment}`;
                 }
                 setNewService(prev => ({ ...prev, vuelo: normalizedFlightNumber, hora: newTime, observaciones: newObservation }));
-                toast({ title: "Vuelo encontrado", className: "bg-green-100" });
+                toast({ title: "Vuelo encontrado", description: `Hora de recojo sugerida: ${newTime}`, className: "bg-green-100" });
             } else {
                 setNewService(prev => ({ ...prev, vuelo: normalizedFlightNumber, observaciones: 'VUELO NO ENCONTRADO EN API' }));
-                toast({ title: "Vuelo no encontrado", variant: "destructive" });
+                toast({ title: "Vuelo no encontrado", description: flightDetails.errorMessage || "No se pudo encontrar el vuelo en la API.", variant: "destructive" });
             }
         } catch (error) {
-            toast({ title: "Error en búsqueda de vuelo", variant: "destructive" });
+            toast({ title: "Error en búsqueda de vuelo", description: "Ocurrió un problema con la API de vuelos.", variant: "destructive" });
         } finally {
             setIsSearchingFlight(false);
         }
@@ -299,7 +311,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         try {
             if (existingOrder?.id) {
                 await updateServiceOrder(existingOrder.id, orderData);
-                toast({ title: "Éxito", description: "Orden de servicio actualizada.", className: "bg-green-100" });
+                toast({ title: "Éxito", description: "Orden de servicio actualizada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
             } else {
                 for (const service of orderData.services) {
                     if (service.servicio && service.hora) {
@@ -307,7 +319,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                     }
                 }
                 await saveServiceOrder(orderData, currentUser.email);
-                toast({ title: "Éxito", description: "Orden de servicio guardada.", className: "bg-green-100" });
+                toast({ title: "Éxito", description: "Orden de servicio guardada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
             }
             onSave();
         } catch (error) {
@@ -410,5 +422,3 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         </Sheet>
     );
 }
-
-    
