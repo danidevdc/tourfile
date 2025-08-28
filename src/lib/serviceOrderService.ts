@@ -13,6 +13,8 @@ import {
   getDoc,
   updateDoc,
   increment,
+  query,
+  where,
 } from 'firebase/firestore';
 // import { getFlightFromFirestore } from './flightSyncService'; // This file was removed.
 import { format, parse } from 'date-fns';
