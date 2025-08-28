@@ -26,7 +26,6 @@ import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, PlusCircle, Upload, Search, Edit, Plane, Save } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -388,19 +387,18 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                   <Button onClick={() => setIsModalOpen(true)} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"><Edit className="mr-2 h-4 w-4" />Editar Completo</Button>
                                 }
                             </div>
-                            {/* The scrollable area height is set to h-64 (16rem / 256px) by default */}
-                            <div className="overflow-y-auto h-64 border rounded-md">
+                            <div className="overflow-y-auto max-h-64 border rounded-md">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-muted z-10">
                                         <TableRow>
-                                            <TableHead className="w-[120px]">Fecha</TableHead>
-                                            <TableHead className="w-[80px]">Hora</TableHead>
-                                            <TableHead className="w-[250px]">Servicio</TableHead>
-                                            <TableHead className="w-[100px]">Vuelo</TableHead>
-                                            <TableHead className="w-[180px]">Guía</TableHead>
-                                            <TableHead className="w-[80px]">Bus</TableHead>
-                                            <TableHead className="w-[180px]">Chofer</TableHead>
-                                            <TableHead className="w-[300px]">Observaciones</TableHead>
+                                            <TableHead style={{width: '86px'}}>Fecha</TableHead>
+                                            <TableHead style={{width: '56px'}}>Hora</TableHead>
+                                            <TableHead>Servicio</TableHead>
+                                            <TableHead style={{width: '70px'}}>Vuelo</TableHead>
+                                            <TableHead style={{width: '150px'}}>Guía</TableHead>
+                                            <TableHead style={{width: '70px'}}>Bus</TableHead>
+                                            <TableHead style={{width: '80px'}}>Chofer</TableHead>
+                                            <TableHead>Observaciones</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -409,12 +407,12 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                                 <TableRow key={i}>
                                                     <TableCell className="font-mono p-2">{s.fecha}</TableCell>
                                                     <TableCell className="font-mono p-2">{s.hora}</TableCell>
-                                                    <TableCell className="p-2">{s.servicio}</TableCell>
-                                                    <TableCell className="p-2">{s.vuelo}</TableCell>
-                                                    <TableCell className="p-2">{s.guia}</TableCell>
-                                                    <TableCell className="p-2">{s.bus}</TableCell>
-                                                    <TableCell className="p-2">{s.chofer}</TableCell>
-                                                    <TableCell className="p-2">{s.observaciones}</TableCell>
+                                                    <TableCell className="font-mono p-2">{s.servicio}</TableCell>
+                                                    <TableCell className="font-mono p-2">{s.vuelo}</TableCell>
+                                                    <TableCell className="font-mono p-2">{s.guia}</TableCell>
+                                                    <TableCell className="font-mono p-2">{s.bus}</TableCell>
+                                                    <TableCell className="font-mono p-2">{s.chofer}</TableCell>
+                                                    <TableCell className="font-mono p-2">{s.observaciones}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
