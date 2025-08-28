@@ -95,22 +95,20 @@ export default function AdminUsersPage() {
       const monthlyData = monthlyReportCounts[email] || {};
       const totalFromMonths = reportMonths.reduce((sum, month) => sum + (monthlyData[month] || 0), 0);
       
-      // The total historical count, which includes July's manual count
       const historicalTotal = user.generatedReportsCount || 0;
-      // Calculate "Anteriores" as the difference
-      const anterioresCount = Math.max(0, historicalTotal - totalFromMonths);
+      const julioCount = Math.max(0, historicalTotal - totalFromMonths);
 
       return {
         ...user,
         monthlyData: {
-          'Anteriores': anterioresCount,
+          'Julio': julioCount,
           ...monthlyData
         },
       };
     });
   }, [users, monthlyReportCounts, reportMonths]);
 
-  const finalMonthsHeader = ['Anteriores', ...reportMonths];
+  const finalMonthsHeader = ['Julio', ...reportMonths];
 
   const totals = useMemo(() => {
     return finalMonthsHeader.reduce((acc, month) => {
