@@ -388,13 +388,16 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                             </div>
                             <ScrollArea className="h-64 w-full rounded-md border">
                                 <Table>
-                                    <TableHeader className="sticky top-0 bg-muted">
+                                     <TableHeader className="sticky top-0 bg-muted z-10">
                                         <TableRow>
                                             <TableHead className="w-[110px]">Fecha</TableHead>
                                             <TableHead className="w-[80px]">Hora</TableHead>
-                                            <TableHead>Servicio</TableHead>
-                                            <TableHead>Guía</TableHead>
-                                            <TableHead>Chofer</TableHead>
+                                            <TableHead className="w-[250px]">Servicio</TableHead>
+                                            <TableHead className="w-[100px]">Vuelo</TableHead>
+                                            <TableHead className="w-[180px]">Guía</TableHead>
+                                            <TableHead className="w-[80px]">Bus</TableHead>
+                                            <TableHead className="w-[180px]">Chofer</TableHead>
+                                            <TableHead className="w-[250px]">Observaciones</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -404,13 +407,16 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                                     <TableCell className="font-mono">{s.fecha}</TableCell>
                                                     <TableCell className="font-mono">{s.hora}</TableCell>
                                                     <TableCell>{s.servicio}</TableCell>
+                                                    <TableCell>{s.vuelo}</TableCell>
                                                     <TableCell>{s.guia}</TableCell>
+                                                    <TableCell>{s.bus}</TableCell>
                                                     <TableCell>{s.chofer}</TableCell>
+                                                    <TableCell>{s.observaciones}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                                                     El itinerario está vacío. Añade un servicio arriba.
                                                 </TableCell>
                                             </TableRow>
@@ -444,5 +450,3 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         </Sheet>
     );
 }
-
-    
