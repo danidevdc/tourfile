@@ -11,6 +11,8 @@ import {
   writeBatch,
   runTransaction,
   getDoc,
+  updateDoc,
+  increment,
 } from 'firebase/firestore';
 // import { getFlightFromFirestore } from './flightSyncService'; // This file was removed.
 import { format, parse } from 'date-fns';
@@ -25,6 +27,8 @@ export interface Hotel {
 export interface Activity {
   id: string; 
   name: string;
+  suggestedTime?: string; // Field for the most common time
+  timeCounts?: { [time: string]: number }; // Field to count usages
 }
 
 export interface Driver {
@@ -98,7 +102,8 @@ export async function getActivitiesFromFirestore(): Promise<Activity[]> {
 
   return snapshot.docs.map(doc => ({ 
     id: doc.id, 
-    name: (doc.data().name as string).toUpperCase() 
+    name: (doc.data().name as string).toUpperCase(),
+    suggestedTime: doc.data().suggestedTime, // Also fetch the suggested time
   } as Activity))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -155,59 +160,66 @@ export const deleteDriver = (id: string) => deleteDoc(doc(db!, 'drivers', id));
 
 /**
  * Records the usage of a specific time for an activity to build suggestions.
+ * If a time is used more than twice, it becomes the new suggested time.
  * @param activityName The name of the activity.
  * @param time The time used for the activity (e.g., "09:00").
  */
 export async function recordActivityTimeUsage(activityName: string, time: string): Promise<void> {
   if (!db || !activityName || !/^\d{2}:\d{2}$/.test(time)) return;
 
-  const suggestionRef = doc(db, 'activityTimeSuggestions', activityName.toUpperCase());
+  const activityQuery = query(collection(db, 'activities'), where('name', '==', activityName.toUpperCase()));
+  const querySnapshot = await getDocs(activityQuery);
+
+  if (querySnapshot.empty) {
+    console.warn(`Activity "${activityName}" not found. Cannot record time usage.`);
+    return;
+  }
+  
+  const activityDocRef = querySnapshot.docs[0].ref;
 
   try {
     await runTransaction(db, async (transaction) => {
-      const suggestionDoc = await transaction.get(suggestionRef);
-      if (!suggestionDoc.exists()) {
-        transaction.set(suggestionRef, {
-          activityName: activityName.toUpperCase(),
-          timeCounts: { [time]: 1 },
-        });
-      } else {
-        const currentCounts = suggestionDoc.data().timeCounts || {};
-        const newCount = (currentCounts[time] || 0) + 1;
-        transaction.update(suggestionRef, {
-          [`timeCounts.${time}`]: newCount,
-        });
+      const activityDoc = await transaction.get(activityDocRef);
+      if (!activityDoc.exists()) return;
+
+      const currentCounts = activityDoc.data().timeCounts || {};
+      const newCount = (currentCounts[time] || 0) + 1;
+
+      // Update the count for the specific time
+      const updates: { [key: string]: any } = {
+        [`timeCounts.${time}`]: newCount,
+      };
+
+      // If the count reaches 2, set it as the new suggested time
+      if (newCount >= 2) {
+        updates.suggestedTime = time;
       }
+      
+      transaction.update(activityDocRef, updates);
     });
   } catch (error) {
     console.error(`Failed to record time usage for ${activityName}:`, error);
-    // Fail silently to not interrupt user flow
   }
 }
 
 /**
- * Gets the most frequently used time for a given activity.
+ * Gets the suggested time for a given activity from the 'activities' collection.
  * @param activityName The name of the activity.
- * @returns The most popular time as a string (e.g., "09:00") or null if no data exists.
+ * @returns The suggested time as a string (e.g., "09:00") or null if no data exists.
  */
 export async function getSuggestedTimeForActivity(activityName: string): Promise<string | null> {
   if (!db || !activityName) return null;
 
-  const suggestionRef = doc(db, 'activityTimeSuggestions', activityName.toUpperCase());
+  const activityQuery = query(collection(db, 'activities'), where('name', '==', activityName.toUpperCase()));
+  
   try {
-    const suggestionDoc = await getDoc(suggestionRef);
-    if (suggestionDoc.exists()) {
-      const data = suggestionDoc.data();
-      const timeCounts = data.timeCounts;
-      if (timeCounts && Object.keys(timeCounts).length > 0) {
-        // Find the time with the highest count
-        const mostPopularTime = Object.keys(timeCounts).reduce((a, b) =>
-          timeCounts[a] > timeCounts[b] ? a : b
-        );
-        return mostPopularTime;
-      }
+    const querySnapshot = await getDocs(activityQuery);
+    if (querySnapshot.empty) {
+      return null;
     }
-    return null;
+    const activityDoc = querySnapshot.docs[0];
+    return activityDoc.data().suggestedTime || null;
+
   } catch (error) {
     console.error(`Failed to get suggested time for ${activityName}:`, error);
     return null;
