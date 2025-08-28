@@ -257,14 +257,11 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         handleNewServiceChange('servicio', activityName);
         setShowFlightSearch(activityName === 'TRF IN' || activityName === 'TRF OUT');
         
-        // Only set the time if there's a suggestion. Otherwise, leave it as is for manual input.
         const suggestedTime = await getSuggestedTimeForActivity(activityName);
         if (suggestedTime) {
             handleNewServiceChange('hora', suggestedTime);
         } else if (!showFlightSearch) {
-             // If there's no suggestion, and we're not about to search for a flight,
-             // we can clear any previous time, but let's keep it for now to allow manual persistence.
-             // setNewService(prev => ({...prev, hora: ''}));
+             setNewService(prev => ({...prev, hora: ''}));
         }
     };
     
@@ -316,8 +313,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
         setOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd] }));
         
-        // Reset only the necessary fields, keeping Bus and Chofer for convenience
-        setNewService(initialNewServiceState);
+        const keptState = { fecha: newService.fecha };
+        setNewService({ ...initialNewServiceState, ...keptState });
         setShowFlightSearch(false); 
         setFlightSearchNumber('');
     };
@@ -376,10 +373,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
                         <div className="space-y-4 p-4 border rounded-lg">
-                             {/* First Row of Inputs */}
-                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                                <div className="md:col-span-1">
-                                    <Label className="shrink-0">Programa:</Label>
+                             <div className="grid grid-cols-12 gap-4 items-end">
+                                <div className="col-span-4">
+                                    <Label>Programa:</Label>
                                     <div className="flex items-center gap-2 mt-1">
                                         <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className={cn("w-full justify-start", selectedFile && "border-green-500 font-medium text-green-700")}>
                                             <Upload className="mr-2 h-4 w-4" />{selectedFile ? selectedFile.name : "Seleccionar .xlsx"}
@@ -388,7 +384,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                         <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
                                     </div>
                                 </div>
-                                <div>
+                                <div className="col-span-2">
                                     <Label htmlFor="file">File:</Label>
                                     <div className="flex items-center gap-1 mt-1">
                                         <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} />
@@ -397,10 +393,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                         </Button>
                                     </div>
                                 </div>
-                                <div><Label htmlFor="ref">Ref (Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className="mt-1" /></div>
-                                <div><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" /></div>
+                                <div className="col-span-5"><Label htmlFor="ref">Ref (Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className="mt-1" /></div>
+                                <div className="col-span-1"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" /></div>
                             </div>
-                            {/* Second Row of Inputs */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
                                 <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-card"/></div>
                                 <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1 bg-card"/></div>
