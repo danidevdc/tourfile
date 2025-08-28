@@ -338,7 +338,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                     <SheetTitle className="text-2xl font-headline text-primary">{existingOrder ? "Editar Orden de Servicio" : "Crear Nueva Orden de Servicio"}</SheetTitle>
                     <SheetDescription>{existingOrder ? `Editando la orden ${existingOrder.orderName}` : "Completa los campos para generar la orden. Puedes añadir múltiples servicios."}</SheetDescription>
                 </SheetHeader>
-                <ScrollArea className="flex-grow pr-6 -mr-6">
+                <div className="flex-grow overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
                         <div className="space-y-2 p-4 border rounded-lg">
                             <div className="flex items-center gap-2">
@@ -392,7 +392,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                         <TableRow>
                                             <TableHead className="w-[110px]">Fecha</TableHead>
                                             <TableHead className="w-[80px]">Hora</TableHead>
-                                            <TableHead className="w-[250px]">Servicio</TableHead>
+                                            <TableHead>Servicio</TableHead>
                                             <TableHead className="w-[100px]">Vuelo</TableHead>
                                             <TableHead className="w-[180px]">Guía</TableHead>
                                             <TableHead className="w-[80px]">Bus</TableHead>
@@ -404,14 +404,14 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                         {orderData.services.length > 0 ? (
                                             orderData.services.map((s, i) => (
                                                 <TableRow key={i}>
-                                                    <TableCell className="font-mono">{s.fecha}</TableCell>
-                                                    <TableCell className="font-mono">{s.hora}</TableCell>
-                                                    <TableCell>{s.servicio}</TableCell>
-                                                    <TableCell>{s.vuelo}</TableCell>
-                                                    <TableCell>{s.guia}</TableCell>
-                                                    <TableCell>{s.bus}</TableCell>
-                                                    <TableCell>{s.chofer}</TableCell>
-                                                    <TableCell>{s.observaciones}</TableCell>
+                                                    <TableCell className="font-mono p-2">{s.fecha}</TableCell>
+                                                    <TableCell className="font-mono p-2">{s.hora}</TableCell>
+                                                    <TableCell className="p-2">{s.servicio}</TableCell>
+                                                    <TableCell className="p-2">{s.vuelo}</TableCell>
+                                                    <TableCell className="p-2">{s.guia}</TableCell>
+                                                    <TableCell className="p-2">{s.bus}</TableCell>
+                                                    <TableCell className="p-2">{s.chofer}</TableCell>
+                                                    <TableCell className="p-2">{s.observaciones}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
@@ -438,7 +438,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                             </AccordionItem>
                         </Accordion>
                     </div>
-                </ScrollArea>
+                </div>
                 <SheetFooter className="pt-4 border-t">
                     <Button variant="outline" onClick={onClose}>Cancelar</Button>
                     <Button onClick={handleSaveOrder} disabled={isSaving || isLoadingData}>
