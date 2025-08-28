@@ -381,38 +381,38 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                         </div>
 
                         <div className="p-4 border rounded-lg">
-                            <div className="flex justify-between items-center mb-2">
+                             <div className="flex justify-between items-center mb-2">
                                 <h3 className="font-semibold">Itinerario ({orderData.services.length} servicios)</h3>
                                 {orderData.services.length > 0 && 
                                   <Button onClick={() => setIsModalOpen(true)} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"><Edit className="mr-2 h-4 w-4" />Editar Completo</Button>
                                 }
                             </div>
-                            <div className="overflow-y-auto max-h-64 border rounded-md">
+                            <div className="border rounded-md overflow-y-auto max-h-64 border-primary/20">
                                 <Table>
-                                    <TableHeader className="sticky top-0 bg-muted z-10">
-                                        <TableRow>
-                                            <TableHead style={{width: '86px'}}>Fecha</TableHead>
-                                            <TableHead style={{width: '56px'}}>Hora</TableHead>
-                                            <TableHead>Servicio</TableHead>
-                                            <TableHead style={{width: '70px'}}>Vuelo</TableHead>
-                                            <TableHead style={{width: '150px'}}>Guía</TableHead>
-                                            <TableHead style={{width: '70px'}}>Bus</TableHead>
-                                            <TableHead style={{width: '80px'}}>Chofer</TableHead>
-                                            <TableHead>Observaciones</TableHead>
+                                    <TableHeader className="sticky top-0 bg-primary/10 z-10">
+                                        <TableRow className="border-b-primary/20">
+                                            <TableHead className="text-primary font-bold border-r border-r-primary/20" style={{width: '86px'}}>Fecha</TableHead>
+                                            <TableHead className="text-primary font-bold border-r border-r-primary/20" style={{width: '56px'}}>Hora</TableHead>
+                                            <TableHead className="text-primary font-bold border-r border-r-primary/20">Servicio</TableHead>
+                                            <TableHead className="text-primary font-bold border-r border-r-primary/20" style={{width: '70px'}}>Vuelo</TableHead>
+                                            <TableHead className="text-primary font-bold border-r border-r-primary/20" style={{width: '150px'}}>Guía</TableHead>
+                                            <TableHead className="text-primary font-bold border-r border-r-primary/20" style={{width: '70px'}}>Bus</TableHead>
+                                            <TableHead className="text-primary font-bold border-r border-r-primary/20" style={{width: '80px'}}>Chofer</TableHead>
+                                            <TableHead className="text-primary font-bold">Observaciones</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {orderData.services.length > 0 ? (
                                             orderData.services.map((s, i) => (
-                                                <TableRow key={i}>
-                                                    <TableCell className="font-mono p-2">{s.fecha}</TableCell>
-                                                    <TableCell className="font-mono p-2">{s.hora}</TableCell>
-                                                    <TableCell className="font-mono p-2">{s.servicio}</TableCell>
-                                                    <TableCell className="font-mono p-2">{s.vuelo}</TableCell>
-                                                    <TableCell className="font-mono p-2">{s.guia}</TableCell>
-                                                    <TableCell className="font-mono p-2">{s.bus}</TableCell>
-                                                    <TableCell className="font-mono p-2">{s.chofer}</TableCell>
-                                                    <TableCell className="font-mono p-2">{s.observaciones}</TableCell>
+                                                <TableRow key={i} className="font-mono border-b-primary/20">
+                                                    <TableCell className="p-2 border-r border-r-primary/20">{s.fecha}</TableCell>
+                                                    <TableCell className="p-2 border-r border-r-primary/20">{s.hora}</TableCell>
+                                                    <TableCell className="p-2 border-r border-r-primary/20">{s.servicio}</TableCell>
+                                                    <TableCell className="p-2 border-r border-r-primary/20">{s.vuelo}</TableCell>
+                                                    <TableCell className="p-2 border-r border-r-primary/20">{s.guia}</TableCell>
+                                                    <TableCell className="p-2 border-r border-r-primary/20">{s.bus}</TableCell>
+                                                    <TableCell className="p-2 border-r border-r-primary/20">{s.chofer}</TableCell>
+                                                    <TableCell className="p-2">{s.observaciones}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
