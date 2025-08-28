@@ -8,8 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import { getAllServiceOrders, deleteServiceOrder, type StoredServiceOrder } from '@/lib/serviceOrderStorage';
-import { generateServiceOrderExcel } from '@/lib/serviceOrderGenerator';
+import { getAllServiceOrders, deleteServiceOrder, updateServiceOrder, type StoredServiceOrder } from '@/lib/serviceOrderStorage';
+import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +27,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOrderGeneratorSheet";
+import { ItineraryEditModal } from "@/components/service-order/ItineraryEditModal";
+import { getGuidesFromFirestore, getDriversFromFirestore, type ServiceOrderGuide, type Driver } from "@/lib/serviceOrderService";
 
 
 export default function ServiceOrderListPage() {
@@ -35,9 +37,15 @@ export default function ServiceOrderListPage() {
   const { toast } = useToast();
 
   const [orders, setOrders] = useState<StoredServiceOrder[]>([]);
+  const [guides, setGuides] = useState<ServiceOrderGuide[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [orderToEdit, setOrderToEdit] = useState<StoredServiceOrder | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const [orderToEditInSheet, setOrderToEditInSheet] = useState<StoredServiceOrder | null>(null);
+  const [orderToEditInModal, setOrderToEditInModal] = useState<StoredServiceOrder | null>(null);
+
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
 
@@ -45,10 +53,16 @@ export default function ServiceOrderListPage() {
   const fetchOrders = async () => {
     setIsLoading(true);
     try {
-      const fetchedOrders = await getAllServiceOrders();
+      const [fetchedOrders, fetchedGuides, fetchedDrivers] = await Promise.all([
+        getAllServiceOrders(),
+        getGuidesFromFirestore(),
+        getDriversFromFirestore()
+      ]);
       setOrders(fetchedOrders);
+      setGuides(fetchedGuides);
+      setDrivers(fetchedDrivers);
     } catch (error) {
-      toast({ title: "Error", description: "No se pudieron cargar las órdenes de servicio.", variant: "destructive" });
+      toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -61,15 +75,41 @@ export default function ServiceOrderListPage() {
   }, [authLoading]);
 
   const handleNewOrderClick = () => {
-    setOrderToEdit(null);
+    setOrderToEditInSheet(null);
     setIsSheetOpen(true);
   };
   
   const handleEditOrderClick = (order: StoredServiceOrder) => {
-    setOrderToEdit(order);
+    setOrderToEditInSheet(order);
     setIsSheetOpen(true);
   };
+
+  const handleEditItineraryClick = (order: StoredServiceOrder) => {
+    setOrderToEditInModal(order);
+    setIsModalOpen(true);
+  };
   
+  const handleSaveFromModal = async (updatedServices: StoredServiceOrder['data']['services']) => {
+    if (!orderToEditInModal) return;
+
+    const updatedOrderData: ServiceOrderData = {
+      ...orderToEditInModal.data,
+      services: updatedServices
+    };
+    
+    try {
+      await updateServiceOrder(orderToEditInModal.id, updatedOrderData);
+      toast({ title: "Éxito", description: "Itinerario actualizado.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      fetchOrders(); // Refresh list
+    } catch(e) {
+      toast({ title: "Error", description: "No se pudo actualizar el itinerario.", variant: "destructive" });
+    } finally {
+      setIsModalOpen(false);
+      setOrderToEditInModal(null);
+    }
+  };
+
+
   const handleDeleteOrder = async () => {
     if(!orderToDelete || !orderToDelete.id) return;
     try {
@@ -113,7 +153,7 @@ export default function ServiceOrderListPage() {
   
   const onSheetClose = () => {
     setIsSheetOpen(false);
-    setOrderToEdit(null); // Clear editing state on close
+    setOrderToEditInSheet(null); // Clear editing state on close
   }
 
   if (authLoading || isLoading) {
@@ -149,11 +189,11 @@ export default function ServiceOrderListPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[20%]">Nombre de la Orden</TableHead>
+                            <TableHead className="w-[15%]">Nombre de la Orden</TableHead>
                             <TableHead className="w-[15%]">Creado Por</TableHead>
-                            <TableHead className="w-[20%]">Guía Asignado</TableHead>
-                            <TableHead className="w-[20%]">Fecha de Creación</TableHead>
-                            <TableHead className="text-right w-[25%]">Acciones</TableHead>
+                            <TableHead className="w-[15%]">Guía Asignado</TableHead>
+                            <TableHead className="w-[15%]">Fecha de Creación</TableHead>
+                            <TableHead className="text-right w-[40%]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -165,23 +205,27 @@ export default function ServiceOrderListPage() {
                                     <TableCell>{order.data.guia}</TableCell>
                                     <TableCell>{format(order.createdAt, 'dd MMMM yyyy, HH:mm', { locale: es })}</TableCell>
                                     <TableCell className="text-right space-x-2">
-                                        <Button variant="outline" size="icon" onClick={() => handleEditOrderClick(order)} title="Editar Orden">
-                                            <Edit className="h-4 w-4"/>
+                                        <Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} title="Editar Orden" className="text-primary border-primary hover:bg-primary/10">
+                                            <Edit className="mr-2 h-4 w-4"/>Editar
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => handleEditItineraryClick(order)} title="Editar Itinerario" className="text-blue-600 border-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20">
+                                            <ListOrdered className="mr-2 h-4 w-4"/>Itinerario
                                         </Button>
                                         <Button 
                                           variant="outline" 
-                                          size="icon" 
+                                          size="sm"
                                           onClick={() => handleDownloadExcel(order)} 
                                           disabled={isDownloadingId === order.id}
                                           title="Descargar Excel"
                                           className="text-green-600 border-green-600 hover:bg-green-100 hover:text-green-700"
                                         >
-                                            {isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="h-4 w-4"/>}
+                                            {isDownloadingId === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4"/>}
+                                            Excel
                                         </Button>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
-                                                <Button variant="destructive" size="icon" title="Eliminar Orden" onClick={() => setOrderToDelete(order)}>
-                                                    <Trash2 className="h-4 w-4" />
+                                                <Button variant="destructive" size="sm" title="Eliminar Orden" onClick={() => setOrderToDelete(order)}>
+                                                    <Trash2 className="mr-2 h-4 w-4" />Eliminar
                                                 </Button>
                                             </AlertDialogTrigger>
                                             {orderToDelete && orderToDelete.id === order.id && (
@@ -217,11 +261,24 @@ export default function ServiceOrderListPage() {
           </CardContent>
         </Card>
 
+        {isModalOpen && orderToEditInModal && (
+          <ItineraryEditModal 
+            services={orderToEditInModal.data.services}
+            guides={guides}
+            drivers={drivers}
+            onSave={handleSaveFromModal}
+            onClose={() => {
+              setIsModalOpen(false);
+              setOrderToEditInModal(null);
+            }}
+          />
+        )}
+
         <ServiceOrderGeneratorSheet 
             isOpen={isSheetOpen}
             onClose={onSheetClose}
             onSave={onSheetSave}
-            existingOrder={orderToEdit}
+            existingOrder={orderToEditInSheet}
         />
     </div>
   );
