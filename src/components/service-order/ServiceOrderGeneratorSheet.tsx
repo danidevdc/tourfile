@@ -198,21 +198,16 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
             setFileSearchStatus("found");
             const groupName = String(excelData[rowIdx + 1]?.[colIdx] || "No encontrado").toUpperCase();
             
-            // --- Improved PAX search logic ---
             let pax = "N/A";
-            // Start searching from row after group name (rowIdx + 2)
             for (let i = rowIdx + 2; i < excelData.length; i++) {
                 const paxRaw = excelData[i]?.[colIdx];
-                if (paxRaw !== null && paxRaw !== undefined) {
+                if (paxRaw !== null && paxRaw !== undefined && String(paxRaw).trim() !== "") {
                     const paxValue = String(paxRaw).trim();
-                    // Regex for "number+number" format (allows spaces)
                     const plusFormatRegex = /^\d+\s*\+\s*\d+$/;
-                    // Regex for a 1 or 2 digit number
                     const numberRegex = /^\d{1,2}$/;
-
                     if (numberRegex.test(paxValue) || plusFormatRegex.test(paxValue)) {
                         pax = paxValue;
-                        break; // Found it, stop searching
+                        break; 
                     }
                 }
             }

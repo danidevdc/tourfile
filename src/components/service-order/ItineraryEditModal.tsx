@@ -78,10 +78,10 @@ export function ItineraryEditModal({ services, guides, drivers, onSave, onClose 
                                 <TableHead className="w-[150px]">Fecha</TableHead>
                                 <TableHead className="w-[100px]">Hora</TableHead>
                                 <TableHead className="min-w-[300px]">Servicio</TableHead>
-                                <TableHead className="min-w-[150px]">Vuelo</TableHead>
-                                <TableHead className="min-w-[200px]">Guía</TableHead>
+                                <TableHead className="w-[150px]">Vuelo</TableHead>
+                                <TableHead className="w-[200px]">Guía</TableHead>
                                 <TableHead className="w-[100px]">Bus</TableHead>
-                                <TableHead className="min-w-[200px]">Chofer</TableHead>
+                                <TableHead className="w-[200px]">Chofer</TableHead>
                                 <TableHead className="min-w-[300px]">Observaciones</TableHead>
                             </TableRow>
                         </TableHeader>

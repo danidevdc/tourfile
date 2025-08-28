@@ -97,7 +97,7 @@ export default function ServiceOrderListPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
+      URL.revokeObjectURL(url);
 
     } catch(error) {
       toast({ title: "Error", description: "No se pudo generar el archivo Excel.", variant: "destructive" });
