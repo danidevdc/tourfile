@@ -369,10 +369,10 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                 <div className="md:col-span-3"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" /></div>
                             </div>
                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-                                <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-background"/></div>
-                                <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1 bg-background"/></div>
-                                <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={setBusTypeSelection}><SelectTrigger className="mt-1 bg-background"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
-                                <div><Label>Chofer</Label><Combobox options={driverOptions} value={choferSelection} onSelect={setChoferSelection} placeholder="Seleccionar chofer..." className="mt-1 bg-background"/></div>
+                                <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-card"/></div>
+                                <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1 bg-card"/></div>
+                                <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={setBusTypeSelection}><SelectTrigger className="mt-1 bg-card"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
+                                <div><Label>Chofer</Label><Combobox options={driverOptions} value={choferSelection} onSelect={setChoferSelection} placeholder="Seleccionar chofer..." className="mt-1 bg-card"/></div>
                             </div>
                         </div>
                         
@@ -380,10 +380,10 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                             <h3 className="font-semibold mb-2">Añadir Servicio</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-12 items-end gap-2">
                                 <div className="sm:col-span-2"><Label>Fecha</Label><Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-[150px]"/></div>
-                                <div className={cn("sm:col-span-4", showFlightSearch && "sm:col-span-2")}><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-background"/></div>
+                                <div className={cn("sm:col-span-4", showFlightSearch && "sm:col-span-2")}><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-card"/></div>
                                 {showFlightSearch && (<div className="sm:col-span-3"><Label>Buscar Vuelo</Label><div className="flex items-center gap-1 mt-1"><Input value={flightSearchNumber} onChange={(e) => setFlightSearchNumber(e.target.value)} placeholder="Ej: OB304" /><Button type="button" onClick={handleFlightSearch} disabled={isSearchingFlight} size="icon"><Plane className={cn("h-4 w-4", isSearchingFlight && "animate-pulse")} /></Button></div></div>)}
                                 <div className="sm:col-span-2"><Label>Hora</Label><Input value={newService.hora} onChange={(e) => handleNewServiceChange('hora', e.target.value)} placeholder="HH:mm" maxLength={5} className="mt-1"/></div>
-                                <div className="sm:col-span-1"><Button onClick={addNewServiceRow} variant="default" size="icon" className="w-full bg-primary hover:bg-primary/90" disabled={isAddServiceDisabled}><PlusCircle className="h-5 w-5"/></Button></div>
+                                <div className="sm:col-span-1"><Button onClick={addNewServiceRow} variant="default" size="icon" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}><PlusCircle className="h-5 w-5"/></Button></div>
                             </div>
                         </div>
 
@@ -394,7 +394,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                   <Button onClick={() => setIsModalOpen(true)} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"><Edit className="mr-2 h-4 w-4" />Editar Completo</Button>
                                 }
                             </div>
-                            <div className="max-h-64 overflow-y-auto border rounded-md border-primary/20">
+                            {/* This is the summary table with vertical scroll */}
+                            <div className="max-h-64 h-auto overflow-y-auto border rounded-md bg-card border-primary/20">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10">
                                         <TableRow className="border-b-primary/20">
@@ -464,5 +465,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         </Sheet>
     );
 }
+
+    
 
     
