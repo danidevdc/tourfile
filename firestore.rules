@@ -20,7 +20,7 @@ service cloud.firestore {
     }
 
     // --- Master Data (Guides, Hotels, etc.) ---
-    // Anyone logged in can read. Admins can manage writes.
+    // Anyone logged in can read. Only admins can write.
     match /guides/{docId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
@@ -33,11 +33,11 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
-    // Rule for Activities is now more granular to allow learning
     match /activities/{activityId} {
       allow read: if request.auth != null;
+      // Admins can create and delete activities.
       allow create, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-      // Allow update if user is admin OR if they are only changing the suggestion-related fields
+      // Admins can update anything. Regular users can only update the learning fields.
       allow update: if request.auth != null && 
         (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true ||
          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timeCounts', 'suggestedTime'])));
@@ -54,7 +54,7 @@ service cloud.firestore {
     // Any authenticated user can create a report log entry. Only admins can read them.
     match /generatedReports/{reportId} {
       allow create: if request.auth != null;
-      allow read: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+      allow read: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
     
     // --- Flight Search Counter ---
@@ -62,11 +62,17 @@ service cloud.firestore {
     match /flightSearchStats/{day} {
       allow read, write: if request.auth != null;
     }
-
+    
     // --- Service Orders ---
     // Only admins can create, read, update, or delete service orders.
     match /serviceOrders/{orderId} {
       allow read, write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // --- Learning Data for AI/Suggestions ---
+    // Any authenticated user can contribute to the learning data.
+    match /activityTimeSuggestions/{activityName} {
+      allow read, write: if request.auth != null;
     }
 
   }
