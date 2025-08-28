@@ -28,6 +28,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, PlusCircle, Upload, Search, Edit, Plane, Save } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { FileSearchStatus } from "@/lib/report-generator";
 
@@ -146,9 +147,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                 setGuides(fetchedGuides);
                 setHotels(fetchedHotels);
                 setAllDrivers(fetchedDrivers);
-                setActivities(fetchedActivities);
                 setOwnDrivers(fetchedDrivers.filter(d => !d.name.startsWith('CONT ')));
                 setExternalDrivers(fetchedDrivers.filter(d => d.name.startsWith('CONT ')));
+                setActivities(fetchedActivities);
             } catch (error) {
                 toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
             } finally {
@@ -385,12 +386,38 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                 <h3 className="font-semibold">Itinerario ({orderData.services.length} servicios)</h3>
                                 <Button onClick={() => setIsModalOpen(true)} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"><Edit className="mr-2 h-4 w-4" />Editar Completo</Button>
                             </div>
-                            <p className="text-sm text-muted-foreground">Previsualización de los primeros 5 servicios. Usa "Editar Completo" para ver y modificar todo.</p>
-                            <div className="mt-2 text-sm">
-                                {orderData.services.slice(0, 5).map((s, i) => <div key={i} className="flex gap-2 p-1 border-b"><span className="font-mono">{s.fecha} {s.hora}</span><span>{s.servicio}</span></div>)}
-                                {orderData.services.length > 5 && <div className="text-center p-1">... y {orderData.services.length - 5} más.</div>}
-                                {orderData.services.length === 0 && <div className="text-center p-4 text-muted-foreground">El itinerario está vacío.</div>}
-                            </div>
+                            <ScrollArea className="h-64 w-full rounded-md border">
+                                <Table>
+                                    <TableHeader className="sticky top-0 bg-muted">
+                                        <TableRow>
+                                            <TableHead className="w-[110px]">Fecha</TableHead>
+                                            <TableHead className="w-[80px]">Hora</TableHead>
+                                            <TableHead>Servicio</TableHead>
+                                            <TableHead>Guía</TableHead>
+                                            <TableHead>Chofer</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {orderData.services.length > 0 ? (
+                                            orderData.services.map((s, i) => (
+                                                <TableRow key={i}>
+                                                    <TableCell className="font-mono">{s.fecha}</TableCell>
+                                                    <TableCell className="font-mono">{s.hora}</TableCell>
+                                                    <TableCell>{s.servicio}</TableCell>
+                                                    <TableCell>{s.guia}</TableCell>
+                                                    <TableCell>{s.chofer}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                                    El itinerario está vacío. Añade un servicio arriba.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </ScrollArea>
                         </div>
 
                         {isModalOpen && <ItineraryEditModal services={orderData.services} guides={guides} drivers={allDrivers} onSave={handleSaveFromModal} onClose={() => setIsModalOpen(false)} />}
@@ -417,3 +444,5 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         </Sheet>
     );
 }
+
+    
