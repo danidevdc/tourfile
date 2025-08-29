@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
@@ -140,8 +141,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     }, [toast]);
     
     useEffect(() => {
-        // This effect ensures data is loaded when editing an existing order.
-        // It's crucial not to overwrite intermediate progress when creating a new one.
         if (existingOrderId && orderData?.services?.length > 0) {
             const lastService = orderData.services[orderData.services.length - 1];
             if (lastService.bus) {
@@ -426,15 +425,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                   <Label>Fecha</Label>
                                   <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/>
                                 </div>
-                                <div style={{ width: '300px' }}>
+                                <div className="flex-grow" style={{ minWidth: '300px' }}>
                                     <Label>Actividad</Label>
-                                    <Combobox 
-                                        options={activityOptions} 
-                                        value={newService.servicio} 
-                                        onSelect={handleActivitySelect} 
-                                        placeholder="Buscar actividad..." 
-                                        className="mt-1 bg-card"
-                                    />
+                                    <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-card"/>
                                 </div>
                                 {showFlightSearch && (
                                     <div style={{ width: '150px' }}>
