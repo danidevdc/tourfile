@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { parse } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface ServiceOrderPreviewModalProps {
     order: StoredServiceOrder;
@@ -35,7 +36,7 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
         <Dialog open={true} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl w-full flex flex-col p-4">
                  <div className="overflow-y-auto p-2 flex-grow">
-                    <DialogHeader className="p-2 pb-2 text-center mt-[-1rem] mb-2">
+                    <DialogHeader className="p-2 pb-2 text-center mb-2">
                         <DialogTitle className="font-mono text-2xl uppercase">ORDEN DE SERVICIOS</DialogTitle>
                     </DialogHeader>
                     <div className="border-3 border-primary/20 rounded-lg overflow-hidden">
@@ -61,13 +62,13 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                         <Table>
                              <TableHeader>
                                 <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20">Fecha</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20">Hora</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20" colSpan={2}>Servicio</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20">Guía</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20">Bus</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20">Chofer</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20">Observaciones</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs">Fecha</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs">Hora</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs" colSpan={2}>Servicio</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs">Guía</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs">Bus</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs">Chofer</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs">Observaciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                              <TableBody>
