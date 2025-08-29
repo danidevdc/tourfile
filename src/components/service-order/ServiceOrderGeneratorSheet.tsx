@@ -140,6 +140,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     }, [toast]);
     
     useEffect(() => {
+        // This effect ensures data is loaded when editing an existing order.
+        // It's crucial not to overwrite intermediate progress when creating a new one.
         if (existingOrderId && orderData?.services?.length > 0) {
             const lastService = orderData.services[orderData.services.length - 1];
             if (lastService.bus) {
@@ -420,11 +422,11 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                         <div className="p-4 border rounded-lg bg-card">
                             <h3 className="font-semibold mb-2">Añadir Servicio</h3>
                              <div className="flex items-end gap-2">
-                                <div style={{width: '150px'}}>
-                                    <Label>Fecha</Label>
-                                    <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/>
+                                <div style={{ width: '150px' }}>
+                                  <Label>Fecha</Label>
+                                  <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/>
                                 </div>
-                                <div style={{width: '300px'}}>
+                                <div style={{ width: '300px' }}>
                                     <Label>Actividad</Label>
                                     <Combobox 
                                         options={activityOptions} 
@@ -435,7 +437,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     />
                                 </div>
                                 {showFlightSearch && (
-                                    <div style={{width: '150px'}}>
+                                    <div style={{ width: '150px' }}>
                                         <Label>Buscar Vuelo</Label>
                                         <div className="flex items-center gap-1 mt-1">
                                             <Input value={flightSearchNumber} onChange={(e) => setFlightSearchNumber(e.target.value)} placeholder="Ej: OB304" />
@@ -443,7 +445,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         </div>
                                     </div>
                                 )}
-                                <div style={{width: '100px'}}>
+                                <div style={{ width: '100px' }}>
                                     <Label>Hora</Label>
                                     <Input value={newService.hora} onChange={handleTimeInputChange} onBlur={handleTimeInputBlur} placeholder="HH:mm" maxLength={5} className="mt-1 w-full"/>
                                 </div>
