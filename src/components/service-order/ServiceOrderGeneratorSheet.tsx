@@ -257,14 +257,17 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
     };
 
     const handleActivitySelect = async (activityName: string) => {
-        setNewService(prev => ({...prev, servicio: activityName, hora: ''}));
-        setShowFlightSearch(activityName === 'TRF IN' || activityName === 'TRF OUT');
+        const upperActivityName = activityName.toUpperCase();
+        setNewService(prev => ({...prev, servicio: upperActivityName, hora: ''}));
+        setShowFlightSearch(upperActivityName === 'TRF IN' || upperActivityName === 'TRF OUT');
         
-        const suggestedTime = await getSuggestedTimeForActivity(activityName);
-        if (suggestedTime) {
-            handleNewServiceChange('hora', suggestedTime);
-        } else if (showFlightSearch) {
-             setNewService(prev => ({...prev, hora: ''}));
+        if (upperActivityName !== 'TRF IN' && upperActivityName !== 'TRF OUT') {
+            const suggestedTime = await getSuggestedTimeForActivity(upperActivityName);
+            if (suggestedTime) {
+                handleNewServiceChange('hora', suggestedTime);
+            }
+        } else {
+            setNewService(prev => ({ ...prev, hora: '' }));
         }
     };
     
@@ -277,7 +280,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         await incrementFlightSearchCount();
         setIsSearchingFlight(true);
         try {
-            // The date from the input is 'yyyy-MM-dd', which is what the findFlight flow expects.
             const flightDetails = await findFlight({ flightNumber: normalizedFlightNumber, date: fecha });
 
             if (flightDetails.flightFound && flightDetails.departure?.time.scheduled && flightDetails.arrival?.time.scheduled) {
@@ -320,11 +322,10 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         setShowFlightSearch(false); 
         setFlightSearchNumber('');
 
-        const { fecha } = newService;
-        setNewService({ 
+        setNewService(prev => ({ 
             ...initialNewServiceState, 
-            fecha,
-        });
+            fecha: prev.fecha, // Keep the date for the next entry
+        }));
     };
 
     const removeServiceRow = (index: number) => {
@@ -393,8 +394,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                         <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className={cn("w-full justify-start", selectedFile && "border-green-500 font-medium text-green-700")}>
                                             <Upload className="mr-2 h-4 w-4" />{selectedFile ? selectedFile.name : "Seleccionar .xlsx"}
                                         </Button>
-                                        {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile}><Trash2 className="h-4 w-4" /></Button>}
                                         <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
+                                        {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile}><Trash2 className="h-4 w-4" /></Button>}
                                     </div>
                                 </div>
                                 <div className="col-span-2">
@@ -426,13 +427,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                         
                         <div className="p-4 border rounded-lg bg-card">
                             <h3 className="font-semibold mb-2">Añadir Servicio</h3>
-                            <div className="grid grid-cols-12 items-end gap-2">
-                                <div className="col-span-2">
+                            <div className="grid grid-cols-16 items-end gap-2">
+                                <div className="col-span-3">
                                   <Label>Fecha</Label>
                                   <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/>
                                 </div>
                                 
-                                <div className={cn("col-span-5", showFlightSearch && "col-span-3")}>
+                                <div className={cn("col-span-6", showFlightSearch && "col-span-4")}>
                                     <Label>Actividad</Label>
                                     <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-card"/>
                                 </div>
@@ -541,3 +542,5 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         </Sheet>
     );
 }
+
+    
