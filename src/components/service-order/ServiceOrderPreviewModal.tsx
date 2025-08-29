@@ -61,14 +61,14 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                         <Table>
                              <TableHeader>
                                 <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
-                                    <TableHead className="text-primary font-bold p-1 border-t border-b border-r border-primary/20 font-mono text-[11px] w-[86px]">Fecha</TableHead>
-                                    <TableHead className="text-primary font-bold p-1 border-t border-b border-r border-primary/20 font-mono text-[11px] w-[56px]">Hora</TableHead>
-                                    <TableHead className="text-primary font-bold p-1 border-t border-b border-r border-primary/20 font-mono text-[11px]">Servicio</TableHead>
-                                    <TableHead className="text-primary font-bold p-1 border-t border-b border-r border-primary/20 font-mono text-[11px] w-[70px]">Vuelo</TableHead>
-                                    <TableHead className="text-primary font-bold p-1 border-t border-b border-r border-primary/20 font-mono text-[11px] w-[80px]">Guía</TableHead>
-                                    <TableHead className="text-primary font-bold p-1 border-t border-b border-r border-primary/20 font-mono text-[11px] w-[60px]">Bus</TableHead>
-                                    <TableHead className="text-primary font-bold p-1 border-t border-b border-r border-primary/20 font-mono text-[11px] w-[80px]">Chofer</TableHead>
-                                    <TableHead className="text-primary font-bold p-1 border-t border-b border-primary/20 font-mono text-[11px]">Observaciones</TableHead>
+                                    <TableHead className="text-primary font-bold py-0.5 px-1 border-t border-b border-r border-primary/20 font-mono text-[11px] w-[86px]">Fecha</TableHead>
+                                    <TableHead className="text-primary font-bold py-0.5 px-1 border-t border-b border-r border-primary/20 font-mono text-[11px] w-[56px]">Hora</TableHead>
+                                    <TableHead className="text-primary font-bold py-0.5 px-1 border-t border-b border-r border-primary/20 font-mono text-[11px]">Servicio</TableHead>
+                                    <TableHead className="text-primary font-bold py-0.5 px-1 border-t border-b border-r border-primary/20 font-mono text-[11px] w-[70px]">Vuelo</TableHead>
+                                    <TableHead className="text-primary font-bold py-0.5 px-1 border-t border-b border-r border-primary/20 font-mono text-[11px] w-[80px]">Guía</TableHead>
+                                    <TableHead className="text-primary font-bold py-0.5 px-1 border-t border-b border-r border-primary/20 font-mono text-[11px] w-[60px]">Bus</TableHead>
+                                    <TableHead className="text-primary font-bold py-0.5 px-1 border-t border-b border-r border-primary/20 font-mono text-[11px] w-[80px]">Chofer</TableHead>
+                                    <TableHead className="text-primary font-bold py-0.5 px-1 border-t border-b border-primary/20 font-mono text-[11px]">Observaciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                              <TableBody>
