@@ -17,12 +17,12 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
     return (
         <Dialog open={true} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl w-full flex flex-col p-4">
-                <DialogHeader className="p-2 text-center">
-                    <DialogTitle className="font-mono">ORDEN DE SERVICIOS</DialogTitle>
-                </DialogHeader>
                 
                 <div className="overflow-y-auto p-2 flex-grow">
-                    <div className="border rounded-lg overflow-hidden">
+                    <DialogHeader className="p-2 pb-0 text-center">
+                        <DialogTitle className="font-mono text-2xl">ORDEN DE SERVICIOS</DialogTitle>
+                    </DialogHeader>
+                    <div className="border rounded-lg overflow-hidden mt-2">
                        <Table>
                             <TableBody>
                                 {/* Header Info as Table Rows */}
@@ -95,3 +95,4 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
         </Dialog>
     );
 }
+
