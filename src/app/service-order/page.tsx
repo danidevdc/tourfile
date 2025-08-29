@@ -14,7 +14,7 @@ import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceO
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Loader2, FileDown, Edit, Trash2, FilePlus, ListOrdered } from "lucide-react";
+import { ArrowLeft, Loader2, FileDown, Edit, Trash2, FilePlus, ListOrdered, Eye } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,8 +26,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOrderGeneratorSheet";
 import { ItineraryEditModal } from "@/components/service-order/ItineraryEditModal";
+import { ServiceOrderPreviewModal } from "@/components/service-order/ServiceOrderPreviewModal";
 import { getGuidesFromFirestore, getDriversFromFirestore, type ServiceOrderGuide, type Driver } from "@/lib/serviceOrderService";
 
 const defaultObsText = 'LA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
@@ -47,11 +49,14 @@ export default function ServiceOrderListPage() {
   const [guides, setGuides] = useState<ServiceOrderGuide[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isItineraryModalOpen, setIsItineraryModalOpen] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   
   const [orderToEditInSheet, setOrderToEditInSheet] = useState<StoredServiceOrder | null>(null);
-  const [orderToEditInModal, setOrderToEditInModal] = useState<StoredServiceOrder | null>(null);
+  const [orderToEditInItinerary, setOrderToEditInItinerary] = useState<StoredServiceOrder | null>(null);
+  const [orderToPreview, setOrderToPreview] = useState<StoredServiceOrder | null>(null);
   
   const [intermediateOrderData, setIntermediateOrderData] = useState<ServiceOrderData>(initialOrderDataState);
 
@@ -86,8 +91,6 @@ export default function ServiceOrderListPage() {
   }, [authLoading]);
 
   const handleNewOrderClick = () => {
-    // This now simply opens the sheet with the current intermediate data.
-    // If the user wants a clean form, they must use the "Limpiar Formulario" button inside.
     setOrderToEditInSheet(null);
     setIsSheetOpen(true);
   };
@@ -99,27 +102,32 @@ export default function ServiceOrderListPage() {
   };
 
   const handleEditItineraryClick = (order: StoredServiceOrder) => {
-    setOrderToEditInModal(order);
-    setIsModalOpen(true);
+    setOrderToEditInItinerary(order);
+    setIsItineraryModalOpen(true);
   };
+
+  const handlePreviewOrderClick = (order: StoredServiceOrder) => {
+    setOrderToPreview(order);
+    setIsPreviewModalOpen(true);
+  }
   
   const handleSaveFromModal = async (updatedServices: StoredServiceOrder['data']['services']) => {
-    if (!orderToEditInModal) return;
+    if (!orderToEditInItinerary) return;
 
     const updatedOrderData: ServiceOrderData = {
-      ...orderToEditInModal.data,
+      ...orderToEditInItinerary.data,
       services: updatedServices
     };
     
     try {
-      await updateServiceOrder(orderToEditInModal.id, updatedOrderData);
+      await updateServiceOrder(orderToEditInItinerary.id, updatedOrderData);
       toast({ title: "Éxito", description: "Itinerario actualizado.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
       fetchOrders(); // Refresh list
     } catch(e) {
       toast({ title: "Error", description: "No se pudo actualizar el itinerario.", variant: "destructive" });
     } finally {
-      setIsModalOpen(false);
-      setOrderToEditInModal(null);
+      setIsItineraryModalOpen(false);
+      setOrderToEditInItinerary(null);
     }
   };
 
@@ -163,14 +171,12 @@ export default function ServiceOrderListPage() {
   const onSheetSave = () => {
     setIsSheetOpen(false);
     setOrderToEditInSheet(null);
-    // CRUCIAL: Reset the intermediate state ONLY after a successful save.
     setIntermediateOrderData(initialOrderDataState);
     fetchOrders(); 
   };
   
   const onSheetClose = () => {
     setIsSheetOpen(false);
-    // Don't reset data here, to preserve progress.
   }
 
   const onSheetClearAndNew = () => {
@@ -183,6 +189,7 @@ export default function ServiceOrderListPage() {
   }
   
   return (
+    <TooltipProvider>
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background space-y-6">
       <div className="w-full max-w-7xl flex justify-between items-center">
         <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go home">
@@ -226,30 +233,30 @@ export default function ServiceOrderListPage() {
                                     <TableCell>{order.createdBy}</TableCell>
                                     <TableCell>{order.data.guia}</TableCell>
                                     <TableCell>{format(order.createdAt, 'dd MMMM yyyy, HH:mm', { locale: es })}</TableCell>
-                                    <TableCell className="text-right space-x-2">
-                                        <Button variant="outline" size="sm" onClick={() => handleEditItineraryClick(order)} title="Editar Itinerario" className="text-blue-600 border-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20">
-                                            <ListOrdered className="mr-2 h-4 w-4"/>Itinerario
-                                        </Button>
-                                        <Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} title="Editar Orden" className="text-primary border-primary hover:bg-primary/10">
-                                            <Edit className="mr-2 h-4 w-4"/>Editar
-                                        </Button>
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm"
-                                          onClick={() => handleDownloadExcel(order)} 
-                                          disabled={isDownloadingId === order.id}
-                                          title="Descargar Excel"
-                                          className="text-green-600 border-green-600 hover:bg-green-100 hover:text-green-700"
-                                        >
-                                            {isDownloadingId === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4"/>}
-                                            Excel
-                                        </Button>
+                                    <TableCell className="text-right space-x-1">
+                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)}><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
+                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditItineraryClick(order)}><ListOrdered className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar Itinerario</p></TooltipContent></Tooltip>
+                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditOrderClick(order)}><Edit className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar Orden Completa</p></TooltipContent></Tooltip>
+                                        <Tooltip><TooltipTrigger asChild>
+                                           <Button 
+                                              variant="outline" 
+                                              size="icon"
+                                              onClick={() => handleDownloadExcel(order)} 
+                                              disabled={isDownloadingId === order.id}
+                                            >
+                                                {isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="h-4 w-4"/>}
+                                            </Button>
+                                        </TooltipTrigger><TooltipContent><p>Descargar Excel</p></TooltipContent></Tooltip>
+                                        
                                         <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="destructive" size="sm" title="Eliminar Orden" onClick={() => setOrderToDelete(order)}>
-                                                    <Trash2 className="mr-2 h-4 w-4" />Eliminar
-                                                </Button>
-                                            </AlertDialogTrigger>
+                                            <Tooltip><TooltipTrigger asChild>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="destructive" size="icon" onClick={() => setOrderToDelete(order)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                            </TooltipTrigger><TooltipContent><p>Eliminar Orden</p></TooltipContent></Tooltip>
+                                            
                                             {orderToDelete && orderToDelete.id === order.id && (
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
@@ -283,15 +290,25 @@ export default function ServiceOrderListPage() {
           </CardContent>
         </Card>
 
-        {isModalOpen && orderToEditInModal && (
+        {isItineraryModalOpen && orderToEditInItinerary && (
           <ItineraryEditModal 
-            services={orderToEditInModal.data.services}
+            services={orderToEditInItinerary.data.services}
             guides={guides}
             drivers={drivers}
             onSave={handleSaveFromModal}
             onClose={() => {
-              setIsModalOpen(false);
-              setOrderToEditInModal(null);
+              setIsItineraryModalOpen(false);
+              setOrderToEditInItinerary(null);
+            }}
+          />
+        )}
+        
+        {isPreviewModalOpen && orderToPreview && (
+          <ServiceOrderPreviewModal
+            order={orderToPreview}
+            onClose={() => {
+              setIsPreviewModalOpen(false);
+              setOrderToPreview(null);
             }}
           />
         )}
@@ -306,5 +323,6 @@ export default function ServiceOrderListPage() {
             onClearAndNew={onSheetClearAndNew}
         />
     </div>
+    </TooltipProvider>
   );
 }
