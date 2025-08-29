@@ -36,31 +36,31 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
             <DialogContent className="max-w-4xl w-full flex flex-col p-4">
                 
                 <div className="overflow-y-auto p-2 flex-grow">
-                     <DialogHeader className="p-2 pb-0 text-center">
-                        <DialogTitle className="font-mono text-2xl">ORDEN DE SERVICIOS</DialogTitle>
+                    <DialogHeader className="p-2 pb-0 text-center">
+                        <DialogTitle className="font-mono text-2xl uppercase">ORDEN DE SERVICIOS</DialogTitle>
                     </DialogHeader>
                     <div className="border rounded-lg overflow-hidden mt-2">
                        <Table>
                             <TableBody>
                                 {/* Header Info as Table Rows */}
-                                <TableRow className="font-mono text-sm border-b-primary/20">
+                                <TableRow className="font-mono text-sm uppercase border-b-primary/20">
                                     <TableCell className="font-bold p-2 w-36 text-primary border-r border-primary/20">GUIA:</TableCell><TableCell className="p-2" colSpan={7}>{data.guia}</TableCell>
                                 </TableRow>
-                                <TableRow className="font-mono text-sm border-b-primary/20">
+                                <TableRow className="font-mono text-sm uppercase border-b-primary/20">
                                     <TableCell className="font-bold p-2 w-36 text-primary border-r border-primary/20">FILE:</TableCell><TableCell className="p-2" colSpan={7}>{data.file}</TableCell>
                                 </TableRow>
-                                <TableRow className="font-mono text-sm border-b-primary/20">
+                                <TableRow className="font-mono text-sm uppercase border-b-primary/20">
                                     <TableCell className="font-bold p-2 w-36 text-primary border-r border-primary/20">REF:</TableCell><TableCell className="p-2" colSpan={7}>{data.ref}</TableCell>
                                 </TableRow>
-                                <TableRow className="font-mono text-sm border-b-primary/20">
+                                <TableRow className="font-mono text-sm uppercase border-b-primary/20">
                                     <TableCell className="font-bold p-2 w-36 text-primary border-r border-primary/20">Nº PAX:</TableCell><TableCell className="p-2" colSpan={7}>{data.nPax}</TableCell>
                                 </TableRow>
-                                <TableRow className="font-mono text-sm border-b-primary/20">
+                                <TableRow className="font-mono text-sm uppercase border-b-primary/20">
                                     <TableCell className="font-bold p-2 w-36 text-primary border-r border-primary/20">HOTEL:</TableCell><TableCell className="p-2" colSpan={7}>{data.hotel}</TableCell>
                                 </TableRow>
                                 
                                 {/* Services Table Header */}
-                                <TableRow className="bg-primary/10 hover:bg-primary/10">
+                                <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
                                     <TableHead className="text-primary font-bold p-2 h-10 border-t border-primary/20">Fecha</TableHead>
                                     <TableHead className="text-primary font-bold p-2 h-10 border-t border-primary/20">Hora</TableHead>
                                     <TableHead className="text-primary font-bold p-2 h-10 border-t border-primary/20" colSpan={2}>Servicio</TableHead>
@@ -73,34 +73,33 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                                 {/* Service Items */}
                                 {sortedServices.length > 0 ? (
                                     sortedServices.map((s, i) => {
-                                        // Hide date if it's the same as the previous row
                                         const showDate = i === 0 || sortedServices[i-1].fecha !== s.fecha;
                                         return (
-                                            <TableRow key={i} className="font-mono text-xs border-b-primary/20">
+                                            <TableRow key={i} className="font-mono text-xs uppercase border-b-primary/20">
                                                 <TableCell className="p-2 align-top">{showDate ? s.fecha : ''}</TableCell>
                                                 <TableCell className="p-2 align-top">{s.hora}</TableCell>
-                                                <TableCell className="p-2 align-top font-sans" colSpan={2}>{s.servicio}</TableCell>
-                                                <TableCell className="p-2 align-top font-sans">{s.guia}</TableCell>
+                                                <TableCell className="p-2 align-top" colSpan={2}>{s.servicio}</TableCell>
+                                                <TableCell className="p-2 align-top">{s.guia}</TableCell>
                                                 <TableCell className="p-2 align-top">{s.bus}</TableCell>
-                                                <TableCell className="p-2 align-top font-sans">{s.chofer?.replace(/^CONT\s/i, '')}</TableCell>
-                                                <TableCell className="p-2 align-top font-sans">{s.observaciones}</TableCell>
+                                                <TableCell className="p-2 align-top">{s.chofer?.replace(/^CONT\s/i, '')}</TableCell>
+                                                <TableCell className="p-2 align-top">{s.observaciones}</TableCell>
                                             </TableRow>
                                         );
                                     })
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">No hay servicios en esta orden.</TableCell>
+                                        <TableCell colSpan={8} className="h-24 text-center text-muted-foreground uppercase font-mono">No hay servicios en esta orden.</TableCell>
                                     </TableRow>
                                 )}
 
                                 {/* Notes Section */}
-                                <TableRow className="font-mono text-sm border-t border-b-primary/20">
+                                <TableRow className="font-mono text-sm uppercase border-t border-b-primary/20">
                                     <TableCell className="font-bold p-2 w-36 align-top text-primary border-r border-primary/20">OBSERVACIONES:</TableCell>
-                                    <TableCell className="p-2 font-sans text-xs whitespace-pre-wrap" colSpan={7}>{data.observations}</TableCell>
+                                    <TableCell className="p-2 text-xs whitespace-pre-wrap" colSpan={7}>{data.observations}</TableCell>
                                 </TableRow>
-                                <TableRow className="font-mono text-sm">
+                                <TableRow className="font-mono text-sm uppercase">
                                     <TableCell className="font-bold p-2 w-36 align-top text-primary border-r border-primary/20">NOTA:</TableCell>
-                                    <TableCell className="p-2 font-sans text-xs whitespace-pre-wrap" colSpan={7}>{data.nota}</TableCell>
+                                    <TableCell className="p-2 text-xs whitespace-pre-wrap" colSpan={7}>{data.nota}</TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>
