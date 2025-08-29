@@ -33,8 +33,8 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
         <Dialog open={true} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl w-full flex flex-col p-4">
                  <div className="overflow-y-auto p-2 flex-grow">
-                    <DialogHeader className="p-2 text-center mb-0">
-                        <DialogTitle className="font-mono text-sm uppercase">ORDEN DE SERVICIOS</DialogTitle>
+                    <DialogHeader className="p-2 mb-0">
+                        <DialogTitle className="font-mono text-sm uppercase text-center">ORDEN DE SERVICIOS</DialogTitle>
                     </DialogHeader>
                     <div className="border-3 border-primary/20 rounded-lg overflow-hidden">
                        <div className="border-2 border-primary/20">
