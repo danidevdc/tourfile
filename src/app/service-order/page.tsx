@@ -86,8 +86,9 @@ export default function ServiceOrderListPage() {
   }, [authLoading]);
 
   const handleNewOrderClick = () => {
+    // This now simply opens the sheet with the current intermediate data.
+    // If the user wants a clean form, they must use the "Limpiar Formulario" button inside.
     setOrderToEditInSheet(null);
-    setIntermediateOrderData(initialOrderDataState); // Reset for new order
     setIsSheetOpen(true);
   };
   
@@ -162,12 +163,14 @@ export default function ServiceOrderListPage() {
   const onSheetSave = () => {
     setIsSheetOpen(false);
     setOrderToEditInSheet(null);
+    // CRUCIAL: Reset the intermediate state ONLY after a successful save.
     setIntermediateOrderData(initialOrderDataState);
     fetchOrders(); 
   };
   
   const onSheetClose = () => {
     setIsSheetOpen(false);
+    // Don't reset data here, to preserve progress.
   }
 
   const onSheetClearAndNew = () => {
