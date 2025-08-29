@@ -24,8 +24,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
-import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, FilePlus, Eraser } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { FileSearchStatus } from "@/lib/report-generator";
@@ -139,6 +139,22 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         }
         loadInitialData();
     }, [toast]);
+    
+    // Effect to update local state (bus/chofer selections) when the main orderData prop changes (e.g., when editing an existing order)
+    useEffect(() => {
+        // This effect runs when the sheet is opened for editing, to sync the bus/chofer selectors.
+        if (existingOrderId && orderData?.services?.length > 0) {
+            const lastService = orderData.services[orderData.services.length - 1];
+            if (lastService.bus) {
+                setBusTypeSelection(lastService.bus);
+            }
+            if (lastService.chofer) {
+                setChoferSelection(lastService.chofer);
+            }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [existingOrderId]);
+
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -367,8 +383,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 </SheetHeader>
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
-                        <div className="space-y-4 p-4 border rounded-lg bg-card">
-                             <div className="grid grid-cols-12 gap-x-4 items-end">
+                         <div className="space-y-4 p-4 border rounded-lg bg-card">
+                            {/* --- Fila 1: Programa, File, Ref, Pax --- */}
+                            <div className="grid grid-cols-12 gap-x-4 items-end">
                                 <div className="col-span-4">
                                     <Label>Programa:</Label>
                                     <div className="flex items-center gap-2 mt-1">
@@ -397,6 +414,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                   <Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" />
                                 </div>
                             </div>
+                             {/* --- Fila 2: Guia, Hotel, Bus, Chofer --- */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
                                 <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-card"/></div>
                                 <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1 bg-card"/></div>
@@ -479,7 +497,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                         </Accordion>
                     </div>
                 </div>
-                <SheetFooter className="pt-4 border-t gap-2">
+                <div className="pt-4 border-t gap-2 flex justify-end">
                     <Button variant="outline" onClick={onClearAndNew} className="mr-auto border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
                         <Eraser className="mr-2 h-4 w-4"/>
                         Limpiar Formulario
@@ -489,7 +507,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                         {existingOrderId ? "Actualizar Orden" : "Guardar Orden"}
                     </Button>
-                </SheetFooter>
+                </div>
             </SheetContent>
         </Sheet>
     );

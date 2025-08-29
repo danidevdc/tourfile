@@ -83,6 +83,7 @@ export default function ServiceOrderListPage() {
     if (!authLoading) {
       fetchOrders();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
   const handleNewOrderClick = () => {
@@ -225,11 +226,11 @@ export default function ServiceOrderListPage() {
                                     <TableCell>{order.data.guia}</TableCell>
                                     <TableCell>{format(order.createdAt, 'dd MMMM yyyy, HH:mm', { locale: es })}</TableCell>
                                     <TableCell className="text-right space-x-2">
-                                        <Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} title="Editar Orden" className="text-primary border-primary hover:bg-primary/10">
-                                            <Edit className="mr-2 h-4 w-4"/>Editar
-                                        </Button>
                                         <Button variant="outline" size="sm" onClick={() => handleEditItineraryClick(order)} title="Editar Itinerario" className="text-blue-600 border-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20">
                                             <ListOrdered className="mr-2 h-4 w-4"/>Itinerario
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} title="Editar Orden" className="text-primary border-primary hover:bg-primary/10">
+                                            <Edit className="mr-2 h-4 w-4"/>Editar
                                         </Button>
                                         <Button 
                                           variant="outline" 
