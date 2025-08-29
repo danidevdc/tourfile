@@ -99,11 +99,11 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                             <Table>
                                  <TableBody>
                                     <TableRow className="font-mono uppercase border-t border-b-primary/20">
-                                        <TableCell className="font-bold p-1 w-36 align-top text-primary border-r border-primary/20 text-sm">OBSERVACIONES:</TableCell>
+                                        <TableCell className="font-bold p-1 w-36 align-top text-primary border-r border-primary/20 text-[10px]">OBSERVACIONES:</TableCell>
                                         <TableCell className="p-1 text-[10px] whitespace-pre-wrap uppercase" colSpan={7}>{data.observations}</TableCell>
                                     </TableRow>
                                     <TableRow className="font-mono uppercase">
-                                        <TableCell className="font-bold p-1 w-36 align-top text-primary border-r border-primary/20 text-sm">NOTA:</TableCell>
+                                        <TableCell className="font-bold p-1 w-36 align-top text-primary border-r border-primary/20 text-[10px]">NOTA:</TableCell>
                                         <TableCell className="p-1 text-[10px] whitespace-pre-wrap uppercase" colSpan={7}>{data.nota}</TableCell>
                                     </TableRow>
                                 </TableBody>
