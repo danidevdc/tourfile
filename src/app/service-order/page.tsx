@@ -148,12 +148,14 @@ export default function ServiceOrderListPage() {
 
   const onSheetSave = () => {
     setIsSheetOpen(false);
+    setOrderToEditInSheet(null);
     fetchOrders(); // Refresh the list after saving
   };
   
   const onSheetClose = () => {
+    // Keep isSheetOpen in sync with the sheet's internal state
     setIsSheetOpen(false);
-    setOrderToEditInSheet(null); // Clear editing state on close
+    // DO NOT clear orderToEditInSheet here, so the state persists on re-open
   }
 
   if (authLoading || isLoading) {
@@ -279,6 +281,7 @@ export default function ServiceOrderListPage() {
             onClose={onSheetClose}
             onSave={onSheetSave}
             existingOrder={orderToEditInSheet}
+            onClearAndNew={() => setOrderToEditInSheet(null)} // Pass the new handler
         />
     </div>
   );
