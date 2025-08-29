@@ -237,7 +237,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
     const handleNewServiceChange = (field: keyof ServiceItem, value: string) => {
         setNewService(prev => ({ ...prev, [field]: value.toUpperCase() }));
     };
-
+    
     const handleTimeInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         const rawValue = e.target.value;
         const numbersOnly = rawValue.replace(/[^0-9]/g, '');
@@ -257,13 +257,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
     };
 
     const handleActivitySelect = async (activityName: string) => {
-        handleNewServiceChange('servicio', activityName);
+        setNewService(prev => ({...prev, servicio: activityName, hora: ''}));
         setShowFlightSearch(activityName === 'TRF IN' || activityName === 'TRF OUT');
         
         const suggestedTime = await getSuggestedTimeForActivity(activityName);
         if (suggestedTime) {
             handleNewServiceChange('hora', suggestedTime);
-        } else if (!showFlightSearch) {
+        } else if (showFlightSearch) {
              setNewService(prev => ({...prev, hora: ''}));
         }
     };
@@ -319,7 +319,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         
         setShowFlightSearch(false); 
         setFlightSearchNumber('');
-         // Reset only necessary fields, keep date, bus, and chofer
+
         const { fecha } = newService;
         setNewService({ 
             ...initialNewServiceState, 
@@ -385,7 +385,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
                         <div className="space-y-4 p-4 border rounded-lg bg-card">
-                            <div className="grid grid-cols-12 gap-4 items-end">
+                            {/* --- FIRST ROW --- */}
+                            <div className="grid grid-cols-12 gap-x-4 items-end">
                                 <div className="col-span-4">
                                     <Label>Programa:</Label>
                                     <div className="flex items-center gap-2 mt-1">
@@ -405,16 +406,17 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                         </Button>
                                     </div>
                                 </div>
-                                <div className="col-span-4">
+                                <div className="col-span-5">
                                   <Label htmlFor="ref">Ref (Grupo):</Label>
                                   <Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className="mt-1" />
                                 </div>
-                                <div className="col-span-2">
+                                <div className="col-span-1">
                                   <Label htmlFor="nPax">Nº Pax:</Label>
                                   <Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
+                            {/* --- SECOND ROW --- */}
+                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
                                 <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-card"/></div>
                                 <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1 bg-card"/></div>
                                 <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={setBusTypeSelection}><SelectTrigger className="mt-1 bg-card"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
@@ -430,9 +432,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                   <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/>
                                 </div>
                                 
-                                <div className={cn("col-span-6", showFlightSearch && "col-span-4")}>
+                                <div className={cn("col-span-5", showFlightSearch && "col-span-3")}>
                                     <Label>Actividad</Label>
-                                    <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-background"/>
+                                    <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-card"/>
                                 </div>
                                 
                                 {showFlightSearch && (
