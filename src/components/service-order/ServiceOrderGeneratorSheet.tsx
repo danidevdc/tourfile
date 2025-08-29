@@ -277,6 +277,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         await incrementFlightSearchCount();
         setIsSearchingFlight(true);
         try {
+            // The date from the input is 'yyyy-MM-dd', which is what the findFlight flow expects.
             const flightDetails = await findFlight({ flightNumber: normalizedFlightNumber, date: fecha });
 
             if (flightDetails.flightFound && flightDetails.departure?.time.scheduled && flightDetails.arrival?.time.scheduled) {
@@ -316,10 +317,14 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
         setOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd] }));
         
-        const { fecha } = newService; // Keep date
-        setNewService({ ...initialNewServiceState, fecha });
         setShowFlightSearch(false); 
         setFlightSearchNumber('');
+         // Reset only necessary fields, keep date, bus, and chofer
+        const { fecha } = newService;
+        setNewService({ 
+            ...initialNewServiceState, 
+            fecha,
+        });
     };
 
     const removeServiceRow = (index: number) => {
@@ -380,7 +385,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
                         <div className="space-y-4 p-4 border rounded-lg bg-card">
-                             <div className="grid grid-cols-12 gap-4 items-end">
+                            <div className="grid grid-cols-12 gap-4 items-end">
                                 <div className="col-span-4">
                                     <Label>Programa:</Label>
                                     <div className="flex items-center gap-2 mt-1">
@@ -400,8 +405,14 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                         </Button>
                                     </div>
                                 </div>
-                                <div className="col-span-4"><Label htmlFor="ref">Ref (Grupo):</Label><Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className="mt-1" /></div>
-                                <div className="col-span-2"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" /></div>
+                                <div className="col-span-4">
+                                  <Label htmlFor="ref">Ref (Grupo):</Label>
+                                  <Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className="mt-1" />
+                                </div>
+                                <div className="col-span-2">
+                                  <Label htmlFor="nPax">Nº Pax:</Label>
+                                  <Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" />
+                                </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
                                 <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-card"/></div>
@@ -413,10 +424,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                         
                         <div className="p-4 border rounded-lg bg-card">
                             <h3 className="font-semibold mb-2">Añadir Servicio</h3>
-                             <div className="grid grid-cols-12 items-end gap-2">
-                                <div className="col-span-2"><Label>Fecha</Label><Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/></div>
+                            <div className="grid grid-cols-12 items-end gap-2">
+                                <div className="col-span-2">
+                                  <Label>Fecha</Label>
+                                  <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/>
+                                </div>
                                 
-                                <div className={cn("col-span-5", showFlightSearch && "col-span-3")}>
+                                <div className={cn("col-span-6", showFlightSearch && "col-span-4")}>
                                     <Label>Actividad</Label>
                                     <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-background"/>
                                 </div>
@@ -441,16 +455,12 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                       onBlur={handleTimeInputBlur}
                                       placeholder="HH:mm" 
                                       maxLength={5} 
-                                      className="mt-1"
+                                      className="mt-1 w-full"
                                   />
                                 </div>
                                 
-                                <div className={cn("col-span-1", showFlightSearch && "col-span-2")}>
-                                     {showFlightSearch ? (
-                                        <Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}><PlusCircle className="mr-2 h-5 w-5"/>Añadir</Button>
-                                     ) : (
-                                        <Button onClick={addNewServiceRow} variant="default" size="icon" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}><PlusCircle className="h-5 w-5"/></Button>
-                                     )}
+                                <div className="col-span-2">
+                                     <Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}><PlusCircle className="mr-2 h-5 w-5"/>Añadir</Button>
                                 </div>
                             </div>
                         </div>
@@ -529,5 +539,3 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         </Sheet>
     );
 }
-
-    
