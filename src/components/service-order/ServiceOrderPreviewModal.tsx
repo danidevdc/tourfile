@@ -33,7 +33,7 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
         <Dialog open={true} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl w-full flex flex-col p-4">
                  <div className="overflow-y-auto p-2 flex-grow">
-                    <DialogHeader className="p-2 text-center">
+                    <DialogHeader className="p-2 text-center mb-0">
                         <DialogTitle className="font-mono text-2xl uppercase">ORDEN DE SERVICIOS</DialogTitle>
                     </DialogHeader>
                     <div className="border-3 border-primary/20 rounded-lg overflow-hidden">
@@ -65,8 +65,8 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                                     <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[56px]">Hora</TableHead>
                                     <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs">Servicio</TableHead>
                                     <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[70px]">Vuelo</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[150px]">Guía</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[70px]">Bus</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[80px]">Guía</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[60px]">Bus</TableHead>
                                     <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[80px]">Chofer</TableHead>
                                     <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs">Observaciones</TableHead>
                                 </TableRow>
