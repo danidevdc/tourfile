@@ -39,7 +39,7 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                     <DialogHeader className="p-2 pb-0 text-center">
                         <DialogTitle className="font-mono text-2xl uppercase">ORDEN DE SERVICIOS</DialogTitle>
                     </DialogHeader>
-                    <div className="border rounded-lg overflow-hidden mt-2">
+                    <div className="border-2 border-primary/20 rounded-lg overflow-hidden mt-2">
                        <Table>
                             <TableBody>
                                 {/* Header Info as Table Rows */}
@@ -115,4 +115,3 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
         </Dialog>
     );
 }
-
