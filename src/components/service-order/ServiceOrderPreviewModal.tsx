@@ -2,7 +2,7 @@
 "use client";
 
 import { type StoredServiceOrder } from '@/lib/serviceOrderStorage';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -19,21 +19,28 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
             <DialogContent className="max-w-4xl w-full flex flex-col p-4">
                 <DialogHeader className="p-2 text-center">
                     <DialogTitle className="font-mono">ORDEN DE SERVICIOS</DialogTitle>
-                    <DialogDescription>
-                        Vista previa de la orden generada para el file: {order.data.file}
-                    </DialogDescription>
                 </DialogHeader>
                 
                 <div className="overflow-y-auto p-2 flex-grow">
-                    <div className="border rounded-md overflow-hidden">
+                    <div className="border rounded-lg overflow-hidden">
                        <Table>
                             <TableBody>
                                 {/* Header Info as Table Rows */}
-                                <TableRow className="font-mono text-sm border-b-primary/20"><TableCell className="font-bold p-2 w-28">GUIA:</TableCell><TableCell className="p-2" colSpan={7}>{data.guia}</TableCell></TableRow>
-                                <TableRow className="font-mono text-sm border-b-primary/20"><TableCell className="font-bold p-2 w-28">FILE:</TableCell><TableCell className="p-2" colSpan={7}>{data.file}</TableCell></TableRow>
-                                <TableRow className="font-mono text-sm border-b-primary/20"><TableCell className="font-bold p-2 w-28">REF:</TableCell><TableCell className="p-2" colSpan={7}>{data.ref}</TableCell></TableRow>
-                                <TableRow className="font-mono text-sm border-b-primary/20"><TableCell className="font-bold p-2 w-28">Nº PAX:</TableCell><TableCell className="p-2" colSpan={7}>{data.nPax}</TableCell></TableRow>
-                                <TableRow className="font-mono text-sm border-b-primary/20"><TableCell className="font-bold p-2 w-28">HOTEL:</TableCell><TableCell className="p-2" colSpan={7}>{data.hotel}</TableCell></TableRow>
+                                <TableRow className="font-mono text-sm border-b-primary/20">
+                                    <TableCell className="font-bold p-2 w-28 text-primary border-r border-primary/20">GUIA:</TableCell><TableCell className="p-2" colSpan={7}>{data.guia}</TableCell>
+                                </TableRow>
+                                <TableRow className="font-mono text-sm border-b-primary/20">
+                                    <TableCell className="font-bold p-2 w-28 text-primary border-r border-primary/20">FILE:</TableCell><TableCell className="p-2" colSpan={7}>{data.file}</TableCell>
+                                </TableRow>
+                                <TableRow className="font-mono text-sm border-b-primary/20">
+                                    <TableCell className="font-bold p-2 w-28 text-primary border-r border-primary/20">REF:</TableCell><TableCell className="p-2" colSpan={7}>{data.ref}</TableCell>
+                                </TableRow>
+                                <TableRow className="font-mono text-sm border-b-primary/20">
+                                    <TableCell className="font-bold p-2 w-28 text-primary border-r border-primary/20">Nº PAX:</TableCell><TableCell className="p-2" colSpan={7}>{data.nPax}</TableCell>
+                                </TableRow>
+                                <TableRow className="font-mono text-sm border-b-primary/20">
+                                    <TableCell className="font-bold p-2 w-28 text-primary border-r border-primary/20">HOTEL:</TableCell><TableCell className="p-2" colSpan={7}>{data.hotel}</TableCell>
+                                </TableRow>
                                 
                                 {/* Services Table Header */}
                                 <TableRow className="bg-primary/10 hover:bg-primary/10">
@@ -67,11 +74,11 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
 
                                 {/* Notes Section */}
                                 <TableRow className="font-mono text-sm border-t border-b-primary/20">
-                                    <TableCell className="font-bold p-2 w-28 align-top">OBS:</TableCell>
+                                    <TableCell className="font-bold p-2 w-28 align-top text-primary border-r border-primary/20">OBSERVACIONES:</TableCell>
                                     <TableCell className="p-2 font-sans text-xs whitespace-pre-wrap" colSpan={7}>{data.observations}</TableCell>
                                 </TableRow>
                                 <TableRow className="font-mono text-sm">
-                                    <TableCell className="font-bold p-2 w-28 align-top">NOTA:</TableCell>
+                                    <TableCell className="font-bold p-2 w-28 align-top text-primary border-r border-primary/20">NOTA:</TableCell>
                                     <TableCell className="p-2 font-sans text-xs whitespace-pre-wrap" colSpan={7}>{data.nota}</TableCell>
                                 </TableRow>
                             </TableBody>
