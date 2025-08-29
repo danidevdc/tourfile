@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
@@ -374,8 +373,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         <Sheet open={isOpen} onOpenChange={onClose}>
             <SheetContent side="top" className="w-full h-full max-h-screen flex flex-col sm:max-w-full">
                 <SheetHeader>
-                    <SheetTitle className="text-2xl font-headline text-primary">
-                        {existingOrderId ? "Editar Orden de Servicio" : "Orden de Servicio"}
+                     <SheetTitle className="text-2xl font-headline text-primary">
+                        Orden de Servicio
                     </SheetTitle>
                 </SheetHeader>
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
@@ -421,8 +420,11 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                         <div className="p-4 border rounded-lg bg-card">
                             <h3 className="font-semibold mb-2">Añadir Servicio</h3>
                              <div className="flex items-end gap-2">
-                                <div style={{width: '150px'}}><Label>Fecha</Label><Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/></div>
-                                <div>
+                                <div style={{width: '150px'}}>
+                                    <Label>Fecha</Label>
+                                    <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/>
+                                </div>
+                                <div style={{width: '300px'}}>
                                     <Label>Actividad</Label>
                                     <Combobox 
                                         options={activityOptions} 
@@ -430,12 +432,26 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         onSelect={handleActivitySelect} 
                                         placeholder="Buscar actividad..." 
                                         className="mt-1 bg-card"
-                                        triggerClassName="w-[300px]"
                                     />
                                 </div>
-                                {showFlightSearch && (<div style={{width: '150px'}}><Label>Buscar Vuelo</Label><div className="flex items-center gap-1 mt-1"><Input value={flightSearchNumber} onChange={(e) => setFlightSearchNumber(e.target.value)} placeholder="Ej: OB304" /><Button type="button" onClick={handleFlightSearch} disabled={isSearchingFlight} size="icon"><Plane className={cn("h-4 w-4", isSearchingFlight && "animate-pulse")} /></Button></div></div>)}
-                                <div style={{width: '100px'}}><Label>Hora</Label><Input value={newService.hora} onChange={handleTimeInputChange} onBlur={handleTimeInputBlur} placeholder="HH:mm" maxLength={5} className="mt-1 w-full"/></div>
-                                <div><Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}><PlusCircle className="mr-2 h-5 w-5"/>Añadir</Button></div>
+                                {showFlightSearch && (
+                                    <div style={{width: '150px'}}>
+                                        <Label>Buscar Vuelo</Label>
+                                        <div className="flex items-center gap-1 mt-1">
+                                            <Input value={flightSearchNumber} onChange={(e) => setFlightSearchNumber(e.target.value)} placeholder="Ej: OB304" />
+                                            <Button type="button" onClick={handleFlightSearch} disabled={isSearchingFlight} size="icon"><Plane className={cn("h-4 w-4", isSearchingFlight && "animate-pulse")} /></Button>
+                                        </div>
+                                    </div>
+                                )}
+                                <div style={{width: '100px'}}>
+                                    <Label>Hora</Label>
+                                    <Input value={newService.hora} onChange={handleTimeInputChange} onBlur={handleTimeInputBlur} placeholder="HH:mm" maxLength={5} className="mt-1 w-full"/>
+                                </div>
+                                <div>
+                                    <Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}>
+                                        <PlusCircle className="mr-2 h-5 w-5"/>Añadir
+                                    </Button>
+                                </div>
                             </div>
                         </div>
 
@@ -517,5 +533,3 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         </Sheet>
     );
 }
-
-    
