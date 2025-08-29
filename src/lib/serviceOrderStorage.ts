@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import { type ServiceOrderData } from './serviceOrderGenerator';
 import { format, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export interface StoredServiceOrder {
   id: string;
@@ -27,19 +28,22 @@ export interface StoredServiceOrder {
   data: ServiceOrderData;
 }
 
-function getFirstDateFromServices(services: ServiceOrderData['services']): string {
+function getFirstDateFromServices(services: ServiceOrderData['services']): Date {
     if (!services || services.length === 0) {
-        return format(new Date(), 'ddMMyy');
+        return new Date();
     }
     try {
         const firstServiceDate = services[0].fecha;
-        // The date is already in dd/MM/yyyy format in services array, need to parse it correctly
-        const parsedDate = parse(firstServiceDate, 'dd/MM/yyyy', new Date());
-        return format(parsedDate, 'ddMMyy');
+        return parse(firstServiceDate, 'dd/MM/yyyy', new Date());
     } catch (e) {
         console.error("Could not parse date from service, falling back to today.", e);
-        return format(new Date(), 'ddMMyy');
+        return new Date();
     }
+}
+
+function formatOrderName(date: Date, fileNumber: string): string {
+    const datePart = format(date, 'dd_MMMM_yyyy', { locale: es }).toUpperCase();
+    return `ODS_${datePart}_${fileNumber}`;
 }
 
 
@@ -47,7 +51,7 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
     if (!db) throw new Error("Firestore not initialized.");
 
     const firstDate = getFirstDateFromServices(orderData.services);
-    const orderName = `ODS_${firstDate}_${orderData.file}`;
+    const orderName = formatOrderName(firstDate, orderData.file);
 
     const newOrder: Omit<StoredServiceOrder, 'id' | 'createdAt'> = {
         orderName,
@@ -69,7 +73,7 @@ export async function updateServiceOrder(orderId: string, orderData: ServiceOrde
     if (!db) throw new Error("Firestore not initialized.");
     
     const firstDate = getFirstDateFromServices(orderData.services);
-    const orderName = `ODS_${firstDate}_${orderData.file}`;
+    const orderName = formatOrderName(firstDate, orderData.file);
 
     const orderRef = doc(db, 'serviceOrders', orderId);
     await updateDoc(orderRef, {

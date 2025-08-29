@@ -218,11 +218,11 @@ export default function ServiceOrderListPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[15%]">Nombre de la Orden</TableHead>
-                            <TableHead className="w-[15%]">Creado Por</TableHead>
+                            <TableHead className="w-[25%]">Nombre de la Orden</TableHead>
                             <TableHead className="w-[15%]">Guía Asignado</TableHead>
+                            <TableHead className="w-[15%]">Creado Por</TableHead>
                             <TableHead className="w-[15%]">Fecha de Creación</TableHead>
-                            <TableHead className="text-right w-[40%]">Acciones</TableHead>
+                            <TableHead className="text-right w-[30%]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -230,19 +230,20 @@ export default function ServiceOrderListPage() {
                             orders.map((order) => (
                                 <TableRow key={order.id}>
                                     <TableCell className="font-medium">{order.orderName}</TableCell>
-                                    <TableCell>{order.createdBy}</TableCell>
                                     <TableCell>{order.data.guia}</TableCell>
+                                    <TableCell>{order.createdBy}</TableCell>
                                     <TableCell>{format(order.createdAt, 'dd MMMM yyyy, HH:mm', { locale: es })}</TableCell>
                                     <TableCell className="text-right space-x-1">
-                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)}><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
-                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditItineraryClick(order)}><ListOrdered className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar Itinerario</p></TooltipContent></Tooltip>
-                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditOrderClick(order)}><Edit className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar Orden Completa</p></TooltipContent></Tooltip>
+                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-blue-600 border-blue-600/50 hover:bg-blue-100/80 hover:text-blue-700"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
+                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditItineraryClick(order)} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700"><ListOrdered className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar Itinerario</p></TooltipContent></Tooltip>
+                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditOrderClick(order)} className="text-amber-600 border-amber-600/50 hover:bg-amber-100/80 hover:text-amber-700"><Edit className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar Orden Completa</p></TooltipContent></Tooltip>
                                         <Tooltip><TooltipTrigger asChild>
                                            <Button 
                                               variant="outline" 
                                               size="icon"
                                               onClick={() => handleDownloadExcel(order)} 
                                               disabled={isDownloadingId === order.id}
+                                              className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700"
                                             >
                                                 {isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="h-4 w-4"/>}
                                             </Button>
