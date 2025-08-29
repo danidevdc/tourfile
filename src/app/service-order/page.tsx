@@ -53,7 +53,6 @@ export default function ServiceOrderListPage() {
   const [orderToEditInSheet, setOrderToEditInSheet] = useState<StoredServiceOrder | null>(null);
   const [orderToEditInModal, setOrderToEditInModal] = useState<StoredServiceOrder | null>(null);
   
-  // State to hold intermediate form data for the sheet
   const [intermediateOrderData, setIntermediateOrderData] = useState<ServiceOrderData>(initialOrderDataState);
 
 
@@ -163,18 +162,17 @@ export default function ServiceOrderListPage() {
   const onSheetSave = () => {
     setIsSheetOpen(false);
     setOrderToEditInSheet(null);
-    setIntermediateOrderData(initialOrderDataState); // Clear intermediate state after saving
-    fetchOrders(); // Refresh the list after saving
+    setIntermediateOrderData(initialOrderDataState);
+    fetchOrders(); 
   };
   
   const onSheetClose = () => {
-    // This function will just close the sheet. The intermediate state is preserved.
     setIsSheetOpen(false);
   }
 
   const onSheetClearAndNew = () => {
-      setIntermediateOrderData(initialOrderDataState); // Only clears intermediate data
-      setOrderToEditInSheet(null); // Ensure we are in "new" mode
+      setIntermediateOrderData(initialOrderDataState);
+      setOrderToEditInSheet(null);
   };
 
   if (authLoading || isLoading) {
