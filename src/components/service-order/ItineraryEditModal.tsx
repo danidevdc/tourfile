@@ -3,7 +3,7 @@
 
 import { useState, useEffect, type ChangeEvent } from 'react';
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { type ServiceItem, type ServiceOrderGuide, type Driver } from '@/lib/serviceOrderService';
@@ -69,6 +69,7 @@ export function ItineraryEditModal({ services, guides, drivers, onSave, onClose 
             <DialogContent className="max-w-none w-[95vw] h-[90vh] flex flex-col p-4">
                 <DialogHeader className="p-2 border-b">
                     <DialogTitle className="text-2xl">Editor de Itinerario Avanzado</DialogTitle>
+                    <DialogDescription>Modifica los detalles de cada servicio en la tabla. Los cambios se guardarán para esta orden.</DialogDescription>
                 </DialogHeader>
                 
                 <div className="flex-grow overflow-auto">

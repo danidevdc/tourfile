@@ -2,7 +2,7 @@
 "use client";
 
 import { type StoredServiceOrder } from '@/lib/serviceOrderStorage';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -17,9 +17,14 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
     return (
         <Dialog open={true} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl w-full flex flex-col p-4">
-                <div className="overflow-y-auto p-2">
-                    <h2 className="text-2xl font-bold text-center mb-6">ORDEN DE SERVICIOS</h2>
-
+                <DialogHeader className="p-2 text-center">
+                    <DialogTitle className="text-2xl font-bold mb-2">ORDEN DE SERVICIOS</DialogTitle>
+                    <DialogDescription>
+                        Vista previa de la orden generada para el file: {order.data.file}
+                    </DialogDescription>
+                </DialogHeader>
+                
+                <div className="overflow-y-auto p-2 flex-grow">
                     {/* Header Info Table */}
                     <div className="border rounded-md p-2 mb-4 font-mono text-sm">
                         <table className="w-full">
@@ -84,7 +89,7 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                     </div>
                 </div>
 
-                <DialogFooter className="p-2 pt-4 border-t">
+                <DialogFooter className="p-2 pt-4 border-t mt-auto">
                     <DialogClose asChild>
                         <Button type="button" variant="outline">Cerrar</Button>
                     </DialogClose>
