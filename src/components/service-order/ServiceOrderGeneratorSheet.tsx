@@ -141,21 +141,16 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     }, [toast]);
     
     useEffect(() => {
-        // This effect runs when the sheet is opened for editing, to sync the bus/chofer selectors.
-        // It's important that this ONLY runs when the `existingOrderId` changes, not on every render.
-        if (existingOrderId) {
-            if (orderData?.services?.length > 0) {
-                const lastService = orderData.services[orderData.services.length - 1];
-                if (lastService.bus) {
-                    setBusTypeSelection(lastService.bus);
-                }
-                if (lastService.chofer) {
-                    setChoferSelection(lastService.chofer);
-                }
+        if (existingOrderId && orderData?.services?.length > 0) {
+            const lastService = orderData.services[orderData.services.length - 1];
+            if (lastService.bus) {
+                setBusTypeSelection(lastService.bus);
+            }
+            if (lastService.chofer) {
+                setChoferSelection(lastService.chofer);
             }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [existingOrderId]);
+    }, [existingOrderId, orderData.services]);
 
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -258,7 +253,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         const upperActivityName = activityName.toUpperCase();
         setShowFlightSearch(upperActivityName === 'TRF IN' || upperActivityName === 'TRF OUT');
         
-        // Reset hour and set the new service. Let the suggested time logic fill it if applicable.
         setNewService(prev => ({...prev, servicio: upperActivityName, hora: ''}));
         
         if (upperActivityName !== 'TRF IN' && upperActivityName !== 'TRF OUT') {
@@ -323,12 +317,10 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         setShowFlightSearch(false); 
         setFlightSearchNumber('');
 
-        // Start with a clean new service state, but preserve the date for convenience
         setNewService(prev => ({ 
             ...initialNewServiceState, 
             fecha: prev.fecha,
         }));
-        // Do not reset bus/chofer selection
     };
 
     const removeServiceRow = (index: number) => {
@@ -368,7 +360,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 return dateA - dateB;
             }
         } catch (e) {
-            // Handle parsing errors if necessary
         }
         return a.hora.localeCompare(b.hora);
     });
@@ -390,7 +381,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
                          <div className="space-y-4 p-4 border rounded-lg bg-card">
-                            {/* --- Fila 1 --- */}
                             <div className="grid grid-cols-12 gap-x-4 items-end">
                                 <div className="col-span-4">
                                     <Label>Programa:</Label>
@@ -420,7 +410,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                   <Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" />
                                 </div>
                             </div>
-                             {/* --- Fila 2 --- */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
                                 <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-card"/></div>
                                 <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1 bg-card"/></div>
@@ -518,3 +507,5 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         </Sheet>
     );
 }
+
+    
