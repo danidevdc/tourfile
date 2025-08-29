@@ -18,7 +18,7 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
         <Dialog open={true} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl w-full flex flex-col p-4">
                 <DialogHeader className="p-2 text-center">
-                    <DialogTitle>ORDEN DE SERVICIOS</DialogTitle>
+                    <DialogTitle className="font-mono">ORDEN DE SERVICIOS</DialogTitle>
                     <DialogDescription>
                         Vista previa de la orden generada para el file: {order.data.file}
                     </DialogDescription>
@@ -27,12 +27,6 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                 <div className="overflow-y-auto p-2 flex-grow">
                     <div className="border rounded-md overflow-hidden">
                        <Table>
-                            <TableHeader className="bg-primary/10 hover:bg-primary/10">
-                                <TableRow className="border-b-0">
-                                    <TableHead className="text-primary font-bold p-2 h-10" style={{width: '120px'}}></TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10" colSpan={7}></TableHead>
-                                </TableRow>
-                            </TableHeader>
                             <TableBody>
                                 {/* Header Info as Table Rows */}
                                 <TableRow className="font-mono text-sm border-b-primary/20"><TableCell className="font-bold p-2 w-28">GUIA:</TableCell><TableCell className="p-2" colSpan={7}>{data.guia}</TableCell></TableRow>
@@ -40,9 +34,6 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                                 <TableRow className="font-mono text-sm border-b-primary/20"><TableCell className="font-bold p-2 w-28">REF:</TableCell><TableCell className="p-2" colSpan={7}>{data.ref}</TableCell></TableRow>
                                 <TableRow className="font-mono text-sm border-b-primary/20"><TableCell className="font-bold p-2 w-28">Nº PAX:</TableCell><TableCell className="p-2" colSpan={7}>{data.nPax}</TableCell></TableRow>
                                 <TableRow className="font-mono text-sm border-b-primary/20"><TableCell className="font-bold p-2 w-28">HOTEL:</TableCell><TableCell className="p-2" colSpan={7}>{data.hotel}</TableCell></TableRow>
-                                
-                                {/* Spacer Row */}
-                                <TableRow className="h-4 bg-primary/10 border-b-primary/20 hover:bg-primary/10"><TableCell colSpan={8}></TableCell></TableRow>
                                 
                                 {/* Services Table Header */}
                                 <TableRow className="bg-primary/10 hover:bg-primary/10">
@@ -74,11 +65,8 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                                     </TableRow>
                                 )}
 
-                                 {/* Spacer Row */}
-                                <TableRow className="h-4 bg-primary/10 border-t border-b-primary/20 hover:bg-primary/10"><TableCell colSpan={8}></TableCell></TableRow>
-
                                 {/* Notes Section */}
-                                <TableRow className="font-mono text-sm border-b-primary/20">
+                                <TableRow className="font-mono text-sm border-t border-b-primary/20">
                                     <TableCell className="font-bold p-2 w-28 align-top">OBS:</TableCell>
                                     <TableCell className="p-2 font-sans text-xs whitespace-pre-wrap" colSpan={7}>{data.observations}</TableCell>
                                 </TableRow>
