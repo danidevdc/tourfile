@@ -30,6 +30,13 @@ import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOr
 import { ItineraryEditModal } from "@/components/service-order/ItineraryEditModal";
 import { getGuidesFromFirestore, getDriversFromFirestore, type ServiceOrderGuide, type Driver } from "@/lib/serviceOrderService";
 
+const defaultObsText = 'LA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
+const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS REALIZADOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA';
+
+const initialOrderDataState: ServiceOrderData = {
+    guia: '', file: '', ref: '', nPax: '', hotel: '', services: [],
+    observations: defaultObsText, nota: defaultNotaText
+};
 
 export default function ServiceOrderListPage() {
   const router = useRouter();
@@ -45,6 +52,10 @@ export default function ServiceOrderListPage() {
   
   const [orderToEditInSheet, setOrderToEditInSheet] = useState<StoredServiceOrder | null>(null);
   const [orderToEditInModal, setOrderToEditInModal] = useState<StoredServiceOrder | null>(null);
+  
+  // State to hold intermediate form data for the sheet
+  const [intermediateOrderData, setIntermediateOrderData] = useState<ServiceOrderData>(initialOrderDataState);
+
 
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
@@ -76,11 +87,13 @@ export default function ServiceOrderListPage() {
 
   const handleNewOrderClick = () => {
     setOrderToEditInSheet(null);
+    setIntermediateOrderData(initialOrderDataState); // Reset for new order
     setIsSheetOpen(true);
   };
   
   const handleEditOrderClick = (order: StoredServiceOrder) => {
     setOrderToEditInSheet(order);
+    setIntermediateOrderData(order.data); // Load existing order data
     setIsSheetOpen(true);
   };
 
@@ -149,14 +162,19 @@ export default function ServiceOrderListPage() {
   const onSheetSave = () => {
     setIsSheetOpen(false);
     setOrderToEditInSheet(null);
+    setIntermediateOrderData(initialOrderDataState); // Clear intermediate state after saving
     fetchOrders(); // Refresh the list after saving
   };
   
   const onSheetClose = () => {
-    // Keep isSheetOpen in sync with the sheet's internal state
+    // This function will just close the sheet. The intermediate state is preserved.
     setIsSheetOpen(false);
-    // DO NOT clear orderToEditInSheet here, so the state persists on re-open
   }
+
+  const onSheetClearAndNew = () => {
+      setIntermediateOrderData(initialOrderDataState); // Only clears intermediate data
+      setOrderToEditInSheet(null); // Ensure we are in "new" mode
+  };
 
   if (authLoading || isLoading) {
     return <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
@@ -239,7 +257,7 @@ export default function ServiceOrderListPage() {
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
-                                                        <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cerrar</AlertDialogCancel>
                                                         <AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">
                                                             Sí, eliminar
                                                         </AlertDialogAction>
@@ -280,8 +298,10 @@ export default function ServiceOrderListPage() {
             isOpen={isSheetOpen}
             onClose={onSheetClose}
             onSave={onSheetSave}
-            existingOrder={orderToEditInSheet}
-            onClearAndNew={() => setOrderToEditInSheet(null)} // Pass the new handler
+            orderData={intermediateOrderData}
+            setOrderData={setIntermediateOrderData}
+            existingOrderId={orderToEditInSheet?.id || null}
+            onClearAndNew={onSheetClearAndNew}
         />
     </div>
   );

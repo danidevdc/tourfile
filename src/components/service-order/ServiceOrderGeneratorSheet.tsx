@@ -13,7 +13,7 @@ import {
   type ServiceOrderGuide, type Hotel, type Driver, type Activity, type ServiceItem,
 } from '@/lib/serviceOrderService';
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
-import { saveServiceOrder, updateServiceOrder, type StoredServiceOrder } from '@/lib/serviceOrderStorage';
+import { saveServiceOrder, updateServiceOrder } from '@/lib/serviceOrderStorage';
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import { incrementFlightSearchCount } from "@/lib/flightSearchCounterService";
 
@@ -30,30 +30,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 import type { FileSearchStatus } from "@/lib/report-generator";
 
-const defaultObsText = 'LA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
-const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS REALIZADOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA';
-
-const SESSION_STORAGE_FILE_KEY = 'serviceOrderProgramFile_v2';
-const SESSION_STORAGE_FILENAME_KEY = 'serviceOrderProgramFileName_v2';
-
 const initialNewServiceState: ServiceItem = {
     fecha: '', hora: '', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
 };
 
-const initialOrderDataState: ServiceOrderData = {
-    guia: '', file: '', ref: '', nPax: '', hotel: '', services: [],
-    observations: defaultObsText, nota: defaultNotaText
-};
+const SESSION_STORAGE_FILE_KEY = 'serviceOrderProgramFile_v2';
+const SESSION_STORAGE_FILENAME_KEY = 'serviceOrderProgramFileName_v2';
 
 interface ServiceOrderGeneratorSheetProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: () => void;
-    existingOrder: StoredServiceOrder | null;
+    orderData: ServiceOrderData;
+    setOrderData: (data: ServiceOrderData) => void;
+    existingOrderId: string | null;
     onClearAndNew: () => void;
 }
 
-export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOrder, onClearAndNew }: ServiceOrderGeneratorSheetProps) {
+export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData, setOrderData, existingOrderId, onClearAndNew }: ServiceOrderGeneratorSheetProps) {
     const { currentUser } = useAuth();
     const { toast } = useToast();
 
@@ -76,32 +70,12 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
     const [excelData, setExcelData] = useState<any[][] | null>(null);
     const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
     const [isProcessingSearch, setIsProcessingSearch] = useState(false);
-
-    const [orderData, setOrderData] = useState<ServiceOrderData>(initialOrderDataState);
+    
     const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
     const [busTypeSelection, setBusTypeSelection] = useState('');
     const [choferSelection, setChoferSelection] = useState('');
 
-    const handleClearForm = () => {
-        setOrderData(initialOrderDataState);
-        setNewService(initialNewServiceState);
-        setBusTypeSelection('');
-        setChoferSelection('');
-        setFileSearchStatus("idle");
-        onClearAndNew();
-        toast({ title: "Formulario Limpio", description: "Puedes empezar a crear una nueva orden de servicio.", className: "bg-green-100 dark:bg-green-900 border-green-500"});
-    };
     
-    useEffect(() => {
-        if (isOpen) {
-            if (existingOrder) {
-                setOrderData(existingOrder.data);
-            } else if (orderData.file === '') { // Only reset if it's a completely new form
-                 setOrderData(initialOrderDataState);
-            }
-        }
-    }, [isOpen, existingOrder, orderData.file]);
-
     const processAndStoreFile = (file: File) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -178,7 +152,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
 
     const clearFile = () => {
         setSelectedFile(null); setExcelData(null); setFileSearchStatus("idle");
-        setOrderData(prev => ({ ...prev, file: '', ref: '', nPax: '' }));
+        setOrderData({ ...orderData, file: '', ref: '', nPax: '' });
         if (fileInputRef.current) fileInputRef.current.value = "";
         sessionStorage.removeItem(SESSION_STORAGE_FILE_KEY);
         sessionStorage.removeItem(SESSION_STORAGE_FILENAME_KEY);
@@ -220,24 +194,24 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                 }
             }
             
-            setOrderData(prev => ({ ...prev, ref: groupName, nPax: pax }));
+            setOrderData({ ...orderData, ref: groupName, nPax: pax });
             toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
         } else {
             setFileSearchStatus("not_found");
-            setOrderData(prev => ({ ...prev, ref: '', nPax: '' }));
+            setOrderData({ ...orderData, ref: '', nPax: '' });
             toast({ title: "Búsqueda Fallida", description: "Número de file no encontrado en el programa.", variant: "destructive" });
         }
         setIsProcessingSearch(false);
     };
 
     const handleInputChange = (field: keyof ServiceOrderData, value: string) => {
-        setOrderData(prev => ({ ...prev, [field]: value.toUpperCase() }));
+        setOrderData({ ...orderData, [field]: value.toUpperCase() });
     };
 
     const handleSelectChange = (type: 'guide' | 'hotel', value: string) => {
         const upperValue = value.toUpperCase();
-        if (type === 'guide') setOrderData(prev => ({ ...prev, guia: upperValue }));
-        else if (type === 'hotel') setOrderData(prev => ({ ...prev, hotel: upperValue }));
+        if (type === 'guide') setOrderData({ ...orderData, guia: upperValue });
+        else if (type === 'hotel') setOrderData({ ...orderData, hotel: upperValue });
     };
 
     const handleNewServiceChange = (field: keyof ServiceItem, value: string) => {
@@ -325,22 +299,23 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
             chofer: choferSelection,
         };
         recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
-        setOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd] }));
+        setOrderData({ ...orderData, services: [...orderData.services, serviceToAdd] });
         
         setShowFlightSearch(false); 
         setFlightSearchNumber('');
 
         setNewService(prev => ({ 
             ...initialNewServiceState, 
-            fecha: prev.fecha,
+            fecha: prev.fecha, // Keep the date for the next entry
         }));
+        // Do not reset bus/chofer selection
     };
 
     const removeServiceRow = (index: number) => {
-        setOrderData(prev => ({
-            ...prev,
-            services: prev.services.filter((_, i) => i !== index)
-        }));
+        setOrderData({
+            ...orderData,
+            services: orderData.services.filter((_, i) => i !== index)
+        });
     };
 
     const handleSaveOrder = async () => {
@@ -350,8 +325,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         }
         setIsSaving(true);
         try {
-            if (existingOrder?.id) {
-                await updateServiceOrder(existingOrder.id, orderData);
+            if (existingOrderId) {
+                await updateServiceOrder(existingOrderId, orderData);
                 toast({ title: "Éxito", description: "Orden de servicio actualizada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
             } else {
                 await saveServiceOrder(orderData, currentUser.email);
@@ -388,7 +363,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         <Sheet open={isOpen} onOpenChange={onClose}>
             <SheetContent side="top" className="w-full h-full max-h-screen flex flex-col sm:max-w-full">
                 <SheetHeader>
-                    <SheetTitle className="text-2xl font-headline text-primary">{existingOrder ? "Editar Orden de Servicio" : "Nueva Orden de Servicio"}</SheetTitle>
+                    <SheetTitle className="text-2xl font-headline text-primary">{existingOrderId ? "Editar Orden de Servicio" : "Nueva Orden de Servicio"}</SheetTitle>
                 </SheetHeader>
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
@@ -432,7 +407,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                         
                         <div className="p-4 border rounded-lg bg-card">
                             <h3 className="font-semibold mb-2">Añadir Servicio</h3>
-                            <div className="flex items-end gap-2">
+                             <div className="flex items-end gap-2">
                                 <div style={{width: '150px'}}><Label>Fecha</Label><Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/></div>
                                 <div style={{width: '300px'}}><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-card"/></div>
                                 {showFlightSearch && (<div style={{width: '150px'}}><Label>Buscar Vuelo</Label><div className="flex items-center gap-1 mt-1"><Input value={flightSearchNumber} onChange={(e) => setFlightSearchNumber(e.target.value)} placeholder="Ej: OB304" /><Button type="button" onClick={handleFlightSearch} disabled={isSearchingFlight} size="icon"><Plane className={cn("h-4 w-4", isSearchingFlight && "animate-pulse")} /></Button></div></div>)}
@@ -445,7 +420,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                              <div className="flex justify-between items-center mb-2">
                                 <h3 className="font-semibold">Resumen ({orderData.services.length} servicios)</h3>
                             </div>
-                            <div className="max-h-96 overflow-y-auto border rounded-md bg-card">
+                            <div className="max-h-64 overflow-y-auto border rounded-md bg-card">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10 hover:bg-primary/10">
                                         <TableRow className="border-b-primary/20">
@@ -505,14 +480,14 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                     </div>
                 </div>
                 <SheetFooter className="pt-4 border-t gap-2">
-                    <Button variant="outline" onClick={handleClearForm} className="mr-auto border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
+                    <Button variant="outline" onClick={onClearAndNew} className="mr-auto border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
                         <Eraser className="mr-2 h-4 w-4"/>
                         Limpiar Formulario
                     </Button>
                     <Button variant="outline" onClick={onClose}>Cerrar</Button>
                     <Button onClick={handleSaveOrder} disabled={isSaving || isLoadingData}>
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                        {existingOrder ? "Actualizar Orden" : "Guardar Orden"}
+                        {existingOrderId ? "Actualizar Orden" : "Guardar Orden"}
                     </Button>
                 </SheetFooter>
             </SheetContent>
