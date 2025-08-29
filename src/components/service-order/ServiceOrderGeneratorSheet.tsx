@@ -89,6 +89,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                     observations: defaultObsText, nota: defaultNotaText
                 });
                  setNewService(initialNewServiceState);
+                 setBusTypeSelection('');
+                 setChoferSelection('');
             }
         }
     }, [isOpen, existingOrder]);
@@ -314,8 +316,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
         recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
         setOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd] }));
         
-        const { fecha, bus, chofer, ...restOfState } = newService;
-        setNewService({ ...initialNewServiceState, fecha }); // Keep date
+        const { fecha } = newService; // Keep date
+        setNewService({ ...initialNewServiceState, fecha });
         setShowFlightSearch(false); 
         setFlightSearchNumber('');
     };
@@ -402,20 +404,36 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                 <div className="col-span-2"><Label htmlFor="nPax">Nº Pax:</Label><Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" /></div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
-                                <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-background"/></div>
-                                <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1 bg-background"/></div>
-                                <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={setBusTypeSelection}><SelectTrigger className="mt-1 bg-background"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
-                                <div><Label>Chofer</Label><Combobox options={driverOptions} value={choferSelection} onSelect={setChoferSelection} placeholder="Seleccionar chofer..." className="mt-1 bg-background"/></div>
+                                <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-card"/></div>
+                                <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1 bg-card"/></div>
+                                <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={setBusTypeSelection}><SelectTrigger className="mt-1 bg-card"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
+                                <div><Label>Chofer</Label><Combobox options={driverOptions} value={choferSelection} onSelect={setChoferSelection} placeholder="Seleccionar chofer..." className="mt-1 bg-card"/></div>
                             </div>
                         </div>
                         
                         <div className="p-4 border rounded-lg bg-card">
                             <h3 className="font-semibold mb-2">Añadir Servicio</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-12 items-end gap-2">
-                                <div className="sm:col-span-2"><Label>Fecha</Label><Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/></div>
-                                <div className={cn("sm:col-span-4", showFlightSearch && "sm:col-span-2")}><Label>Actividad</Label><Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-background"/></div>
-                                {showFlightSearch && (<div className="sm:col-span-3"><Label>Buscar Vuelo</Label><div className="flex items-center gap-1 mt-1"><Input value={flightSearchNumber} onChange={(e) => setFlightSearchNumber(e.target.value)} placeholder="Ej: OB304" /><Button type="button" onClick={handleFlightSearch} disabled={isSearchingFlight} size="icon"><Plane className={cn("h-4 w-4", isSearchingFlight && "animate-pulse")} /></Button></div></div>)}
-                                <div className="sm:col-span-2">
+                             <div className="grid grid-cols-12 items-end gap-2">
+                                <div className="col-span-2"><Label>Fecha</Label><Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/></div>
+                                
+                                <div className={cn("col-span-5", showFlightSearch && "col-span-3")}>
+                                    <Label>Actividad</Label>
+                                    <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-background"/>
+                                </div>
+                                
+                                {showFlightSearch && (
+                                    <div className="col-span-3">
+                                        <Label>Buscar Vuelo</Label>
+                                        <div className="flex items-center gap-1 mt-1">
+                                            <Input value={flightSearchNumber} onChange={(e) => setFlightSearchNumber(e.target.value)} placeholder="Ej: OB304" />
+                                            <Button type="button" onClick={handleFlightSearch} disabled={isSearchingFlight} size="icon">
+                                                <Plane className={cn("h-4 w-4", isSearchingFlight && "animate-pulse")} />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="col-span-2">
                                   <Label>Hora</Label>
                                   <Input 
                                       value={newService.hora}
@@ -426,7 +444,14 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                                       className="mt-1"
                                   />
                                 </div>
-                                <div className="sm:col-span-1"><Button onClick={addNewServiceRow} variant="default" size="icon" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}><PlusCircle className="h-5 w-5"/></Button></div>
+                                
+                                <div className={cn("col-span-1", showFlightSearch && "col-span-2")}>
+                                     {showFlightSearch ? (
+                                        <Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}><PlusCircle className="mr-2 h-5 w-5"/>Añadir</Button>
+                                     ) : (
+                                        <Button onClick={addNewServiceRow} variant="default" size="icon" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}><PlusCircle className="h-5 w-5"/></Button>
+                                     )}
+                                </div>
                             </div>
                         </div>
 
@@ -434,7 +459,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, existingOr
                              <div className="flex justify-between items-center mb-2">
                                 <h3 className="font-semibold">Resumen ({orderData.services.length} servicios)</h3>
                             </div>
-                            <div className="max-h-64 overflow-y-auto border rounded-md">
+                            <div className="max-h-64 overflow-y-auto border rounded-md bg-card">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10 hover:bg-primary/10">
                                         <TableRow className="border-b-primary/20">
