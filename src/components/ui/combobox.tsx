@@ -32,10 +32,11 @@ interface ComboboxProps {
     placeholder?: string;
     notFoundMessage?: string;
     className?: string;
+    triggerClassName?: string; // New prop for trigger styling
 }
 
 
-export function Combobox({ options, value, onSelect, placeholder, notFoundMessage, className }: ComboboxProps) {
+export function Combobox({ options, value, onSelect, placeholder, notFoundMessage, className, triggerClassName }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
   const selectedLabel = options.find((option) => option.value === value)?.label;
@@ -47,7 +48,7 @@ export function Combobox({ options, value, onSelect, placeholder, notFoundMessag
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between font-normal", !value && "text-muted-foreground", className)}
+          className={cn("w-full justify-between font-normal", !value && "text-muted-foreground", className, triggerClassName)}
         >
           {value ? selectedLabel : placeholder || "Select option..."}
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
