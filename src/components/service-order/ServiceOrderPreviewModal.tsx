@@ -61,13 +61,13 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                         <Table>
                              <TableHeader>
                                 <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs w-[86px]">Fecha</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs w-[56px]">Hora</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs">Servicio</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs w-[70px]">Vuelo</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs w-[150px]">Guía</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs w-[70px]">Bus</TableHead>
-                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs w-[80px]">Chofer</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[86px]">Fecha</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[56px]">Hora</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs">Servicio</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[70px]">Vuelo</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[150px]">Guía</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[70px]">Bus</TableHead>
+                                    <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-r border-primary/20 font-mono text-xs w-[80px]">Chofer</TableHead>
                                     <TableHead className="text-primary font-bold p-2 h-10 border-t border-b border-primary/20 font-mono text-xs">Observaciones</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -77,13 +77,13 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                                         const showDate = i === 0 || sortedServices[i-1].fecha !== s.fecha;
                                         return (
                                             <TableRow key={i} className="font-mono text-xs uppercase border-b-primary/20">
-                                                <TableCell className="p-2 align-top">{showDate ? s.fecha : ''}</TableCell>
-                                                <TableCell className="p-2 align-top">{s.hora}</TableCell>
-                                                <TableCell className="p-2 align-top">{s.servicio}</TableCell>
-                                                <TableCell className="p-2 align-top">{s.vuelo}</TableCell>
-                                                <TableCell className="p-2 align-top">{s.guia}</TableCell>
-                                                <TableCell className="p-2 align-top">{s.bus}</TableCell>
-                                                <TableCell className="p-2 align-top">{s.chofer?.replace(/^CONT\s/i, '')}</TableCell>
+                                                <TableCell className="p-2 align-top border-r border-primary/20">{showDate ? s.fecha : ''}</TableCell>
+                                                <TableCell className="p-2 align-top border-r border-primary/20">{s.hora}</TableCell>
+                                                <TableCell className="p-2 align-top border-r border-primary/20">{s.servicio}</TableCell>
+                                                <TableCell className="p-2 align-top border-r border-primary/20">{s.vuelo}</TableCell>
+                                                <TableCell className="p-2 align-top border-r border-primary/20">{s.guia}</TableCell>
+                                                <TableCell className="p-2 align-top border-r border-primary/20">{s.bus}</TableCell>
+                                                <TableCell className="p-2 align-top border-r border-primary/20">{s.chofer?.replace(/^CONT\s/i, '')}</TableCell>
                                                 <TableCell className="p-2 align-top">{s.observaciones}</TableCell>
                                             </TableRow>
                                         );
@@ -121,4 +121,3 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
         </Dialog>
     );
 }
-
