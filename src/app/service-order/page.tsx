@@ -319,11 +319,11 @@ export default function ServiceOrderListPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[25%] border-r">Nombre de la Orden</TableHead>
-                            <TableHead className="w-[15%] border-r">Guía Asignado</TableHead>
+                            <TableHead className="w-[30%] border-r">Nombre de la Orden</TableHead>
+                            <TableHead className="w-[20%] border-r">Guía Asignado</TableHead>
                             <TableHead className="w-[15%] border-r">Creado Por</TableHead>
                             <TableHead className="w-[15%] border-r">Fecha de Creación</TableHead>
-                            <TableHead className="text-right w-[30%]">Acciones</TableHead>
+                            <TableHead className="text-right w-[20%]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -333,7 +333,7 @@ export default function ServiceOrderListPage() {
                                     <TableCell className="font-medium border-r">{order.orderName}</TableCell>
                                     <TableCell className="border-r">{order.data.guia}</TableCell>
                                     <TableCell className="border-r">{order.createdBy}</TableCell>
-                                    <TableCell className="border-r">{format(order.createdAt, 'dd MMMM yyyy, HH:mm', { locale: es })}</TableCell>
+                                    <TableCell className="border-r">{format(order.createdAt, 'dd MMMM yyyy', { locale: es })}</TableCell>
                                     <TableCell className="text-right space-x-1">
                                         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
                                         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditItineraryClick(order)} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700"><ListOrdered className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar Itinerario</p></TooltipContent></Tooltip>
