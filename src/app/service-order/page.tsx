@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -14,9 +14,10 @@ import { getAllServiceOrders, deleteServiceOrder, updateServiceOrder, type Store
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Loader2, FileDown, Trash2, FilePlus, ListOrdered, Eye, Printer, FilePenLine } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Loader2, FileDown, Trash2, FilePlus, ListOrdered, Eye, Printer, Search } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +53,7 @@ export default function ServiceOrderListPage() {
   const [guides, setGuides] = useState<ServiceOrderGuide[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isItineraryModalOpen, setIsItineraryModalOpen] = useState(false);
@@ -94,6 +96,21 @@ export default function ServiceOrderListPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
+
+  const filteredOrders = useMemo(() => {
+    if (!searchTerm) return orders;
+    const lowercasedFilter = searchTerm.toLowerCase();
+    return orders.filter(order => {
+        const date = format(order.createdAt, 'dd MMMM yyyy, HH:mm', { locale: es });
+        return (
+            order.orderName.toLowerCase().includes(lowercasedFilter) ||
+            order.data.guia.toLowerCase().includes(lowercasedFilter) ||
+            order.createdBy.toLowerCase().includes(lowercasedFilter) ||
+            date.toLowerCase().includes(lowercasedFilter)
+        );
+    });
+  }, [searchTerm, orders]);
+
 
   const handleNewOrderClick = () => {
     setOrderToEditInSheet(null);
@@ -275,6 +292,17 @@ export default function ServiceOrderListPage() {
             </div>
           </CardHeader>
           <CardContent>
+            <div className="flex justify-end mb-4">
+              <div className="relative w-full max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar orden..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
             <div className="border rounded-lg overflow-hidden">
                 <Table>
                     <TableHeader>
@@ -287,8 +315,8 @@ export default function ServiceOrderListPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {orders.length > 0 ? (
-                            orders.map((order) => (
+                        {filteredOrders.length > 0 ? (
+                            filteredOrders.map((order) => (
                                 <TableRow key={order.id}>
                                     <TableCell className="font-medium border-r">{order.orderName}</TableCell>
                                     <TableCell className="border-r">{order.data.guia}</TableCell>
@@ -354,7 +382,7 @@ export default function ServiceOrderListPage() {
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                    No se han generado órdenes de servicio todavía.
+                                    No se han encontrado órdenes de servicio.
                                 </TableCell>
                             </TableRow>
                         )}
