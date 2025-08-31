@@ -16,7 +16,7 @@ import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceO
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Loader2, FileDown, Trash2, FilePlus, ListOrdered, Eye, Printer } from "lucide-react";
+import { ArrowLeft, Loader2, FileDown, Trash2, FilePlus, ListOrdered, Eye, Printer, FilePenLine } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -206,7 +206,7 @@ export default function ServiceOrderListPage() {
 
           pdf.addImage(imgData, 'PNG', x, y, finalImgWidth, finalImgHeight);
           
-          const filename = `${pdfRenderOrder.orderName}.pdf`.replace(/ODS_(\d{2}_\w+_\d{4})_/, 'ODS_$1_');
+          const filename = `${pdfRenderOrder.orderName}.pdf`;
           pdf.save(filename);
           
         } catch (error) {
@@ -270,8 +270,7 @@ export default function ServiceOrderListPage() {
             <div className="flex items-center gap-4">
                <ListOrdered className="h-8 w-8 text-primary"/>
                <div>
-                  <CardTitle className="text-2xl font-headline text-primary">Historial de Órdenes de Servicio</CardTitle>
-                  <CardDescription>Visualiza, edita o descarga las órdenes generadas.</CardDescription>
+                  <CardTitle className="text-2xl font-headline text-primary">Órdenes de Servicio</CardTitle>
                </div>
             </div>
           </CardHeader>
@@ -280,10 +279,10 @@ export default function ServiceOrderListPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[25%]">Nombre de la Orden</TableHead>
-                            <TableHead className="w-[15%]">Guía Asignado</TableHead>
-                            <TableHead className="w-[15%]">Creado Por</TableHead>
-                            <TableHead className="w-[15%]">Fecha de Creación</TableHead>
+                            <TableHead className="w-[25%] border-r">Nombre de la Orden</TableHead>
+                            <TableHead className="w-[15%] border-r">Guía Asignado</TableHead>
+                            <TableHead className="w-[15%] border-r">Creado Por</TableHead>
+                            <TableHead className="w-[15%] border-r">Fecha de Creación</TableHead>
                             <TableHead className="text-right w-[30%]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -291,13 +290,14 @@ export default function ServiceOrderListPage() {
                         {orders.length > 0 ? (
                             orders.map((order) => (
                                 <TableRow key={order.id}>
-                                    <TableCell className="font-medium">{order.orderName}</TableCell>
-                                    <TableCell>{order.data.guia}</TableCell>
-                                    <TableCell>{order.createdBy}</TableCell>
-                                    <TableCell>{format(order.createdAt, 'dd MMMM yyyy, HH:mm', { locale: es })}</TableCell>
+                                    <TableCell className="font-medium border-r">{order.orderName}</TableCell>
+                                    <TableCell className="border-r">{order.data.guia}</TableCell>
+                                    <TableCell className="border-r">{order.createdBy}</TableCell>
+                                    <TableCell className="border-r">{format(order.createdAt, 'dd MMMM yyyy, HH:mm', { locale: es })}</TableCell>
                                     <TableCell className="text-right space-x-1">
                                         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
                                         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditItineraryClick(order)} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700"><ListOrdered className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar Itinerario</p></TooltipContent></Tooltip>
+                                        
                                         <Tooltip><TooltipTrigger asChild>
                                            <Button 
                                               variant="outline"
@@ -309,6 +309,7 @@ export default function ServiceOrderListPage() {
                                               {isDownloadingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
                                            </Button>
                                         </TooltipTrigger><TooltipContent><p>Descargar PDF</p></TooltipContent></Tooltip>
+
                                         <Tooltip><TooltipTrigger asChild>
                                            <Button 
                                               variant="outline" 
