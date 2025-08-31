@@ -33,19 +33,19 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                     <table className="w-full" style={{ borderCollapse: 'collapse' }}>
                         <tbody>
                             <tr className="font-mono text-[11px] uppercase border-b border-black">
-                                <td className="font-bold p-1 w-36 border-r border-black">GUIA:</td><td className="p-1 uppercase" colSpan={7}>{data.guia}</td>
+                                <td className="font-bold p-1 w-36 border-r border-black align-top">GUIA:</td><td className="p-1 uppercase align-top" colSpan={7}>{data.guia}</td>
                             </tr>
                             <tr className="font-mono text-[11px] uppercase border-b border-black">
-                                <td className="font-bold p-1 w-36 border-r border-black">FILE:</td><td className="p-1 uppercase" colSpan={7}>{data.file}</td>
+                                <td className="font-bold p-1 w-36 border-r border-black align-top">FILE:</td><td className="p-1 uppercase align-top" colSpan={7}>{data.file}</td>
                             </tr>
                             <tr className="font-mono text-[11px] uppercase border-b border-black">
-                                <td className="font-bold p-1 w-36 border-r border-black">REF:</td><td className="p-1 uppercase" colSpan={7}>{data.ref}</td>
+                                <td className="font-bold p-1 w-36 border-r border-black align-top">REF:</td><td className="p-1 uppercase align-top" colSpan={7}>{data.ref}</td>
                             </tr>
                             <tr className="font-mono text-[11px] uppercase border-b border-black">
-                                <td className="font-bold p-1 w-36 border-r border-black">Nº PAX:</td><td className="p-1 uppercase" colSpan={7}>{data.nPax}</td>
+                                <td className="font-bold p-1 w-36 border-r border-black align-top">Nº PAX:</td><td className="p-1 uppercase align-top" colSpan={7}>{data.nPax}</td>
                             </tr>
                             <tr className="font-mono text-[11px] uppercase">
-                                <td className="font-bold p-1 w-36 border-r border-black">HOTEL:</td><td className="p-1 uppercase" colSpan={7}>{data.hotel}</td>
+                                <td className="font-bold p-1 w-36 border-r border-black align-top">HOTEL:</td><td className="p-1 uppercase align-top" colSpan={7}>{data.hotel}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -90,11 +90,11 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                         <tbody>
                             <tr className="font-mono uppercase border-t border-b border-black">
                                 <td className="font-bold p-1 w-36 align-top border-r border-black text-[10px]">OBSERVACIONES:</td>
-                                <td className="p-1 text-[10px] whitespace-pre-wrap uppercase bg-gray-100" colSpan={7}>{data.observations}</td>
+                                <td className="p-1 text-[10px] whitespace-pre-wrap uppercase bg-gray-100 align-top" colSpan={7}>{data.observations}</td>
                             </tr>
                             <tr className="font-mono uppercase">
                                 <td className="font-bold p-1 w-36 align-top border-r border-black text-[10px]">NOTA:</td>
-                                <td className="p-1 text-[10px] whitespace-pre-wrap uppercase bg-gray-100" colSpan={7}>{data.nota}</td>
+                                <td className="p-1 text-[10px] whitespace-pre-wrap uppercase bg-gray-100 align-top" colSpan={7}>{data.nota}</td>
                             </tr>
                         </tbody>
                     </table>
