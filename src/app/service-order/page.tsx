@@ -44,6 +44,8 @@ const initialOrderDataState: ServiceOrderData = {
     observations: defaultObsText, nota: defaultNotaText
 };
 
+const ITEMS_PER_PAGE = 10;
+
 export default function ServiceOrderListPage() {
   const router = useRouter();
   const { isLoading: authLoading, isCurrentUserAdmin } = useAuth();
@@ -54,6 +56,7 @@ export default function ServiceOrderListPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isItineraryModalOpen, setIsItineraryModalOpen] = useState(false);
@@ -110,6 +113,17 @@ export default function ServiceOrderListPage() {
         );
     });
   }, [searchTerm, orders]);
+  
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredOrders, currentPage]);
+
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
 
   const handleNewOrderClick = () => {
@@ -284,25 +298,23 @@ export default function ServiceOrderListPage() {
 
        <Card className="w-full max-w-7xl shadow-lg">
           <CardHeader>
-            <div className="flex items-center gap-4">
-               <ListOrdered className="h-8 w-8 text-primary"/>
-               <div>
-                  <CardTitle className="text-2xl font-headline text-primary">Órdenes de Servicio</CardTitle>
-               </div>
+             <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                    <ListOrdered className="h-8 w-8 text-primary"/>
+                    <CardTitle className="text-2xl font-headline text-primary">Órdenes de Servicio</CardTitle>
+                </div>
+                <div className="relative w-full max-w-xs">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                    placeholder="Buscar orden..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                    />
+                </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-end mb-4">
-              <div className="relative w-full max-w-xs">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar orden..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
             <div className="border rounded-lg overflow-hidden">
                 <Table>
                     <TableHeader>
@@ -315,8 +327,8 @@ export default function ServiceOrderListPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredOrders.length > 0 ? (
-                            filteredOrders.map((order) => (
+                        {paginatedOrders.length > 0 ? (
+                            paginatedOrders.map((order) => (
                                 <TableRow key={order.id}>
                                     <TableCell className="font-medium border-r">{order.orderName}</TableCell>
                                     <TableCell className="border-r">{order.data.guia}</TableCell>
@@ -382,13 +394,36 @@ export default function ServiceOrderListPage() {
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                    No se han encontrado órdenes de servicio.
+                                    {searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}
                                 </TableCell>
                             </TableRow>
                         )}
                     </TableBody>
                 </Table>
             </div>
+            {totalPages > 1 && (
+                <div className="flex items-center justify-end space-x-2 py-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                    >
+                        Anterior
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                        Página {currentPage} de {totalPages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                    >
+                        Siguiente
+                    </Button>
+                </div>
+            )}
           </CardContent>
         </Card>
 
