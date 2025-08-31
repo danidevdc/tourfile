@@ -1,12 +1,17 @@
 
 "use client";
 
+import { useState, useRef } from 'react';
 import { type StoredServiceOrder } from '@/lib/serviceOrderStorage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { parse } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Image as ImageIcon, Loader2 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { useToast } from '@/hooks/use-toast';
+
 
 interface ServiceOrderPreviewModalProps {
     order: StoredServiceOrder;
@@ -14,7 +19,11 @@ interface ServiceOrderPreviewModalProps {
 }
 
 export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreviewModalProps) {
-    const { data } = order;
+    const { data, orderName } = order;
+    const { toast } = useToast();
+    const [isDownloadingJpg, setIsDownloadingJpg] = useState(false);
+    const previewRef = useRef<HTMLDivElement>(null);
+
 
     const sortedServices = [...data.services].sort((a, b) => {
         try {
@@ -29,10 +38,41 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
         return a.hora.localeCompare(b.hora);
     });
 
+     const handleDownloadJpg = async () => {
+        if (!previewRef.current) return;
+        setIsDownloadingJpg(true);
+        toast({ title: 'Generando imagen...', description: 'Por favor, espera un momento.' });
+
+        try {
+            const canvas = await html2canvas(previewRef.current, { 
+                scale: 2, // Aumenta la resolución para mejor calidad
+                backgroundColor: 'hsl(var(--card))', // Usa el color de fondo de la tarjeta
+                useCORS: true,
+            });
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.95); // Calidad del JPG
+            
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = `${orderName}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            toast({ title: '¡Éxito!', description: 'La imagen se ha descargado.', className: 'bg-green-100 dark:bg-green-900 border-green-500'});
+
+        } catch (error) {
+            console.error("Error generating JPG:", error);
+            toast({ title: 'Error', description: 'No se pudo generar la imagen.', variant: 'destructive' });
+        } finally {
+            setIsDownloadingJpg(false);
+        }
+    };
+
+
     return (
         <Dialog open={true} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl w-full flex flex-col p-4">
-                 <div className="overflow-y-auto p-2 flex-grow">
+                 <div ref={previewRef} className="overflow-y-auto p-2 flex-grow bg-card">
                     <DialogHeader className="p-2 mb-0">
                         <DialogTitle className="font-mono text-sm uppercase text-center">ORDEN DE SERVICIOS</DialogTitle>
                     </DialogHeader>
@@ -112,7 +152,16 @@ export function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreview
                     </div>
                 </div>
 
-                <DialogFooter className="p-2 pt-4 border-t mt-auto">
+                <DialogFooter className="p-2 pt-4 border-t mt-auto flex-wrap justify-end gap-2">
+                     <Button 
+                        onClick={handleDownloadJpg} 
+                        disabled={isDownloadingJpg}
+                        variant="outline"
+                        className="border-amber-500 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                    >
+                        {isDownloadingJpg ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ImageIcon className="mr-2 h-4 w-4"/>}
+                        Guardar como JPG
+                    </Button>
                     <DialogClose asChild>
                         <Button type="button" variant="outline">Cerrar</Button>
                     </DialogClose>
