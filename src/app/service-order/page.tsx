@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 import { getAllServiceOrders, deleteServiceOrder, updateServiceOrder, type StoredServiceOrder } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
@@ -14,7 +16,7 @@ import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceO
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Loader2, FileDown, Edit, Trash2, FilePlus, ListOrdered, Eye } from "lucide-react";
+import { ArrowLeft, Loader2, FileDown, Trash2, FilePlus, ListOrdered, Eye, Printer } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +32,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOrderGeneratorSheet";
 import { ItineraryEditModal } from "@/components/service-order/ItineraryEditModal";
 import { ServiceOrderPreviewModal } from "@/components/service-order/ServiceOrderPreviewModal";
+import { ServiceOrderPDFLayout } from "@/components/service-order/ServiceOrderPDFLayout";
 import { getGuidesFromFirestore, getDriversFromFirestore, type ServiceOrderGuide, type Driver } from "@/lib/serviceOrderService";
 
 const defaultObsText = 'LA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
@@ -63,6 +66,8 @@ export default function ServiceOrderListPage() {
 
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
+  const [isDownloadingPdfId, setIsDownloadingPdfId] = useState<string | null>(null);
+  const [pdfRenderOrder, setPdfRenderOrder] = useState<StoredServiceOrder | null>(null);
 
 
   const fetchOrders = async () => {
@@ -92,12 +97,6 @@ export default function ServiceOrderListPage() {
 
   const handleNewOrderClick = () => {
     setOrderToEditInSheet(null);
-    setIsSheetOpen(true);
-  };
-  
-  const handleEditOrderClick = (order: StoredServiceOrder) => {
-    setOrderToEditInSheet(order);
-    setIntermediateOrderData(order.data); // Load existing order data
     setIsSheetOpen(true);
   };
 
@@ -168,6 +167,69 @@ export default function ServiceOrderListPage() {
     }
   };
 
+  useEffect(() => {
+    if (pdfRenderOrder) {
+      const generatePdf = async () => {
+        const input = document.getElementById(`pdf-content-${pdfRenderOrder.id}`);
+        if (!input) {
+          toast({ title: "Error", description: "No se encontró el contenido para generar el PDF.", variant: "destructive" });
+          setPdfRenderOrder(null);
+          setIsDownloadingPdfId(null);
+          return;
+        }
+
+        try {
+           const canvas = await html2canvas(input, { scale: 2 }); // Increase scale for better quality
+           const imgData = canvas.toDataURL('image/png');
+           
+           const pdf = new jsPDF({
+              orientation: 'landscape',
+              unit: 'px',
+              format: 'a4',
+           });
+
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          const imgWidth = canvas.width;
+          const imgHeight = canvas.height;
+          const ratio = imgWidth / imgHeight;
+          
+          let finalImgWidth = pdfWidth;
+          let finalImgHeight = pdfWidth / ratio;
+          if (finalImgHeight > pdfHeight) {
+              finalImgHeight = pdfHeight;
+              finalImgWidth = pdfHeight * ratio;
+          }
+
+          const x = (pdfWidth - finalImgWidth) / 2;
+          const y = (pdfHeight - finalImgHeight) / 2;
+
+          pdf.addImage(imgData, 'PNG', x, y, finalImgWidth, finalImgHeight);
+          
+          const filename = `${pdfRenderOrder.orderName}.pdf`.replace(/ODS_(\d{2}_\w+_\d{4})_/, 'ODS_$1_');
+          pdf.save(filename);
+          
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            toast({ title: "Error de PDF", description: "No se pudo generar el archivo PDF.", variant: "destructive" });
+        } finally {
+            setPdfRenderOrder(null);
+            setIsDownloadingPdfId(null);
+        }
+      };
+      
+      // Allow time for the hidden component to render before generating the PDF
+      setTimeout(generatePdf, 500);
+    }
+  }, [pdfRenderOrder, toast]);
+
+
+  const handleDownloadPdf = (order: StoredServiceOrder) => {
+    setIsDownloadingPdfId(order.id);
+    setPdfRenderOrder(order);
+  };
+
+
   const onSheetSave = () => {
     setIsSheetOpen(false);
     setOrderToEditInSheet(null);
@@ -234,9 +296,19 @@ export default function ServiceOrderListPage() {
                                     <TableCell>{order.createdBy}</TableCell>
                                     <TableCell>{format(order.createdAt, 'dd MMMM yyyy, HH:mm', { locale: es })}</TableCell>
                                     <TableCell className="text-right space-x-1">
-                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-blue-600 border-blue-600/50 hover:bg-blue-100/80 hover:text-blue-700"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
+                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
                                         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditItineraryClick(order)} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700"><ListOrdered className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar Itinerario</p></TooltipContent></Tooltip>
-                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditOrderClick(order)} className="text-amber-600 border-amber-600/50 hover:bg-amber-100/80 hover:text-amber-700"><Edit className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar Orden Completa</p></TooltipContent></Tooltip>
+                                        <Tooltip><TooltipTrigger asChild>
+                                           <Button 
+                                              variant="outline"
+                                              size="icon" 
+                                              onClick={() => handleDownloadPdf(order)}
+                                              disabled={isDownloadingPdfId === order.id}
+                                              className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700"
+                                            >
+                                              {isDownloadingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
+                                           </Button>
+                                        </TooltipTrigger><TooltipContent><p>Descargar PDF</p></TooltipContent></Tooltip>
                                         <Tooltip><TooltipTrigger asChild>
                                            <Button 
                                               variant="outline" 
@@ -312,6 +384,12 @@ export default function ServiceOrderListPage() {
               setOrderToPreview(null);
             }}
           />
+        )}
+
+        {pdfRenderOrder && (
+            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                <ServiceOrderPDFLayout order={pdfRenderOrder} />
+            </div>
         )}
 
         <ServiceOrderGeneratorSheet 
