@@ -53,13 +53,13 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                 <table className="w-full" style={{ borderCollapse: 'collapse' }}>
                     <thead>
                         <tr className="bg-gray-200 uppercase">
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[86px]">Fecha</th>
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[56px]">Hora</th>
+                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[86px] text-center">Fecha</th>
+                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[56px] text-center">Hora</th>
                             <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto text-left">Servicio</th>
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[70px]">Vuelo</th>
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[80px]">Guía</th>
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[60px]">Bus</th>
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[80px]">Chofer</th>
+                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[70px] text-center">Vuelo</th>
+                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[80px] text-center">Guía</th>
+                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[60px] text-center">Bus</th>
+                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[80px] text-center">Chofer</th>
                             <th className="font-bold py-0.5 px-1 border-t border-b border-black font-mono text-[11px] h-auto text-left">Observaciones</th>
                         </tr>
                     </thead>
@@ -68,14 +68,14 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                             const showDate = i === 0 || sortedServices[i-1].fecha !== s.fecha;
                             return (
                                 <tr key={i} className="font-mono text-[11px] uppercase border-b border-black">
-                                    <td className="p-1 align-top border-r border-black">{showDate ? s.fecha : ''}</td>
-                                    <td className="p-1 align-top border-r border-black">{s.hora}</td>
+                                    <td className="p-1 align-top border-r border-black text-center">{showDate ? s.fecha : ''}</td>
+                                    <td className="p-1 align-top border-r border-black text-center">{s.hora}</td>
                                     <td className="p-1 align-top border-r border-black text-left">{s.servicio}</td>
-                                    <td className="p-1 align-top border-r border-black">{s.vuelo}</td>
-                                    <td className="p-1 align-top border-r border-black">{s.guia}</td>
-                                    <td className="p-1 align-top border-r border-black">{s.bus}</td>
-                                    <td className="p-1 align-top border-r border-black">{s.chofer?.replace(/^CONT\s/i, '')}</td>
-                                    <td className="p-1 align-top text-left">{s.observaciones}</td>
+                                    <td className="p-1 align-top border-r border-black text-center">{s.vuelo}</td>
+                                    <td className="p-1 align-top border-r border-black text-center">{s.guia}</td>
+                                    <td className="p-1 align-top border-r border-black text-center">{s.bus}</td>
+                                    <td className="p-1 align-top border-r border-black text-center">{s.chofer?.replace(/^CONT\s/i, '')}</td>
+                                    <td className="p-1 align-top text-left border-r border-black">{s.observaciones}</td>
                                 </tr>
                             );
                         }) : (
