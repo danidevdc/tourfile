@@ -42,7 +42,6 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-5xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
         <DialogHeader className="p-6 pb-2 text-center">
-            <DialogTitle className="text-2xl font-headline text-primary">Vista Previa de la Orden de Servicio</DialogTitle>
         </DialogHeader>
 
         {/* Scrollable area */}
@@ -58,7 +57,6 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                   </div>
                   <div>
                     <h1 className="text-base font-semibold tracking-wider uppercase text-zinc-800">Orden de Servicios</h1>
-                    <p className="text-xs text-muted-foreground">Emitida para guías y choferes</p>
                   </div>
                 </div>
                 <Badge variant="secondary" className="rounded-full px-3 py-1 text-[10px] uppercase tracking-wide">{orderName}</Badge>
