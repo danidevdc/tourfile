@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useRef, useState } from "react";
@@ -141,6 +142,10 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-4xl w-full p-0 overflow-hidden">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Vista Previa de la Orden de Servicio: {orderName}</DialogTitle>
+        </DialogHeader>
+
         {/* Printable area */}
         <div ref={previewRef} className="bg-white text-zinc-900">
           {/* Header */}
@@ -290,3 +295,5 @@ function SignatureLine({ label, name }: { label: string; name?: string }) {
     </div>
   );
 }
+
+    
