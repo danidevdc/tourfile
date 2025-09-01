@@ -32,7 +32,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOrderGeneratorSheet";
 import { ItineraryEditModal } from "@/components/service-order/ItineraryEditModal";
-import { ServiceOrderPreviewModal } from "@/components/service-order/ServiceOrderPreviewModal";
+import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPreviewModal";
 import { ServiceOrderPDFLayout } from "@/components/service-order/ServiceOrderPDFLayout";
 import { getGuidesFromFirestore, getDriversFromFirestore, type ServiceOrderGuide, type Driver } from "@/lib/serviceOrderService";
 
@@ -104,7 +104,7 @@ export default function ServiceOrderListPage() {
     if (!searchTerm) return orders;
     const lowercasedFilter = searchTerm.toLowerCase();
     return orders.filter(order => {
-        const date = format(order.createdAt, 'dd MMMM yyyy, HH:mm', { locale: es });
+        const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
         return (
             order.orderName.toLowerCase().includes(lowercasedFilter) ||
             order.data.guia.toLowerCase().includes(lowercasedFilter) ||
