@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -71,7 +71,7 @@ export default function ServiceOrderListPage() {
 
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
-  const [isDownloadingPdfId, setIsDownloadingPdfId] = useState<string | null>(null);
+  const [isPrintingPdfId, setIsPrintingPdfId] = useState<string | null>(null);
   const [pdfRenderOrder, setPdfRenderOrder] = useState<StoredServiceOrder | null>(null);
 
 
@@ -205,12 +205,12 @@ export default function ServiceOrderListPage() {
         if (!input) {
           toast({ title: "Error", description: "No se encontró el contenido para generar el PDF.", variant: "destructive" });
           setPdfRenderOrder(null);
-          setIsDownloadingPdfId(null);
+          setIsPrintingPdfId(null);
           return;
         }
 
         try {
-           const canvas = await html2canvas(input, { scale: 2 }); // Increase scale for better quality
+           const canvas = await html2canvas(input, { scale: 2 });
            const imgData = canvas.toDataURL('image/png');
            
            const pdf = new jsPDF({
@@ -237,15 +237,15 @@ export default function ServiceOrderListPage() {
 
           pdf.addImage(imgData, 'PNG', x, y, finalImgWidth, finalImgHeight);
           
-          const filename = `${pdfRenderOrder.orderName}.pdf`;
-          pdf.save(filename);
+          const blob = pdf.output('bloburl');
+          window.open(blob.toString(), '_blank');
           
         } catch (error) {
             console.error("Error generating PDF:", error);
             toast({ title: "Error de PDF", description: "No se pudo generar el archivo PDF.", variant: "destructive" });
         } finally {
             setPdfRenderOrder(null);
-            setIsDownloadingPdfId(null);
+            setIsPrintingPdfId(null);
         }
       };
       
@@ -255,8 +255,8 @@ export default function ServiceOrderListPage() {
   }, [pdfRenderOrder, toast]);
 
 
-  const handleDownloadPdf = (order: StoredServiceOrder) => {
-    setIsDownloadingPdfId(order.id);
+  const handlePrintToPdf = (order: StoredServiceOrder) => {
+    setIsPrintingPdfId(order.id);
     setPdfRenderOrder(order);
   };
 
@@ -342,13 +342,13 @@ export default function ServiceOrderListPage() {
                                            <Button 
                                               variant="outline"
                                               size="icon" 
-                                              onClick={() => handleDownloadPdf(order)}
-                                              disabled={isDownloadingPdfId === order.id}
+                                              onClick={() => handlePrintToPdf(order)}
+                                              disabled={isPrintingPdfId === order.id}
                                               className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700"
                                             >
-                                              {isDownloadingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
+                                              {isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
                                            </Button>
-                                        </TooltipTrigger><TooltipContent><p>Descargar PDF</p></TooltipContent></Tooltip>
+                                        </TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>
 
                                         <Tooltip><TooltipTrigger asChild>
                                            <Button 
@@ -451,7 +451,7 @@ export default function ServiceOrderListPage() {
         )}
 
         {pdfRenderOrder && (
-            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+            <div style={{ position: 'fixed', left: '-9999px', top: '0px', zIndex: -1 }}>
                 <ServiceOrderPDFLayout order={pdfRenderOrder} />
             </div>
         )}

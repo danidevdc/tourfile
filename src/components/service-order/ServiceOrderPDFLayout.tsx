@@ -2,7 +2,6 @@
 "use client";
 
 import { type StoredServiceOrder } from '@/lib/serviceOrderStorage';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { parse } from 'date-fns';
 
 interface ServiceOrderPDFLayoutProps {
