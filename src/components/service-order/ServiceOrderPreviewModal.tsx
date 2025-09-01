@@ -143,7 +143,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-4xl w-full p-0 overflow-hidden">
         <DialogHeader className="sr-only">
-          <DialogTitle>Vista Previa de la Orden de Servicio: {orderName}</DialogTitle>
+          <DialogTitle>Vista Previa de la Orden de Servicio</DialogTitle>
         </DialogHeader>
 
         {/* Printable area */}
@@ -169,7 +169,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
           {/* Meta card */}
           <div className="m-6 space-y-2">
             {/* Fila 1: Guía - Centered */}
-            <div className="rounded-lg border bg-card/50 px-3 py-2 flex items-center justify-center gap-2">
+            <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">GUÍA:</p>
               <p className="text-xs uppercase font-mono">{data.guia || "—"}</p>
             </div>
@@ -181,8 +181,11 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
               <MetaItem label="Nº Pax" value={data.nPax} className="w-[20%]" />
             </div>
 
-            {/* Fila 3: Hotel */}
-            <MetaItem label="Hotel" value={data.hotel} />
+            {/* Fila 3: Hotel - Centered */}
+            <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">HOTEL:</p>
+              <p className="text-xs uppercase font-mono">{data.hotel || "—"}</p>
+            </div>
           </div>
 
           {/* Services */}
@@ -277,7 +280,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
   return (
-    <div className={cn("rounded-lg border bg-card/50 px-3 py-2", className)}>
+    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2", className)}>
       <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">{label}</p>
       <p className="mt-0.5 text-xs uppercase font-mono">{value || "—"}</p>
     </div>
