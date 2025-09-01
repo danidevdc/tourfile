@@ -114,14 +114,6 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                 <InfoBlock title="Nota" text={data.nota} subtle />
             </div>
 
-            <div className="px-6 pb-6 mt-auto">
-                <Separator className="my-4" />
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-[11px] uppercase font-mono">
-                    <SignatureLine label="Guía" name={data.guia} />
-                    <SignatureLine label="Chofer" />
-                    <SignatureLine label="Autorizado por" />
-                </div>
-            </div>
         </div>
     );
 }
@@ -140,15 +132,6 @@ function InfoBlock({ title, text, subtle = false }: { title: string; text?: stri
         <div className={cn("rounded-xl border p-3", subtle ? "bg-muted/40 border-dashed" : "bg-card/20")}>
             <p className="text-[10px] font-semibold uppercase tracking-wide text-primary mb-1">{title}:</p>
             <p className="text-xs uppercase font-mono whitespace-pre-wrap leading-5">{text || "—"}</p>
-        </div>
-    );
-}
-
-function SignatureLine({ label, name }: { label: string; name?: string }) {
-    return (
-        <div className="flex flex-col items-center justify-end gap-1 pt-8">
-            <div className="h-10 w-full border-b border-zinc-400" />
-            <p className="text-[10px] tracking-widest">{label}{name ? `: ${name}` : ""}</p>
         </div>
     );
 }
