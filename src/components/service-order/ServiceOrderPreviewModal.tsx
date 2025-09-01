@@ -168,12 +168,20 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
           {/* Meta card */}
           <div className="m-6 space-y-2">
-            <MetaItem label="Guía" value={data.guia} />
+            {/* Fila 1: Guía - Centered */}
+            <div className="rounded-lg border bg-card/50 px-3 py-2 flex items-center justify-center gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">GUÍA:</p>
+              <p className="text-xs uppercase font-mono">{data.guia || "—"}</p>
+            </div>
+            
+            {/* Fila 2: File, Ref, Pax */}
             <div className="flex items-stretch gap-2">
               <MetaItem label="File" value={data.file} className="w-[25%]" />
               <MetaItem label="Ref" value={data.ref} className="flex-grow" />
               <MetaItem label="Nº Pax" value={data.nPax} className="w-[20%]" />
             </div>
+
+            {/* Fila 3: Hotel */}
             <MetaItem label="Hotel" value={data.hotel} />
           </div>
 
@@ -293,6 +301,3 @@ function SignatureLine({ label, name }: { label: string; name?: string }) {
     </div>
   );
 }
-
-
-    
