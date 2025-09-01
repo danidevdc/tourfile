@@ -61,21 +61,21 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                     <Table className="table-fixed">
                         <TableHeader>
                             <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[86px] text-center align-middle">Fecha</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[56px] text-center align-middle">Hora</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] text-left align-middle">Servicio</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px] text-center align-middle">Vuelo</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[100px] text-center align-middle">Guía</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px] text-center align-middle">Bus</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[80px] text-center align-middle">Chofer</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-[11px] text-left align-middle">Observaciones</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[86px] text-center align-middle">Fecha</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[56px] text-center align-middle">Hora</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto text-left align-middle">Servicio</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[70px] text-center align-middle">Vuelo</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[100px] text-center align-middle">Guía</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[70px] text-center align-middle">Bus</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[80px] text-center align-middle">Chofer</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-[11px] h-auto text-left align-middle">Observaciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {sortedServices.length ? sortedServices.map((s, i) => {
                                 const showDate = i === 0 || sortedServices[i - 1].fecha !== s.fecha;
                                 return (
-                                    <TableRow key={i} className={cn("font-mono text-[11px] uppercase break-words align-middle", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
+                                    <TableRow key={i} className={cn("font-mono text-[11px] uppercase break-words align-middle h-auto", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                                             {showDate && s.fecha ? (
                                                 <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-[10px] text-primary">
@@ -85,7 +85,7 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                                         </TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border text-[10px]">{s.hora}</span></TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
-                                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo}</TableCell>
+                                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.guia}</TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
@@ -106,7 +106,6 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                 <InfoBlock title="Observaciones" text={data.observations} />
                 <InfoBlock title="Nota" text={data.nota} subtle />
             </div>
-
         </div>
     );
 }

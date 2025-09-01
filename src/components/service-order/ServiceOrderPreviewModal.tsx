@@ -23,7 +23,6 @@ interface ServiceOrderPreviewModalProps {
 
 export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreviewModalProps) {
   const { data, orderName } = order;
-  const previewRef = useRef<HTMLDivElement>(null);
 
   const services = useMemo(() => {
     const list = [...data.services].sort((a, b) => {
@@ -45,10 +44,8 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
              <DialogTitle className="text-center text-xl font-bold">Vista Previa de la Orden</DialogTitle>
         </DialogHeader>
 
-        {/* Scrollable area */}
         <div className="flex-grow overflow-y-auto px-6">
-          <div ref={previewRef} className="bg-white text-zinc-900">
-            {/* Header */}
+          <div className="bg-white text-zinc-900">
             <div className="relative">
               <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
               <div className="px-6 pt-4 pb-3 flex items-center justify-between">
@@ -65,7 +62,6 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
               <Separator />
             </div>
 
-            {/* Meta card */}
             <div className="m-6 space-y-2">
                 <MetaItem label="Guía" value={data.guia} />
                  <div className="flex items-stretch gap-2">
@@ -76,20 +72,19 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                 <MetaItem label="Hotel" value={data.hotel} />
             </div>
 
-            {/* Services */}
             <div className="px-6">
               <div className="rounded-xl border border-primary/20 overflow-hidden">
                 <Table className="table-fixed">
                   <TableHeader>
                     <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[86px] text-center align-middle">Fecha</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[56px] text-center align-middle">Hora</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] text-left align-middle">Servicio</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px] text-center align-middle">Vuelo</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[100px] text-center align-middle">Guía</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px] text-center align-middle">Bus</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[80px] text-center align-middle">Chofer</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-[11px] text-left align-middle">Observaciones</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[86px] text-center align-middle">Fecha</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[56px] text-center align-middle">Hora</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto text-left align-middle">Servicio</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[70px] text-center align-middle">Vuelo</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[100px] text-center align-middle">Guía</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[70px] text-center align-middle">Bus</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[80px] text-center align-middle">Chofer</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-[11px] h-auto text-left align-middle">Observaciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -97,7 +92,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                       services.map((s, i) => {
                         const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
                         return (
-                          <TableRow key={i} className={cn("font-mono text-[11px] uppercase break-words align-middle", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
+                          <TableRow key={i} className={cn("font-mono text-[11px] uppercase break-words align-middle h-auto", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                                {showDate && s.fecha ? (
                                 <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-[10px] text-primary">
@@ -107,7 +102,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                              </TableCell>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border text-[10px]">{s.hora}</span></TableCell>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.guia}</TableCell>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
@@ -125,7 +120,6 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
               </div>
             </div>
 
-            {/* Observaciones / Nota */}
              <div className="px-6 py-4 grid grid-cols-1 gap-4">
                 <InfoBlock title="Observaciones" text={data.observations} />
                 <InfoBlock title="Nota" text={data.nota} subtle />
