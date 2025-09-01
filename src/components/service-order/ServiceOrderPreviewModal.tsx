@@ -1,19 +1,18 @@
 
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import { parse } from "date-fns";
 
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ListOrdered } from 'lucide-react';
-import { DialogClose } from "@/components/ui/dialog";
 
 
 interface ServiceOrderPreviewModalProps {
@@ -68,19 +67,13 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
             {/* Meta card */}
             <div className="m-6 space-y-2">
-                <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-primary">GUÍA:</p>
-                    <p className="text-sm uppercase font-mono">{data.guia || "—"}</p>
-                </div>
+                <MetaItem label="Guía" value={data.guia} />
                 <div className="flex items-stretch gap-2">
-                   <MetaItem label="File" value={data.file} />
-                   <MetaItem label="Ref" value={data.ref} />
-                   <MetaItem label="Nº Pax" value={data.nPax} />
+                   <MetaItem label="File" value={data.file} className="flex-none w-48" />
+                   <MetaItem label="Ref" value={data.ref} className="flex-1" />
+                   <MetaItem label="Nº Pax" value={data.nPax} className="flex-none w-32" />
                 </div>
-                <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-primary">HOTEL:</p>
-                    <p className="text-sm uppercase font-mono">{data.hotel || "—"}</p>
-                </div>
+                <MetaItem label="Hotel" value={data.hotel} />
             </div>
 
             {/* Services */}
@@ -89,14 +82,14 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                 <Table className="table-fixed">
                   <TableHeader>
                     <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[86px]">Fecha</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[56px]">Hora</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px]">Servicio</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px]">Vuelo</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[150px]">Guía</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px]">Bus</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[80px]">Chofer</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-[11px]">Observaciones</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[86px] text-center align-middle">Fecha</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[56px] text-center align-middle">Hora</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] text-center align-middle">Servicio</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px] text-center align-middle">Vuelo</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[150px] text-center align-middle">Guía</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px] text-center align-middle">Bus</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[80px] text-center align-middle">Chofer</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-[11px] text-center align-middle">Observaciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -104,21 +97,21 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                       services.map((s, i) => {
                         const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
                         return (
-                          <TableRow key={i} className={cn("font-mono text-[11px] uppercase break-words", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
-                             <TableCell className="p-1 align-top border-r border-primary/10 text-center">
+                          <TableRow key={i} className={cn("font-mono text-[11px] uppercase break-words align-middle", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                                {showDate && s.fecha ? (
                                 <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-[10px] text-primary">
                                   {s.fecha}
                                 </span>
                               ) : ("")}
                              </TableCell>
-                             <TableCell className="p-1 align-top border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border text-[10px]">{s.hora}</span></TableCell>
-                             <TableCell className="p-1 align-top border-r border-primary/10">{s.servicio}</TableCell>
-                             <TableCell className="p-1 align-top border-r border-primary/10 text-center">{s.vuelo}</TableCell>
-                             <TableCell className="p-1 align-top border-r border-primary/10 text-center">{s.guia}</TableCell>
-                             <TableCell className="p-1 align-top border-r border-primary/10 text-center">{s.bus}</TableCell>
-                             <TableCell className="p-1 align-top border-r border-primary/10 text-center">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
-                             <TableCell className="p-1 align-top">{s.observaciones}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border text-[10px]">{s.hora}</span></TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.servicio}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.guia}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
+                             <TableCell className="p-1 align-middle text-center">{s.observaciones}</TableCell>
                           </TableRow>
                         );
                       })
@@ -152,7 +145,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
   return (
-    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2 flex-1", className)}>
+    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2", className)}>
       <p className="text-sm font-semibold uppercase tracking-wide text-primary">{label}:</p>
       <p className="text-sm uppercase font-mono">{value || "—"}</p>
     </div>
@@ -161,9 +154,9 @@ function MetaItem({ label, value, className }: { label: string; value?: string |
 
 function InfoBlock({ title, text, subtle = false }: { title: string; text?: string; subtle?: boolean }) {
   return (
-    <div className={cn("rounded-xl border p-3", subtle ? "bg-muted/40 border-dashed" : "bg-card/20") }>
+    <div className={cn("rounded-xl border p-2", subtle ? "bg-muted/40 border-dashed" : "bg-card/20") }>
       <p className="text-[10px] font-semibold uppercase tracking-wide text-primary mb-1">{title}:</p>
-      <p className="text-xs uppercase font-mono whitespace-pre-wrap leading-5">{text || "—"}</p>
+      <p className="text-[10px] uppercase font-mono whitespace-pre-wrap leading-5">{text || "—"}</p>
     </div>
   );
 }
