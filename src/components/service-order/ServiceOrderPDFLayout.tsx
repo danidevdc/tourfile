@@ -3,13 +3,19 @@
 
 import { type StoredServiceOrder } from '@/lib/serviceOrderStorage';
 import { parse } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ListOrdered, Share2 } from 'lucide-react';
+
 
 interface ServiceOrderPDFLayoutProps {
     order: StoredServiceOrder;
 }
 
 export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
-    const { data } = order;
+    const { data, orderName } = order;
 
     const sortedServices = [...data.services].sort((a, b) => {
         try {
@@ -23,82 +29,126 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
     });
 
     return (
-        <div id={`pdf-content-${order.id}`} className="bg-white text-black p-4" style={{ width: '1123px', height: '794px', fontFamily: 'Calibri, sans-serif' }}>
-            <div className="p-2 mb-0">
-                <h1 className="font-mono text-sm uppercase text-center font-bold">ORDEN DE SERVICIOS</h1>
-            </div>
-            <div className="border-2 border-black rounded-lg overflow-hidden">
-                <div className="border-2 border-black">
-                    <table className="w-full" style={{ borderCollapse: 'collapse' }}>
-                        <tbody>
-                            <tr className="font-mono text-[11px] uppercase border-b border-black">
-                                <td className="font-bold p-1 w-36 border-r border-black align-top">GUIA:</td><td className="p-1 uppercase align-top" colSpan={7}>{data.guia}</td>
-                            </tr>
-                            <tr className="font-mono text-[11px] uppercase border-b border-black">
-                                <td className="font-bold p-1 w-36 border-r border-black align-top">FILE:</td><td className="p-1 uppercase align-top" colSpan={7}>{data.file}</td>
-                            </tr>
-                            <tr className="font-mono text-[11px] uppercase border-b border-black">
-                                <td className="font-bold p-1 w-36 border-r border-black align-top">REF:</td><td className="p-1 uppercase align-top" colSpan={7}>{data.ref}</td>
-                            </tr>
-                            <tr className="font-mono text-[11px] uppercase border-b border-black">
-                                <td className="font-bold p-1 w-36 border-r border-black align-top">Nº PAX:</td><td className="p-1 uppercase align-top" colSpan={7}>{data.nPax}</td>
-                            </tr>
-                            <tr className="font-mono text-[11px] uppercase">
-                                <td className="font-bold p-1 w-36 border-r border-black align-top">HOTEL:</td><td className="p-1 uppercase align-top" colSpan={7}>{data.hotel}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+        <div id={`pdf-content-${order.id}`} className="bg-white text-zinc-900 p-0" style={{ width: '1123px', height: 'auto', minHeight: '794px', fontFamily: 'Calibri, sans-serif' }}>
+            <div className="relative">
+                <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
+                <div className="px-6 pt-4 pb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="size-10 rounded-xl bg-primary/10 grid place-items-center">
+                            <ListOrdered className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                            <h1 className="text-base font-semibold tracking-wider uppercase text-zinc-800">Orden de Servicios</h1>
+                            <p className="text-xs text-muted-foreground">Emitida para guías y choferes</p>
+                        </div>
+                    </div>
+                    <Badge variant="secondary" className="rounded-full px-3 py-1 text-[10px] uppercase tracking-wide">{orderName}</Badge>
                 </div>
-                <table className="w-full" style={{ borderCollapse: 'collapse' }}>
-                    <thead>
-                        <tr className="bg-gray-200 uppercase">
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[86px] text-center">Fecha</th>
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[56px] text-center">Hora</th>
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto text-left">Servicio</th>
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[70px] text-center">Vuelo</th>
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[80px] text-center">Guía</th>
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[60px] text-center">Bus</th>
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-r border-black font-mono text-[11px] h-auto w-[80px] text-center">Chofer</th>
-                            <th className="font-bold py-0.5 px-1 border-t border-b border-black font-mono text-[11px] h-auto text-left">Observaciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sortedServices.length > 0 ? sortedServices.map((s, i) => {
-                            const showDate = i === 0 || sortedServices[i-1].fecha !== s.fecha;
-                            return (
-                                <tr key={i} className="font-mono text-[11px] uppercase border-b border-black">
-                                    <td className="p-1 align-top border-r border-black text-center">{showDate ? s.fecha : ''}</td>
-                                    <td className="p-1 align-top border-r border-black text-center">{s.hora}</td>
-                                    <td className="p-1 align-top border-r border-black text-left">{s.servicio}</td>
-                                    <td className="p-1 align-top border-r border-black text-center">{s.vuelo}</td>
-                                    <td className="p-1 align-top border-r border-black text-center">{s.guia}</td>
-                                    <td className="p-1 align-top border-r border-black text-center">{s.bus}</td>
-                                    <td className="p-1 align-top border-r border-black text-center">{s.chofer?.replace(/^CONT\s/i, '')}</td>
-                                    <td className="p-1 align-top text-left border-r border-black">{s.observaciones}</td>
-                                </tr>
-                            );
-                        }) : (
-                            <tr>
-                                <td colSpan={8} className="h-24 text-center uppercase font-mono">No hay servicios en esta orden.</td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-                <div className="border-2 border-black">
-                    <table className="w-full" style={{ borderCollapse: 'collapse' }}>
-                        <tbody>
-                            <tr className="font-mono uppercase border-t border-b border-black">
-                                <td className="font-bold p-1 w-36 align-top border-r border-black text-[10px]">OBSERVACIONES:</td>
-                                <td className="p-1 text-[10px] whitespace-pre-wrap uppercase bg-gray-100 align-top" colSpan={7}>{data.observations}</td>
-                            </tr>
-                            <tr className="font-mono uppercase">
-                                <td className="font-bold p-1 w-36 align-top border-r border-black text-[10px]">NOTA:</td>
-                                <td className="p-1 text-[10px] whitespace-pre-wrap uppercase bg-gray-100 align-top" colSpan={7}>{data.nota}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <Separator />
+            </div>
+
+            <div className="m-6 space-y-2">
+                <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2 h-[58px]">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-primary">GUÍA:</p>
+                    <p className="text-sm uppercase font-mono">{data.guia || "—"}</p>
+                </div>
+                <div className="flex items-stretch gap-2 h-[58px]">
+                    <MetaItem label="File" value={data.file} className="w-[25%]" />
+                    <MetaItem label="Ref" value={data.ref} className="flex-grow" />
+                    <MetaItem label="Nº Pax" value={data.nPax} className="w-[20%]" />
+                </div>
+                <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2 h-[58px]">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-primary">HOTEL:</p>
+                    <p className="text-sm uppercase font-mono">{data.hotel || "—"}</p>
                 </div>
             </div>
+
+            <div className="px-6">
+                <div className="rounded-xl border border-primary/20 overflow-hidden">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[86px]">Fecha</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[56px]">Hora</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px]">Servicio</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px]">Vuelo</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[150px]">Guía</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px]">Bus</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[80px]">Chofer</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-[11px]">Observaciones</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedServices.length ? sortedServices.map((s, i) => {
+                                const showDate = i === 0 || sortedServices[i - 1].fecha !== s.fecha;
+                                return (
+                                    <TableRow key={i} className={cn("font-mono text-[11px] uppercase", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
+                                        <TableCell className="p-1 align-top border-r border-primary/10 text-center">
+                                            {showDate && s.fecha ? (
+                                                <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-[10px] text-primary">
+                                                    {s.fecha}
+                                                </span>
+                                            ) : ("")}
+                                        </TableCell>
+                                        <TableCell className="p-1 align-top border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border text-[10px]">{s.hora}</span></TableCell>
+                                        <TableCell className="p-1 align-top border-r border-primary/10">{s.servicio}</TableCell>
+                                        <TableCell className="p-1 align-top border-r border-primary/10 text-center">{s.vuelo}</TableCell>
+                                        <TableCell className="p-1 align-top border-r border-primary/10 text-center">{s.guia}</TableCell>
+                                        <TableCell className="p-1 align-top border-r border-primary/10 text-center">{s.bus}</TableCell>
+                                        <TableCell className="p-1 align-top border-r border-primary/10 text-center">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
+                                        <TableCell className="p-1 align-top">{s.observaciones}</TableCell>
+                                    </TableRow>
+                                );
+                            }) : (
+                                <TableRow>
+                                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground uppercase font-mono">No hay servicios en esta orden.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </div>
+
+            <div className="px-6 py-4 grid grid-cols-1 gap-4">
+                <InfoBlock title="Observaciones" text={data.observations} />
+                <InfoBlock title="Nota" text={data.nota} subtle />
+            </div>
+
+            <div className="px-6 pb-6 mt-auto">
+                <Separator className="my-4" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-[11px] uppercase font-mono">
+                    <SignatureLine label="Guía" name={data.guia} />
+                    <SignatureLine label="Chofer" />
+                    <SignatureLine label="Autorizado por" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
+    return (
+        <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2", className)}>
+            <p className="text-sm font-semibold uppercase tracking-wide text-primary">{label}</p>
+            <p className="mt-0.5 text-sm uppercase font-mono">{value || "—"}</p>
+        </div>
+    );
+}
+
+function InfoBlock({ title, text, subtle = false }: { title: string; text?: string; subtle?: boolean }) {
+    return (
+        <div className={cn("rounded-xl border p-3", subtle ? "bg-muted/40 border-dashed" : "bg-card/20")}>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-primary mb-1">{title}:</p>
+            <p className="text-xs uppercase font-mono whitespace-pre-wrap leading-5">{text || "—"}</p>
+        </div>
+    );
+}
+
+function SignatureLine({ label, name }: { label: string; name?: string }) {
+    return (
+        <div className="flex flex-col items-center justify-end gap-1 pt-8">
+            <div className="h-10 w-full border-b border-zinc-400" />
+            <p className="text-[10px] tracking-widest">{label}{name ? `: ${name}` : ""}</p>
         </div>
     );
 }

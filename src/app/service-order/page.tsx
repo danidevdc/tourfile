@@ -210,7 +210,11 @@ export default function ServiceOrderListPage() {
         }
 
         try {
-           const canvas = await html2canvas(input, { scale: 2 });
+           const canvas = await html2canvas(input, { 
+              scale: 2, // Higher scale for better quality
+              backgroundColor: "#ffffff",
+              useCORS: true,
+            });
            const imgData = canvas.toDataURL('image/png');
            
            const pdf = new jsPDF({
@@ -237,8 +241,13 @@ export default function ServiceOrderListPage() {
 
           pdf.addImage(imgData, 'PNG', x, y, finalImgWidth, finalImgHeight);
           
-          const blob = pdf.output('bloburl');
-          window.open(blob.toString(), '_blank');
+          const blob = pdf.output('blob');
+          const blobUrl = URL.createObjectURL(blob);
+          
+          // Open in a new window instead of a tab
+          window.open(blobUrl, '_blank', 'popup=yes,width=1123,height=794');
+
+          URL.revokeObjectURL(blobUrl);
           
         } catch (error) {
             console.error("Error generating PDF:", error);
