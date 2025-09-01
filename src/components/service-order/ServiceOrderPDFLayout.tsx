@@ -39,7 +39,6 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                         </div>
                         <div>
                             <h1 className="text-base font-semibold tracking-wider uppercase text-zinc-800">Orden de Servicios</h1>
-                            <p className="text-xs text-muted-foreground">Emitida para guías y choferes</p>
                         </div>
                     </div>
                     <Badge variant="secondary" className="rounded-full px-3 py-1 text-[10px] uppercase tracking-wide">{orderName}</Badge>
@@ -53,9 +52,9 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                     <p className="text-sm uppercase font-mono">{data.guia || "—"}</p>
                 </div>
                 <div className="flex items-stretch gap-2">
-                    <MetaItem label="File" value={data.file} className="w-[25%]" />
-                    <MetaItem label="Ref" value={data.ref} className="flex-grow" />
-                    <MetaItem label="Nº Pax" value={data.nPax} className="w-[20%]" />
+                    <MetaItem label="File" value={data.file} />
+                    <MetaItem label="Ref" value={data.ref} />
+                    <MetaItem label="Nº Pax" value={data.nPax} />
                 </div>
                 <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2">
                     <p className="text-sm font-semibold uppercase tracking-wide text-primary">HOTEL:</p>
@@ -65,7 +64,7 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
 
             <div className="px-6">
                 <div className="rounded-xl border border-primary/20 overflow-hidden">
-                    <Table>
+                    <Table className="table-fixed">
                         <TableHeader>
                             <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
                                 <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[86px]">Fecha</TableHead>
@@ -82,7 +81,7 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                             {sortedServices.length ? sortedServices.map((s, i) => {
                                 const showDate = i === 0 || sortedServices[i - 1].fecha !== s.fecha;
                                 return (
-                                    <TableRow key={i} className={cn("font-mono text-[11px] uppercase", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
+                                    <TableRow key={i} className={cn("font-mono text-[11px] uppercase break-words", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
                                         <TableCell className="p-1 align-top border-r border-primary/10 text-center">
                                             {showDate && s.fecha ? (
                                                 <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-[10px] text-primary">
@@ -120,7 +119,7 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
 
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
     return (
-        <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2", className)}>
+        <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2 flex-1", className)}>
             <p className="text-sm font-semibold uppercase tracking-wide text-primary">{label}:</p>
             <p className="text-sm uppercase font-mono">{value || "—"}</p>
         </div>

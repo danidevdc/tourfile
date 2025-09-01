@@ -1,18 +1,19 @@
 
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { parse } from "date-fns";
 
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ListOrdered } from 'lucide-react';
+import { DialogClose } from "@/components/ui/dialog";
 
 
 interface ServiceOrderPreviewModalProps {
@@ -42,6 +43,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-5xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
         <DialogHeader className="p-6 pb-2 text-center">
+             <DialogTitle className="text-center text-xl font-bold">Vista Previa de la Orden</DialogTitle>
         </DialogHeader>
 
         {/* Scrollable area */}
@@ -71,9 +73,9 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                     <p className="text-sm uppercase font-mono">{data.guia || "—"}</p>
                 </div>
                 <div className="flex items-stretch gap-2">
-                   <MetaItem label="File" value={data.file} className="w-[25%]" />
-                   <MetaItem label="Ref" value={data.ref} className="flex-grow" />
-                   <MetaItem label="Nº Pax" value={data.nPax} className="w-[20%]" />
+                   <MetaItem label="File" value={data.file} />
+                   <MetaItem label="Ref" value={data.ref} />
+                   <MetaItem label="Nº Pax" value={data.nPax} />
                 </div>
                 <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2">
                     <p className="text-sm font-semibold uppercase tracking-wide text-primary">HOTEL:</p>
@@ -84,7 +86,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
             {/* Services */}
             <div className="px-6">
               <div className="rounded-xl border border-primary/20 overflow-hidden">
-                <Table>
+                <Table className="table-fixed">
                   <TableHeader>
                     <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
                       <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[86px]">Fecha</TableHead>
@@ -98,11 +100,11 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {services.length ? (
+                    {services.length > 0 ? (
                       services.map((s, i) => {
                         const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
                         return (
-                          <TableRow key={i} className={cn("font-mono text-[11px] uppercase", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
+                          <TableRow key={i} className={cn("font-mono text-[11px] uppercase break-words", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
                              <TableCell className="p-1 align-top border-r border-primary/10 text-center">
                                {showDate && s.fecha ? (
                                 <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-[10px] text-primary">
@@ -150,7 +152,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
   return (
-    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2", className)}>
+    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2 flex-1", className)}>
       <p className="text-sm font-semibold uppercase tracking-wide text-primary">{label}:</p>
       <p className="text-sm uppercase font-mono">{value || "—"}</p>
     </div>
