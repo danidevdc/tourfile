@@ -141,126 +141,111 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
   // --- UI -----------------------------------------------------------------
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-full p-0 overflow-hidden">
+      <DialogContent className="max-w-4xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
         <DialogHeader className="sr-only">
           <DialogTitle>Vista Previa de la Orden de Servicio</DialogTitle>
         </DialogHeader>
 
-        {/* Printable area */}
-        <div ref={previewRef} className="bg-white text-zinc-900">
-          {/* Header */}
-          <div className="relative">
-            <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
-            <div className="px-6 pt-4 pb-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-primary/10 grid place-items-center">
-                  <Share2 className="h-5 w-5 text-primary" />
+        {/* Scrollable area */}
+        <div className="flex-grow overflow-y-auto">
+          <div ref={previewRef} className="bg-white text-zinc-900">
+            {/* Header */}
+            <div className="relative">
+              <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
+              <div className="px-6 pt-4 pb-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-xl bg-primary/10 grid place-items-center">
+                    <Share2 className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h1 className="text-base font-semibold tracking-wider uppercase text-zinc-800">Orden de Servicios</h1>
+                    <p className="text-xs text-muted-foreground">Emitida para guías y choferes</p>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-base font-semibold tracking-wider uppercase text-zinc-800">Orden de Servicios</h1>
-                  <p className="text-xs text-muted-foreground">Emitida para guías y choferes</p>
-                </div>
+                <Badge variant="secondary" className="rounded-full px-3 py-1 text-[10px] uppercase tracking-wide">{orderName}</Badge>
               </div>
-              <Badge variant="secondary" className="rounded-full px-3 py-1 text-[10px] uppercase tracking-wide">{orderName}</Badge>
-            </div>
-            <Separator />
-          </div>
-
-          {/* Meta card */}
-          <div className="m-6 space-y-2">
-            {/* Fila 1: Guía - Centered */}
-            <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">GUÍA:</p>
-              <p className="text-xs uppercase font-mono">{data.guia || "—"}</p>
-            </div>
-            
-            {/* Fila 2: File, Ref, Pax */}
-            <div className="flex items-stretch gap-2">
-              <MetaItem label="File" value={data.file} className="w-[25%]" />
-              <MetaItem label="Ref" value={data.ref} className="flex-grow" />
-              <MetaItem label="Nº Pax" value={data.nPax} className="w-[20%]" />
+              <Separator />
             </div>
 
-            {/* Fila 3: Hotel - Centered */}
-            <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">HOTEL:</p>
-              <p className="text-xs uppercase font-mono">{data.hotel || "—"}</p>
+            {/* Meta card */}
+            <div className="m-6 space-y-2">
+              <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2 h-[58px]">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">GUÍA:</p>
+                <p className="text-xs uppercase font-mono">{data.guia || "—"}</p>
+              </div>
+              <div className="flex items-stretch gap-2 h-[58px]">
+                <MetaItem label="File" value={data.file} className="w-[25%]" />
+                <MetaItem label="Ref" value={data.ref} className="flex-grow" />
+                <MetaItem label="Nº Pax" value={data.nPax} className="w-[20%]" />
+              </div>
+              <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2 h-[58px]">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">HOTEL:</p>
+                <p className="text-xs uppercase font-mono">{data.hotel || "—"}</p>
+              </div>
             </div>
-          </div>
 
-          {/* Services */}
-          <div className="px-6">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-semibold tracking-wider uppercase text-primary">Detalle de Servicios</h2>
-            </div>
-            <div className="rounded-xl border border-primary/20 overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
-                    <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[86px]">Fecha</TableHead>
-                    <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[64px]">Hora</TableHead>
-                    <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px]">Servicio</TableHead>
-                    <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[80px]">Vuelo</TableHead>
-                    <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[96px]">Guía</TableHead>
-                    <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px]">Bus</TableHead>
-                    <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[96px]">Chofer</TableHead>
-                    <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-[11px]">Observaciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {services.length ? (
-                    services.map((s, i) => {
-                      const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
-                      return (
-                        <TableRow key={i} className={cn("font-mono text-[11px] uppercase border-b-primary/20", i % 2 === 0 ? "bg-white" : "bg-zinc-50") }>
-                          <TableCell className="p-1 align-top border-r border-primary/10">
-                            {showDate ? (
-                              <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-[10px] text-primary">
-                                {s.fecha}
-                              </span>
-                            ) : (
-                              ""
-                            )}
-                          </TableCell>
-                          <TableCell className="p-1 align-top border-r border-primary/10"><span className="rounded px-1 py-0.5 border text-[10px]">{s.hora}</span></TableCell>
-                          <TableCell className="p-1 align-top border-r border-primary/10">{s.servicio}</TableCell>
-                          <TableCell className="p-1 align-top border-r border-primary/10">{s.vuelo}</TableCell>
-                          <TableCell className="p-1 align-top border-r border-primary/10">{s.guia}</TableCell>
-                          <TableCell className="p-1 align-top border-r border-primary/10">{s.bus}</TableCell>
-                          <TableCell className="p-1 align-top border-r border-primary/10">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
-                          <TableCell className="p-1 align-top">{s.observaciones}</TableCell>
-                        </TableRow>
-                      );
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center text-muted-foreground uppercase font-mono">No hay servicios en esta orden.</TableCell>
+            {/* Services */}
+            <div className="px-6">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-sm font-semibold tracking-wider uppercase text-primary">Detalle de Servicios</h2>
+              </div>
+              <div className="rounded-xl border border-primary/20 overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[86px]">Fecha</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[56px]">Hora</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px]">Servicio</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px]">Vuelo</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[150px]">Guía</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px]">Bus</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[80px]">Chofer</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-[11px]">Observaciones</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {services.length ? (
+                      services.map((s, i) => {
+                        const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
+                        return (
+                          <TableRow key={i} className={cn("font-mono text-[11px] uppercase", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
+                            <TableCell className="p-1 align-top border-r border-primary/10 text-center">
+                              {showDate && s.fecha ? (
+                                <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-[10px] text-primary">
+                                  {s.fecha}
+                                </span>
+                              ) : ("")}
+                            </TableCell>
+                            <TableCell className="p-1 align-top border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border text-[10px]">{s.hora}</span></TableCell>
+                            <TableCell className="p-1 align-top border-r border-primary/10">{s.servicio}</TableCell>
+                            <TableCell className="p-1 align-top border-r border-primary/10 text-center">{s.vuelo}</TableCell>
+                            <TableCell className="p-1 align-top border-r border-primary/10 text-center">{s.guia}</TableCell>
+                            <TableCell className="p-1 align-top border-r border-primary/10 text-center">{s.bus}</TableCell>
+                            <TableCell className="p-1 align-top border-r border-primary/10 text-center">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
+                            <TableCell className="p-1 align-top">{s.observaciones}</TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={8} className="h-24 text-center text-muted-foreground uppercase font-mono">No hay servicios en esta orden.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-          </div>
 
-          {/* Observaciones / Nota */}
-          <div className="px-6 py-4 grid grid-cols-1 gap-4">
-            <InfoBlock title="Observaciones" text={data.observations} />
-            <InfoBlock title="Nota" text={data.nota} subtle />
-          </div>
-
-          {/* Footer with signature lines */}
-          <div className="px-6 pb-6">
-            <Separator className="my-4" />
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-[11px] uppercase font-mono">
-              <SignatureLine label="Guía" name={data.guia} />
-              <SignatureLine label="Chofer" />
-              <SignatureLine label="Autorizado por" />
+            {/* Observaciones / Nota */}
+            <div className="px-6 py-4 grid grid-cols-1 gap-4">
+              <InfoBlock title="Observaciones" text={data.observations} />
+              <InfoBlock title="Nota" text={data.nota} subtle />
             </div>
           </div>
         </div>
 
         {/* Actions bar (not captured) */}
-        <DialogFooter className="sticky bottom-0 z-10 gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-3">
+        <DialogFooter className="sticky bottom-0 z-10 gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-3 mt-auto">
           <Button onClick={handleShareToWhatsApp} disabled={isProcessing} variant="outline" className="border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700">
             {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WhatsAppIcon />}
             Enviar por WhatsApp
@@ -292,15 +277,6 @@ function InfoBlock({ title, text, subtle = false }: { title: string; text?: stri
     <div className={cn("rounded-xl border p-3", subtle ? "bg-muted/40 border-dashed" : "bg-muted/20") }>
       <p className="text-[10px] font-semibold uppercase tracking-wide text-primary mb-1">{title}:</p>
       <p className="text-[11px] uppercase font-mono whitespace-pre-wrap leading-5">{text || "—"}</p>
-    </div>
-  );
-}
-
-function SignatureLine({ label, name }: { label: string; name?: string }) {
-  return (
-    <div className="flex flex-col items-center justify-end gap-1">
-      <div className="h-10 w-full border-b" />
-      <p className="text-[10px] tracking-widest">{label}{name ? `: ${name}` : ""}</p>
     </div>
   );
 }
