@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ListOrdered, Share2 } from 'lucide-react';
+import { ListOrdered } from 'lucide-react';
 
 
 interface ServiceOrderPDFLayoutProps {
@@ -48,16 +48,16 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
             </div>
 
             <div className="m-6 space-y-2">
-                <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2 h-[58px]">
+                <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2">
                     <p className="text-sm font-semibold uppercase tracking-wide text-primary">GUÍA:</p>
                     <p className="text-sm uppercase font-mono">{data.guia || "—"}</p>
                 </div>
-                <div className="flex items-stretch gap-2 h-[58px]">
+                <div className="flex items-stretch gap-2">
                     <MetaItem label="File" value={data.file} className="w-[25%]" />
                     <MetaItem label="Ref" value={data.ref} className="flex-grow" />
                     <MetaItem label="Nº Pax" value={data.nPax} className="w-[20%]" />
                 </div>
-                <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2 h-[58px]">
+                <div className="rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2">
                     <p className="text-sm font-semibold uppercase tracking-wide text-primary">HOTEL:</p>
                     <p className="text-sm uppercase font-mono">{data.hotel || "—"}</p>
                 </div>
@@ -120,9 +120,9 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
 
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
     return (
-        <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2", className)}>
-            <p className="text-sm font-semibold uppercase tracking-wide text-primary">{label}</p>
-            <p className="mt-0.5 text-sm uppercase font-mono">{value || "—"}</p>
+        <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2", className)}>
+            <p className="text-sm font-semibold uppercase tracking-wide text-primary">{label}:</p>
+            <p className="text-sm uppercase font-mono">{value || "—"}</p>
         </div>
     );
 }
