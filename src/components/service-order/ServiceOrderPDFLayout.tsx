@@ -63,12 +63,12 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                             <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
                                 <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[86px] text-center align-middle">Fecha</TableHead>
                                 <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[56px] text-center align-middle">Hora</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] text-center align-middle">Servicio</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] text-left align-middle">Servicio</TableHead>
                                 <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px] text-center align-middle">Vuelo</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[150px] text-center align-middle">Guía</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[100px] text-center align-middle">Guía</TableHead>
                                 <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[70px] text-center align-middle">Bus</TableHead>
                                 <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] w-[80px] text-center align-middle">Chofer</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-[11px] text-center align-middle">Observaciones</TableHead>
+                                <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-[11px] text-left align-middle">Observaciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -84,12 +84,12 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                                             ) : ("")}
                                         </TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border text-[10px]">{s.hora}</span></TableCell>
-                                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.servicio}</TableCell>
+                                        <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo}</TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.guia}</TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
-                                        <TableCell className="p-1 align-middle text-center">{s.observaciones}</TableCell>
+                                        <TableCell className="p-1 align-middle text-left">{s.observaciones}</TableCell>
                                     </TableRow>
                                 );
                             }) : (
