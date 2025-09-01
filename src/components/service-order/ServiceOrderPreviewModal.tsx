@@ -30,7 +30,7 @@ const WhatsAppIcon = () => (
   </svg>
 );
 
-export default function ServiceOrderPreviewModalV2({ order, onClose }: ServiceOrderPreviewModalProps) {
+export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreviewModalProps) {
   const { data, orderName } = order;
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
