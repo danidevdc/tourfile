@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Combobox, ComboboxOption } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, X } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 interface ServiceOrderEditModalProps {
   order: StoredServiceOrder;
