@@ -60,6 +60,7 @@ export function Combobox({ options, value, onSelect, placeholder, notFoundMessag
         side="bottom" 
         align="start" 
         sideOffset={5}
+        avoidCollisions={false} // Allow scrolling over the popover
         collisionPadding={8} // Prevent flipping
       >
         <Command>
@@ -92,5 +93,3 @@ export function Combobox({ options, value, onSelect, placeholder, notFoundMessag
     </Popover>
   )
 }
-
-    
