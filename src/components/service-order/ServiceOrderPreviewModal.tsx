@@ -55,15 +55,15 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-6xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
         <DialogHeader className="p-0">
-            <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
+           <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-grow overflow-y-auto px-6 pt-6">
-          <div className="bg-white text-zinc-900">
+          <div className="bg-white text-zinc-900 font-mono uppercase">
             <div className="relative">
               <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
-               <div className="px-6 pt-4 pb-3 flex items-center justify-center font-mono" style={{fontSize: '12px'}}>
-                 <h1 className="font-bold uppercase">ORDEN DE SERVICIO</h1>
+               <div className="px-6 pt-4 pb-3 flex items-center justify-center font-bold" style={{fontSize: '12px'}}>
+                 <h1>ORDEN DE SERVICIO</h1>
               </div>
               <Separator />
             </div>
@@ -86,15 +86,15 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
               <div className="rounded-xl border border-primary/20 overflow-hidden">
                 <Table className="table-fixed">
                   <TableHeader>
-                    <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase h-auto">
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono h-auto w-[86px] text-center align-middle" style={{fontSize: '11px'}}>Fecha</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono h-auto w-[56px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono h-auto text-left align-middle" style={{fontSize: '11px'}}>Servicio</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono h-auto w-[100px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono h-auto w-[80px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 font-mono h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
+                    <TableRow className="bg-primary/10 hover:bg-primary/10 h-auto">
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto w-[86px] text-center align-middle" style={{fontSize: '11px'}}>Fecha</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto w-[56px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px'}}>Servicio</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto w-[100px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto w-[80px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -105,27 +105,27 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                         const rowBgClass = colorGroup % 2 === 0 ? "bg-white" : "bg-zinc-50";
 
                         return (
-                          <TableRow key={i} className={cn("uppercase break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
+                          <TableRow key={i} className={cn("break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                                {showDate && s.fecha ? (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-primary font-mono">
+                                <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-primary">
                                   {s.fecha}
                                 </span>
                               ) : ("")}
                              </TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border font-mono">{s.hora}</span></TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-left font-mono">{s.servicio}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">{s.vuelo || "—"}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">{s.guia}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">{s.bus}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
-                             <TableCell className="p-1 align-middle text-left font-mono">{s.observaciones}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border">{s.hora}</span></TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.guia}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
+                             <TableCell className="p-1 align-middle text-left">{s.observaciones}</TableCell>
                           </TableRow>
                         );
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={8} className="h-24 text-center text-muted-foreground uppercase font-mono">No hay servicios en esta orden.</TableCell>
+                        <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">No hay servicios en esta orden.</TableCell>
                       </TableRow>
                     )}
                   </TableBody>
@@ -152,9 +152,9 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
   return (
-    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2 font-mono", className)} style={{fontSize: '12px'}}>
-      <p className="font-bold uppercase text-primary">{label}</p>
-      <p className="uppercase">{value || "—"}</p>
+    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2", className)} style={{fontSize: '12px'}}>
+      <p className="font-bold text-primary">{label}</p>
+      <p>{value || "—"}</p>
     </div>
   );
 }
@@ -162,8 +162,8 @@ function MetaItem({ label, value, className }: { label: string; value?: string |
 function InfoBlock({ title, text, subtle = false }: { title: string; text?: string; subtle?: boolean }) {
   return (
     <div className={cn("rounded-xl border p-2", subtle ? "bg-muted/40 border-dashed" : "bg-card/20")}>
-      <p className="font-mono uppercase tracking-wide text-primary mb-1 font-bold" style={{fontSize: '10px'}}>{title}</p>
-      <p className="uppercase font-mono whitespace-pre-wrap leading-5" style={{fontSize: '10px'}}>{text || "—"}</p>
+      <p className="tracking-wide mb-1 font-bold" style={{fontSize: '10px'}}>{title}</p>
+      <p className="whitespace-pre-wrap leading-5" style={{fontSize: '10px'}}>{text || "—"}</p>
     </div>
   );
 }
