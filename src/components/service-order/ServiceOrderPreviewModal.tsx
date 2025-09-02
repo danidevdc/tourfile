@@ -7,12 +7,11 @@ import { parse } from "date-fns";
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ListOrdered } from 'lucide-react';
-import { DialogClose } from "@/components/ui/dialog";
 
 
 interface ServiceOrderPreviewModalProps {
@@ -22,7 +21,7 @@ interface ServiceOrderPreviewModalProps {
 
 
 export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreviewModalProps) {
-  const { data, orderName } = order;
+  const { data } = order;
 
   const services = useMemo(() => {
     const list = [...data.services].sort((a, b) => {
@@ -40,11 +39,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-6xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
-        <DialogHeader className="p-6 pb-2 text-center">
-             <DialogTitle className="text-center text-xl font-bold">Orden de Servicio</DialogTitle>
-        </DialogHeader>
-
-        <div className="flex-grow overflow-y-auto px-6">
+        <div className="flex-grow overflow-y-auto px-6 pt-6">
           <div className="bg-white text-zinc-900">
             <div className="relative">
               <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
@@ -64,7 +59,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
             <div className="m-6 space-y-2">
                 <MetaItem label="Guía" value={data.guia} />
                  <div className="flex items-stretch gap-2">
-                   <MetaItem label="File" value={data.file} className="flex-none w-48" />
+                   <MetaItem label="File" value={data.file} className="flex-none w-32" />
                    <MetaItem label="Ref" value={data.ref} className="flex-1" />
                    <MetaItem label="Nº Pax" value={data.nPax} className="flex-none w-32" />
                 </div>
@@ -91,7 +86,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                       services.map((s, i) => {
                         const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
                         return (
-                          <TableRow key={i} className={cn("font-mono text-[11px] uppercase break-words align-middle h-auto", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
+                          <TableRow key={i} className={cn("font-mono text-[12px] uppercase break-words align-middle h-[34px]", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                                {showDate && s.fecha ? (
                                 <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-[10px] text-primary">
@@ -99,7 +94,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                                 </span>
                               ) : ("")}
                              </TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border text-[10px]">{s.hora}</span></TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border text-[11px]">{s.hora}</span></TableCell>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.guia}</TableCell>
