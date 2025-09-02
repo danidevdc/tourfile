@@ -37,7 +37,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Header />
-          <main>
+          <main className="pt-20 md:pt-24">
             <ProtectedRoute>{children}</ProtectedRoute> {/* Wrap children with ProtectedRoute */}
           </main>
           <Toaster />
