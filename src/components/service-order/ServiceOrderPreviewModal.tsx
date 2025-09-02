@@ -7,7 +7,7 @@ import { parse } from "date-fns";
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
 
-import { Dialog, DialogContent, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogClose, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -39,6 +39,10 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-6xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
+        <DialogHeader className="p-0">
+            <DialogTitle className="sr-only">Vista Previa de Orden de Servicio</DialogTitle>
+        </DialogHeader>
+
         <div className="flex-grow overflow-y-auto px-6 pt-6">
           <div className="bg-white text-zinc-900">
             <div className="relative">
@@ -135,7 +139,7 @@ function MetaItem({ label, value, className }: { label: string; value?: string |
   return (
     <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2", className)}>
       <p className="text-xs font-mono uppercase text-primary">{label}:</p>
-      <p className="text-xs uppercase font-mono">{value || "—"}</p>
+      <p className="text-xs font-mono uppercase">{value || "—"}</p>
     </div>
   );
 }
