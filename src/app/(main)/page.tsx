@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -6,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FileSpreadsheet, ArrowRight, ClipboardList, Settings, Plane } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth"; 
-import { version } from '../../package.json';
+import { version } from '../../../package.json';
 
 export default function HomePage() {
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth(); 
