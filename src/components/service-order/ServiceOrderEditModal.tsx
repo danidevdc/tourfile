@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -163,6 +164,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
                   const currentDriverOptions = driverOptionsForBusType(s.bus);
                   
                   const guideForThisRow = s.guia || editableOrderData.guia;
+                  const guiaFirstName = (guideForThisRow || '').split(' ')[0];
                   const choferFirstName = (s.chofer || '').split(' ')[0];
 
 
@@ -198,7 +200,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
                                 triggerClassName="bg-card/80"
                             />
                          ) : (
-                            guideForThisRow
+                            guiaFirstName
                          )}
                       </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
