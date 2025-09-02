@@ -37,7 +37,7 @@ export default function RootLayout({
         >
           <Header />
           <main>
-            <ProtectedRoute>{children}</ProtectedRoute> {/* Wrap children with ProtectedRoute */}
+            <ProtectedRoute>{children}</ProtectedRoute>
           </main>
           <Toaster />
         </ThemeProvider>
