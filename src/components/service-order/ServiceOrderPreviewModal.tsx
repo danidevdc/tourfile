@@ -64,7 +64,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
         <div className="m-6 space-y-2">
             <div className="grid grid-cols-1 gap-2">
-                <MetaItem label="Guía:" value={data.guia} />
+                <MetaItem label="Guía:" value={(data.guia || '').split(' ')[0]} />
             </div>
             <div className="flex items-stretch gap-2">
                <MetaItem label="File:" value={data.file} className="flex-none w-32" />
@@ -98,6 +98,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                     const colorGroup = dateColorGroupMap.get(s.fecha) || 0;
                     const rowBgClass = colorGroup % 2 === 0 ? "bg-white" : "bg-zinc-100";
                     const guiaCompleto = s.guia || data.guia;
+                    const guiaFirstName = (guiaCompleto || '').split(' ')[0];
                     const choferCompleto = s.chofer || '';
 
                     return (
@@ -112,7 +113,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border">{s.hora}</span></TableCell>
                          <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
-                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{guiaCompleto}</TableCell>
+                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{guiaFirstName}</TableCell>
                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{choferCompleto.replace(/^CONT\s/i, "")}</TableCell>
                          <TableCell className="p-1 align-middle text-left">{s.observaciones}</TableCell>
@@ -230,7 +231,7 @@ export function ServiceOrderPrintPage() {
   
           <div className="m-6 space-y-2">
               <div className="grid grid-cols-1 gap-2">
-                  <MetaItem label="Guía:" value={order.data.guia} />
+                  <MetaItem label="Guía:" value={(order.data.guia || '').split(' ')[0]} />
               </div>
               <div className="flex items-stretch gap-2">
                  <MetaItem label="File:" value={order.data.file} className="flex-none w-32" />
@@ -262,6 +263,7 @@ export function ServiceOrderPrintPage() {
                      order.data.services.map((s, i) => {
                       const showDate = i === 0 || order.data.services[i - 1].fecha !== s.fecha;
                       const guiaCompleto = s.guia || order.data.guia;
+                      const guiaFirstName = (guiaCompleto || '').split(' ')[0];
                       const choferCompleto = s.chofer || '';
 
                       return (
@@ -270,7 +272,7 @@ export function ServiceOrderPrintPage() {
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.hora}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
-                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{guiaCompleto}</TableCell>
+                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{guiaFirstName}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{choferCompleto.replace(/^CONT\s/i, "")}</TableCell>
                            <TableCell className="p-1 align-middle text-left">{s.observaciones}</TableCell>
