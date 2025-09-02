@@ -1,18 +1,18 @@
 
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { parse } from "date-fns";
 
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ListOrdered } from 'lucide-react';
+import { DialogClose } from "@/components/ui/dialog";
 
 
 interface ServiceOrderPreviewModalProps {
@@ -41,7 +41,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-6xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
         <DialogHeader className="p-6 pb-2 text-center">
-             <DialogTitle className="text-center text-xl font-bold">Vista Previa de la Orden</DialogTitle>
+             <DialogTitle className="text-center text-xl font-bold">Orden de Servicio</DialogTitle>
         </DialogHeader>
 
         <div className="flex-grow overflow-y-auto px-6">
@@ -57,7 +57,6 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                     <h1 className="text-base font-semibold tracking-wider uppercase text-zinc-800">Orden de Servicios</h1>
                   </div>
                 </div>
-                <Badge variant="secondary" className="rounded-full px-3 py-1 text-[10px] uppercase tracking-wide">{orderName}</Badge>
               </div>
               <Separator />
             </div>
@@ -76,7 +75,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
               <div className="rounded-xl border border-primary/20 overflow-hidden">
                 <Table className="table-fixed">
                   <TableHeader>
-                    <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
+                    <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase h-auto">
                       <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[86px] text-center align-middle">Fecha</TableHead>
                       <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[56px] text-center align-middle">Hora</TableHead>
                       <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto text-left align-middle">Servicio</TableHead>
@@ -129,7 +128,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
         <DialogFooter className="sticky bottom-0 z-10 gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4 mt-auto">
            <DialogClose asChild>
-              <Button type="button" variant="outline" className="w-full">Cerrar</Button>
+              <Button type="button" className="w-full bg-cyan-600 text-white hover:bg-cyan-700">Cerrar</Button>
            </DialogClose>
         </DialogFooter>
       </DialogContent>
@@ -140,8 +139,8 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
   return (
     <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2", className)}>
-      <p className="text-sm font-semibold uppercase tracking-wide text-primary">{label}:</p>
-      <p className="text-sm uppercase font-mono">{value || "—"}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-primary">{label}:</p>
+      <p className="text-xs uppercase font-mono">{value || "—"}</p>
     </div>
   );
 }

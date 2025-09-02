@@ -4,7 +4,6 @@
 import { type StoredServiceOrder } from '@/lib/serviceOrderStorage';
 import { parse } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ListOrdered } from 'lucide-react';
@@ -15,7 +14,7 @@ interface ServiceOrderPDFLayoutProps {
 }
 
 export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
-    const { data, orderName } = order;
+    const { data } = order;
 
     const sortedServices = [...data.services].sort((a, b) => {
         try {
@@ -41,7 +40,6 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                             <h1 className="text-base font-semibold tracking-wider uppercase text-zinc-800">Orden de Servicios</h1>
                         </div>
                     </div>
-                    <Badge variant="secondary" className="rounded-full px-3 py-1 text-[10px] uppercase tracking-wide">{orderName}</Badge>
                 </div>
                 <Separator />
             </div>
@@ -60,7 +58,7 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                 <div className="rounded-xl border border-primary/20 overflow-hidden">
                     <Table className="table-fixed">
                         <TableHeader>
-                            <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase">
+                            <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase h-auto">
                                 <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[86px] text-center align-middle">Fecha</TableHead>
                                 <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[56px] text-center align-middle">Hora</TableHead>
                                 <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto text-left align-middle">Servicio</TableHead>
@@ -113,8 +111,8 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
     return (
         <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2", className)}>
-            <p className="text-sm font-semibold uppercase tracking-wide text-primary">{label}:</p>
-            <p className="text-sm uppercase font-mono">{value || "—"}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">{label}:</p>
+            <p className="text-xs uppercase font-mono">{value || "—"}</p>
         </div>
     );
 }
