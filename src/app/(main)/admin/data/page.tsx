@@ -85,6 +85,21 @@ const BulkUploadButton: React.FC<BulkUploadButtonProps> = ({ dataType, onUpload,
   );
 };
 
+// Helper function to correctly format time from various possible inputs
+const formatFlightTime = (timeValue: any): string => {
+    if (typeof timeValue === 'string') {
+        return timeValue.substring(0, 5);
+    }
+    if (typeof timeValue === 'number' && timeValue > 0 && timeValue < 1) {
+        // Excel time serial number (fraction of a day)
+        const totalSeconds = Math.round(timeValue * 86400);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+    return ''; // Return empty for invalid formats
+};
+
 
 export default function DataManagementPage() {
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
@@ -319,26 +334,10 @@ export default function DataManagementPage() {
               // Skip header row by starting loop at 1
               records = json.slice(1).map((row, rowIndex) => {
                   const rawTimeValue = rawJson[rowIndex + 1] ? rawJson[rowIndex + 1][timeIndex] : undefined;
-                  let formattedTime = String(row[timeIndex] || '').trim();
-
-                  // Check if rawTimeValue is a number (Excel serial date for time)
-                  if (typeof rawTimeValue === 'number' && rawTimeValue > 0 && rawTimeValue < 1) {
-                      // It's an Excel time serial number. Decode it.
-                      const totalSeconds = Math.round(rawTimeValue * 86400);
-                      const hours = Math.floor(totalSeconds / 3600);
-                      const minutes = Math.floor((totalSeconds % 3600) / 60);
-                      formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                  } else if (formattedTime) {
-                      // It's already a string, just ensure HH:mm format
-                      const parts = formattedTime.split(':');
-                      if (parts.length >= 2) {
-                         formattedTime = `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
-                      }
-                  }
-
+                  
                   return {
                       flightNumber: String(row[flightNumIndex] || '').trim().toUpperCase(),
-                      time: formattedTime,
+                      time: formatFlightTime(rawTimeValue ?? row[timeIndex]),
                       observations: String(row[obsIndex] || '').trim()
                   };
               }).filter(f => f.flightNumber && f.time);
@@ -495,7 +494,7 @@ export default function DataManagementPage() {
                     </TableCell>
                     {type === 'flights' && 'time' in item && typeof item.time === 'string' && (
                         <>
-                            <TableCell>{item.time && item.time.length > 5 ? item.time.substring(0, 5) : item.time}</TableCell>
+                            <TableCell>{formatFlightTime(item.time)}</TableCell>
                             <TableCell>{'observations' in item ? item.observations : ''}</TableCell>
                         </>
                     )}
@@ -591,3 +590,4 @@ export default function DataManagementPage() {
     </div>
   );
 }
+
