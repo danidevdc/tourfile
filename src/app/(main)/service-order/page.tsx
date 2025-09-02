@@ -210,8 +210,8 @@ export default function ServiceOrderListPage() {
             return <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">Enviado</Badge>;
         case 'editado':
             return <Badge variant="secondary" className="bg-orange-500 text-white hover:bg-orange-600">Editado</Badge>;
-        default:
-            return <Badge variant="outline">Creado</Badge>;
+        default: // creado
+            return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Creado</Badge>;
     }
   };
 
@@ -305,7 +305,7 @@ export default function ServiceOrderListPage() {
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Se eliminará permanentemente la orden "{orderToDelete.orderName}". Esta acción no se puede deshacer.
+                                                            Se eliminará permanentemente la orden "{orderToDelete.orderName.replace(/_/g, ' ')}". Esta acción no se puede deshacer.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>

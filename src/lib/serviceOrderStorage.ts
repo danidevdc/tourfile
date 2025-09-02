@@ -34,8 +34,17 @@ function getFirstDateFromServices(services: ServiceOrderData['services']): Date 
     if (!services || services.length === 0) {
         return new Date();
     }
+    // Sort services by date and time to find the earliest one reliably
+    const sortedServices = [...services].sort((a, b) => {
+        try {
+            const dateA = parse(a.fecha, 'dd/MM/yyyy', new Date()).getTime();
+            const dateB = parse(b.fecha, 'dd/MM/yyyy', new Date()).getTime();
+            if (dateA !== dateB) return dateA - dateB;
+        } catch {}
+        return a.hora.localeCompare(b.hora);
+    });
     try {
-        const firstServiceDate = services[0].fecha;
+        const firstServiceDate = sortedServices[0].fecha;
         return parse(firstServiceDate, 'dd/MM/yyyy', new Date());
     } catch (e) {
         console.error("Could not parse date from service, falling back to today.", e);
@@ -90,7 +99,7 @@ export async function updateServiceOrder(orderId: string, orderData: ServiceOrde
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
     const orderRef = doc(db, 'serviceOrders', orderId);
-    await updateDoc(orderRef, { status });
+    await updateDoc(orderRef, { status: status, updatedAt: serverTimestamp() });
 }
 
 
@@ -108,18 +117,12 @@ export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
         const createdAt = (data.createdAt as Timestamp)?.toDate();
         const updatedAt = (data.updatedAt as Timestamp)?.toDate();
         
-        let status: OrderStatus = data.status || 'creado';
-        // Logic to determine 'editado' status if not explicitly set
-        if (status === 'creado' && updatedAt && createdAt && updatedAt.getTime() > createdAt.getTime() + 10000) { // 10s grace period
-             status = 'editado';
-        }
-
         return {
             id: doc.id,
             ...data,
             createdAt: createdAt,
             updatedAt: updatedAt,
-            status: status
+            status: data.status || 'creado' // Directly use the status from Firestore or default to 'creado'
         } as StoredServiceOrder;
     });
 }
