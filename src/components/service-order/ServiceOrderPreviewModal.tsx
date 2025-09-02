@@ -87,7 +87,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[90px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
+                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[85px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -100,6 +100,8 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                     const guiaCompleto = s.guia || data.guia;
                     const guiaFirstName = (guiaCompleto || '').split(' ')[0];
                     const choferCompleto = s.chofer || '';
+                    const choferFirstName = choferCompleto.split(' ')[0];
+
 
                     return (
                       <TableRow key={i} className={cn("break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
@@ -115,7 +117,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{guiaFirstName}</TableCell>
                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
-                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{choferCompleto.replace(/^CONT\s/i, "")}</TableCell>
+                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{choferFirstName}</TableCell>
                          <TableCell className="p-1 align-middle text-left">{s.observaciones}</TableCell>
                       </TableRow>
                     );
@@ -254,7 +256,7 @@ export function ServiceOrderPrintPage() {
                     <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
                     <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[90px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
                     <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
-                    <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
+                    <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[85px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
                     <TableHead className="text-primary font-bold py-1 px-2 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -265,6 +267,7 @@ export function ServiceOrderPrintPage() {
                       const guiaCompleto = s.guia || order.data.guia;
                       const guiaFirstName = (guiaCompleto || '').split(' ')[0];
                       const choferCompleto = s.chofer || '';
+                      const choferFirstName = choferCompleto.split(' ')[0];
 
                       return (
                         <TableRow key={i} className="break-words align-middle h-8" style={{fontSize: '11px'}}>
@@ -274,7 +277,7 @@ export function ServiceOrderPrintPage() {
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{guiaFirstName}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
-                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{choferCompleto.replace(/^CONT\s/i, "")}</TableCell>
+                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{choferFirstName}</TableCell>
                            <TableCell className="p-1 align-middle text-left">{s.observaciones}</TableCell>
                         </TableRow>
                       );
