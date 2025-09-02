@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { parse } from "date-fns";
 import { StoredServiceOrder } from "@/lib/serviceOrderStorage";
-import { ServiceOrderData, ServiceItem, ServiceOrderGuide, Activity, Driver } from "@/lib/serviceOrderService";
+import { ServiceOrderData, ServiceItem, ServiceOrderGuide, Activity, Driver, PredefinedFlight } from "@/lib/serviceOrderService";
 import { cn } from "@/lib/utils";
 
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -23,6 +23,7 @@ interface ServiceOrderEditModalProps {
   guides: ServiceOrderGuide[];
   activities: Activity[];
   drivers: Driver[];
+  flights: PredefinedFlight[];
   onSave: (updatedOrderData: ServiceOrderData, isSplitOrder: boolean) => void;
   onClose: () => void;
 }
@@ -36,7 +37,7 @@ function MetaItem({ label, value, className }: { label: string; value?: string |
   );
 }
 
-export function ServiceOrderEditModal({ order, guides, activities, drivers, onSave, onClose }: ServiceOrderEditModalProps) {
+export function ServiceOrderEditModal({ order, guides, activities, drivers, flights, onSave, onClose }: ServiceOrderEditModalProps) {
   const [editableOrderData, setEditableOrderData] = useState<ServiceOrderData>(JSON.parse(JSON.stringify(order.data)));
   const [isSplitMode, setIsSplitMode] = useState(false);
 
@@ -47,6 +48,15 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
   const handleServiceChange = (index: number, field: keyof ServiceItem, value: string) => {
     const updatedServices = [...editableOrderData.services];
     updatedServices[index] = { ...updatedServices[index], [field]: value };
+
+    if (field === 'vuelo') {
+        const selectedFlight = flights.find(f => f.flightNumber.toUpperCase() === value.toUpperCase());
+        if (selectedFlight) {
+            updatedServices[index].hora = selectedFlight.time;
+            updatedServices[index].observaciones = selectedFlight.observations;
+        }
+    }
+
     setEditableOrderData(prev => ({ ...prev, services: updatedServices }));
   };
 
@@ -96,6 +106,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
 
   const globalGuideOptions: ComboboxOption[] = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
   const activityOptions: ComboboxOption[] = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
+  const flightOptions: ComboboxOption[] = flights.map(f => ({ value: f.flightNumber.toUpperCase(), label: `${f.flightNumber} (${f.time})` }));
   const ownDrivers = drivers.filter(d => !d.name.startsWith('CONT '));
   const externalDrivers = drivers.filter(d => d.name.startsWith('CONT '));
   const driverOptionsForBusType = (busType: string | undefined): ComboboxOption[] => {
@@ -148,7 +159,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[86px] text-center align-middle" style={{fontSize: '11px'}}>Fecha</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[56px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px'}}>Servicio</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
+                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[120px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[90px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
@@ -180,7 +191,13 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
                           </span>
                         ) : null}
                       </TableCell>
-                      <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border">{s.hora}</span></TableCell>
+                      <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
+                         <Input
+                          value={s.hora || ''}
+                          onChange={(e) => handleServiceChange(originalIndex, 'hora', e.target.value)}
+                          className="h-8 text-xs bg-card/80 text-center"
+                        />
+                      </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-left">
                         <Combobox
                           options={activityOptions}
@@ -191,7 +208,16 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
                           triggerClassName="bg-card/80"
                         />
                       </TableCell>
-                      <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
+                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
+                        <Combobox
+                            options={flightOptions}
+                            value={s.vuelo || ''}
+                            onSelect={(value) => handleServiceChange(originalIndex, 'vuelo', value)}
+                            placeholder="Vuelo..."
+                            className="h-8 text-xs"
+                            triggerClassName="bg-card/80"
+                        />
+                      </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium">
                          {isSplitMode ? (
                             <Combobox

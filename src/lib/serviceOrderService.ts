@@ -44,6 +44,13 @@ export interface Guide {
   lastName: string;
 }
 
+export interface PredefinedFlight {
+  id: string;
+  flightNumber: string;
+  time: string;
+  observations: string;
+}
+
 export interface ServiceOrderGuide extends Guide {
   fullName: string;
 }
@@ -124,6 +131,16 @@ export async function getDriversFromFirestore(): Promise<Driver[]> {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export async function getFlightsFromFirestore(): Promise<PredefinedFlight[]> {
+  if (!db) throw new Error("Firestore not initialized.");
+  const flightsRef = collection(db, 'flights');
+  const snapshot = await getDocs(flightsRef);
+  if (snapshot.empty) return [];
+  return snapshot.docs.map(doc => ({ 
+    id: doc.id, 
+    ...(doc.data() as Omit<PredefinedFlight, 'id'>)
+  } as PredefinedFlight)).sort((a, b) => a.flightNumber.localeCompare(b.flightNumber));
+}
 
 // --- Data Creation Functions (Single) ---
 
@@ -131,6 +148,7 @@ export const createGuide = (guide: {firstName: string, lastName: string}) => add
 export const createHotel = (name: string) => addDoc(collection(db!, 'hotels'), { name });
 export const createActivity = (name: string) => addDoc(collection(db!, 'activities'), { name });
 export const createDriver = (name: string) => addDoc(collection(db!, 'drivers'), { name });
+export const createFlight = (flight: Omit<PredefinedFlight, 'id'>) => addDoc(collection(db!, 'flights'), flight);
 
 // --- Data Creation Functions (Bulk) ---
 const createBulk = async (collectionName: string, records: { [key: string]: any }[]) => {
@@ -148,6 +166,7 @@ export const createBulkGuides = (guides: {firstName: string, lastName: string}[]
 export const createBulkHotels = (hotels: {name: string}[]) => createBulk('hotels', hotels);
 export const createBulkActivities = (activities: {name: string}[]) => createBulk('activities', activities);
 export const createBulkDrivers = (drivers: {name: string}[]) => createBulk('drivers', drivers);
+export const createBulkFlights = (flights: Omit<PredefinedFlight, 'id'>[]) => createBulk('flights', flights);
 
 
 // --- Data Deletion Functions ---
@@ -156,6 +175,7 @@ export const deleteGuide = (id: string) => deleteDoc(doc(db!, 'guides', id));
 export const deleteHotel = (id: string) => deleteDoc(doc(db!, 'hotels', id));
 export const deleteActivity = (id: string) => deleteDoc(doc(db!, 'activities', id));
 export const deleteDriver = (id: string) => deleteDoc(doc(db!, 'drivers', id));
+export const deleteFlight = (id: string) => deleteDoc(doc(db!, 'flights', id));
 
 
 // --- AI/Learning Functions ---

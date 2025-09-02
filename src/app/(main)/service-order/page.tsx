@@ -32,7 +32,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOrderGeneratorSheet";
 import { ServiceOrderEditModal } from "@/components/service-order/ServiceOrderEditModal";
 import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPreviewModal";
-import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity } from "@/lib/serviceOrderService";
+import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity, type PredefinedFlight } from "@/lib/serviceOrderService";
 
 
 const defaultObsText = 'LA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
@@ -55,6 +55,7 @@ export default function ServiceOrderListPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [flights, setFlights] = useState<PredefinedFlight[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -76,18 +77,20 @@ export default function ServiceOrderListPage() {
   const fetchOrders = async () => {
     setIsLoading(true);
     try {
-      const [fetchedOrders, fetchedGuides, fetchedDrivers, fetchedHotels, fetchedActivities] = await Promise.all([
+      const [fetchedOrders, fetchedGuides, fetchedDrivers, fetchedHotels, fetchedActivities, fetchedFlights] = await Promise.all([
         getAllServiceOrders(),
         getGuidesFromFirestore(),
         getDriversFromFirestore(),
         getHotelsFromFirestore(),
         getActivitiesFromFirestore(),
+        getFlightsFromFirestore(),
       ]);
       setOrders(fetchedOrders);
       setGuides(fetchedGuides);
       setDrivers(fetchedDrivers);
       setHotels(fetchedHotels);
       setActivities(fetchedActivities);
+      setFlights(fetchedFlights);
     } catch (error) {
       toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
     } finally {
@@ -406,6 +409,7 @@ export default function ServiceOrderListPage() {
             guides={guides}
             activities={activities}
             drivers={drivers}
+            flights={flights}
             onSave={handleSaveFromEditModal}
             onClose={() => {
               setIsEditModalOpen(false);

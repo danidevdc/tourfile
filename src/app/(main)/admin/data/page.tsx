@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useRef, type ChangeEvent } from 'react';
@@ -10,15 +11,16 @@ import {
   createDriver, deleteDriver, getDriversFromFirestore,
   createActivity, deleteActivity, getActivitiesFromFirestore,
   createGuide, deleteGuide, getGuidesFromFirestore,
-  createBulkGuides, createBulkHotels, createBulkDrivers, createBulkActivities,
-  type Hotel, type Driver, type Activity, type ServiceOrderGuide
+  createFlight, deleteFlight, getFlightsFromFirestore,
+  createBulkGuides, createBulkHotels, createBulkDrivers, createBulkActivities, createBulkFlights,
+  type Hotel, type Driver, type Activity, type ServiceOrderGuide, type PredefinedFlight
 } from '@/lib/serviceOrderService';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ArrowLeft, Trash2, PlusCircle, Hotel as HotelIcon, Car, ListChecks, UserSquare, Upload, AlertTriangle } from 'lucide-react';
+import { Loader2, ArrowLeft, Trash2, PlusCircle, Hotel as HotelIcon, Car, ListChecks, UserSquare, Upload, AlertTriangle, Plane } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -30,11 +32,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 
 
-type DataType = 'guides' | 'hotels' | 'drivers' | 'activities';
-const VALID_TABS: DataType[] = ['guides', 'hotels', 'drivers', 'activities'];
+type DataType = 'guides' | 'hotels' | 'drivers' | 'activities' | 'flights';
+const VALID_TABS: DataType[] = ['guides', 'hotels', 'drivers', 'activities', 'flights'];
 
-type ItemToDelete = (Hotel | Driver | Activity | ServiceOrderGuide) & { type: DataType; name?: string; fullName?: string };
-type Item = Hotel | Driver | Activity | ServiceOrderGuide;
+type ItemToDelete = (Hotel | Driver | Activity | ServiceOrderGuide | PredefinedFlight) & { type: DataType; name?: string; fullName?: string; flightNumber?: string; };
+type Item = Hotel | Driver | Activity | ServiceOrderGuide | PredefinedFlight;
 
 
 interface BulkUploadButtonProps {
@@ -97,6 +99,7 @@ export default function DataManagementPage() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [flights, setFlights] = useState<PredefinedFlight[]>([]);
 
   const [duplicateIds, setDuplicateIds] = useState<Set<string>>(new Set());
   
@@ -104,6 +107,10 @@ export default function DataManagementPage() {
   const [newItemLastName, setNewItemLastName] = useState('');
   const [driverType, setDriverType] = useState<'propio' | 'externo'>('propio');
   
+  const [newFlightNumber, setNewFlightNumber] = useState('');
+  const [newFlightTime, setNewFlightTime] = useState('');
+  const [newFlightObs, setNewFlightObs] = useState('');
+
   const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null);
 
   const initialTab = searchParams.get('tab') as DataType | null;
@@ -128,6 +135,8 @@ export default function DataManagementPage() {
       let nameKey: string;
       if (type === 'guides' && 'fullName' in item) {
         nameKey = item.fullName.trim().toLowerCase();
+      } else if (type === 'flights' && 'flightNumber' in item) {
+        nameKey = item.flightNumber.trim().toLowerCase();
       } else if ('name' in item) {
         nameKey = item.name.trim().toLowerCase();
       } else {
@@ -153,22 +162,25 @@ export default function DataManagementPage() {
     if (isCurrentUserAdmin) {
       setIsLoading(true);
       try {
-        const [fetchedHotels, fetchedDrivers, fetchedActivities, fetchedGuides] = await Promise.all([
+        const [fetchedHotels, fetchedDrivers, fetchedActivities, fetchedGuides, fetchedFlights] = await Promise.all([
           getHotelsFromFirestore(),
           getDriversFromFirestore(),
           getActivitiesFromFirestore(),
           getGuidesFromFirestore(),
+          getFlightsFromFirestore(),
         ]);
         setHotels(fetchedHotels);
         setDrivers(fetchedDrivers);
         setActivities(fetchedActivities);
         setGuides(fetchedGuides);
+        setFlights(fetchedFlights);
 
         const allDuplicates = new Set([
             ...findDuplicates(fetchedHotels, 'hotels'),
             ...findDuplicates(fetchedDrivers, 'drivers'),
             ...findDuplicates(fetchedActivities, 'activities'),
             ...findDuplicates(fetchedGuides, 'guides'),
+            ...findDuplicates(fetchedFlights, 'flights'),
         ]);
         setDuplicateIds(allDuplicates);
 
@@ -190,6 +202,33 @@ export default function DataManagementPage() {
 
 
   const handleAddItem = async (type: DataType) => {
+    if (type === 'flights') {
+        if (!newFlightNumber.trim() || !newFlightTime.trim()) {
+            toast({ title: "Datos Requeridos", description: "El número de vuelo y la hora son obligatorios.", variant: "destructive" });
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            await createFlight({
+                flightNumber: newFlightNumber.trim().toUpperCase(),
+                time: newFlightTime.trim(),
+                observations: newFlightObs.trim()
+            });
+            toast({ title: "Éxito", description: `Vuelo añadido correctamente.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+            setNewFlightNumber('');
+            setNewFlightTime('');
+            setNewFlightObs('');
+            await fetchData();
+        } catch (error) {
+            console.error(`Error adding flight:`, error);
+            toast({ title: "Error", description: `No se pudo añadir el vuelo.`, variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+        return;
+    }
+
+
     const name = newItemName.trim().toUpperCase();
     const lastName = newItemLastName.trim().toUpperCase();
 
@@ -214,7 +253,7 @@ export default function DataManagementPage() {
         await createDriver(driverNameToSave);
       }
 
-      toast({ title: "Éxito", description: `${type.charAt(0).toUpperCase() + type.slice(1, -1)} añadido correctamente.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      toast({ title: "Éxito", description: `${type.slice(0, -1)} añadido correctamente.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
       setNewItemName('');
       setNewItemLastName('');
       await fetchData(); // Refresh data
@@ -236,6 +275,7 @@ export default function DataManagementPage() {
       else if (itemToDelete.type === 'drivers') await deleteDriver(id);
       else if (itemToDelete.type === 'activities') await deleteActivity(id);
       else if (itemToDelete.type === 'guides') await deleteGuide(id);
+      else if (itemToDelete.type === 'flights') await deleteFlight(id);
 
       toast({ title: "Eliminado", description: "El registro ha sido eliminado.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
       await fetchData(); // Refresh data
@@ -266,6 +306,13 @@ export default function DataManagementPage() {
               lastName: String(row.apellido || '').trim().toUpperCase() 
             })).filter(g => g.firstName && g.lastName);
             if(records.length > 0) await createBulkGuides(records);
+          } else if (type === 'flights') {
+            records = json.map(row => ({
+                flightNumber: String(row['numero de vuelo'] || '').trim().toUpperCase(),
+                time: String(row.hora || '').trim(),
+                observations: String(row.observaciones || '').trim()
+            })).filter(f => f.flightNumber && f.time);
+            if(records.length > 0) await createBulkFlights(records);
           } else {
             records = json.map(row => ({ 
               name: String(row.nombre || '').trim().toUpperCase() 
@@ -278,7 +325,7 @@ export default function DataManagementPage() {
           }
           
           if (records.length === 0) {
-            toast({ title: "Archivo Vacío o Formato Incorrecto", description: "Asegúrate que el archivo Excel tenga las columnas correctas ('nombre' y 'apellido' para guías, 'nombre' para los demás).", variant: "destructive", duration: 7000 });
+            toast({ title: "Archivo Vacío o Formato Incorrecto", description: "Asegúrate que el archivo Excel tenga las columnas correctas ('nombre' y 'apellido' para guías, 'nombre' para los demás, 'numero de vuelo', 'hora', 'observaciones' para vuelos).", variant: "destructive", duration: 7000 });
           } else {
             toast({ title: "Carga Exitosa", description: `Se procesaron ${records.length} registros desde el archivo.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
             await fetchData();
@@ -306,9 +353,15 @@ export default function DataManagementPage() {
 
   const renderAddForm = (type: DataType) => (
     <Card className="mt-4">
-      <CardHeader><CardTitle className="text-lg">Añadir Nuevo {type.slice(0, -1)}</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-lg">Añadir Nuevo {type === 'flights' ? 'Vuelo' : type.slice(0, -1)}</CardTitle></CardHeader>
       <CardContent className="space-y-4">
-        {type === 'drivers' && (
+        {type === 'flights' ? (
+             <div className="flex gap-2 items-center flex-col sm:flex-row">
+                <Input value={newFlightNumber} onChange={(e) => setNewFlightNumber(e.target.value)} placeholder="Número de Vuelo (ej: OB305)"/>
+                <Input value={newFlightTime} onChange={(e) => setNewFlightTime(e.target.value)} placeholder="Hora (ej: 08:30)"/>
+                <Input value={newFlightObs} onChange={(e) => setNewFlightObs(e.target.value)} placeholder="Observaciones (opcional)"/>
+             </div>
+        ) : type === 'drivers' && (
            <RadioGroup defaultValue="propio" onValueChange={(val: 'propio' | 'externo') => setDriverType(val)} className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="propio" id="r-propio" />
@@ -320,39 +373,43 @@ export default function DataManagementPage() {
               </div>
             </RadioGroup>
         )}
-        <div className={`flex gap-2 items-center ${type === 'guides' ? 'flex-col sm:flex-row' : ''}`}>
-          <div className="flex-grow flex gap-2">
-            <Input 
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              placeholder={type === 'guides' ? 'Nombre del guía...' : `Nombre del nuevo ${type.slice(0, -1)}...`}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)}
-            />
-            {type === 'guides' && (
+        {type !== 'flights' && (
+            <div className={`flex gap-2 items-center ${type === 'guides' ? 'flex-col sm:flex-row' : ''}`}>
+              <div className="flex-grow flex gap-2">
                 <Input 
-                  value={newItemLastName}
-                  onChange={(e) => setNewItemLastName(e.target.value)}
-                  placeholder="Apellido del guía..."
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  placeholder={type === 'guides' ? 'Nombre del guía...' : `Nombre del nuevo ${type.slice(0, -1)}...`}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)}
                 />
-            )}
-          </div>
-          <div className="flex gap-2 shrink-0">
-             <Button onClick={() => handleAddItem(type)} disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
-              Añadir
-            </Button>
-            <BulkUploadButton dataType={type} onUpload={(file) => handleBulkUpload(file, type)} isSubmitting={isSubmitting} />
-          </div>
+                {type === 'guides' && (
+                    <Input 
+                      value={newItemLastName}
+                      onChange={(e) => setNewItemLastName(e.target.value)}
+                      placeholder="Apellido del guía..."
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)}
+                    />
+                )}
+              </div>
+            </div>
+        )}
+        <div className="flex justify-end gap-2">
+           <Button onClick={() => handleAddItem(type)} disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
+            Añadir
+          </Button>
+          <BulkUploadButton dataType={type} onUpload={(file) => handleBulkUpload(file, type)} isSubmitting={isSubmitting} />
         </div>
       </CardContent>
     </Card>
   );
 
-  const renderTable = <T extends { id?: string; uid?: string; name?: string; fullName?: string; firstName?: string; lastName?: string }>(data: T[], type: DataType) => {
+  const renderTable = <T extends Item>(data: T[], type: DataType) => {
     const displayName = (item: T) => {
-        if (type === 'guides') return `${item.firstName} ${item.lastName}`;
-        return item.name || '';
+        if ('fullName' in item && item.fullName) return item.fullName;
+        if ('flightNumber' in item && item.flightNumber) return item.flightNumber;
+        if ('name' in item && item.name) return item.name;
+        return '';
     };
     
     return (
@@ -360,16 +417,24 @@ export default function DataManagementPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{type === 'guides' ? 'Nombre Completo' : 'Nombre'}</TableHead>
+              {type === 'flights' ? (
+                <>
+                  <TableHead>Número de Vuelo</TableHead>
+                  <TableHead>Hora</TableHead>
+                  <TableHead>Observaciones</TableHead>
+                </>
+              ) : (
+                <TableHead>{type === 'guides' ? 'Nombre Completo' : 'Nombre'}</TableHead>
+              )}
               <TableHead className="text-right w-[100px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.length === 0 ? (
-              <TableRow><TableCell colSpan={2} className="text-center h-24">No hay datos.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={type === 'flights' ? 4 : 2} className="text-center h-24">No hay datos.</TableCell></TableRow>
             ) : (
               data.map(item => {
-                const itemId = item.id || item.uid;
+                const itemId = 'uid' in item ? item.uid : item.id;
                 if (!itemId) return null;
                 const isDuplicate = duplicateIds.has(itemId);
 
@@ -382,6 +447,12 @@ export default function DataManagementPage() {
                       {isDuplicate && <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" title="Registro duplicado"/>}
                       {displayName(item)}
                     </TableCell>
+                    {type === 'flights' && 'time' in item && (
+                        <>
+                            <TableCell>{item.time}</TableCell>
+                            <TableCell>{'observations' in item ? item.observations : ''}</TableCell>
+                        </>
+                    )}
                     <TableCell className="text-right">
                       <AlertDialog>
                          <AlertDialogTrigger asChild>
@@ -389,7 +460,7 @@ export default function DataManagementPage() {
                               <Trash2 className="h-4 w-4" />
                             </Button>
                          </AlertDialogTrigger>
-                         {itemToDelete && (itemToDelete.id || itemToDelete.uid) === itemId && (
+                         {itemToDelete && ('uid' in itemToDelete ? itemToDelete.uid : itemToDelete.id) === itemId && (
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
@@ -441,11 +512,12 @@ export default function DataManagementPage() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="guides"><UserSquare className="mr-2 h-4 w-4" />Guías</TabsTrigger>
               <TabsTrigger value="hotels"><HotelIcon className="mr-2 h-4 w-4" />Hoteles</TabsTrigger>
               <TabsTrigger value="drivers"><Car className="mr-2 h-4 w-4" />Choferes</TabsTrigger>
               <TabsTrigger value="activities"><ListChecks className="mr-2 h-4 w-4" />Actividades</TabsTrigger>
+              <TabsTrigger value="flights"><Plane className="mr-2 h-4 w-4" />Vuelos</TabsTrigger>
             </TabsList>
             <TabsContent value="guides">
               {renderTable(guides, 'guides')}
@@ -462,6 +534,10 @@ export default function DataManagementPage() {
             <TabsContent value="activities">
               {renderTable(activities, 'activities')}
               {renderAddForm('activities')}
+            </TabsContent>
+             <TabsContent value="flights">
+              {renderTable(flights, 'flights')}
+              {renderAddForm('flights')}
             </TabsContent>
           </Tabs>
         </CardContent>
