@@ -47,7 +47,7 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
             <div className="relative">
                 <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
                 <div className="px-6 pt-4 pb-3 flex items-center justify-center">
-                    <h1 className="text-xs font-mono font-bold uppercase text-zinc-800 text-center">ORDEN DE SERVICIO</h1>
+                    <h1 className="text-xs font-mono font-bold uppercase">ORDEN DE SERVICIO</h1>
                 </div>
                 <Separator />
             </div>
@@ -88,7 +88,7 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                                 const rowBgClass = colorGroup % 2 === 0 ? "bg-white" : "bg-zinc-50";
 
                                 return (
-                                    <TableRow key={i} className={cn("uppercase break-words align-middle h-auto", rowBgClass)} style={{fontSize: '11px'}}>
+                                    <TableRow key={i} className={cn("uppercase break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                                             {showDate && s.fecha ? (
                                                 <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-primary font-mono">
@@ -125,9 +125,9 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
 
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
     return (
-        <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2", className)} style={{fontSize: '12px'}}>
-            <p className="font-mono font-bold uppercase">{label}</p>
-            <p className="font-mono uppercase">{value || "—"}</p>
+        <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2 font-mono", className)} style={{fontSize: '12px'}}>
+            <p className="font-bold uppercase">{label}</p>
+            <p className="uppercase">{value || "—"}</p>
         </div>
     );
 }
