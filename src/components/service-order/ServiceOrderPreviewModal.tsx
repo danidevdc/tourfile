@@ -73,7 +73,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                     <MetaItem label="Guía:" value={(data.guia || '').split(' ')[0]} />
                 </div>
                 <div className="flex items-stretch gap-2">
-                   <MetaItem label="File:" value={data.file} className="flex-none w-32" />
+                   <MetaItem label="File:" value={data.file} className="flex-none w-40" />
                    <MetaItem label="Ref:" value={data.ref} className="flex-1" />
                    <MetaItem label="Nº Pax:" value={data.nPax} className="flex-none w-32" />
                 </div>
@@ -245,7 +245,7 @@ export function ServiceOrderPrintPage() {
                   <MetaItem label="Guía:" value={(order.data.guia || '').split(' ')[0]} />
               </div>
               <div className="flex items-stretch gap-2">
-                 <MetaItem label="File:" value={order.data.file} className="flex-none w-32" />
+                 <MetaItem label="File:" value={order.data.file} className="flex-none w-40" />
                  <MetaItem label="Ref:" value={order.data.ref} className="flex-1" />
                  <MetaItem label="Nº Pax:" value={order.data.nPax} className="flex-none w-32" />
               </div>
