@@ -17,6 +17,7 @@ export default {
         body: ['Roboto', 'sans-serif'],
         headline: ['Roboto', 'sans-serif'],
         code: ['monospace'],
+        mono: ['"Lucida Console"', 'monospace'],
       },
       colors: {
         background: 'hsl(var(--background))',

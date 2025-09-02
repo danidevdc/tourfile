@@ -43,11 +43,11 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
     }, [sortedServices]);
 
     return (
-        <div id={`pdf-content-${order.id}`} className="bg-white text-zinc-900 p-0 font-mono uppercase" style={{ width: '1123px', height: 'auto', minHeight: '794px' }}>
+        <div id={`pdf-content-${order.id}`} className="bg-white text-zinc-900 p-0 uppercase" style={{ width: '1123px', height: 'auto', minHeight: '794px', fontFamily: '"Lucida Console", monospace' }}>
             <div className="relative">
                 <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
                 <div className="px-6 pt-4 pb-3 flex items-center justify-center font-bold" style={{fontSize: '12px'}}>
-                    <h1 >ORDEN DE SERVICIO</h1>
+                    <h1>ORDEN DE SERVICIO</h1>
                 </div>
                 <Separator />
             </div>
@@ -134,7 +134,7 @@ function MetaItem({ label, value, className }: { label: string; value?: string |
 
 function InfoBlock({ title, text, subtle = false }: { title: string; text?: string; subtle?: boolean }) {
     return (
-        <div className={cn("rounded-xl border p-2", subtle ? "bg-muted/40 border-dashed" : "bg-card/20")}>
+        <div className={cn("rounded-xl border p-2", subtle ? "bg-zinc-50 border-dashed" : "bg-card/20")}>
             <p className="tracking-wide mb-1 font-bold" style={{fontSize: '10px'}}>{title}</p>
             <p className="whitespace-pre-wrap leading-5" style={{fontSize: '10px'}}>{text || "—"}</p>
         </div>

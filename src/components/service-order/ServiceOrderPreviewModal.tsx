@@ -54,15 +54,15 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-6xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
-        <DialogHeader className="p-0">
+        <DialogHeader className="p-4">
            <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-grow overflow-y-auto px-6 pt-6">
-          <div className="bg-white text-zinc-900 font-mono uppercase">
+        <div className="flex-grow overflow-y-auto px-6">
+          <div className="bg-white text-zinc-900 uppercase" style={{ fontFamily: '"Lucida Console", monospace' }}>
             <div className="relative">
               <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
-               <div className="px-6 pt-4 pb-3 flex items-center justify-center font-bold" style={{fontSize: '12px'}}>
+               <div className="pt-4 pb-3 flex items-center justify-center font-bold" style={{fontSize: '12px'}}>
                  <h1>ORDEN DE SERVICIO</h1>
               </div>
               <Separator />
@@ -73,9 +73,9 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                     <MetaItem label="Guía:" value={data.guia} />
                 </div>
                 <div className="flex items-stretch gap-2">
-                    <MetaItem label="File:" value={data.file} className="flex-none w-32" />
-                    <MetaItem label="Ref:" value={data.ref} className="flex-1" />
-                    <MetaItem label="Nº Pax:" value={data.nPax} className="flex-none w-32" />
+                   <MetaItem label="File:" value={data.file} className="flex-none w-32" />
+                   <MetaItem label="Ref:" value={data.ref} className="flex-1" />
+                   <MetaItem label="Nº Pax:" value={data.nPax} className="flex-none w-32" />
                 </div>
                  <div className="grid grid-cols-1 gap-2">
                     <MetaItem label="Hotel:" value={data.hotel} />
@@ -161,7 +161,7 @@ function MetaItem({ label, value, className }: { label: string; value?: string |
 
 function InfoBlock({ title, text, subtle = false }: { title: string; text?: string; subtle?: boolean }) {
   return (
-    <div className={cn("rounded-xl border p-2", subtle ? "bg-muted/40 border-dashed" : "bg-card/20")}>
+    <div className={cn("rounded-xl border p-2", subtle ? "bg-zinc-50 border-dashed" : "bg-card/20")}>
       <p className="tracking-wide mb-1 font-bold" style={{fontSize: '10px'}}>{title}</p>
       <p className="whitespace-pre-wrap leading-5" style={{fontSize: '10px'}}>{text || "—"}</p>
     </div>
