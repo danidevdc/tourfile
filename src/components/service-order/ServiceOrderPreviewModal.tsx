@@ -66,7 +66,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
         {/* New container for the bordered content */}
         <div className={cn(
-            inModal && "border-2 border-primary rounded-xl mt-4 p-4"
+            inModal && "border-2 border-primary/50 rounded-xl mt-4 p-4"
         )}>
             <div className="space-y-2">
                 <div className="grid grid-cols-1 gap-2">
@@ -239,7 +239,7 @@ export function ServiceOrderPrintPage() {
             <Separator />
           </div>
 
-        <div className="border-2 border-primary rounded-xl mt-4 p-4">
+        <div className="border-2 border-primary/50 rounded-xl mt-4 p-4">
             <div className="space-y-2">
               <div className="grid grid-cols-1 gap-2">
                   <MetaItem label="Guía:" value={(order.data.guia || '').split(' ')[0]} />
@@ -324,3 +324,4 @@ export function ServiceOrderPrintPage() {
     );
 }
 
+    
