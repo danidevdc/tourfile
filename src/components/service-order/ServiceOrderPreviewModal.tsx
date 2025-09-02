@@ -33,6 +33,22 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
     });
     return list;
   }, [data.services]);
+  
+  const dateColorGroupMap = useMemo(() => {
+      const map = new Map<string, number>();
+      if (services.length === 0) return map;
+      
+      let colorGroupIndex = 0;
+      map.set(services[0].fecha, colorGroupIndex);
+
+      for (let i = 1; i < services.length; i++) {
+          if (services[i].fecha !== services[i-1].fecha) {
+              colorGroupIndex++;
+          }
+          map.set(services[i].fecha, colorGroupIndex);
+      }
+      return map;
+  }, [services]);
 
 
   return (
@@ -46,20 +62,24 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
           <div className="bg-white text-zinc-900">
             <div className="relative">
               <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
-              <div className="px-6 pt-4 pb-3 flex items-center justify-center">
-                 <h1 className="text-xs font-mono font-bold uppercase text-zinc-800 text-center">ORDEN DE SERVICIO</h1>
+               <div className="px-6 pt-4 pb-3 flex items-center justify-center">
+                 <h1 className="text-xs font-mono font-bold uppercase text-zinc-800 text-center">Orden de Servicio</h1>
               </div>
               <Separator />
             </div>
 
             <div className="m-6 space-y-2">
-                <MetaItem label="Guía:" value={data.guia} />
+                <div className="grid grid-cols-1 gap-2">
+                    <MetaItem label="Guía:" value={data.guia} />
+                </div>
                 <div className="flex items-stretch gap-2">
                     <MetaItem label="File:" value={data.file} className="flex-none w-32" />
                     <MetaItem label="Ref:" value={data.ref} className="flex-1" />
                     <MetaItem label="Nº Pax:" value={data.nPax} className="flex-none w-32" />
                 </div>
-                <MetaItem label="Hotel:" value={data.hotel} />
+                 <div className="grid grid-cols-1 gap-2">
+                    <MetaItem label="Hotel:" value={data.hotel} />
+                </div>
             </div>
 
             <div className="px-6">
@@ -81,22 +101,25 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                     {services.length > 0 ? (
                       services.map((s, i) => {
                         const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
+                        const colorGroup = dateColorGroupMap.get(s.fecha) || 0;
+                        const rowBgClass = colorGroup % 2 === 0 ? "bg-white" : "bg-zinc-50";
+
                         return (
-                          <TableRow key={i} className={cn("font-mono uppercase break-words align-middle h-auto", i % 2 === 0 ? "bg-white" : "bg-zinc-50")} style={{fontSize: '11px'}}>
+                          <TableRow key={i} className={cn("uppercase break-words align-middle h-auto", rowBgClass)} style={{fontSize: '11px'}}>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                                {showDate && s.fecha ? (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold">
+                                <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-primary font-mono">
                                   {s.fecha}
                                 </span>
                               ) : ("")}
                              </TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border">{s.hora}</span></TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.guia}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
-                             <TableCell className="p-1 align-middle text-left">{s.observaciones}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border font-mono">{s.hora}</span></TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-left font-mono">{s.servicio}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">{s.vuelo || "—"}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">{s.guia}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">{s.bus}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
+                             <TableCell className="p-1 align-middle text-left font-mono">{s.observaciones}</TableCell>
                           </TableRow>
                         );
                       })
@@ -130,7 +153,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
   return (
     <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2", className)} style={{fontSize: '12px'}}>
-      <p className="font-mono font-bold uppercase text-primary">{label}</p>
+      <p className="font-mono font-bold uppercase">{label}</p>
       <p className="font-mono uppercase">{value || "—"}</p>
     </div>
   );
@@ -138,9 +161,9 @@ function MetaItem({ label, value, className }: { label: string; value?: string |
 
 function InfoBlock({ title, text, subtle = false }: { title: string; text?: string; subtle?: boolean }) {
   return (
-    <div className={cn("rounded-xl border p-2", subtle ? "bg-muted/40 border-dashed" : "bg-card/20") } style={{fontSize: '10px'}}>
-      <p className="font-mono uppercase tracking-wide text-primary mb-1 font-bold">{title}</p>
-      <p className="uppercase font-mono whitespace-pre-wrap leading-5">{text || "—"}</p>
+    <div className={cn("rounded-xl border p-2", subtle ? "bg-muted/40 border-dashed" : "bg-card/20")}>
+      <p className="font-mono uppercase tracking-wide text-primary mb-1 font-bold" style={{fontSize: '10px'}}>{title}</p>
+      <p className="uppercase font-mono whitespace-pre-wrap leading-5" style={{fontSize: '10px'}}>{text || "—"}</p>
     </div>
   );
 }
