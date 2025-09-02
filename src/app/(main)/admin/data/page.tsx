@@ -447,9 +447,9 @@ export default function DataManagementPage() {
                       {isDuplicate && <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" title="Registro duplicado"/>}
                       {displayName(item)}
                     </TableCell>
-                    {type === 'flights' && 'time' in item && (
+                    {type === 'flights' && 'time' in item && typeof item.time === 'string' && (
                         <>
-                            <TableCell>{item.time}</TableCell>
+                            <TableCell>{item.time.length > 5 ? item.time.substring(0, 5) : item.time}</TableCell>
                             <TableCell>{'observations' in item ? item.observations : ''}</TableCell>
                         </>
                     )}
