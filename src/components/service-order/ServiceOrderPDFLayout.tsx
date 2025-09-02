@@ -6,8 +6,6 @@ import { parse } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ListOrdered } from 'lucide-react';
-
 
 interface ServiceOrderPDFLayoutProps {
     order: StoredServiceOrder;
@@ -32,14 +30,7 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
             <div className="relative">
                 <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
                 <div className="px-6 pt-4 pb-3 flex items-center justify-center">
-                    <div className="flex items-center gap-3">
-                        <div className="size-10 rounded-xl bg-primary/10 grid place-items-center">
-                            <ListOrdered className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                             <h1 className="text-xs font-mono font-bold uppercase text-zinc-800 text-center">ORDEN DE SERVICIO</h1>
-                        </div>
-                    </div>
+                    <h1 className="text-xs font-mono font-bold uppercase text-zinc-800 text-center">ORDEN DE SERVICIO</h1>
                 </div>
                 <Separator />
             </div>
@@ -103,7 +94,7 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
             </div>
 
             <div className="px-6 py-4 grid grid-cols-1 gap-4">
-                <InfoBlock title="OBSERVACIONES:" text={data.observations} />
+                <InfoBlock title="OBSERVACIONES:" text={data.observations} subtle />
                 <InfoBlock title="NOTA:" text={data.nota} subtle />
             </div>
         </div>
@@ -112,9 +103,9 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
 
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
     return (
-        <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2", className)}>
-            <p className="text-xs font-mono font-bold uppercase text-primary">{label}</p>
-            <p className="text-xs font-mono uppercase">{value || "—"}</p>
+        <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2", className)} style={{fontSize: '12px'}}>
+            <p className="font-mono font-bold uppercase text-primary">{label}</p>
+            <p className="font-mono uppercase">{value || "—"}</p>
         </div>
     );
 }
