@@ -85,9 +85,9 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[56px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px'}}>Servicio</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[100px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
+                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[80px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
+                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -97,6 +97,8 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                     const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
                     const colorGroup = dateColorGroupMap.get(s.fecha) || 0;
                     const rowBgClass = colorGroup % 2 === 0 ? "bg-white" : "bg-zinc-100";
+                    const guiaCompleto = s.guia || data.guia;
+                    const choferCompleto = s.chofer || '';
 
                     return (
                       <TableRow key={i} className={cn("break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
@@ -110,9 +112,9 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border">{s.hora}</span></TableCell>
                          <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
-                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.guia}</TableCell>
+                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{guiaCompleto}</TableCell>
                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
-                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
+                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{choferCompleto.replace(/^CONT\s/i, "")}</TableCell>
                          <TableCell className="p-1 align-middle text-left">{s.observaciones}</TableCell>
                       </TableRow>
                     );
@@ -249,9 +251,9 @@ export function ServiceOrderPrintPage() {
                     <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[56px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
                     <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px'}}>Servicio</TableHead>
                     <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
-                    <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[100px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
+                    <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
                     <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
-                    <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[80px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
+                    <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
                     <TableHead className="text-primary font-bold py-1 px-2 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -259,15 +261,18 @@ export function ServiceOrderPrintPage() {
                   {order.data.services.length > 0 ? (
                      order.data.services.map((s, i) => {
                       const showDate = i === 0 || order.data.services[i - 1].fecha !== s.fecha;
+                      const guiaCompleto = s.guia || order.data.guia;
+                      const choferCompleto = s.chofer || '';
+
                       return (
                         <TableRow key={i} className="break-words align-middle h-8" style={{fontSize: '11px'}}>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center flex items-center justify-center">{showDate ? s.fecha : ''}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.hora}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
-                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.guia}</TableCell>
+                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{guiaCompleto}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
-                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
+                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{choferCompleto.replace(/^CONT\s/i, "")}</TableCell>
                            <TableCell className="p-1 align-middle text-left">{s.observaciones}</TableCell>
                         </TableRow>
                       );
