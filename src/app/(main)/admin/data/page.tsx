@@ -13,6 +13,7 @@ import {
   createGuide, deleteGuide, getGuidesFromFirestore,
   createFlight, deleteFlight, getFlightsFromFirestore,
   createBulkGuides, createBulkHotels, createBulkDrivers, createBulkActivities, createBulkFlights,
+  deleteBulkGuides, deleteBulkHotels, deleteBulkDrivers, deleteBulkActivities, deleteBulkFlights,
   type Hotel, type Driver, type Activity, type ServiceOrderGuide, type PredefinedFlight
 } from '@/lib/serviceOrderService';
 
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 type DataType = 'guides' | 'hotels' | 'drivers' | 'activities' | 'flights';
@@ -87,6 +89,7 @@ const BulkUploadButton: React.FC<BulkUploadButtonProps> = ({ dataType, onUpload,
 
 // Helper function to correctly format time from various possible inputs
 const formatFlightTime = (timeValue: any): string => {
+    if (!timeValue) return '';
     if (typeof timeValue === 'string') {
         return timeValue.substring(0, 5);
     }
@@ -115,6 +118,10 @@ export default function DataManagementPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [flights, setFlights] = useState<PredefinedFlight[]>([]);
+  
+  const [selectedItems, setSelectedItems] = useState<Record<DataType, Set<string>>>({
+      guides: new Set(), hotels: new Set(), drivers: new Set(), activities: new Set(), flights: new Set()
+  });
 
   const [duplicateIds, setDuplicateIds] = useState<Set<string>>(new Set());
   
@@ -301,6 +308,28 @@ export default function DataManagementPage() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    const selectedIds = Array.from(selectedItems[activeTab]);
+    if (selectedIds.length === 0) return;
+
+    setIsSubmitting(true);
+    try {
+      if (activeTab === 'guides') await deleteBulkGuides(selectedIds);
+      else if (activeTab === 'hotels') await deleteBulkHotels(selectedIds);
+      else if (activeTab === 'drivers') await deleteBulkDrivers(selectedIds);
+      else if (activeTab === 'activities') await deleteBulkActivities(selectedIds);
+      else if (activeTab === 'flights') await deleteBulkFlights(selectedIds);
+
+      toast({ title: "Eliminación Exitosa", description: `Se eliminaron ${selectedIds.length} registros.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      setSelectedItems(prev => ({...prev, [activeTab]: new Set()})); // Clear selection
+      await fetchData();
+    } catch (error) {
+      toast({ title: "Error de Eliminación", description: "No se pudieron eliminar los registros.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
 
   const handleBulkUpload = async (file: File, type: DataType) => {
     setIsSubmitting(true);
@@ -394,6 +423,33 @@ export default function DataManagementPage() {
   const handleTabChange = (tabValue: string) => {
     router.push(`/admin/data?tab=${tabValue}`, { scroll: false });
   };
+  
+  const handleSelectAll = (type: DataType, items: Item[]) => {
+      const allIds = items.map(item => 'uid' in item ? item.uid : item.id);
+      setSelectedItems(prev => {
+          const newSelection = new Set(prev[type]);
+          if (newSelection.size === allIds.length) {
+              // Deselect all if all are selected
+              newSelection.clear();
+          } else {
+              // Select all
+              allIds.forEach(id => newSelection.add(id));
+          }
+          return { ...prev, [type]: newSelection };
+      });
+  };
+
+  const handleSelectItem = (type: DataType, id: string) => {
+      setSelectedItems(prev => {
+          const newSelection = new Set(prev[type]);
+          if (newSelection.has(id)) {
+              newSelection.delete(id);
+          } else {
+              newSelection.add(id);
+          }
+          return { ...prev, [type]: newSelection };
+      });
+  };
 
 
   const renderAddForm = (type: DataType) => (
@@ -457,78 +513,124 @@ export default function DataManagementPage() {
         return '';
     };
     
-    return (
-      <div className="border rounded-lg mt-4 overflow-hidden max-h-96 overflow-y-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {type === 'flights' ? (
-                <>
-                  <TableHead>Número de Vuelo</TableHead>
-                  <TableHead>Hora</TableHead>
-                  <TableHead>Observaciones</TableHead>
-                </>
-              ) : (
-                <TableHead>{type === 'guides' ? 'Nombre Completo' : 'Nombre'}</TableHead>
-              )}
-              <TableHead className="text-right w-[100px]">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.length === 0 ? (
-              <TableRow><TableCell colSpan={type === 'flights' ? 4 : 2} className="text-center h-24">No hay datos.</TableCell></TableRow>
-            ) : (
-              data.map(item => {
-                const itemId = 'uid' in item ? item.uid : item.id;
-                if (!itemId) return null;
-                const isDuplicate = duplicateIds.has(itemId);
+    const isAllSelected = data.length > 0 && selectedItems[type].size === data.length;
+    const selectedCount = selectedItems[type].size;
 
-                return (
-                  <TableRow 
-                    key={itemId}
-                    className={cn(isDuplicate && "bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200/80 dark:hover:bg-yellow-900/50")}
-                  >
-                    <TableCell className="font-medium flex items-center gap-2">
-                      {isDuplicate && <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" title="Registro duplicado"/>}
-                      {displayName(item)}
-                    </TableCell>
-                    {type === 'flights' && 'time' in item && typeof item.time === 'string' && (
-                        <>
-                            <TableCell>{formatFlightTime(item.time)}</TableCell>
-                            <TableCell>{'observations' in item ? item.observations : ''}</TableCell>
-                        </>
-                    )}
-                    <TableCell className="text-right">
-                      <AlertDialog>
-                         <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="icon" title={`Eliminar ${type.slice(0, -1)}`} onClick={() => setItemToDelete({ ...item, type })}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                         </AlertDialogTrigger>
-                         {itemToDelete && ('uid' in itemToDelete ? itemToDelete.uid : itemToDelete.id) === itemId && (
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Se eliminará permanentemente "{displayName(itemToDelete)}". Esta acción no se puede deshacer.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive hover:bg-destructive/90">
-                                  Sí, eliminar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                         )}
-                      </AlertDialog>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
+    return (
+      <div className="border rounded-lg mt-4 overflow-hidden">
+        {selectedCount > 0 && (
+          <div className="p-2 bg-muted/50 flex justify-between items-center">
+            <span className="text-sm font-medium">{selectedCount} de {data.length} seleccionado(s)</span>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={isSubmitting}>
+                   {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                   Eliminar Seleccionados
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader><AlertDialogTitle>Confirmar Eliminación</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    ¿Estás seguro de que quieres eliminar {selectedCount} registro(s)? Esta acción es irreversible.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">
+                    Sí, eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+        <div className="max-h-96 overflow-y-auto">
+            <Table>
+            <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                <TableHead className="w-12">
+                    <Checkbox
+                        checked={isAllSelected}
+                        onCheckedChange={() => handleSelectAll(type, data)}
+                        aria-label="Select all"
+                    />
+                </TableHead>
+                {type === 'flights' ? (
+                    <>
+                    <TableHead>Número de Vuelo</TableHead>
+                    <TableHead>Hora</TableHead>
+                    <TableHead>Observaciones</TableHead>
+                    </>
+                ) : (
+                    <TableHead>{type === 'guides' ? 'Nombre Completo' : 'Nombre'}</TableHead>
+                )}
+                <TableHead className="text-right w-[100px]">Acciones</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {data.length === 0 ? (
+                <TableRow><TableCell colSpan={type === 'flights' ? 5 : 3} className="text-center h-24">No hay datos.</TableCell></TableRow>
+                ) : (
+                data.map(item => {
+                    const itemId = 'uid' in item ? item.uid : item.id;
+                    if (!itemId) return null;
+                    const isDuplicate = duplicateIds.has(itemId);
+
+                    return (
+                    <TableRow 
+                        key={itemId}
+                        className={cn(isDuplicate && "bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200/80 dark:hover:bg-yellow-900/50")}
+                        data-state={selectedItems[type].has(itemId) ? "selected" : ""}
+                    >
+                        <TableCell>
+                            <Checkbox
+                                checked={selectedItems[type].has(itemId)}
+                                onCheckedChange={() => handleSelectItem(type, itemId)}
+                                aria-label={`Select item ${displayName(item)}`}
+                            />
+                        </TableCell>
+                        <TableCell className="font-medium flex items-center gap-2">
+                        {isDuplicate && <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" title="Registro duplicado"/>}
+                        {displayName(item)}
+                        </TableCell>
+                        {type === 'flights' && 'time' in item && (
+                            <>
+                                <TableCell>{formatFlightTime(item.time)}</TableCell>
+                                <TableCell>{'observations' in item ? item.observations : ''}</TableCell>
+                            </>
+                        )}
+                        <TableCell className="text-right">
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="icon" title={`Eliminar ${type.slice(0, -1)}`} onClick={() => setItemToDelete({ ...item, type })}>
+                                <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            {itemToDelete && ('uid' in itemToDelete ? itemToDelete.uid : itemToDelete.id) === itemId && (
+                                <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                    Se eliminará permanentemente "{displayName(itemToDelete)}". Esta acción no se puede deshacer.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive hover:bg-destructive/90">
+                                    Sí, eliminar
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                                </AlertDialogContent>
+                            )}
+                        </AlertDialog>
+                        </TableCell>
+                    </TableRow>
+                    )
+                })
+                )}
+            </TableBody>
+            </Table>
+        </div>
       </div>
     );
   };

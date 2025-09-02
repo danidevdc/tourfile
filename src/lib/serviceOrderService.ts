@@ -61,7 +61,7 @@ export interface ServiceItem {
   servicio: string;
   vuelo?: string;
   guia?: string;
-  bus?: string;
+  bus?: string; 
   chofer?: string;
   observaciones?: string;
 }
@@ -176,6 +176,23 @@ export const deleteHotel = (id: string) => deleteDoc(doc(db!, 'hotels', id));
 export const deleteActivity = (id: string) => deleteDoc(doc(db!, 'activities', id));
 export const deleteDriver = (id: string) => deleteDoc(doc(db!, 'drivers', id));
 export const deleteFlight = (id: string) => deleteDoc(doc(db!, 'flights', id));
+
+// --- Bulk Deletion Functions ---
+const deleteBulk = async (collectionName: string, ids: string[]) => {
+    if (!db) throw new Error("Firestore not initialized");
+    const batch = writeBatch(db);
+    ids.forEach(id => {
+        const docRef = doc(db, collectionName, id);
+        batch.delete(docRef);
+    });
+    await batch.commit();
+};
+
+export const deleteBulkGuides = (ids: string[]) => deleteBulk('guides', ids);
+export const deleteBulkHotels = (ids: string[]) => deleteBulk('hotels', ids);
+export const deleteBulkActivities = (ids: string[]) => deleteBulk('activities', ids);
+export const deleteBulkDrivers = (ids: string[]) => deleteBulk('drivers', ids);
+export const deleteBulkFlights = (ids: string[]) => deleteBulk('flights', ids);
 
 
 // --- AI/Learning Functions ---
