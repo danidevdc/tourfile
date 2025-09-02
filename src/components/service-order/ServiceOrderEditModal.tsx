@@ -165,7 +165,10 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
                   
                   const guideForThisRow = s.guia || editableOrderData.guia;
                   const guiaFirstName = (guideForThisRow || '').split(' ')[0];
-                  const choferFirstName = (s.chofer || '').split(' ')[0];
+                  
+                  const choferCompleto = s.chofer || '';
+                  const choferSanitized = choferCompleto.replace(/^CONT\s/i, '');
+                  const choferFirstName = choferSanitized.split(' ')[0];
 
 
                   return (

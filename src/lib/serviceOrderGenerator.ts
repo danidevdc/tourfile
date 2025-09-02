@@ -115,5 +115,3 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   const buffer = await workbook.xlsx.writeBuffer();
   return buffer as Buffer;
 }
-
-    

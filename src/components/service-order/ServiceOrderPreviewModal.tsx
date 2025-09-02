@@ -100,7 +100,8 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                     const guiaCompleto = s.guia || data.guia;
                     const guiaFirstName = (guiaCompleto || '').split(' ')[0];
                     const choferCompleto = s.chofer || '';
-                    const choferFirstName = choferCompleto.split(' ')[0];
+                    const choferSanitized = choferCompleto.replace(/^CONT\s/i, '');
+                    const choferFirstName = choferSanitized.split(' ')[0];
 
 
                     return (
@@ -267,7 +268,8 @@ export function ServiceOrderPrintPage() {
                       const guiaCompleto = s.guia || order.data.guia;
                       const guiaFirstName = (guiaCompleto || '').split(' ')[0];
                       const choferCompleto = s.chofer || '';
-                      const choferFirstName = choferCompleto.split(' ')[0];
+                      const choferSanitized = choferCompleto.replace(/^CONT\s/i, '');
+                      const choferFirstName = choferSanitized.split(' ')[0];
 
                       return (
                         <TableRow key={i} className="break-words align-middle h-8" style={{fontSize: '11px'}}>
