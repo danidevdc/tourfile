@@ -6,29 +6,27 @@ export const metadata: Metadata = {
   description: 'Vista de impresión para la Orden de Servicio.',
 };
 
+// This is now a very simple layout that does not include <html> or <body> tags.
+// It will be rendered inside the root layout, but without the main app's Header, etc.
 export default function PrintLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" suppressHydrationWarning>
-       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
-        <style>{`
+    <main>
+      <style>{`
+        @media print {
           body {
-            font-family: 'Roboto', sans-serif;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            background-color: white;
+            background-color: white !important;
+            color: black !important;
           }
-        `}</style>
-      </head>
-      <body>
-        {children}
-      </body>
-    </html>
+          header, footer, aside, nav {
+            display: none !important;
+          }
+        }
+      `}</style>
+      {children}
+    </main>
   );
 }

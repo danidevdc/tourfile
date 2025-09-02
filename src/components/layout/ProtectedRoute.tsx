@@ -7,7 +7,7 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
 // Define paths that are publicly accessible without authentication
-const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/service-order-print"];
+const PUBLIC_PATHS = ["/login", "/register", "/forgot-password"];
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -15,27 +15,40 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && !PUBLIC_PATHS.includes(pathname)) {
-      router.push("/login");
+    // If auth is not loading, we have a definitive answer about authentication
+    if (!isLoading) {
+      // If the user is not authenticated and the path is NOT public
+      if (!isAuthenticated && !PUBLIC_PATHS.includes(pathname)) {
+        console.log(`Redirecting to /login from protected route: ${pathname}`);
+        router.push("/login");
+      }
+      // If the user IS authenticated and trying to access a public-only page (like login)
+      else if (isAuthenticated && PUBLIC_PATHS.includes(pathname)) {
+         console.log(`Redirecting to / from public route: ${pathname}`);
+         router.push("/");
+      }
     }
   }, [isLoading, isAuthenticated, pathname, router]);
 
-  // If authentication is still loading and the current path is not public,
-  // show a loading indicator to prevent flashing content.
-  if (isLoading && !PUBLIC_PATHS.includes(pathname)) {
+
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"> {/* Adjusted height */}
+      <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"> 
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
 
-  // If not authenticated and trying to access a protected page,
-  // return null while the redirect effect takes place.
+  // If not authenticated and on a protected route, render nothing while redirecting
   if (!isAuthenticated && !PUBLIC_PATHS.includes(pathname)) {
-    return null; 
+    return null;
+  }
+  
+  // If authenticated and on a public route, render nothing while redirecting
+  if (isAuthenticated && PUBLIC_PATHS.includes(pathname)) {
+      return null;
   }
 
-  // If authenticated or on a public path, render the children.
+  // Render children if everything is fine (authenticated on protected route, or unauthenticated on public route)
   return <>{children}</>;
 }
