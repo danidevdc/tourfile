@@ -258,12 +258,12 @@ export default function ServiceOrderListPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[26%] border-r">Nombre de la Orden</TableHead>
-                            <TableHead className="w-[15%] border-r">Estado</TableHead>
-                            <TableHead className="w-[20%] border-r">Guía Asignado</TableHead>
+                            <TableHead className="w-[30%] border-r">Nombre de la Orden</TableHead>
+                            <TableHead className="w-[18%] border-r">Guía Asignado</TableHead>
                             <TableHead className="w-[15%] border-r">Creado Por</TableHead>
                             <TableHead className="w-[10%] border-r">Fecha de Creación</TableHead>
-                            <TableHead className="text-right w-[14%]">Acciones</TableHead>
+                            <TableHead className="w-[10%] border-r">Estado</TableHead>
+                            <TableHead className="text-right w-[17%]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -271,10 +271,10 @@ export default function ServiceOrderListPage() {
                             paginatedOrders.map((order) => (
                                 <TableRow key={order.id}>
                                     <TableCell className="font-medium border-r">{order.orderName.replace(/_/g, ' ')}</TableCell>
-                                    <TableCell className="border-r">{getStatusBadge(order)}</TableCell>
                                     <TableCell className="border-r">{order.data.guia}</TableCell>
                                     <TableCell className="border-r">{order.createdBy}</TableCell>
                                     <TableCell className="border-r">{format(order.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
+                                    <TableCell className="border-r">{getStatusBadge(order)}</TableCell>
                                     <TableCell className="text-right space-x-1">
                                         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
                                         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditOrderClick(order)} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
