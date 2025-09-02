@@ -1,3 +1,4 @@
+
 "use client";
 
 import { db } from '@/lib/firebase';
@@ -54,22 +55,27 @@ function getFirstDateFromServices(services: ServiceOrderData['services']): Date 
 
 function formatOrderName(date: Date, fileNumber: string, splitSuffix?: string): string {
     const datePart = format(date, 'dd_MMMM_yyyy', { locale: es }).toUpperCase();
-    const baseName = `ODS_${datePart}_${fileNumber}`;
-    return splitSuffix ? `${baseName} - ${splitSuffix}` : baseName;
+    const baseName = `ODS_${datePart}_${fileNumber.replace(/[\s/]/g, '_')}`; // Sanitize file number for name
+    const guideNamePart = splitSuffix ? splitSuffix.split(' ')[0] : undefined;
+    return guideNamePart ? `${baseName} - ${guideNamePart}` : baseName;
 }
 
 
 export async function saveServiceOrder(orderData: ServiceOrderData, createdByEmail: string, baseOrderName?: string): Promise<string> {
     if (!db) throw new Error("Firestore not initialized.");
 
-    const firstDate = getFirstDateFromServices(orderData.services);
-    
-    // If baseOrderName exists, it means we are creating a child (split) order.
-    // We use it to construct the name. Otherwise, create a new base name.
-    const nameForFormatting = baseOrderName ? baseOrderName.split(' - ')[0] : formatOrderName(firstDate, orderData.file);
-    const splitSuffix = baseOrderName ? orderData.guia : undefined;
-    const orderName = splitSuffix ? `${nameForFormatting} - ${splitSuffix}` : nameForFormatting;
+    let orderName;
+    const guideFirstName = orderData.guia.split(' ')[0];
 
+    // If baseOrderName exists, it means we are creating a child (split) order.
+    // The name is the base name plus the guide's first name.
+    if (baseOrderName) {
+        orderName = `${baseOrderName} - ${guideFirstName}`;
+    } else {
+        // Otherwise, create a brand new order name from scratch.
+        const firstDate = getFirstDateFromServices(orderData.services);
+        orderName = formatOrderName(firstDate, orderData.file);
+    }
 
     const newOrder: Omit<StoredServiceOrder, 'id' | 'createdAt' | 'updatedAt'> = {
         orderName,
@@ -91,12 +97,10 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
 export async function updateServiceOrder(orderId: string, orderData: ServiceOrderData, status: OrderStatus = 'editado'): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
     
-    const firstDate = getFirstDateFromServices(orderData.services);
-    const orderName = formatOrderName(firstDate, orderData.file);
-
+    // On update, we do NOT change the order name to preserve its original identity.
+    // The name only changes on creation.
     const orderRef = doc(db, 'serviceOrders', orderId);
     await updateDoc(orderRef, {
-        orderName, // Keep original name convention on update
         data: orderData,
         status: status,
         updatedAt: serverTimestamp()

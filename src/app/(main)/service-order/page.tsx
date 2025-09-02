@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -161,18 +162,18 @@ export default function ServiceOrderListPage() {
 
         if (assignedGuides.length > 1) {
             try {
-                // 1. Update the original order to become the "master" order
+                // 1. Update the original order to become the "master" order, listing all guides.
                 const masterOrderData = { ...updatedOrderData, guia: assignedGuides.join(', ') };
                 await updateServiceOrder(orderToEdit.id, masterOrderData, 'editado');
 
-                // 2. Create new child orders for each guide
+                // 2. Create new child orders for each guide, using the master order's name as a base.
                 for (const [guideName, guideServices] of servicesByGuide.entries()) {
                     const newSplitOrderData: ServiceOrderData = {
                         ...updatedOrderData,
                         guia: guideName, 
                         services: guideServices,
                     };
-                    // Pass the original order name to create the correct child name
+                    // Pass the original order name to create the correct child name.
                     await saveServiceOrder(newSplitOrderData, currentUser.email, orderToEdit.orderName);
                 }
                 toast({ title: "Éxito", description: `La orden ha sido dividida en ${servicesByGuide.size} nuevas órdenes.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
