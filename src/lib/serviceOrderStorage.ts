@@ -52,17 +52,23 @@ function getFirstDateFromServices(services: ServiceOrderData['services']): Date 
     }
 }
 
-function formatOrderName(date: Date, fileNumber: string): string {
+function formatOrderName(date: Date, fileNumber: string, splitSuffix?: string): string {
     const datePart = format(date, 'dd_MMMM_yyyy', { locale: es }).toUpperCase();
-    return `ODS_${datePart}_${fileNumber}`;
+    const baseName = `ODS_${datePart}_${fileNumber}`;
+    return splitSuffix ? `${baseName} - ${splitSuffix}` : baseName;
 }
 
 
-export async function saveServiceOrder(orderData: ServiceOrderData, createdByEmail: string): Promise<string> {
+export async function saveServiceOrder(orderData: ServiceOrderData, createdByEmail: string, baseOrderName?: string): Promise<string> {
     if (!db) throw new Error("Firestore not initialized.");
 
     const firstDate = getFirstDateFromServices(orderData.services);
-    const orderName = formatOrderName(firstDate, orderData.file);
+    
+    // Use baseOrderName if provided (for split orders), otherwise generate a new one
+    const nameForFormatting = baseOrderName ? baseOrderName.split(' - ')[0] : formatOrderName(firstDate, orderData.file);
+    const splitSuffix = baseOrderName ? orderData.guia : undefined;
+    const orderName = splitSuffix ? `${nameForFormatting} - ${splitSuffix}` : nameForFormatting;
+
 
     const newOrder: Omit<StoredServiceOrder, 'id' | 'createdAt' | 'updatedAt'> = {
         orderName,
@@ -91,7 +97,6 @@ export async function updateServiceOrder(orderId: string, orderData: ServiceOrde
     await updateDoc(orderRef, {
         orderName,
         data: orderData,
-        status: 'editado',
         updatedAt: serverTimestamp()
     });
 }
@@ -122,7 +127,7 @@ export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
             ...data,
             createdAt: createdAt,
             updatedAt: updatedAt,
-            status: data.status || 'creado' // Directly use the status from Firestore or default to 'creado'
+            status: data.status || 'creado'
         } as StoredServiceOrder;
     });
 }

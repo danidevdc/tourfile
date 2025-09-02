@@ -12,15 +12,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Combobox, ComboboxOption } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, X } from "lucide-react";
+import { Save, X, Split } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+
 
 interface ServiceOrderEditModalProps {
   order: StoredServiceOrder;
   guides: ServiceOrderGuide[];
   activities: Activity[];
   drivers: Driver[];
-  onSave: (updatedOrderData: ServiceOrderData) => void;
+  onSave: (updatedOrderData: ServiceOrderData, isSplitOrder: boolean) => void;
   onClose: () => void;
 }
 
@@ -35,6 +37,7 @@ function MetaItem({ label, value, className }: { label: string; value?: string |
 
 export function ServiceOrderEditModal({ order, guides, activities, drivers, onSave, onClose }: ServiceOrderEditModalProps) {
   const [editableOrderData, setEditableOrderData] = useState<ServiceOrderData>(JSON.parse(JSON.stringify(order.data)));
+  const [isSplitMode, setIsSplitMode] = useState(false);
 
   useEffect(() => {
     setEditableOrderData(JSON.parse(JSON.stringify(order.data)));
@@ -47,15 +50,21 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
   };
 
   const handleGlobalGuideChange = (guideFullName: string) => {
-      const selectedGuide = guides.find(g => g.fullName.toUpperCase() === guideFullName.toUpperCase());
-      const guideFirstName = selectedGuide ? selectedGuide.firstName.toUpperCase() : '';
-
-      const updatedServices = editableOrderData.services.map(service => ({
-          ...service,
-          guia: guideFirstName
-      }));
-      setEditableOrderData(prev => ({ ...prev, guia: guideFullName, services: updatedServices }));
+      setEditableOrderData(prev => ({ ...prev, guia: guideFullName }));
   }
+
+  const handleSplitModeToggle = (checked: boolean) => {
+    setIsSplitMode(checked);
+    // When splitting, ensure every service has a guide assigned, defaulting to the main guide if not set
+    if (checked) {
+        const updatedServices = editableOrderData.services.map(service => ({
+            ...service,
+            guia: service.guia || editableOrderData.guia,
+        }));
+        setEditableOrderData(prev => ({ ...prev, services: updatedServices }));
+    }
+  }
+
 
   const sortedServices = useMemo(() => {
     return [...editableOrderData.services].sort((a, b) => {
@@ -99,7 +108,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
         <DialogHeader className="p-4 border-b">
           <DialogTitle>Editando Orden: {order.orderName}</DialogTitle>
           <DialogDescription>
-            Realiza cambios en los servicios. El guía principal se aplicará a todas las filas.
+            Realiza cambios en los servicios. Activa "Dividir Orden" para asignar guías individuales.
           </DialogDescription>
         </DialogHeader>
 
@@ -111,16 +120,23 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
                    <MetaItem label="Nº Pax:" value={order.data.nPax} className="flex-none w-32" />
                    <MetaItem label="Hotel:" value={order.data.hotel} className="flex-1"/>
                 </div>
-                <div className="pt-2">
-                    <Label className="text-xs font-semibold text-muted-foreground">Guía Principal (Aplicar a todos)</Label>
-                    <Combobox
-                        options={globalGuideOptions}
-                        value={editableOrderData.guia}
-                        onSelect={handleGlobalGuideChange}
-                        placeholder="Seleccionar guía para todos los servicios..."
-                        className="h-9 mt-1"
-                        triggerClassName="bg-card/80"
-                    />
+                <div className="pt-2 flex items-center gap-4">
+                    <div className="flex-1">
+                        <Label className="text-xs font-semibold text-muted-foreground">Guía Principal</Label>
+                        <Combobox
+                            options={globalGuideOptions}
+                            value={editableOrderData.guia}
+                            onSelect={handleGlobalGuideChange}
+                            placeholder="Seleccionar guía..."
+                            className="h-9 mt-1"
+                            triggerClassName="bg-card/80"
+                            disabled={isSplitMode}
+                        />
+                    </div>
+                    <div className="flex items-center space-x-2 pt-5">
+                        <Switch id="split-mode" checked={isSplitMode} onCheckedChange={handleSplitModeToggle} />
+                        <Label htmlFor="split-mode" className="flex items-center gap-2 text-sm font-medium"><Split className="h-4 w-4" /> Dividir Orden por Guía</Label>
+                    </div>
                 </div>
             </div>
 
@@ -145,6 +161,9 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
                   const rowBgClass = colorGroup % 2 === 0 ? "bg-white dark:bg-zinc-900/50" : "bg-zinc-100 dark:bg-zinc-800/50";
                   const originalIndex = editableOrderData.services.findIndex(os => os === s);
                   const currentDriverOptions = driverOptionsForBusType(s.bus);
+                  
+                  // Use the service-specific guide in split mode, otherwise the global one
+                  const guideForThisRow = isSplitMode ? s.guia : editableOrderData.guia;
 
                   return (
                     <TableRow key={originalIndex} className={cn("break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
@@ -167,7 +186,20 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
                         />
                       </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
-                      <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium">{s.guia}</TableCell>
+                      <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium">
+                         {isSplitMode ? (
+                            <Combobox
+                                options={globalGuideOptions}
+                                value={s.guia || ''}
+                                onSelect={(value) => handleServiceChange(originalIndex, 'guia', value)}
+                                placeholder="Asignar guía..."
+                                className="h-8 text-xs"
+                                triggerClassName="bg-card/80"
+                            />
+                         ) : (
+                            guideForThisRow
+                         )}
+                      </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                          <Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)}>
                             <SelectTrigger className="h-8 text-xs bg-card/80"><SelectValue placeholder="..." /></SelectTrigger>
@@ -201,7 +233,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
 
         <DialogFooter className="p-4 border-t bg-background">
           <Button variant="outline" onClick={onClose}><X className="mr-2 h-4 w-4"/>Cerrar</Button>
-          <Button onClick={() => onSave(editableOrderData)}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
+          <Button onClick={() => onSave(editableOrderData, isSplitMode)}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

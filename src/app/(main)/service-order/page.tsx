@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import { getAllServiceOrders, deleteServiceOrder, updateServiceOrder, type StoredServiceOrder, updateOrderStatus } from '@/lib/serviceOrderStorage';
+import { getAllServiceOrders, deleteServiceOrder, updateServiceOrder, type StoredServiceOrder, saveServiceOrder } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ const ITEMS_PER_PAGE = 10;
 
 export default function ServiceOrderListPage() {
   const router = useRouter();
-  const { isLoading: authLoading, isCurrentUserAdmin } = useAuth();
+  const { currentUser, isLoading: authLoading, isCurrentUserAdmin } = useAuth();
   const { toast } = useToast();
 
   const [orders, setOrders] = useState<StoredServiceOrder[]>([]);
@@ -63,7 +63,6 @@ export default function ServiceOrderListPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   
-  const [orderToEditInSheet, setOrderToEditInSheet] = useState<StoredServiceOrder | null>(null);
   const [orderToEdit, setOrderToEdit] = useState<StoredServiceOrder | null>(null);
   const [orderToPreview, setOrderToPreview] = useState<StoredServiceOrder | null>(null);
   
@@ -129,7 +128,7 @@ export default function ServiceOrderListPage() {
 
 
   const handleNewOrderClick = () => {
-    setOrderToEditInSheet(null);
+    setIntermediateOrderData(initialOrderDataState);
     setIsSheetOpen(true);
   };
 
@@ -143,13 +142,52 @@ export default function ServiceOrderListPage() {
     setIsPreviewModalOpen(true);
   }
   
-  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
-    if (!orderToEdit) return;
+  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData, isSplitOrder: boolean) => {
+    if (!orderToEdit || !currentUser?.email) return;
+
+    // --- SPLIT LOGIC ---
+    if (isSplitOrder) {
+        const servicesByGuide = new Map<string, ServiceOrderData['services']>();
+        updatedOrderData.services.forEach(service => {
+            const guideName = service.guia || updatedOrderData.guia;
+            if (!guideName) return; // Skip services without a guide
+            if (!servicesByGuide.has(guideName)) {
+                servicesByGuide.set(guideName, []);
+            }
+            servicesByGuide.get(guideName)!.push(service);
+        });
+
+        if (servicesByGuide.size > 1) {
+            try {
+                // 1. Delete the original order
+                await deleteServiceOrder(orderToEdit.id);
+
+                // 2. Create new orders for each guide
+                for (const [guideName, guideServices] of servicesByGuide.entries()) {
+                    const newSplitOrderData: ServiceOrderData = {
+                        ...updatedOrderData,
+                        guia: guideName, // Set the main guide for this split order
+                        services: guideServices,
+                    };
+                    await saveServiceOrder(newSplitOrderData, currentUser.email, orderToEdit.orderName);
+                }
+                toast({ title: "Éxito", description: `La orden ha sido dividida en ${servicesByGuide.size} nuevas órdenes.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+                fetchOrders();
+            } catch (e) {
+                 toast({ title: "Error al Dividir", description: "No se pudo dividir la orden.", variant: "destructive" });
+            } finally {
+                setIsEditModalOpen(false);
+                setOrderToEdit(null);
+            }
+            return; // End execution here for split logic
+        }
+    }
     
+    // --- REGULAR UPDATE LOGIC ---
     try {
       await updateServiceOrder(orderToEdit.id, updatedOrderData);
       toast({ title: "Éxito", description: "Orden actualizada correctamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
-      fetchOrders(); // Refresh list
+      fetchOrders(); 
     } catch(e) {
       toast({ title: "Error", description: "No se pudo actualizar la orden.", variant: "destructive" });
     } finally {
@@ -164,7 +202,7 @@ export default function ServiceOrderListPage() {
     try {
       await deleteServiceOrder(orderToDelete.id);
       toast({ title: "Éxito", description: "Orden de servicio eliminada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
-      fetchOrders(); // Refresh list
+      fetchOrders();
     } catch (error) {
       toast({ title: "Error", description: "No se pudo eliminar la orden.", variant: "destructive"});
     } finally {
@@ -175,21 +213,20 @@ export default function ServiceOrderListPage() {
   const handlePrintToPdf = async (order: StoredServiceOrder) => {
     setIsPrintingPdfId(order.id);
     try {
-      await updateOrderStatus(order.id, 'enviado');
+      // await updateOrderStatus(order.id, 'enviado'); // This logic is commented out as requested
       const orderDataString = encodeURIComponent(JSON.stringify(order));
       const url = `/service-order-print?order=${orderDataString}`;
       window.open(url, '_blank', 'popup=yes,width=1123,height=794');
-      fetchOrders(); // Refresh list to show new status
+      // fetchOrders(); // No need to fetch if status isn't changing
     } catch (error) {
-        toast({ title: "Error", description: "No se pudo actualizar el estado de la orden.", variant: "destructive" });
+        toast({ title: "Error", description: "No se pudo generar el PDF.", variant: "destructive" });
     } finally {
-        setIsPrintingPdfId(null); // Reset state immediately
+        setIsPrintingPdfId(null); 
     }
   };
 
   const onSheetSave = () => {
     setIsSheetOpen(false);
-    setOrderToEditInSheet(null);
     setIntermediateOrderData(initialOrderDataState);
     fetchOrders(); 
   };
@@ -200,11 +237,13 @@ export default function ServiceOrderListPage() {
 
   const onSheetClearAndNew = () => {
       setIntermediateOrderData(initialOrderDataState);
-      setOrderToEditInSheet(null);
   };
   
   const getStatusBadge = (order: StoredServiceOrder) => {
-    const status = order.status || 'creado'; // Default to 'creado'
+    // Check if updatedAt exists and is different from createdAt
+    const isEdited = order.updatedAt && order.createdAt && order.updatedAt.getTime() !== order.createdAt.getTime();
+    const status = isEdited ? 'editado' : order.status || 'creado';
+
     switch (status) {
         case 'enviado':
             return <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">Enviado</Badge>;
@@ -386,7 +425,6 @@ export default function ServiceOrderListPage() {
             onSave={onSheetSave}
             orderData={intermediateOrderData}
             setOrderData={setIntermediateOrderData}
-            existingOrderId={orderToEditInSheet?.id || null}
             onClearAndNew={onSheetClearAndNew}
         />
     </div>

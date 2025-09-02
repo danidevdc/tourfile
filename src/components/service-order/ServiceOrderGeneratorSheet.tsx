@@ -13,7 +13,7 @@ import {
   type ServiceOrderGuide, type Hotel, type Driver, type Activity, type ServiceItem,
 } from '@/lib/serviceOrderService';
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
-import { saveServiceOrder, updateServiceOrder } from '@/lib/serviceOrderStorage';
+import { saveServiceOrder } from '@/lib/serviceOrderStorage';
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import { incrementFlightSearchCount } from "@/lib/flightSearchCounterService";
 
@@ -43,11 +43,10 @@ interface ServiceOrderGeneratorSheetProps {
     onSave: () => void;
     orderData: ServiceOrderData;
     setOrderData: (data: ServiceOrderData) => void;
-    existingOrderId: string | null;
     onClearAndNew: () => void;
 }
 
-export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData, setOrderData, existingOrderId, onClearAndNew }: ServiceOrderGeneratorSheetProps) {
+export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData, setOrderData, onClearAndNew }: ServiceOrderGeneratorSheetProps) {
     const { currentUser } = useAuth();
     const { toast } = useToast();
 
@@ -140,19 +139,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         loadInitialData();
     }, [toast]);
     
-    useEffect(() => {
-        if (existingOrderId && orderData?.services?.length > 0) {
-            const lastService = orderData.services[orderData.services.length - 1];
-            if (lastService.bus) {
-                setBusTypeSelection(lastService.bus);
-            }
-            if (lastService.chofer) {
-                setChoferSelection(lastService.chofer);
-            }
-        }
-    }, [existingOrderId, orderData.services]);
-
-
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
@@ -307,7 +293,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         const serviceToAdd: ServiceItem = {
             ...newService,
             fecha: format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy'),
-            guia: selectedGuide?.firstName.toUpperCase() || '',
+            guia: selectedGuide?.fullName.toUpperCase() || '',
             bus: busTypeSelection === 'CONT.' ? 'CONT.' : busTypeSelection,
             chofer: choferSelection,
         };
@@ -337,13 +323,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         }
         setIsSaving(true);
         try {
-            if (existingOrderId) {
-                await updateServiceOrder(existingOrderId, orderData);
-                toast({ title: "Éxito", description: "Orden de servicio actualizada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
-            } else {
-                await saveServiceOrder(orderData, currentUser.email);
-                toast({ title: "Éxito", description: "Orden de servicio guardada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
-            }
+            await saveServiceOrder(orderData, currentUser.email);
+            toast({ title: "Éxito", description: "Orden de servicio guardada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
             onSave();
         } catch (error) {
             toast({ title: "Error", description: "No se pudo guardar la orden de servicio.", variant: "destructive" });
@@ -521,7 +502,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                     <Button variant="outline" onClick={onClose}>Cerrar</Button>
                     <Button onClick={handleSaveOrder} disabled={isSaving || isLoadingData}>
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                        {existingOrderId ? "Actualizar Orden" : "Guardar Orden"}
+                        Guardar Orden
                     </Button>
                 </div>
             </SheetContent>
