@@ -7,8 +7,7 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
 // Define paths that are publicly accessible without authentication
-// Removed "/" from PUBLIC_PATHS to make the root route protected.
-const PUBLIC_PATHS = ["/login", "/register", "/forgot-password"];
+const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/service-order-print"];
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
