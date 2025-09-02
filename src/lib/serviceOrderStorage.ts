@@ -64,7 +64,8 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
 
     const firstDate = getFirstDateFromServices(orderData.services);
     
-    // Use baseOrderName if provided (for split orders), otherwise generate a new one
+    // If baseOrderName exists, it means we are creating a child (split) order.
+    // We use it to construct the name. Otherwise, create a new base name.
     const nameForFormatting = baseOrderName ? baseOrderName.split(' - ')[0] : formatOrderName(firstDate, orderData.file);
     const splitSuffix = baseOrderName ? orderData.guia : undefined;
     const orderName = splitSuffix ? `${nameForFormatting} - ${splitSuffix}` : nameForFormatting;
@@ -87,7 +88,7 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
 }
 
 
-export async function updateServiceOrder(orderId: string, orderData: ServiceOrderData): Promise<void> {
+export async function updateServiceOrder(orderId: string, orderData: ServiceOrderData, status: OrderStatus = 'editado'): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
     
     const firstDate = getFirstDateFromServices(orderData.services);
@@ -95,16 +96,11 @@ export async function updateServiceOrder(orderId: string, orderData: ServiceOrde
 
     const orderRef = doc(db, 'serviceOrders', orderId);
     await updateDoc(orderRef, {
-        orderName,
+        orderName, // Keep original name convention on update
         data: orderData,
+        status: status,
         updatedAt: serverTimestamp()
     });
-}
-
-export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
-    if (!db) throw new Error("Firestore not initialized.");
-    const orderRef = doc(db, 'serviceOrders', orderId);
-    await updateDoc(orderRef, { status: status, updatedAt: serverTimestamp() });
 }
 
 

@@ -142,7 +142,7 @@ export default function ServiceOrderListPage() {
     setIsPreviewModalOpen(true);
   }
   
-  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData, isSplitOrder: boolean) => {
+ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData, isSplitOrder: boolean) => {
     if (!orderToEdit || !currentUser?.email) return;
 
     // --- SPLIT LOGIC ---
@@ -150,25 +150,29 @@ export default function ServiceOrderListPage() {
         const servicesByGuide = new Map<string, ServiceOrderData['services']>();
         updatedOrderData.services.forEach(service => {
             const guideName = service.guia || updatedOrderData.guia;
-            if (!guideName) return; // Skip services without a guide
+            if (!guideName) return; 
             if (!servicesByGuide.has(guideName)) {
                 servicesByGuide.set(guideName, []);
             }
             servicesByGuide.get(guideName)!.push(service);
         });
 
-        if (servicesByGuide.size > 1) {
-            try {
-                // 1. Delete the original order
-                await deleteServiceOrder(orderToEdit.id);
+        const assignedGuides = Array.from(servicesByGuide.keys());
 
-                // 2. Create new orders for each guide
+        if (assignedGuides.length > 1) {
+            try {
+                // 1. Update the original order to become the "master" order
+                const masterOrderData = { ...updatedOrderData, guia: assignedGuides.join(', ') };
+                await updateServiceOrder(orderToEdit.id, masterOrderData, 'editado');
+
+                // 2. Create new child orders for each guide
                 for (const [guideName, guideServices] of servicesByGuide.entries()) {
                     const newSplitOrderData: ServiceOrderData = {
                         ...updatedOrderData,
-                        guia: guideName, // Set the main guide for this split order
+                        guia: guideName, 
                         services: guideServices,
                     };
+                    // Pass the original order name to create the correct child name
                     await saveServiceOrder(newSplitOrderData, currentUser.email, orderToEdit.orderName);
                 }
                 toast({ title: "Éxito", description: `La orden ha sido dividida en ${servicesByGuide.size} nuevas órdenes.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
@@ -185,7 +189,7 @@ export default function ServiceOrderListPage() {
     
     // --- REGULAR UPDATE LOGIC ---
     try {
-      await updateServiceOrder(orderToEdit.id, updatedOrderData);
+      await updateServiceOrder(orderToEdit.id, updatedOrderData, 'editado');
       toast({ title: "Éxito", description: "Orden actualizada correctamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
       fetchOrders(); 
     } catch(e) {
@@ -213,11 +217,13 @@ export default function ServiceOrderListPage() {
   const handlePrintToPdf = async (order: StoredServiceOrder) => {
     setIsPrintingPdfId(order.id);
     try {
-      // await updateOrderStatus(order.id, 'enviado'); // This logic is commented out as requested
+      if (order.status !== 'enviado') {
+        await updateServiceOrder(order.id, order.data, 'enviado');
+        fetchOrders();
+      }
       const orderDataString = encodeURIComponent(JSON.stringify(order));
       const url = `/service-order-print?order=${orderDataString}`;
       window.open(url, '_blank', 'popup=yes,width=1123,height=794');
-      // fetchOrders(); // No need to fetch if status isn't changing
     } catch (error) {
         toast({ title: "Error", description: "No se pudo generar el PDF.", variant: "destructive" });
     } finally {
@@ -240,9 +246,7 @@ export default function ServiceOrderListPage() {
   };
   
   const getStatusBadge = (order: StoredServiceOrder) => {
-    // Check if updatedAt exists and is different from createdAt
-    const isEdited = order.updatedAt && order.createdAt && order.updatedAt.getTime() !== order.createdAt.getTime();
-    const status = isEdited ? 'editado' : order.status || 'creado';
+    const status = order.status || 'creado';
 
     switch (status) {
         case 'enviado':

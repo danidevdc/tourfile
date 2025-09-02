@@ -99,14 +99,14 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
   const externalDrivers = drivers.filter(d => d.name.startsWith('CONT '));
   const driverOptionsForBusType = (busType: string | undefined): ComboboxOption[] => {
       const driverList = busType === 'CONT.' ? externalDrivers : ownDrivers;
-      return driverList.map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\s/i, '') }));
+      return driverList.map(d => ({ value: d.name.toUpperCase(), label: d.name }));
   };
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
         <DialogHeader className="p-4 border-b">
-          <DialogTitle>Editando Orden: {order.orderName}</DialogTitle>
+          <DialogTitle>Editando Orden: {order.orderName.replace(/_/g, ' ')}</DialogTitle>
           <DialogDescription>
             Realiza cambios en los servicios. Activa "Dividir Orden" para asignar guías individuales.
           </DialogDescription>
@@ -162,8 +162,9 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
                   const originalIndex = editableOrderData.services.findIndex(os => os === s);
                   const currentDriverOptions = driverOptionsForBusType(s.bus);
                   
-                  // Use the service-specific guide in split mode, otherwise the global one
-                  const guideForThisRow = isSplitMode ? s.guia : editableOrderData.guia;
+                  const guideForThisRow = s.guia || editableOrderData.guia;
+                  const choferFirstName = (s.chofer || '').split(' ')[0];
+
 
                   return (
                     <TableRow key={originalIndex} className={cn("break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
