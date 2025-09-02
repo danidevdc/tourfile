@@ -36,15 +36,13 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
             </div>
 
             <div className="m-6 space-y-2">
-                 <div className="flex items-stretch gap-2">
-                   <MetaItem label="Guía:" value={data.guia} className="flex-1" />
-                   <MetaItem label="Hotel:" value={data.hotel} className="flex-1" />
-                </div>
+                <MetaItem label="Guía:" value={data.guia} />
                  <div className="flex items-stretch gap-2">
                    <MetaItem label="File:" value={data.file} className="flex-none w-32" />
                    <MetaItem label="Ref:" value={data.ref} className="flex-1" />
                    <MetaItem label="Nº Pax:" value={data.nPax} className="flex-none w-32" />
                 </div>
+                <MetaItem label="Hotel:" value={data.hotel} />
             </div>
 
             <div className="px-6">

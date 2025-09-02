@@ -53,15 +53,13 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
             </div>
 
             <div className="m-6 space-y-2">
+                <MetaItem label="Guía:" value={data.guia} />
                 <div className="flex items-stretch gap-2">
-                   <MetaItem label="Guía:" value={data.guia} className="flex-1" />
-                   <MetaItem label="Hotel:" value={data.hotel} className="flex-1" />
+                    <MetaItem label="File:" value={data.file} className="flex-none w-32" />
+                    <MetaItem label="Ref:" value={data.ref} className="flex-1" />
+                    <MetaItem label="Nº Pax:" value={data.nPax} className="flex-none w-32" />
                 </div>
-                 <div className="flex items-stretch gap-2">
-                   <MetaItem label="File:" value={data.file} className="flex-none w-32" />
-                   <MetaItem label="Ref:" value={data.ref} className="flex-1" />
-                   <MetaItem label="Nº Pax:" value={data.nPax} className="flex-none w-32" />
-                </div>
+                <MetaItem label="Hotel:" value={data.hotel} />
             </div>
 
             <div className="px-6">
@@ -140,9 +138,9 @@ function MetaItem({ label, value, className }: { label: string; value?: string |
 
 function InfoBlock({ title, text, subtle = false }: { title: string; text?: string; subtle?: boolean }) {
   return (
-    <div className={cn("rounded-xl border p-2", subtle ? "bg-muted/40 border-dashed" : "bg-card/20") }>
-      <p className="font-mono uppercase tracking-wide text-primary mb-1 font-bold" style={{fontSize: '10px'}}>{title}</p>
-      <p className="uppercase font-mono whitespace-pre-wrap leading-5" style={{fontSize: '10px'}}>{text || "—"}</p>
+    <div className={cn("rounded-xl border p-2", subtle ? "bg-muted/40 border-dashed" : "bg-card/20") } style={{fontSize: '10px'}}>
+      <p className="font-mono uppercase tracking-wide text-primary mb-1 font-bold">{title}</p>
+      <p className="uppercase font-mono whitespace-pre-wrap leading-5">{text || "—"}</p>
     </div>
   );
 }
