@@ -151,7 +151,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
         </div>
         <DialogFooter className="sticky bottom-0 z-10 gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4 mt-auto">
            <DialogClose asChild>
-              <Button type="button" className="w-full bg-cyan-600 text-white hover:bg-cyan-700">Cerrar</Button>
+              <Button type="button" variant="default" className="w-full">Cerrar</Button>
            </DialogClose>
         </DialogFooter>
       </DialogContent>
