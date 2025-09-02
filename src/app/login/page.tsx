@@ -3,7 +3,6 @@ import LoginForm from '@/components/auth/LoginForm';
 import { FileSpreadsheet } from 'lucide-react'; // Using main app icon
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { version } from '../../../package.json'; // Import version
 
 export const metadata: Metadata = {
   title: 'Iniciar Sesión - TourFile Generator',
@@ -11,8 +10,6 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  const appVersion = `${version} - DC`;
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
@@ -29,7 +26,7 @@ export default function LoginPage() {
           </Link>
         </p>
          <p className="mt-8 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} TourFile Generator. (Versión: {appVersion})
+          &copy; {new Date().getFullYear()} TourFile Generator.
         </p>
       </div>
     </div>
