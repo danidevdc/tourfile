@@ -7,14 +7,15 @@ import { useToast } from "@/hooks/use-toast";
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import { getAllServiceOrders, deleteServiceOrder, updateServiceOrder, type StoredServiceOrder } from '@/lib/serviceOrderStorage';
+import { getAllServiceOrders, deleteServiceOrder, updateServiceOrder, type StoredServiceOrder, updateOrderStatus } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Loader2, FileDown, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,7 +70,6 @@ export default function ServiceOrderListPage() {
   const [intermediateOrderData, setIntermediateOrderData] = useState<ServiceOrderData>(initialOrderDataState);
 
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
-  const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
   const [isPrintingPdfId, setIsPrintingPdfId] = useState<string | null>(null);
 
 
@@ -108,7 +108,7 @@ export default function ServiceOrderListPage() {
     return orders.filter(order => {
         const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
         return (
-            order.orderName.toLowerCase().includes(lowercasedFilter) ||
+            order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
             order.data.guia.toLowerCase().includes(lowercasedFilter) ||
             order.createdBy.toLowerCase().includes(lowercasedFilter) ||
             date.toLowerCase().includes(lowercasedFilter)
@@ -171,36 +171,20 @@ export default function ServiceOrderListPage() {
       setOrderToDelete(null);
     }
   }
-
-  const handleDownloadExcel = async (order: StoredServiceOrder) => {
-    setIsDownloadingId(order.id);
-    try {
-      if (!order.id) throw new Error("ID de orden no válido");
-      
-      const buffer = await generateServiceOrderExcel(order.data);
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${order.orderName}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-    } catch(error) {
-      toast({ title: "Error", description: "No se pudo generar el archivo Excel.", variant: "destructive" });
-    } finally {
-      setIsDownloadingId(null);
-    }
-  };
-
-  const handlePrintToPdf = (order: StoredServiceOrder) => {
+  
+  const handlePrintToPdf = async (order: StoredServiceOrder) => {
     setIsPrintingPdfId(order.id);
-    const orderDataString = encodeURIComponent(JSON.stringify(order));
-    const url = `/service-order-print?order=${orderDataString}`;
-    window.open(url, '_blank', 'popup=yes,width=1123,height=794');
-    setIsPrintingPdfId(null); // Reset state immediately after opening
+    try {
+      await updateOrderStatus(order.id, 'enviado');
+      const orderDataString = encodeURIComponent(JSON.stringify(order));
+      const url = `/service-order-print?order=${orderDataString}`;
+      window.open(url, '_blank', 'popup=yes,width=1123,height=794');
+      fetchOrders(); // Refresh list to show new status
+    } catch (error) {
+        toast({ title: "Error", description: "No se pudo actualizar el estado de la orden.", variant: "destructive" });
+    } finally {
+        setIsPrintingPdfId(null); // Reset state immediately
+    }
   };
 
   const onSheetSave = () => {
@@ -218,6 +202,19 @@ export default function ServiceOrderListPage() {
       setIntermediateOrderData(initialOrderDataState);
       setOrderToEditInSheet(null);
   };
+  
+  const getStatusBadge = (order: StoredServiceOrder) => {
+    const status = order.status || 'creado'; // Default to 'creado'
+    switch (status) {
+        case 'enviado':
+            return <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">Enviado</Badge>;
+        case 'editado':
+            return <Badge variant="secondary" className="bg-orange-500 text-white hover:bg-orange-600">Editado</Badge>;
+        default:
+            return <Badge variant="outline">Creado</Badge>;
+    }
+  };
+
 
   if (authLoading || isLoading) {
     return <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
@@ -262,17 +259,19 @@ export default function ServiceOrderListPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[26%] border-r">Nombre de la Orden</TableHead>
-                            <TableHead className="w-[25%] border-r">Guía Asignado</TableHead>
+                            <TableHead className="w-[15%] border-r">Estado</TableHead>
+                            <TableHead className="w-[20%] border-r">Guía Asignado</TableHead>
                             <TableHead className="w-[15%] border-r">Creado Por</TableHead>
                             <TableHead className="w-[10%] border-r">Fecha de Creación</TableHead>
-                            <TableHead className="text-right w-[24%]">Acciones</TableHead>
+                            <TableHead className="text-right w-[14%]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {paginatedOrders.length > 0 ? (
                             paginatedOrders.map((order) => (
                                 <TableRow key={order.id}>
-                                    <TableCell className="font-medium border-r">{order.orderName}</TableCell>
+                                    <TableCell className="font-medium border-r">{order.orderName.replace(/_/g, ' ')}</TableCell>
+                                    <TableCell className="border-r">{getStatusBadge(order)}</TableCell>
                                     <TableCell className="border-r">{order.data.guia}</TableCell>
                                     <TableCell className="border-r">{order.createdBy}</TableCell>
                                     <TableCell className="border-r">{format(order.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
@@ -291,18 +290,6 @@ export default function ServiceOrderListPage() {
                                               {isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
                                            </Button>
                                         </TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>
-
-                                        <Tooltip><TooltipTrigger asChild>
-                                           <Button 
-                                              variant="outline" 
-                                              size="icon"
-                                              onClick={() => handleDownloadExcel(order)} 
-                                              disabled={isDownloadingId === order.id}
-                                              className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700 hidden"
-                                            >
-                                                {isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="h-4 w-4"/>}
-                                            </Button>
-                                        </TooltipTrigger><TooltipContent><p>Descargar Excel</p></TooltipContent></Tooltip>
                                         
                                         <AlertDialog>
                                             <Tooltip><TooltipTrigger asChild>
@@ -335,7 +322,7 @@ export default function ServiceOrderListPage() {
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                                     {searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}
                                 </TableCell>
                             </TableRow>

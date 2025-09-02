@@ -54,7 +54,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
           ...service,
           guia: guideFirstName
       }));
-      setEditableOrderData(prev => ({ ...prev, services: updatedServices }));
+      setEditableOrderData(prev => ({ ...prev, guia: guideFullName, services: updatedServices }));
   }
 
   const sortedServices = useMemo(() => {
@@ -84,7 +84,6 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
     return map;
   }, [sortedServices]);
 
-  const guideOptions: ComboboxOption[] = guides.map(g => ({ value: g.firstName.toUpperCase(), label: g.fullName }));
   const globalGuideOptions: ComboboxOption[] = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
   const activityOptions: ComboboxOption[] = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
   const ownDrivers = drivers.filter(d => !d.name.startsWith('CONT '));
@@ -100,7 +99,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
         <DialogHeader className="p-4 border-b">
           <DialogTitle>Editando Orden: {order.orderName}</DialogTitle>
           <DialogDescription>
-            Realiza cambios en los servicios. Los cambios masivos de guía se aplicarán a todas las filas.
+            Realiza cambios en los servicios. El guía principal se aplicará a todas las filas.
           </DialogDescription>
         </DialogHeader>
 
@@ -116,7 +115,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
                     <Label className="text-xs font-semibold text-muted-foreground">Guía Principal (Aplicar a todos)</Label>
                     <Combobox
                         options={globalGuideOptions}
-                        value={''}
+                        value={editableOrderData.guia}
                         onSelect={handleGlobalGuideChange}
                         placeholder="Seleccionar guía para todos los servicios..."
                         className="h-9 mt-1"
@@ -168,16 +167,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, onSa
                         />
                       </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
-                      <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
-                        <Combobox
-                          options={guideOptions}
-                          value={s.guia || ''}
-                          onSelect={(value) => handleServiceChange(originalIndex, 'guia', value)}
-                          placeholder="Guía..."
-                          className="h-8 text-xs"
-                          triggerClassName="bg-card/80"
-                        />
-                      </TableCell>
+                      <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium">{s.guia}</TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                          <Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)}>
                             <SelectTrigger className="h-8 text-xs bg-card/80"><SelectValue placeholder="..." /></SelectTrigger>

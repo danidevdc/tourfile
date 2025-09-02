@@ -1,4 +1,3 @@
-
 "use client";
 
 import { db } from '@/lib/firebase';
@@ -19,6 +18,8 @@ import { type ServiceOrderData } from './serviceOrderGenerator';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+export type OrderStatus = 'creado' | 'editado' | 'enviado';
+
 export interface StoredServiceOrder {
   id: string;
   orderName: string;
@@ -26,6 +27,7 @@ export interface StoredServiceOrder {
   createdAt: Date;
   updatedAt?: Date;
   data: ServiceOrderData;
+  status?: OrderStatus;
 }
 
 function getFirstDateFromServices(services: ServiceOrderData['services']): Date {
@@ -53,10 +55,11 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
     const firstDate = getFirstDateFromServices(orderData.services);
     const orderName = formatOrderName(firstDate, orderData.file);
 
-    const newOrder: Omit<StoredServiceOrder, 'id' | 'createdAt'> = {
+    const newOrder: Omit<StoredServiceOrder, 'id' | 'createdAt' | 'updatedAt'> = {
         orderName,
         createdBy: createdByEmail,
         data: orderData,
+        status: 'creado',
     };
     
     const docRef = await addDoc(collection(db, 'serviceOrders'), {
@@ -79,8 +82,15 @@ export async function updateServiceOrder(orderId: string, orderData: ServiceOrde
     await updateDoc(orderRef, {
         orderName,
         data: orderData,
+        status: 'editado',
         updatedAt: serverTimestamp()
     });
+}
+
+export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
+    if (!db) throw new Error("Firestore not initialized.");
+    const orderRef = doc(db, 'serviceOrders', orderId);
+    await updateDoc(orderRef, { status });
 }
 
 
@@ -95,11 +105,21 @@ export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
 
     return snapshot.docs.map(doc => {
         const data = doc.data();
+        const createdAt = (data.createdAt as Timestamp)?.toDate();
+        const updatedAt = (data.updatedAt as Timestamp)?.toDate();
+        
+        let status: OrderStatus = data.status || 'creado';
+        // Logic to determine 'editado' status if not explicitly set
+        if (status === 'creado' && updatedAt && createdAt && updatedAt.getTime() > createdAt.getTime() + 10000) { // 10s grace period
+             status = 'editado';
+        }
+
         return {
             id: doc.id,
             ...data,
-            createdAt: (data.createdAt as Timestamp).toDate(),
-            updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate() : undefined,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            status: status
         } as StoredServiceOrder;
     });
 }
