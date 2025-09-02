@@ -52,8 +52,11 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
       return map;
   }, [services]);
 
-  const PrintableView = () => (
-    <div className="bg-white text-zinc-900 p-4 uppercase" style={{fontFamily: '"Lucida Console", monospace'}}>
+  const PrintableView = ({ inModal = false }: { inModal?: boolean }) => (
+     <div className={cn(
+        "bg-white text-zinc-900 p-4 uppercase",
+        inModal && "border-2 border-primary rounded-xl"
+      )} style={{fontFamily: '"Lucida Console", monospace'}}>
         <div className="relative font-mono">
           <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
            <div className="pt-4 pb-3 flex items-center justify-center font-bold text-xs" style={{fontSize: '12px'}}>
@@ -146,12 +149,12 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
         <DialogHeader className="p-4">
            <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto">
-          <PrintableView />
+        <div className="flex-grow overflow-y-auto p-4">
+          <PrintableView inModal={true} />
         </div>
-        <DialogFooter className="sticky bottom-0 z-10 gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4 mt-auto">
+        <DialogFooter className="sticky bottom-0 z-10 gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2 mt-auto">
            <DialogClose asChild>
-              <Button type="button" variant="default" className="w-full">Cerrar</Button>
+              <Button type="button" variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700">Cerrar</Button>
            </DialogClose>
         </DialogFooter>
       </DialogContent>
