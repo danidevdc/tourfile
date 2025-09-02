@@ -19,6 +19,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { ScrollArea } from "./scroll-area"
 
 export interface ComboboxOption {
     value: string;
@@ -43,7 +44,7 @@ export function Combobox({ options, value, onSelect, placeholder, notFoundMessag
   const selectedLabel = options.find((option) => option.value === value)?.label;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -60,33 +61,36 @@ export function Combobox({ options, value, onSelect, placeholder, notFoundMessag
         side="bottom" 
         align="start" 
         sideOffset={5}
-        avoidCollisions={false}
-        collisionPadding={8}
       >
         <Command>
           <CommandInput placeholder={placeholder || "Search..."} />
           <CommandList>
-            <CommandEmpty>{notFoundMessage || "No option found."}</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.key || option.value}
-                  value={option.value}
-                  onSelect={(currentValue) => {
-                    onSelect(currentValue === value ? "" : currentValue)
-                    setOpen(false)
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === option.value ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {option.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            <ScrollArea 
+                className="max-h-[250px] overflow-y-auto"
+                onWheel={(e) => e.stopPropagation()}
+            >
+              <CommandEmpty>{notFoundMessage || "No option found."}</CommandEmpty>
+              <CommandGroup>
+                {options.map((option) => (
+                  <CommandItem
+                    key={option.key || option.value}
+                    value={option.value}
+                    onSelect={(currentValue) => {
+                      onSelect(currentValue === value ? "" : currentValue)
+                      setOpen(false)
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === option.value ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {option.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </ScrollArea>
           </CommandList>
         </Command>
       </PopoverContent>
