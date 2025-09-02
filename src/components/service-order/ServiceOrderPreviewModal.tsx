@@ -43,15 +43,15 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
           <div className="bg-white text-zinc-900">
             <div className="relative">
               <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
-              <div className="px-6 pt-4 pb-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="size-10 rounded-xl bg-primary/10 grid place-items-center">
-                     <ListOrdered className="h-5 w-5 text-primary" />
+              <div className="px-6 pt-4 pb-3 flex items-center justify-center">
+                  <div className="flex items-center gap-3">
+                    <div className="size-10 rounded-xl bg-primary/10 grid place-items-center">
+                        <ListOrdered className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h1 className="text-base font-mono font-semibold text-zinc-800">Orden de Servicio</h1>
+                    </div>
                   </div>
-                  <div>
-                    <h1 className="text-base font-semibold tracking-wider uppercase text-zinc-800">Orden de Servicios</h1>
-                  </div>
-                </div>
               </div>
               <Separator />
             </div>
@@ -71,14 +71,14 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                 <Table className="table-fixed">
                   <TableHeader>
                     <TableRow className="bg-primary/10 hover:bg-primary/10 uppercase h-auto">
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[86px] text-center align-middle">Fecha</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[56px] text-center align-middle">Hora</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto text-left align-middle">Servicio</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[70px] text-center align-middle">Vuelo</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[100px] text-center align-middle">Guía</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[70px] text-center align-middle">Bus</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-[11px] h-auto w-[80px] text-center align-middle">Chofer</TableHead>
-                      <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-[11px] h-auto text-left align-middle">Observaciones</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-xs h-auto w-[86px] text-center align-middle">Fecha</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-xs h-auto w-[56px] text-center align-middle">Hora</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-xs h-auto text-left align-middle">Servicio</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-xs h-auto w-[70px] text-center align-middle">Vuelo</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-xs h-auto w-[100px] text-center align-middle">Guía</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-xs h-auto w-[70px] text-center align-middle">Bus</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 font-mono text-xs h-auto w-[80px] text-center align-middle">Chofer</TableHead>
+                      <TableHead className="text-primary font-semibold py-1 px-2 font-mono text-xs h-auto text-left align-middle">Observaciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -86,15 +86,15 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                       services.map((s, i) => {
                         const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
                         return (
-                          <TableRow key={i} className={cn("font-mono text-[12px] uppercase break-words align-middle h-[34px]", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
+                          <TableRow key={i} className={cn("font-mono text-xs uppercase break-words align-middle h-[34px]", i % 2 === 0 ? "bg-white" : "bg-zinc-50")}>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                                {showDate && s.fecha ? (
-                                <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-[10px] text-primary">
+                                <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold">
                                   {s.fecha}
                                 </span>
                               ) : ("")}
                              </TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border text-[11px]">{s.hora}</span></TableCell>
+                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border">{s.hora}</span></TableCell>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
                              <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.guia}</TableCell>
@@ -133,8 +133,8 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
   return (
-    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-2 flex items-center justify-center gap-2", className)}>
-      <p className="text-xs font-semibold uppercase tracking-wide text-primary">{label}:</p>
+    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2", className)}>
+      <p className="text-xs font-mono uppercase text-primary">{label}:</p>
       <p className="text-xs uppercase font-mono">{value || "—"}</p>
     </div>
   );
@@ -143,7 +143,7 @@ function MetaItem({ label, value, className }: { label: string; value?: string |
 function InfoBlock({ title, text, subtle = false }: { title: string; text?: string; subtle?: boolean }) {
   return (
     <div className={cn("rounded-xl border p-2", subtle ? "bg-muted/40 border-dashed" : "bg-card/20") }>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-primary mb-1">{title}:</p>
+      <p className="text-[10px] font-mono uppercase tracking-wide text-primary mb-1">{title}:</p>
       <p className="text-[10px] uppercase font-mono whitespace-pre-wrap leading-5">{text || "—"}</p>
     </div>
   );
