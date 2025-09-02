@@ -23,6 +23,7 @@ import {
 export interface ComboboxOption {
     value: string;
     label: string;
+    key?: string; // Add optional key property
 }
 
 interface ComboboxProps {
@@ -68,7 +69,7 @@ export function Combobox({ options, value, onSelect, placeholder, notFoundMessag
             <CommandGroup>
               {options.map((option) => (
                 <CommandItem
-                  key={option.value}
+                  key={option.key || option.value}
                   value={option.value}
                   onSelect={(currentValue) => {
                     onSelect(currentValue === value ? "" : currentValue)
@@ -91,3 +92,5 @@ export function Combobox({ options, value, onSelect, placeholder, notFoundMessag
     </Popover>
   )
 }
+
+    

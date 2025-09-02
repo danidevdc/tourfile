@@ -318,14 +318,25 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim() || !newService.hora.trim();
 
     const filteredFlightOptions = useMemo(() => {
+        const createOption = (f: PredefinedFlight) => ({
+            value: f.flightNumber,
+            // Use the flight's unique ID for the key prop to avoid React key errors with duplicate flight numbers
+            key: f.id,
+            label: `${f.flightNumber} (${f.time})`
+        });
+
         const service = newService.servicio?.toUpperCase();
         if (service === 'TRF IN') {
-            return flights.filter(f => f.observations.toUpperCase().includes('LLEGA')).map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})` }));
+            return flights
+                .filter(f => f.observations.toUpperCase().includes('LLEGA'))
+                .map(createOption);
         }
         if (service === 'TRF OUT') {
-            return flights.filter(f => f.observations.toUpperCase().includes('SALE')).map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})` }));
+            return flights
+                .filter(f => f.observations.toUpperCase().includes('SALE'))
+                .map(createOption);
         }
-        return flights.map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})` }));
+        return flights.map(createOption);
     }, [newService.servicio, flights]);
     
 
@@ -484,3 +495,5 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         </Sheet>
     );
 }
+
+    
