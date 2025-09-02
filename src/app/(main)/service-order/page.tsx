@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Loader2, FileDown, Trash2, FilePlus, ListOrdered, Eye, Printer, Search } from "lucide-react";
+import { ArrowLeft, Loader2, FileDown, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,9 +28,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOrderGeneratorSheet";
-import { ItineraryEditModal } from "@/components/service-order/ItineraryEditModal";
+import { ServiceOrderEditModal } from "@/components/service-order/ServiceOrderEditModal";
 import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPreviewModal";
-import { getGuidesFromFirestore, getDriversFromFirestore, type ServiceOrderGuide, type Driver } from "@/lib/serviceOrderService";
+import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity } from "@/lib/serviceOrderService";
+
 
 const defaultObsText = 'LA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
 const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS REALIZADOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA';
@@ -50,20 +51,22 @@ export default function ServiceOrderListPage() {
   const [orders, setOrders] = useState<StoredServiceOrder[]>([]);
   const [guides, setGuides] = useState<ServiceOrderGuide[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [isItineraryModalOpen, setIsItineraryModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   
   const [orderToEditInSheet, setOrderToEditInSheet] = useState<StoredServiceOrder | null>(null);
-  const [orderToEditInItinerary, setOrderToEditInItinerary] = useState<StoredServiceOrder | null>(null);
+  const [orderToEdit, setOrderToEdit] = useState<StoredServiceOrder | null>(null);
   const [orderToPreview, setOrderToPreview] = useState<StoredServiceOrder | null>(null);
   
   const [intermediateOrderData, setIntermediateOrderData] = useState<ServiceOrderData>(initialOrderDataState);
-
 
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
@@ -73,14 +76,18 @@ export default function ServiceOrderListPage() {
   const fetchOrders = async () => {
     setIsLoading(true);
     try {
-      const [fetchedOrders, fetchedGuides, fetchedDrivers] = await Promise.all([
+      const [fetchedOrders, fetchedGuides, fetchedDrivers, fetchedHotels, fetchedActivities] = await Promise.all([
         getAllServiceOrders(),
         getGuidesFromFirestore(),
-        getDriversFromFirestore()
+        getDriversFromFirestore(),
+        getHotelsFromFirestore(),
+        getActivitiesFromFirestore(),
       ]);
       setOrders(fetchedOrders);
       setGuides(fetchedGuides);
       setDrivers(fetchedDrivers);
+      setHotels(fetchedHotels);
+      setActivities(fetchedActivities);
     } catch (error) {
       toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
     } finally {
@@ -126,9 +133,9 @@ export default function ServiceOrderListPage() {
     setIsSheetOpen(true);
   };
 
-  const handleEditItineraryClick = (order: StoredServiceOrder) => {
-    setOrderToEditInItinerary(order);
-    setIsItineraryModalOpen(true);
+  const handleEditOrderClick = (order: StoredServiceOrder) => {
+    setOrderToEdit(order);
+    setIsEditModalOpen(true);
   };
 
   const handlePreviewOrderClick = (order: StoredServiceOrder) => {
@@ -136,23 +143,18 @@ export default function ServiceOrderListPage() {
     setIsPreviewModalOpen(true);
   }
   
-  const handleSaveFromModal = async (updatedServices: StoredServiceOrder['data']['services']) => {
-    if (!orderToEditInItinerary) return;
-
-    const updatedOrderData: ServiceOrderData = {
-      ...orderToEditInItinerary.data,
-      services: updatedServices
-    };
+  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
+    if (!orderToEdit) return;
     
     try {
-      await updateServiceOrder(orderToEditInItinerary.id, updatedOrderData);
-      toast({ title: "Éxito", description: "Itinerario actualizado.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      await updateServiceOrder(orderToEdit.id, updatedOrderData);
+      toast({ title: "Éxito", description: "Orden actualizada correctamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
       fetchOrders(); // Refresh list
     } catch(e) {
-      toast({ title: "Error", description: "No se pudo actualizar el itinerario.", variant: "destructive" });
+      toast({ title: "Error", description: "No se pudo actualizar la orden.", variant: "destructive" });
     } finally {
-      setIsItineraryModalOpen(false);
-      setOrderToEditInItinerary(null);
+      setIsEditModalOpen(false);
+      setOrderToEdit(null);
     }
   };
 
@@ -276,7 +278,7 @@ export default function ServiceOrderListPage() {
                                     <TableCell className="border-r">{format(order.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
                                     <TableCell className="text-right space-x-1">
                                         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
-                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditItineraryClick(order)} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700"><ListOrdered className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar Itinerario</p></TooltipContent></Tooltip>
+                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditOrderClick(order)} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
                                         
                                         <Tooltip><TooltipTrigger asChild>
                                            <Button 
@@ -296,7 +298,7 @@ export default function ServiceOrderListPage() {
                                               size="icon"
                                               onClick={() => handleDownloadExcel(order)} 
                                               disabled={isDownloadingId === order.id}
-                                              className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700"
+                                              className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700 hidden"
                                             >
                                                 {isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="h-4 w-4"/>}
                                             </Button>
@@ -367,15 +369,15 @@ export default function ServiceOrderListPage() {
           </CardContent>
         </Card>
 
-        {isItineraryModalOpen && orderToEditInItinerary && (
-          <ItineraryEditModal 
-            services={orderToEditInItinerary.data.services}
+        {isEditModalOpen && orderToEdit && (
+          <ServiceOrderEditModal
+            order={orderToEdit}
             guides={guides}
-            drivers={drivers}
-            onSave={handleSaveFromModal}
+            activities={activities}
+            onSave={handleSaveFromEditModal}
             onClose={() => {
-              setIsItineraryModalOpen(false);
-              setOrderToEditInItinerary(null);
+              setIsEditModalOpen(false);
+              setOrderToEdit(null);
             }}
           />
         )}
