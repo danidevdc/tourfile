@@ -297,25 +297,70 @@ export default function DataManagementPage() {
           const workbook = XLSX.read(data, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+          // Use cellDates:true to let XLSX handle date conversion where possible
+          // And sheet_to_json with raw:false to get formatted text for dates/times
+          const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+          const rawJson: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true });
+
+          // Get header row to find column indices
+          const header = (json[0] || []).map((h: string) => h.toLowerCase());
+          const flightNumIndex = header.indexOf('numero de vuelo');
+          const timeIndex = header.indexOf('hora');
+          const obsIndex = header.indexOf('observaciones');
+          const nombreIndex = header.indexOf('nombre');
+          const apellidoIndex = header.indexOf('apellido');
+
 
           let records: any[] = [];
-          if (type === 'guides') {
-            records = json.map(row => ({ 
-              firstName: String(row.nombre || '').trim().toUpperCase(), 
-              lastName: String(row.apellido || '').trim().toUpperCase() 
+          if (type === 'flights') {
+              if (flightNumIndex === -1 || timeIndex === -1) {
+                  throw new Error("El archivo de vuelos debe contener las columnas 'numero de vuelo' y 'hora'.");
+              }
+              // Skip header row by starting loop at 1
+              records = json.slice(1).map((row, rowIndex) => {
+                  // Get raw numeric value for time if it exists
+                  const rawTime = rawJson[rowIndex + 1] ? rawJson[rowIndex + 1][timeIndex] : undefined;
+                  let formattedTime = String(row[timeIndex] || '').trim();
+
+                  // If rawTime is a number, it's an Excel serial date for time
+                  if (typeof rawTime === 'number' && rawTime > 0 && rawTime < 1) {
+                      // Decode the serial number to HH:MM format
+                      const excelEpoch = new Date(1899, 11, 30);
+                      const millisecondsPerDay = 24 * 60 * 60 * 1000;
+                      const date = new Date(excelEpoch.getTime() + rawTime * millisecondsPerDay);
+                      const hours = date.getUTCHours().toString().padStart(2, '0');
+                      const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+                      formattedTime = `${hours}:${minutes}`;
+                  } else if (formattedTime.includes(':')) {
+                      // If it's already a time string, ensure it's just HH:mm
+                      formattedTime = formattedTime.split(':').slice(0, 2).join(':');
+                  }
+
+                  return {
+                      flightNumber: String(row[flightNumIndex] || '').trim().toUpperCase(),
+                      time: formattedTime,
+                      observations: String(row[obsIndex] || '').trim()
+                  };
+              }).filter(f => f.flightNumber && f.time);
+
+              if (records.length > 0) await createBulkFlights(records);
+
+          } else if (type === 'guides') {
+             if (nombreIndex === -1 || apellidoIndex === -1) {
+                throw new Error("El archivo de guías debe tener las columnas 'nombre' y 'apellido'.");
+            }
+            records = json.slice(1).map(row => ({ 
+              firstName: String(row[nombreIndex] || '').trim().toUpperCase(), 
+              lastName: String(row[apellidoIndex] || '').trim().toUpperCase() 
             })).filter(g => g.firstName && g.lastName);
             if(records.length > 0) await createBulkGuides(records);
-          } else if (type === 'flights') {
-            records = json.map(row => ({
-                flightNumber: String(row['numero de vuelo'] || '').trim().toUpperCase(),
-                time: String(row.hora || '').trim(),
-                observations: String(row.observaciones || '').trim()
-            })).filter(f => f.flightNumber && f.time);
-            if(records.length > 0) await createBulkFlights(records);
+
           } else {
-            records = json.map(row => ({ 
-              name: String(row.nombre || '').trim().toUpperCase() 
+             if (nombreIndex === -1) {
+                throw new Error("El archivo debe tener una columna de 'nombre'.");
+            }
+            records = json.slice(1).map(row => ({ 
+              name: String(row[nombreIndex] || '').trim().toUpperCase() 
             })).filter(item => item.name);
             if (records.length > 0) {
               if (type === 'hotels') await createBulkHotels(records);
@@ -331,9 +376,9 @@ export default function DataManagementPage() {
             await fetchData();
           }
 
-        } catch (err) {
+        } catch (err: any) {
           console.error("Error processing file:", err);
-          toast({ title: "Error al procesar archivo", description: "Hubo un problema al leer el contenido del archivo Excel.", variant: "destructive" });
+          toast({ title: "Error al procesar archivo", description: err.message || "Hubo un problema al leer el contenido del archivo Excel.", variant: "destructive" });
         } finally {
           setIsSubmitting(false);
         }
@@ -345,6 +390,7 @@ export default function DataManagementPage() {
       setIsSubmitting(false);
     }
   };
+
 
   const handleTabChange = (tabValue: string) => {
     router.push(`/admin/data?tab=${tabValue}`, { scroll: false });
