@@ -10,9 +10,7 @@ import { version } from '../../../package.json';
 export default function HomePage() {
   const { isCurrentUserAdmin, isLoading: authLoading } = useAuth(); 
 
-  const appVersion = process.env.NEXT_PUBLIC_APP_ENV && process.env.NEXT_PUBLIC_APP_ENV !== "production"
-    ? `${version}-${process.env.NEXT_PUBLIC_APP_ENV}`
-    : version;
+  const appVersion = `${version} - DC`;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">

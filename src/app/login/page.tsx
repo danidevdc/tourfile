@@ -11,9 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  const appVersion = process.env.NEXT_PUBLIC_APP_ENV && process.env.NEXT_PUBLIC_APP_ENV !== "production"
-    ? `${version}-${process.env.NEXT_PUBLIC_APP_ENV}`
-    : version;
+  const appVersion = `${version} - DC`;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
