@@ -297,9 +297,9 @@ export default function DataManagementPage() {
           const workbook = XLSX.read(data, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          // Use cellDates:true to let XLSX handle date conversion where possible
-          // And sheet_to_json with raw:false to get formatted text for dates/times
+          // Use sheet_to_json with raw:false to get formatted text for dates/times
           const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+          // Also get raw data to check for Excel's numeric date format
           const rawJson: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true });
 
           // Get header row to find column indices
@@ -318,22 +318,22 @@ export default function DataManagementPage() {
               }
               // Skip header row by starting loop at 1
               records = json.slice(1).map((row, rowIndex) => {
-                  // Get raw numeric value for time if it exists
-                  const rawTime = rawJson[rowIndex + 1] ? rawJson[rowIndex + 1][timeIndex] : undefined;
+                  const rawTimeValue = rawJson[rowIndex + 1] ? rawJson[rowIndex + 1][timeIndex] : undefined;
                   let formattedTime = String(row[timeIndex] || '').trim();
 
-                  // If rawTime is a number, it's an Excel serial date for time
-                  if (typeof rawTime === 'number' && rawTime > 0 && rawTime < 1) {
-                      // Decode the serial number to HH:MM format
-                      const excelEpoch = new Date(1899, 11, 30);
-                      const millisecondsPerDay = 24 * 60 * 60 * 1000;
-                      const date = new Date(excelEpoch.getTime() + rawTime * millisecondsPerDay);
-                      const hours = date.getUTCHours().toString().padStart(2, '0');
-                      const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-                      formattedTime = `${hours}:${minutes}`;
-                  } else if (formattedTime.includes(':')) {
-                      // If it's already a time string, ensure it's just HH:mm
-                      formattedTime = formattedTime.split(':').slice(0, 2).join(':');
+                  // Check if rawTimeValue is a number (Excel serial date for time)
+                  if (typeof rawTimeValue === 'number' && rawTimeValue > 0 && rawTimeValue < 1) {
+                      // It's an Excel time serial number. Decode it.
+                      const totalSeconds = Math.round(rawTimeValue * 86400);
+                      const hours = Math.floor(totalSeconds / 3600);
+                      const minutes = Math.floor((totalSeconds % 3600) / 60);
+                      formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                  } else if (formattedTime) {
+                      // It's already a string, just ensure HH:mm format
+                      const parts = formattedTime.split(':');
+                      if (parts.length >= 2) {
+                         formattedTime = `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+                      }
                   }
 
                   return {
@@ -495,7 +495,7 @@ export default function DataManagementPage() {
                     </TableCell>
                     {type === 'flights' && 'time' in item && typeof item.time === 'string' && (
                         <>
-                            <TableCell>{item.time.length > 5 ? item.time.substring(0, 5) : item.time}</TableCell>
+                            <TableCell>{item.time && item.time.length > 5 ? item.time.substring(0, 5) : item.time}</TableCell>
                             <TableCell>{'observations' in item ? item.observations : ''}</TableCell>
                         </>
                     )}
