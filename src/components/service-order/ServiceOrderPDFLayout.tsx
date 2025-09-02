@@ -46,8 +46,8 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
         <div id={`pdf-content-${order.id}`} className="bg-white text-zinc-900 p-0" style={{ width: '1123px', height: 'auto', minHeight: '794px' }}>
             <div className="relative">
                 <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
-                <div className="px-6 pt-4 pb-3 flex items-center justify-center">
-                    <h1 className="text-xs font-mono font-bold uppercase">ORDEN DE SERVICIO</h1>
+                <div className="px-6 pt-4 pb-3 flex items-center justify-center font-mono" style={{fontSize: '12px'}}>
+                    <h1 className="font-bold uppercase">ORDEN DE SERVICIO</h1>
                 </div>
                 <Separator />
             </div>
@@ -126,7 +126,7 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
     return (
         <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2 font-mono", className)} style={{fontSize: '12px'}}>
-            <p className="font-bold uppercase">{label}</p>
+            <p className="font-bold uppercase text-primary">{label}</p>
             <p className="uppercase">{value || "—"}</p>
         </div>
     );
