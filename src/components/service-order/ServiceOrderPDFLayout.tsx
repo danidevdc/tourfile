@@ -1,12 +1,12 @@
 
 "use client";
 
+import { useMemo } from 'react';
 import { type StoredServiceOrder } from '@/lib/serviceOrderStorage';
 import { parse } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useMemo } from 'react';
 
 interface ServiceOrderPDFLayoutProps {
     order: StoredServiceOrder;
@@ -46,7 +46,7 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
         <div id={`pdf-content-${order.id}`} className="bg-white text-zinc-900 p-0 uppercase" style={{ width: '1123px', height: 'auto', minHeight: '794px', fontFamily: '"Lucida Console", monospace' }}>
             <div className="relative">
                 <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
-                <div className="px-6 pt-4 pb-3 flex items-center justify-center font-bold" style={{fontSize: '12px'}}>
+                <div className="pt-4 pb-3 flex items-center justify-center font-bold" style={{fontSize: '12px'}}>
                     <h1>ORDEN DE SERVICIO</h1>
                 </div>
                 <Separator />
@@ -71,14 +71,14 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
                     <Table className="table-fixed">
                         <TableHeader>
                             <TableRow className="bg-primary/10 hover:bg-primary/10 h-auto">
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto w-[86px] text-center align-middle" style={{fontSize: '11px'}}>Fecha</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto w-[56px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px'}}>Servicio</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto w-[100px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 border-r border-primary/20 h-auto w-[80px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
-                                <TableHead className="text-primary font-semibold py-1 px-2 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
+                                <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[86px] text-center align-middle" style={{fontSize: '11px'}}>Fecha</TableHead>
+                                <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[56px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
+                                <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px'}}>Servicio</TableHead>
+                                <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
+                                <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[100px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
+                                <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
+                                <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[80px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
+                                <TableHead className="text-primary font-bold py-1 px-2 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -89,14 +89,16 @@ export function ServiceOrderPDFLayout({ order }: ServiceOrderPDFLayoutProps) {
 
                                 return (
                                     <TableRow key={i} className={cn("break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
-                                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
+                                        <TableCell className="p-1 align-middle border-r border-primary/10 flex items-center justify-center">
                                             {showDate && s.fecha ? (
                                                 <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-semibold text-primary">
                                                     {s.fecha}
                                                 </span>
                                             ) : ("")}
                                         </TableCell>
-                                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border">{s.hora}</span></TableCell>
+                                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center flex items-center justify-center">
+                                            <span className="rounded px-1 py-0.5 border">{s.hora}</span>
+                                        </TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
                                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.guia}</TableCell>
