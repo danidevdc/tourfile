@@ -374,6 +374,7 @@ export default function ServiceOrderListPage() {
             order={orderToEdit}
             guides={guides}
             activities={activities}
+            drivers={drivers}
             onSave={handleSaveFromEditModal}
             onClose={() => {
               setIsEditModalOpen(false);
