@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { parse } from "date-fns";
 
@@ -53,10 +53,10 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
   }, [services]);
 
   const PrintableView = () => (
-    <div className="bg-white text-zinc-900 p-4" style={{ fontFamily: '"Lucida Console", monospace' }}>
-        <div className="relative font-mono uppercase">
+    <div className="bg-white text-zinc-900 p-4 uppercase" style={{fontFamily: '"Lucida Console", monospace'}}>
+        <div className="relative font-mono">
           <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
-           <div className="pt-4 pb-3 flex items-center justify-center font-bold text-xs">
+           <div className="pt-4 pb-3 flex items-center justify-center font-bold text-xs" style={{fontSize: '12px'}}>
              ORDEN DE SERVICIO
           </div>
           <Separator />
@@ -100,20 +100,20 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
                     return (
                       <TableRow key={i} className={cn("break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
-                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">
+                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                            {showDate && s.fecha ? (
                             <span className="inline-flex items-center justify-center rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-bold text-primary">
                               {s.fecha}
                             </span>
                           ) : ("")}
                          </TableCell>
-                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono"><span className="rounded px-1 py-0.5 border">{s.hora}</span></TableCell>
-                         <TableCell className="p-1 align-middle border-r border-primary/10 text-left font-mono">{s.servicio}</TableCell>
-                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">{s.vuelo || "—"}</TableCell>
-                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">{s.guia}</TableCell>
-                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">{s.bus}</TableCell>
-                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-mono">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
-                         <TableCell className="p-1 align-middle text-left font-mono">{s.observaciones}</TableCell>
+                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border">{s.hora}</span></TableCell>
+                         <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
+                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
+                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.guia}</TableCell>
+                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
+                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.chofer?.replace(/^CONT\s/i, "")}</TableCell>
+                         <TableCell className="p-1 align-middle text-left">{s.observaciones}</TableCell>
                       </TableRow>
                     );
                   })
@@ -127,7 +127,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
           </div>
         </div>
 
-         <div className="px-6 py-4 grid grid-cols-1 gap-4 font-mono uppercase">
+         <div className="px-6 py-4 grid grid-cols-1 gap-4 uppercase">
             <InfoBlock title="OBSERVACIONES:" text={data.observations} subtle />
             <InfoBlock title="NOTA:" text={data.nota} subtle />
         </div>
@@ -156,7 +156,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
   return (
-    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2 font-mono text-xs", className)}>
+    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2 text-xs", className)} style={{fontFamily: '"Lucida Console", monospace'}}>
       <p className="font-bold text-primary">{label}</p>
       <p className="font-normal">{value || "—"}</p>
     </div>
@@ -217,10 +217,10 @@ export function ServiceOrderPrintPage() {
     
     // Use a simplified version of the preview modal's content for printing
     return (
-      <div className="bg-white text-zinc-900 p-4" style={{ fontFamily: '"Lucida Console", monospace' }}>
-          <div className="relative font-mono uppercase">
+      <div className="bg-white text-zinc-900 p-4 uppercase" style={{fontFamily: '"Lucida Console", monospace'}}>
+          <div className="relative font-mono">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
-             <div className="pt-4 pb-3 flex items-center justify-center font-bold text-xs">
+             <div className="pt-4 pb-3 flex items-center justify-center font-bold text-xs" style={{fontSize: '12px'}}>
                ORDEN DE SERVICIO
             </div>
             <Separator />
@@ -261,7 +261,7 @@ export function ServiceOrderPrintPage() {
                       const showDate = i === 0 || order.data.services[i - 1].fecha !== s.fecha;
                       return (
                         <TableRow key={i} className="break-words align-middle h-8" style={{fontSize: '11px'}}>
-                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{showDate ? s.fecha : ''}</TableCell>
+                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center flex items-center justify-center">{showDate ? s.fecha : ''}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.hora}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
@@ -282,7 +282,7 @@ export function ServiceOrderPrintPage() {
             </div>
           </div>
   
-           <div className="px-6 py-4 grid grid-cols-1 gap-4 font-mono uppercase">
+           <div className="px-6 py-4 grid grid-cols-1 gap-4 uppercase">
               <InfoBlock title="OBSERVACIONES:" text={order.data.observations} subtle />
               <InfoBlock title="NOTA:" text={order.data.nota} subtle />
           </div>
