@@ -2,35 +2,36 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, PlaneTakeoff, PlaneLanding, BarChartHorizontal, Eraser } from "lucide-react";
+import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, PlaneTakeoff, PlaneLanding, BarChartHorizontal, Eraser, PlusCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import type { FindFlightOutput, FindFlightInput } from "@/ai/flows/flight-types";
 import { useAuth } from "@/hooks/useAuth";
 import { Label } from "@/components/ui/label";
 import { incrementFlightSearchCount, getTodaysFlightSearchStats, type FlightSearchStat } from "@/lib/flightSearchCounterService";
+import { createFlight, type PredefinedFlight } from "@/lib/serviceOrderService";
+import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 
 function FlightSearchCard() {
   const [flightNumber, setFlightNumber] = useState('');
-  // The state now holds the date as a string in 'yyyy-MM-dd' format
   const [date, setDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [isLoading, setIsLoading] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const [searchResult, setSearchResult] = useState<FindFlightOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchStats, setSearchStats] = useState<FlightSearchStat[]>([]);
+  const { toast } = useToast();
 
-  // Function to fetch stats
   const fetchSearchStats = async () => {
     const stats = await getTodaysFlightSearchStats();
     setSearchStats(stats);
   };
 
-  // Fetch initial stats on component mount
   useEffect(() => {
     fetchSearchStats();
   }, []);
@@ -53,23 +54,16 @@ function FlightSearchCard() {
     setSearchResult(null);
     
     try {
-      // First, increment the counter. This happens instantly on click.
       await incrementFlightSearchCount();
-
-      // Then, proceed with the flight search
-      const flightDataPayload: FindFlightInput = {
-        flightNumber,
-        date: date, // Already in 'yyyy-MM-dd' format
-      };
-      
+      const flightDataPayload: FindFlightInput = { flightNumber, date };
       const result = await findFlight(flightDataPayload);
       
       if (result.errorMessage) {
-          if (result.errorMessage.includes("No flight found for this date")) {
-            setError(`No se encontró ningún vuelo para el número "${flightNumber}" en la fecha seleccionada. Por favor, verifica si el vuelo opera ese día.`);
-          } else {
-            setError(`Error: ${result.errorMessage}`);
-          }
+        if (result.errorMessage.includes("No flight found for this date")) {
+          setError(`No se encontró ningún vuelo para el número "${flightNumber}" en la fecha seleccionada. Por favor, verifica si el vuelo opera ese día.`);
+        } else {
+          setError(`Error: ${result.errorMessage}`);
+        }
       } else if (!result.flightFound) {
         setError(`Vuelo ${flightNumber} no encontrado. Revisa los datos e inténtalo de nuevo.`);
       }
@@ -80,10 +74,53 @@ function FlightSearchCard() {
       setError("Ocurrió un error inesperado al buscar el vuelo. Revisa la consola para más detalles.");
     } finally {
       setIsLoading(false);
-      // After the search is complete, refresh the chart data
       fetchSearchStats();
     }
   };
+
+  const handleAddFlightToDB = async () => {
+      if (!searchResult || !searchResult.flightFound) return;
+      setIsAdding(true);
+      
+      try {
+          const { flightNumber: ident, departure, arrival, flightSegment } = searchResult;
+
+          if (ident && departure?.time.scheduled && arrival?.time.scheduled) {
+              const flightIn: Omit<PredefinedFlight, 'id'> = {
+                  flightNumber: ident,
+                  time: arrival.time.scheduled,
+                  observations: `VUELO LLEGA ${arrival.time.scheduled}. ${flightSegment}`
+              };
+              const flightOut: Omit<PredefinedFlight, 'id'> = {
+                  flightNumber: ident,
+                  time: departure.time.scheduled,
+                  observations: `VUELO SALE ${departure.time.scheduled}. ${flightSegment}`
+              };
+
+              await createFlight(flightIn);
+              await createFlight(flightOut);
+
+              toast({
+                  title: "Vuelo Guardado",
+                  description: `${ident} ha sido añadido a tu lista de vuelos.`,
+                  className: "bg-green-100 dark:bg-green-900 border-green-500",
+              });
+          } else {
+              throw new Error("Los datos del vuelo encontrado son insuficientes para guardarlo.");
+          }
+
+      } catch (e: any) {
+          console.error("Error saving flight to DB:", e);
+          toast({
+              title: "Error al Guardar",
+              description: e.message || "No se pudo añadir el vuelo a la base de datos.",
+              variant: "destructive",
+          });
+      } finally {
+          setIsAdding(false);
+      }
+  };
+
 
   const totalSearchesToday = searchStats.reduce((sum, item) => sum + item.searches, 0);
 
@@ -93,10 +130,10 @@ function FlightSearchCard() {
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-primary flex items-center gap-3">
             <Plane className="h-8 w-8" />
-            Buscador de Vuelos
+            Buscador y Registrador de Vuelos
           </CardTitle>
           <CardDescription>
-            Ingresa un número de vuelo y una fecha para obtener su estado desde la API de FlightAware.
+            Busca un vuelo y, si lo encuentras, añádelo a tu base de datos de vuelos predefinidos.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -171,6 +208,10 @@ function FlightSearchCard() {
                       <p className="text-xs text-muted-foreground truncate">{searchResult.arrival?.airport.city}</p>
                     </div>
                 </div>
+                 <Button onClick={handleAddFlightToDB} disabled={isAdding} className="w-full mt-4 bg-primary/90 hover:bg-primary">
+                    {isAdding ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
+                    Añadir a mi lista de vuelos
+                 </Button>
             </div>
           )}
         </CardContent>

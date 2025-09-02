@@ -1,21 +1,19 @@
 
 "use client";
 
-import { useState, useEffect, useRef, type ChangeEvent } from "react";
+import { useState, useEffect, useRef, type ChangeEvent, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import { format, parse } from 'date-fns';
 
 import {
-  getGuidesFromFirestore, getHotelsFromFirestore, getDriversFromFirestore, getActivitiesFromFirestore,
+  getGuidesFromFirestore, getHotelsFromFirestore, getDriversFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore,
   recordActivityTimeUsage, getSuggestedTimeForActivity,
-  type ServiceOrderGuide, type Hotel, type Driver, type Activity, type ServiceItem,
+  type ServiceOrderGuide, type Hotel, type Driver, type Activity, type ServiceItem, type PredefinedFlight,
 } from '@/lib/serviceOrderService';
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { saveServiceOrder } from '@/lib/serviceOrderStorage';
-import { findFlight } from "@/ai/flows/find-flight-flow";
-import { incrementFlightSearchCount } from "@/lib/flightSearchCounterService";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,10 +57,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     const [ownDrivers, setOwnDrivers] = useState<Driver[]>([]);
     const [externalDrivers, setExternalDrivers] = useState<Driver[]>([]);
     const [activities, setActivities] = useState<Activity[]>([]);
-
-    const [isSearchingFlight, setIsSearchingFlight] = useState(false);
-    const [showFlightSearch, setShowFlightSearch] = useState(false);
-    const [flightSearchNumber, setFlightSearchNumber] = useState('');
+    const [flights, setFlights] = useState<PredefinedFlight[]>([]);
     
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedFile, setSelectedFile] = useState<{name: string} | null>(null);
@@ -121,8 +116,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         async function loadInitialData() {
             setIsLoadingData(true);
             try {
-                const [fetchedGuides, fetchedHotels, fetchedDrivers, fetchedActivities] = await Promise.all([
-                    getGuidesFromFirestore(), getHotelsFromFirestore(), getDriversFromFirestore(), getActivitiesFromFirestore()
+                const [fetchedGuides, fetchedHotels, fetchedDrivers, fetchedActivities, fetchedFlights] = await Promise.all([
+                    getGuidesFromFirestore(), getHotelsFromFirestore(), getDriversFromFirestore(), getActivitiesFromFirestore(), getFlightsFromFirestore()
                 ]);
                 setGuides(fetchedGuides);
                 setHotels(fetchedHotels);
@@ -130,6 +125,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 setOwnDrivers(fetchedDrivers.filter(d => !d.name.startsWith('CONT ')));
                 setExternalDrivers(fetchedDrivers.filter(d => d.name.startsWith('CONT ')));
                 setActivities(fetchedActivities);
+                setFlights(fetchedFlights);
             } catch (error) {
                 toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
             } finally {
@@ -237,7 +233,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
     const handleActivitySelect = async (activityName: string) => {
         const upperActivityName = activityName.toUpperCase();
-        setShowFlightSearch(upperActivityName === 'TRF IN' || upperActivityName === 'TRF OUT');
         
         setNewService(prev => ({...prev, servicio: upperActivityName, hora: ''}));
         
@@ -249,44 +244,18 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         }
     };
     
-    const handleFlightSearch = async () => {
-        const { servicio, fecha } = newService;
-        const normalizedFlightNumber = flightSearchNumber.trim().toUpperCase();
-        if (!normalizedFlightNumber || (servicio !== 'TRF IN' && servicio !== 'TRF OUT') || !fecha) {
-            toast({ title: "Datos incompletos", description: "Se requiere Actividad (TRF IN/OUT), fecha y N° de vuelo.", variant: "destructive" }); return;
-        }
-        await incrementFlightSearchCount();
-        setIsSearchingFlight(true);
-        try {
-            const dateObj = parse(fecha, 'yyyy-MM-dd', new Date());
-            const formattedDate = format(dateObj, 'yyyy-MM-dd');
-            
-            const flightDetails = await findFlight({ flightNumber: normalizedFlightNumber, date: formattedDate });
-
-            if (flightDetails.flightFound && flightDetails.departure?.time.scheduled && flightDetails.arrival?.time.scheduled) {
-                let newTime = '', newObservation = '';
-                const flightSegment = flightDetails.flightSegment || 'N/A';
-                if (servicio === 'TRF IN') {
-                    const pickupTime = parse(flightDetails.arrival.time.scheduled, 'HH:mm', new Date());
-                    newTime = format(new Date(pickupTime.getTime() - 60 * 60 * 1000), 'HH:mm'); // 1 hour before
-                    newObservation = `VUELO LLEGA ${flightDetails.arrival.time.scheduled}. ${flightSegment}`;
-                } else {
-                    const departureTime = parse(flightDetails.departure.time.scheduled, 'HH:mm', new Date());
-                    newTime = format(new Date(departureTime.getTime() - 2 * 60 * 60 * 1000), 'HH:mm'); // 2 hours before
-                    newObservation = `VUELO SALE ${flightDetails.departure.time.scheduled}. ${flightSegment}`;
-                }
-                setNewService(prev => ({ ...prev, vuelo: normalizedFlightNumber, hora: newTime, observaciones: newObservation }));
-                toast({ title: "Vuelo encontrado", description: `Hora de recojo sugerida: ${newTime}`, className: "bg-green-100" });
-            } else {
-                setNewService(prev => ({ ...prev, vuelo: normalizedFlightNumber, observaciones: 'VUELO NO ENCONTRADO EN API' }));
-                toast({ title: "Vuelo no encontrado", description: flightDetails.errorMessage || "No se pudo encontrar el vuelo en la API.", variant: "destructive" });
-            }
-        } catch (error) {
-            toast({ title: "Error en búsqueda de vuelo", description: "Ocurrió un problema con la API de vuelos.", variant: "destructive" });
-        } finally {
-            setIsSearchingFlight(false);
+    const handleFlightSelect = (flightNumber: string) => {
+        const selectedFlight = flights.find(f => f.flightNumber.toUpperCase() === flightNumber.toUpperCase());
+        if (selectedFlight) {
+            setNewService(prev => ({
+                ...prev,
+                vuelo: selectedFlight.flightNumber,
+                hora: selectedFlight.time,
+                observaciones: selectedFlight.observations
+            }));
         }
     };
+
 
     const addNewServiceRow = () => {
         const selectedGuide = guides.find(g => g.fullName.toUpperCase() === orderData.guia.toUpperCase());
@@ -300,9 +269,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
         setOrderData({ ...orderData, services: [...orderData.services, serviceToAdd] });
         
-        setShowFlightSearch(false); 
-        setFlightSearchNumber('');
-
         setNewService(prev => ({ 
             ...initialNewServiceState, 
             fecha: prev.fecha,
@@ -350,6 +316,18 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\s/i, '') }));
     const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
     const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim() || !newService.hora.trim();
+
+    const filteredFlightOptions = useMemo(() => {
+        const service = newService.servicio?.toUpperCase();
+        if (service === 'TRF IN') {
+            return flights.filter(f => f.observations.toUpperCase().includes('LLEGA')).map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})` }));
+        }
+        if (service === 'TRF OUT') {
+            return flights.filter(f => f.observations.toUpperCase().includes('SALE')).map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})` }));
+        }
+        return flights.map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})` }));
+    }, [newService.servicio, flights]);
+    
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
@@ -406,17 +384,14 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                   <Label>Fecha</Label>
                                   <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/>
                                 </div>
-                                <div className="flex-grow" style={{ minWidth: '300px' }}>
+                                <div className="flex-grow" style={{ minWidth: '250px' }}>
                                     <Label>Actividad</Label>
                                     <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-card"/>
                                 </div>
-                                {showFlightSearch && (
-                                    <div style={{ width: '150px' }}>
-                                        <Label>Buscar Vuelo</Label>
-                                        <div className="flex items-center gap-1 mt-1">
-                                            <Input value={flightSearchNumber} onChange={(e) => setFlightSearchNumber(e.target.value)} placeholder="Ej: OB304" />
-                                            <Button type="button" onClick={handleFlightSearch} disabled={isSearchingFlight} size="icon"><Plane className={cn("h-4 w-4", isSearchingFlight && "animate-pulse")} /></Button>
-                                        </div>
+                                {(newService.servicio?.includes('TRF IN') || newService.servicio?.includes('TRF OUT')) && (
+                                    <div className="flex-grow" style={{ minWidth: '200px' }}>
+                                        <Label>Vuelo</Label>
+                                        <Combobox options={filteredFlightOptions} value={newService.vuelo || ''} onSelect={handleFlightSelect} placeholder="Seleccionar vuelo..." className="mt-1 bg-card"/>
                                     </div>
                                 )}
                                 <div style={{ width: '100px' }}>
