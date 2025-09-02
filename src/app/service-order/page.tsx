@@ -7,8 +7,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 import { getAllServiceOrders, deleteServiceOrder, updateServiceOrder, type StoredServiceOrder } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
@@ -33,7 +31,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOrderGeneratorSheet";
 import { ItineraryEditModal } from "@/components/service-order/ItineraryEditModal";
 import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPreviewModal";
-import { ServiceOrderPDFLayout } from "@/components/service-order/ServiceOrderPDFLayout";
 import { getGuidesFromFirestore, getDriversFromFirestore, type ServiceOrderGuide, type Driver } from "@/lib/serviceOrderService";
 
 const defaultObsText = 'LA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
@@ -72,7 +69,6 @@ export default function ServiceOrderListPage() {
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
   const [isPrintingPdfId, setIsPrintingPdfId] = useState<string | null>(null);
-  const [pdfRenderOrder, setPdfRenderOrder] = useState<StoredServiceOrder | null>(null);
 
 
   const fetchOrders = async () => {
@@ -198,77 +194,13 @@ export default function ServiceOrderListPage() {
     }
   };
 
-  useEffect(() => {
-    if (pdfRenderOrder) {
-      const generatePdf = async () => {
-        const input = document.getElementById(`pdf-content-${pdfRenderOrder.id}`);
-        if (!input) {
-          toast({ title: "Error", description: "No se encontró el contenido para generar el PDF.", variant: "destructive" });
-          setPdfRenderOrder(null);
-          setIsPrintingPdfId(null);
-          return;
-        }
-
-        try {
-           const canvas = await html2canvas(input, { 
-              scale: 2, // Higher scale for better quality
-              backgroundColor: "#ffffff",
-              useCORS: true,
-            });
-           const imgData = canvas.toDataURL('image/png');
-           
-           const pdf = new jsPDF({
-              orientation: 'landscape',
-              unit: 'px',
-              format: 'a4',
-           });
-
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
-          const imgWidth = canvas.width;
-          const imgHeight = canvas.height;
-          const ratio = imgWidth / imgHeight;
-          
-          let finalImgWidth = pdfWidth;
-          let finalImgHeight = pdfWidth / ratio;
-          if (finalImgHeight > pdfHeight) {
-              finalImgHeight = pdfHeight;
-              finalImgWidth = pdfHeight * ratio;
-          }
-
-          const x = (pdfWidth - finalImgWidth) / 2;
-          const y = (pdfHeight - finalImgHeight) / 2;
-
-          pdf.addImage(imgData, 'PNG', x, y, finalImgWidth, finalImgHeight);
-          
-          const blob = pdf.output('blob');
-          const blobUrl = URL.createObjectURL(blob);
-          
-          // Open in a new window instead of a tab
-          window.open(blobUrl, '_blank', 'popup=yes,width=1123,height=794');
-
-          URL.revokeObjectURL(blobUrl);
-          
-        } catch (error) {
-            console.error("Error generating PDF:", error);
-            toast({ title: "Error de PDF", description: "No se pudo generar el archivo PDF.", variant: "destructive" });
-        } finally {
-            setPdfRenderOrder(null);
-            setIsPrintingPdfId(null);
-        }
-      };
-      
-      // Allow time for the hidden component to render before generating the PDF
-      setTimeout(generatePdf, 500);
-    }
-  }, [pdfRenderOrder, toast]);
-
-
   const handlePrintToPdf = (order: StoredServiceOrder) => {
     setIsPrintingPdfId(order.id);
-    setPdfRenderOrder(order);
+    const orderDataString = encodeURIComponent(JSON.stringify(order));
+    const url = `/service-order-print?order=${orderDataString}`;
+    window.open(url, '_blank', 'popup=yes,width=1123,height=794');
+    setIsPrintingPdfId(null); // Reset state immediately after opening
   };
-
 
   const onSheetSave = () => {
     setIsSheetOpen(false);
@@ -457,12 +389,6 @@ export default function ServiceOrderListPage() {
               setOrderToPreview(null);
             }}
           />
-        )}
-
-        {pdfRenderOrder && (
-            <div style={{ position: 'fixed', left: '-9999px', top: '0px', zIndex: -1 }}>
-                <ServiceOrderPDFLayout order={pdfRenderOrder} />
-            </div>
         )}
 
         <ServiceOrderGeneratorSheet 
