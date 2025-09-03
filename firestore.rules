@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -8,11 +7,9 @@ service cloud.firestore {
       return request.auth != null;
     }
     function isAdmin() {
-      // Check if the user is authenticated and if their profile has isAdmin set to true.
       return isAuth() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
     function isOwner(email) {
-      // Check if the authenticated user's email matches the creator's email.
       return isAuth() && request.auth.token.email == email;
     }
 
@@ -30,7 +27,7 @@ service cloud.firestore {
         allow read, write: if isAdmin();
     }
     
-    // Flight Search Stats & Generated Reports: Any authenticated user can read. Any authenticated user can create. Admins can do anything.
+    // Flight Search Stats & Generated Reports: Any authenticated user can read/create. Admins can do anything.
      match /{collection}/{docId} 
       where collection in ['flightSearchStats', 'generatedReports'] {
       allow read, create: if isAuth();
@@ -38,8 +35,8 @@ service cloud.firestore {
     }
 
     // --- Service Orders ---
-    // Any authenticated user can read and create orders.
-    // Only the owner or an admin can update or delete an order.
+    // Any authenticated user can read and create.
+    // Only the owner or an admin can update or delete.
     match /serviceOrders/{orderId} {
       allow read, create: if isAuth();
       allow update, delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
@@ -51,9 +48,9 @@ service cloud.firestore {
     // Users can update their own profile. Admins can update any profile.
     // Only admins can delete profiles (but not their own).
     match /userProfiles/{userId} {
-      allow read: if isOwner(resource.data.email) || isAdmin();
+      allow read: if isAuth() && (request.auth.uid == userId || isAdmin());
       allow create: if isAuth() && request.auth.uid == userId;
-      allow update: if (isAuth() && request.auth.uid == userId) || isAdmin();
+      allow update: if isAuth() && (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin() && request.auth.uid != userId;
     }
   }
