@@ -1,79 +1,61 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // Helper Functions
     function isAuth() {
       return request.auth != null;
     }
-
-    function isOwner(uid) {
-      return request.auth.uid == uid;
-    }
-    
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/userProfiles/$(userId)).data;
-    }
-
     function isAdmin() {
-      return isAuth() && getUserData(request.auth.uid).isAdmin == true;
+      return isAuth() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
-    
-    // --- User Profiles ---
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    // Collection Rules
+
     match /userProfiles/{userId} {
-      allow read: if isAuth() && (isOwner(userId) || isAdmin());
+      allow read: if isAuth();
+      allow create: if isAuth() && request.resource.data.email == request.auth.token.email;
       allow update: if isAuth() && (isOwner(userId) || isAdmin());
-      allow create: if isAuth() && isOwner(userId);
-      allow delete: if isAdmin(); // Only admins can delete profiles
+      allow delete: if isAuth() && isAdmin(); // Only admins can delete profiles
     }
 
-    // --- Data Collections (guides, hotels, etc.) ---
-    // Any authenticated user can read. Only admins can write/delete.
-    match /{collection=**} {
+    match /expenseRules/{ruleId} {
       allow read: if isAuth();
+      allow write: if isAuth() && isAdmin(); // Only admins can create, update, delete rules
     }
     
-    match /guides/{guideId} {
-      allow write, delete: if isAdmin();
-    }
-    match /hotels/{hotelId} {
-      allow write, delete: if isAdmin();
-    }
-    match /activities/{activityId} {
-      allow write, delete: if isAdmin();
-    }
-    match /drivers/{driverId} {
-      allow write, delete: if isAdmin();
-    }
-    match /flights/{flightId} {
-      allow write, delete: if isAdmin();
-    }
-    match /flightSearchStats/{statId} {
-       allow write, read: if isAuth();
-    }
-    match /expenseRules/{ruleId} {
-       allow read: if isAuth();
-       allow write, delete: if isAdmin();
-    }
-     match /generatedReports/{reportId} {
+    match /generatedReports/{reportId} {
       allow read: if isAuth();
       allow create: if isAuth();
+    }
+    
+    match /flightSearchStats/{statId} {
+      allow read: if isAuth();
+      // Allow any authenticated user to trigger an update via transaction
+      allow write: if isAuth(); 
     }
 
-    // --- Service Orders ---
     match /serviceOrders/{orderId} {
-      // ANY authenticated user can read any service order.
-      // The app logic will filter what is shown (e.g., hide "deleted" status for non-admins).
+      // Allow any authenticated user to read all service orders.
+      // The app's UI logic will filter out 'eliminado' status for non-admins.
       allow read: if isAuth();
-      
-      // ANY authenticated user can create an order.
-      allow create: if isAuth();
-      
-      // Users can only update/delete orders they created, or admins can update/delete any.
-      allow update: if isAuth() && (isAdmin() || request.auth.uid == resource.data.createdBy);
-      allow delete: if isAuth() && (isAdmin() || request.auth.uid == resource.data.createdBy);
+      // Allow any authenticated user to create.
+      allow create: if isAuth(); 
+      // Only allow owner or admin to update/delete (soft delete).
+      allow update: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
+      allow delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
+    }
+    
+    // Generic collections for master data
+    match /{collection}/{docId} {
+        // Any authenticated user can read master data (guides, hotels, etc.)
+        allow read: if isAuth();
+        // Only admins can modify master data
+        allow write: if isAuth() && isAdmin();
     }
   }
 }
