@@ -212,11 +212,11 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                         <Label htmlFor="file-edit">File</Label>
                         <Input id="file-edit" value={editableOrderData.file} onChange={(e) => handleDataChange('file', e.target.value)} className="h-9 mt-1 bg-card/80"/>
                     </div>
-                     <div className="md:col-span-6">
+                     <div className="md:col-span-8">
                         <Label htmlFor="ref-edit">Ref (Grupo)</Label>
                         <Input id="ref-edit" value={editableOrderData.ref} onChange={(e) => handleDataChange('ref', e.target.value)} className="h-9 mt-1 bg-card/80"/>
                     </div>
-                    <div className="md:col-span-3">
+                    <div className="md:col-span-1">
                         <Label htmlFor="pax-edit">Nº Pax</Label>
                         <Input id="pax-edit" value={editableOrderData.nPax} onChange={(e) => handleDataChange('nPax', e.target.value)} className="h-9 mt-1 bg-card/80"/>
                     </div>
