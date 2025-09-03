@@ -47,7 +47,7 @@ export default function EditServiceOrderLogicPage() {
   useEffect(() => {
     if (!authLoading && !isCurrentUserAdmin) {
       toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder.", variant: "destructive" });
-      router.replace('/');
+      router.replace('/admin/dashboard');
     }
   }, [authLoading, isCurrentUserAdmin, router, toast]);
 
@@ -122,9 +122,14 @@ export default function EditServiceOrderLogicPage() {
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
+      // Save all current rules (new and existing) to Firestore
       await saveServiceOrderRules(rules);
+      
+      // After saving, re-fetch all rules from Firestore to get a fresh list
+      // with new IDs assigned by the database and to confirm the state.
       const fetchedRules = await getServiceOrderRules();
       setRules(fetchedRules.sort((a, b) => a.order - b.order));
+      
       toast({ title: "Éxito", description: "Todas las reglas han sido guardadas.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
     } catch (error) {
       toast({ title: "Error al Guardar", description: "No se pudieron guardar los cambios.", variant: "destructive" });
