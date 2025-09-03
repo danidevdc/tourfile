@@ -157,7 +157,17 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
         const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
         if (dateA !== dateB) return dateA - dateB;
       } catch {}
-      return (a.hora || "").localeCompare(b.hora || "");
+
+      const hasTimeA = a.hora && a.hora.trim() !== '';
+      const hasTimeB = b.hora && b.hora.trim() !== '';
+
+      if (hasTimeA && hasTimeB) {
+        return a.hora.localeCompare(b.hora); // Both have time, sort by time
+      }
+      if (hasTimeA) return -1; // a has time, b does not -> a comes first
+      if (hasTimeB) return 1;  // b has time, a does not -> b comes first
+      
+      return 0; // Neither has time, maintain original order
     });
   }, [editableOrderData.services]);
 
@@ -207,12 +217,12 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
         <div className="flex-grow overflow-y-auto px-4 py-2 space-y-4">
             <div className="space-y-2 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
-                <div className="flex items-end gap-4">
-                    <div className="flex-1" style={{minWidth: '150px'}}>
+                <div className="flex items-end gap-2">
+                    <div className="flex-none" style={{width: '150px'}}>
                         <Label htmlFor="file-edit">File</Label>
                         <Input id="file-edit" value={editableOrderData.file} onChange={(e) => handleDataChange('file', e.target.value)} className="h-9 mt-1 bg-card/80"/>
                     </div>
-                     <div className="flex-1" style={{minWidth: '300px'}}>
+                     <div className="flex-grow">
                         <Label htmlFor="ref-edit">Ref (Grupo)</Label>
                         <Input id="ref-edit" value={editableOrderData.ref} onChange={(e) => handleDataChange('ref', e.target.value)} className="h-9 mt-1 bg-card/80"/>
                     </div>
@@ -253,7 +263,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                 </div>
                  {/* --- Add New Service Form --- */}
                 <div className="pt-2 space-y-2">
-                   <div className="flex items-end gap-px">
+                   <div className="flex items-end gap-2">
                         <div style={{ width: '150px' }}>
                             <Label className="text-xs font-semibold">Fecha</Label>
                             <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 h-8 text-xs"/>
