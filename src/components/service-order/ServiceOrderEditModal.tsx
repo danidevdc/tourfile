@@ -81,6 +81,21 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
     }
   }
 
+  const handleTimeChange = (index: number, rawValue: string) => {
+      const numbersOnly = rawValue.replace(/[^0-9]/g, '');
+      let formatted = '';
+      if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
+      if (numbersOnly.length > 2) formatted += ':' + numbersOnly.slice(2, 4);
+      handleServiceChange(index, 'hora', formatted);
+  };
+
+  const handleTimeBlur = (index: number, rawValue: string) => {
+      const numbersOnly = rawValue.replace(/[^0-9]/g, '');
+      if (numbersOnly.length === 4) {
+          handleServiceChange(index, 'hora', `${numbersOnly.slice(0, 2)}:${numbersOnly.slice(2, 4)}`);
+      }
+  };
+
 
   const sortedServices = useMemo(() => {
     return [...editableOrderData.services].sort((a, b) => {
@@ -201,7 +216,10 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                          <Input
                           value={s.hora || ''}
-                          onChange={(e) => handleServiceChange(originalIndex, 'hora', e.target.value)}
+                          onChange={(e) => handleTimeChange(originalIndex, e.target.value)}
+                          onBlur={(e) => handleTimeBlur(originalIndex, e.target.value)}
+                          maxLength={5}
+                          placeholder="HH:mm"
                           className="h-8 text-xs bg-card/80 text-center"
                         />
                       </TableCell>
