@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -90,6 +90,14 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         };
         reader.readAsArrayBuffer(file);
     };
+
+    const handleClearForm = () => {
+        onClearAndNew();
+        setBusTypeSelection('');
+        setChoferSelection('');
+        setNewService(initialNewServiceState);
+        clearFile();
+    }
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -174,22 +182,28 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         }
 
         if (found) {
-            setFileSearchStatus("found");
+             setFileSearchStatus("found");
             const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[colIdx] || "No encontrado").toUpperCase();
             
             let dateRowIndex = -1;
             let dateFound = false;
-
+            
             for (let i = rowIdxWhereFileNumberFound; i < excelData.length; i++) {
                 const cellValue = excelData[i]?.[colIdx];
                 if (!cellValue) continue;
 
                 if (cellValue instanceof Date && !isNaN(cellValue.valueOf())) {
-                    dateFound = true; dateRowIndex = i; break;
+                    dateFound = true;
+                    dateRowIndex = i;
+                    break;
                 }
                 if (typeof cellValue === 'number' && cellValue > 25569) {
                     const parsed = XLSX.SSF.parse_date_code(cellValue);
-                    if (parsed) { dateFound = true; dateRowIndex = i; break; }
+                    if (parsed) {
+                        dateFound = true;
+                        dateRowIndex = i;
+                        break;
+                    }
                 }
             }
             
@@ -199,15 +213,15 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                     const paxRaw = excelData[i]?.[colIdx];
                     if (paxRaw !== null && paxRaw !== undefined) {
                         const paxValue = String(paxRaw).trim();
+                        // Updated Regex to match formats like "16", "16+1", "16 + 1" etc.
                         const paxRegex = /^\d{1,2}(\s*\+\s*\d{1,2})?$/;
                         if (paxRegex.test(paxValue)) {
                             pax = paxValue;
-                            break;
+                            break; // Found, so exit loop
                         }
                     }
                 }
             }
-
             setOrderData({ ...orderData, ref: groupName, nPax: pax });
             toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
 
@@ -390,7 +404,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 <div className="col-span-2">
                                     <Label htmlFor="file">File:*</Label>
                                     <div className="flex items-center gap-1 mt-1">
-                                        <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} />
+                                        <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} className={cn(orderData.file && "border-green-500")} />
                                         <Button type="button" onClick={handleSearchFile} size="icon" disabled={!selectedFile || !orderData.file || isProcessingSearch}>
                                             {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4" />}
                                         </Button>
@@ -398,11 +412,11 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 </div>
                                 <div className="col-span-5">
                                   <Label htmlFor="ref">Ref (Grupo):</Label>
-                                  <Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className="mt-1" />
+                                  <Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", orderData.ref && "border-green-500")} />
                                 </div>
                                 <div className="col-span-1">
                                   <Label htmlFor="nPax">Nº Pax:</Label>
-                                  <Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className="mt-1" />
+                                  <Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className={cn("mt-1", orderData.nPax && "border-green-500")} />
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
@@ -572,7 +586,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                     </div>
                 </div>
                 <div className="pt-4 border-t gap-2 flex justify-end">
-                    <Button variant="outline" onClick={onClearAndNew} className="mr-auto border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
+                    <Button variant="outline" onClick={handleClearForm} className="mr-auto border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
                         <Eraser className="mr-2 h-4 w-4"/>
                         Limpiar Formulario
                     </Button>
