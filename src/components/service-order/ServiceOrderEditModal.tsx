@@ -251,7 +251,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                 </div>
                  {/* --- Add New Service Form --- */}
                 <div className="pt-2 space-y-2">
-                   <div className="flex items-end gap-2">
+                   <div className="flex items-end gap-px">
                         <div style={{ width: '130px' }}>
                             <Label className="text-xs font-semibold">Fecha</Label>
                             <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 h-8 text-xs"/>
