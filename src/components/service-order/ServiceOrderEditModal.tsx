@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Combobox, ComboboxOption } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, X, Split } from "lucide-react";
+import { Save, X, Split, XCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
@@ -57,6 +57,11 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
         }
     }
 
+    setEditableOrderData(prev => ({ ...prev, services: updatedServices }));
+  };
+  
+  const handleRemoveService = (indexToRemove: number) => {
+    const updatedServices = editableOrderData.services.filter((_, index) => index !== indexToRemove);
     setEditableOrderData(prev => ({ ...prev, services: updatedServices }));
   };
 
@@ -116,7 +121,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
+      <DialogContent className="max-w-7xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
         <DialogHeader className="p-4 border-b">
           <DialogTitle>Editando Orden: {order.orderName.replace(/_/g, ' ')}</DialogTitle>
           <DialogDescription>
@@ -163,7 +168,8 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[90px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
+                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
+                  <TableHead className="text-primary font-bold py-1 px-2 h-auto w-[40px] text-center align-middle" style={{fontSize: '11px'}}>Acción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -180,6 +186,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                   const choferCompleto = s.chofer || '';
                   const choferSanitized = choferCompleto.replace(/^CONT\s/i, '');
                   const choferFirstName = choferSanitized.split(' ')[0];
+                  const canDelete = editableOrderData.services.length > 1;
 
 
                   return (
@@ -248,12 +255,24 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                           triggerClassName="bg-card/80"
                         />
                       </TableCell>
-                      <TableCell className="p-1 align-middle text-left">
+                      <TableCell className="p-1 align-middle border-r border-primary/10 text-left">
                         <Input
                           value={s.observaciones || ''}
                           onChange={(e) => handleServiceChange(originalIndex, 'observaciones', e.target.value)}
                           className="h-8 text-xs bg-card/80"
                         />
+                      </TableCell>
+                      <TableCell className="p-1 align-middle text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed"
+                          onClick={() => handleRemoveService(originalIndex)}
+                          disabled={!canDelete}
+                          title={canDelete ? "Eliminar servicio" : "No se puede eliminar el último servicio"}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
