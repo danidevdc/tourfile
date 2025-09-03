@@ -73,7 +73,7 @@ export default function Header() {
         ) : isAuthenticated ? (
           <>
             {userDisplayName && (
-              <div className="hidden sm:flex items-center gap-1.5 bg-primary text-primary-foreground rounded-md px-3 py-1.5 shadow-sm">
+              <div className="hidden sm:flex items-center gap-1.5 bg-primary text-primary-foreground rounded-md px-3 py-1.5 shadow-sm transition-colors hover:bg-primary/90">
                 <UserCircle2 className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm truncate max-w-[150px] md:max-w-[200px] font-medium">{userDisplayName}</span>
               </div>
@@ -83,7 +83,7 @@ export default function Header() {
                     <Button
                       variant="ghost"
                       onClick={logout}
-                      className="text-destructive hover:bg-destructive/20 h-10 py-2 px-2 md:px-3"
+                      className="h-10 py-2 text-destructive hover:bg-destructive/20 px-2 md:px-3"
                     >
                         <LogOut className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
                         <span className="hidden md:inline">Salir</span>
