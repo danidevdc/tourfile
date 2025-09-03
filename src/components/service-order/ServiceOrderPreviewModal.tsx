@@ -25,15 +25,21 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
   const { data } = order;
 
   const services = useMemo(() => {
-    const list = [...data.services].sort((a, b) => {
+    return [...data.services].sort((a, b) => {
       try {
         const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
         const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
         if (dateA !== dateB) return dateA - dateB;
       } catch {}
-      return a.hora.localeCompare(b.hora);
+
+      const hasTimeA = a.hora && a.hora.trim() !== '';
+      const hasTimeB = b.hora && b.hora.trim() !== '';
+
+      if (hasTimeA && hasTimeB) return a.hora.localeCompare(b.hora);
+      if (hasTimeA) return -1;
+      if (hasTimeB) return 1;
+      return 0;
     });
-    return list;
   }, [data.services]);
   
   const dateColorGroupMap = useMemo(() => {
@@ -277,9 +283,15 @@ export function ServiceOrderPrintPage() {
                               const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
                               if (dateA !== dateB) return dateA - dateB;
                           } catch {}
-                          return a.hora.localeCompare(b.hora);
+                          const hasTimeA = a.hora && a.hora.trim() !== '';
+                          const hasTimeB = b.hora && b.hora.trim() !== '';
+
+                          if (hasTimeA && hasTimeB) return a.hora.localeCompare(b.hora);
+                          if (hasTimeA) return -1;
+                          if (hasTimeB) return 1;
+                          return 0;
                         }).map((s, i) => {
-                        const showDate = i === 0 || order.data.services[i - 1].fecha !== s.fecha;
+                        const showDate = i === 0 || order.data.services.sort((a,b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora))[i - 1].fecha !== s.fecha;
                         const guiaCompleto = s.guia || order.data.guia;
                         const guiaFirstName = (guiaCompleto || '').split(' ')[0];
                         const choferCompleto = s.chofer || '';

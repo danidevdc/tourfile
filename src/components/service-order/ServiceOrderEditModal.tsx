@@ -161,9 +161,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
       const hasTimeA = a.hora && a.hora.trim() !== '';
       const hasTimeB = b.hora && b.hora.trim() !== '';
 
-      if (hasTimeA && hasTimeB) {
-        return a.hora.localeCompare(b.hora); // Both have time, sort by time
-      }
+      if (hasTimeA && hasTimeB) return a.hora.localeCompare(b.hora);
       if (hasTimeA) return -1; // a has time, b does not -> a comes first
       if (hasTimeB) return 1;  // b has time, a does not -> b comes first
       
