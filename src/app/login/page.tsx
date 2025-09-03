@@ -18,7 +18,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <FileSpreadsheet className="h-16 w-16 mx-auto text-primary mb-4" />
-          <h1 className="text-3xl font-bold text-foreground">TourFile Generator</h1>
+          <h1 className="text-3xl font-bold text-foreground">TourFile</h1>
           <p className="text-muted-foreground">Acceso al sistema.</p>
         </div>
         <LoginForm />
