@@ -78,8 +78,12 @@ export default function Header() {
             )}
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="destructive" onClick={logout}>
-                        <LogOut className="h-4 w-4 mr-2" />
+                    <Button 
+                      variant="outline"
+                      onClick={logout}
+                      className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                        <LogOut className="mr-2 h-4 w-4" />
                         Salir
                     </Button>
                 </TooltipTrigger>
