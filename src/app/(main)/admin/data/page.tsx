@@ -660,11 +660,11 @@ export default function DataManagementPage() {
         <CardContent>
           <Tabs defaultValue={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="guides"><UserSquare className="mr-2 h-4 w-4" />Guías</TabsTrigger>
-              <TabsTrigger value="hotels"><HotelIcon className="mr-2 h-4 w-4" />Hoteles</TabsTrigger>
-              <TabsTrigger value="drivers"><Car className="mr-2 h-4 w-4" />Choferes</TabsTrigger>
-              <TabsTrigger value="activities"><ListChecks className="mr-2 h-4 w-4" />Actividades</TabsTrigger>
-              <TabsTrigger value="flights"><Plane className="mr-2 h-4 w-4" />Vuelos</TabsTrigger>
+              <TabsTrigger value="guides"><UserSquare className="mr-2 h-4 w-4" />Guías ({guides.length})</TabsTrigger>
+              <TabsTrigger value="hotels"><HotelIcon className="mr-2 h-4 w-4" />Hoteles ({hotels.length})</TabsTrigger>
+              <TabsTrigger value="drivers"><Car className="mr-2 h-4 w-4" />Choferes ({drivers.length})</TabsTrigger>
+              <TabsTrigger value="activities"><ListChecks className="mr-2 h-4 w-4" />Actividades ({activities.length})</TabsTrigger>
+              <TabsTrigger value="flights"><Plane className="mr-2 h-4 w-4" />Vuelos ({flights.length})</TabsTrigger>
             </TabsList>
             <TabsContent value="guides">
               {renderTable(guides, 'guides')}
@@ -692,4 +692,3 @@ export default function DataManagementPage() {
     </div>
   );
 }
-
