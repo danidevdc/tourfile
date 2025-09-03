@@ -3,59 +3,48 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Functions
+    // --- Helper Functions ---
     function isAuth() {
       return request.auth != null;
     }
-    function isAdmin() {
-      return isAuth() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
-    }
     function isOwner(userId) {
-      return isAuth() && request.auth.uid == userId;
+      return request.auth.uid == userId;
+    }
+    function isAdmin() {
+      // Assumes user's admin status is stored in a 'userProfiles' collection
+      return get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Collection Rules
-
+    // --- User Profiles ---
     match /userProfiles/{userId} {
-      allow read: if isAuth();
-      allow create: if isAuth() && request.resource.data.email == request.auth.token.email;
+      // Admins can read any profile. Users can only read their own.
+      allow read: if isAuth() && (isOwner(userId) || isAdmin());
+      // Users can create their own profile.
+      allow create: if isAuth() && isOwner(userId);
+      // Users can only update their own profile. Admins can update any.
       allow update: if isAuth() && (isOwner(userId) || isAdmin());
-      allow delete: if isAuth() && isAdmin(); // Only admins can delete profiles
-    }
-
-    match /expenseRules/{ruleId} {
-      allow read: if isAuth();
-      allow write: if isAuth() && isAdmin(); // Only admins can create, update, delete rules
+      // Only admins can delete user profiles.
+      allow delete: if isAuth() && isAdmin();
     }
     
-    match /generatedReports/{reportId} {
-      allow read: if isAuth();
-      allow create: if isAuth();
-    }
-    
-    match /flightSearchStats/{statId} {
-      allow read: if isAuth();
-      // Allow any authenticated user to trigger an update via transaction
-      allow write: if isAuth(); 
-    }
-
+    // --- Service Orders ---
     match /serviceOrders/{orderId} {
-      // Allow any authenticated user to read all service orders.
-      // The app's UI logic will filter out 'eliminado' status for non-admins.
+      // Any authenticated user can read any service order.
       allow read: if isAuth();
-      // Allow any authenticated user to create.
-      allow create: if isAuth(); 
-      // Only allow owner or admin to update/delete (soft delete).
-      allow update: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
-      allow delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
+      // Any authenticated user can create a service order.
+      allow create: if isAuth();
+      // Only the owner or an admin can update or delete a service order.
+      allow update, delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
     }
-    
-    // Generic collections for master data
-    match /{collection}/{docId} {
-        // Any authenticated user can read master data (guides, hotels, etc.)
-        allow read: if isAuth();
-        // Only admins can modify master data
-        allow write: if isAuth() && isAdmin();
+
+    // --- Master Data Collections (Guides, Hotels, Drivers, Activities, Flights) ---
+    // These collections are managed by admins, but readable by all authenticated users.
+    match /{collectionName}/{docId} 
+        where collectionName in ['guides', 'hotels', 'drivers', 'activities', 'flights', 'expenseRules', 'flightSearchStats', 'generatedReports'] {
+      // Any authenticated user can read the master data
+      allow read: if isAuth();
+      // Only admins can create, update, or delete master data
+      allow write: if isAuth() && isAdmin();
     }
   }
 }
