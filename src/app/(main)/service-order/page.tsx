@@ -326,6 +326,8 @@ export default function ServiceOrderListPage() {
                         {paginatedOrders.length > 0 ? (
                             paginatedOrders.map((order) => {
                                 const isDeleted = order.status === 'eliminado';
+                                const canModify = isCurrentUserAdmin || currentUser?.email === order.createdBy;
+
                                 return (
                                     <TableRow key={order.id} className={cn(isDeleted && "bg-destructive/10 text-muted-foreground")}>
                                         <TableCell className="font-medium border-r">{order.orderName.replace(/_/g, ' ')}</TableCell>
@@ -335,7 +337,7 @@ export default function ServiceOrderListPage() {
                                         <TableCell className="border-r">{getStatusBadge(order)}</TableCell>
                                         <TableCell className="text-left space-x-1">
                                             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
-                                            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditOrderClick(order)} disabled={isDeleted} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
+                                            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditOrderClick(order)} disabled={isDeleted || !canModify} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
                                             
                                             <Tooltip><TooltipTrigger asChild>
                                                <Button 
@@ -352,7 +354,7 @@ export default function ServiceOrderListPage() {
                                             <AlertDialog>
                                                 <Tooltip><TooltipTrigger asChild>
                                                     <AlertDialogTrigger asChild>
-                                                        <Button variant="destructive" size="icon" disabled={isDeleted} onClick={() => setOrderToDelete(order)}>
+                                                        <Button variant="destructive" size="icon" disabled={isDeleted || !canModify} onClick={() => setOrderToDelete(order)}>
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
                                                     </AlertDialogTrigger>
@@ -452,4 +454,3 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
-
