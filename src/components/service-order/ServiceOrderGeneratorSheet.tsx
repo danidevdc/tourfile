@@ -92,11 +92,12 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     };
 
     const handleClearForm = () => {
-        onClearAndNew();
+        onClearAndNew(); // This resets the main order data object in the parent
         setBusTypeSelection('');
         setChoferSelection('');
         setNewService(initialNewServiceState);
-        clearFile();
+        setFileSearchStatus("idle");
+        toast({ title: "Formulario Limpiado" });
     }
 
     useEffect(() => {
@@ -213,11 +214,10 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                     const paxRaw = excelData[i]?.[colIdx];
                     if (paxRaw !== null && paxRaw !== undefined) {
                         const paxValue = String(paxRaw).trim();
-                        // Updated Regex to match formats like "16", "16+1", "16 + 1" etc.
                         const paxRegex = /^\d{1,2}(\s*\+\s*\d{1,2})?$/;
                         if (paxRegex.test(paxValue)) {
                             pax = paxValue;
-                            break; // Found, so exit loop
+                            break;
                         }
                     }
                 }
