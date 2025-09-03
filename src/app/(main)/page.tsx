@@ -43,6 +43,22 @@ export default function HomePage() {
             </Link>
 
             {isAuthenticated && (
+              <>
+                <Link href="/service-order" passHref>
+                  <Button
+                    variant="outline"
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-primary text-primary hover:border-primary/80 hover:bg-primary/5 hover:text-primary"
+                  >
+                    <ClipboardList className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                    <div className="text-left flex-grow">
+                      <span className="block text-2xl font-bold">
+                        Generar Órdenes de Servicio
+                      </span>
+                    </div>
+                    <ArrowRight className="h-8 w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                  </Button>
+                </Link>
+
                  <Link href="/admin/contribute" passHref>
                   <Button
                     variant="outline"
@@ -60,39 +76,26 @@ export default function HomePage() {
                     <ArrowRight className="h-8 w-8 ml-auto text-blue-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
                   </Button>
                 </Link>
+              </>
             )}
 
             {!authLoading && isCurrentUserAdmin && (
               <>
-                <Link href="/service-order" passHref>
-                  <Button
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group bg-accent hover:bg-accent/90 text-accent-foreground"
-                  >
-                    <ClipboardList className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
-                    <div className="text-left flex-grow">
-                      <span className="block text-2xl font-bold">
-                        Generar Órdenes de Servicio
-                      </span>
-                    </div>
-                    <ArrowRight className="h-8 w-8 ml-auto text-accent-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-                  </Button>
-                </Link>
-                
                 <Link href="/flight-search" passHref>
                   <Button
-                    variant="outline" 
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-primary/20 hover:border-primary text-primary"
+                    variant="default" 
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group bg-primary hover:bg-primary/90 text-primary-foreground"
                   >
                     <Plane className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
                       <span className="block text-2xl font-bold">
                         Buscador de Vuelos
                       </span>
-                      <span className="block text-sm font-normal text-muted-foreground">
+                      <span className="block text-sm font-normal text-primary-foreground/80">
                         Consulta el estado de vuelos en tiempo real
                       </span>
                     </div>
-                    <ArrowRight className="h-8 w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                    <ArrowRight className="h-8 w-8 ml-auto text-primary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
                   </Button>
                 </Link>
 

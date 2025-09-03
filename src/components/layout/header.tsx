@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Home, LogOut, FileSpreadsheet, UserCircle2 } from 'lucide-react';
+import { Home, LogIn, LogOut, FileSpreadsheet, UserCircle2, UserPlus } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,7 +12,7 @@ export default function Header() {
   const pathname = usePathname();
   const { isAuthenticated, isLoading, logout, currentUser } = useAuth();
   
-  const isOnAuthPage = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password';
+  const isAuthPage = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password';
 
   let userDisplayName = "";
   if (currentUser) {
@@ -25,6 +25,11 @@ export default function Header() {
       userDisplayName = currentUser.email;
     }
   }
+  
+  // Don't render the header on auth pages for a cleaner look
+  if (isAuthPage) {
+    return null;
+  }
 
   const renderAuthSkeletons = () => (
     <>
@@ -36,7 +41,7 @@ export default function Header() {
   );
 
   return (
-    <header className="flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b shadow-md">
+    <header className="flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b shadow-md sticky top-0 z-50">
       {/* Logo and Title */}
       <div className="flex items-center gap-2">
         <Link href="/" passHref>
@@ -51,39 +56,40 @@ export default function Header() {
 
       {/* Actions: Theme Toggle and Auth Buttons */}
       <div className="flex items-center gap-2">
-        {isOnAuthPage ? (
-          <ThemeToggle />
-        ) : isLoading ? (
-          renderAuthSkeletons()
+        <ThemeToggle />
+        {isLoading ? (
+          <div className="flex items-center gap-2">
+             <Skeleton className="h-9 w-24 rounded-md" />
+             <Skeleton className="h-9 w-24 rounded-md" />
+          </div>
         ) : isAuthenticated ? (
           // Authenticated view
           <>
             {userDisplayName && (
-              <div className="flex items-center gap-1.5 bg-background/10 text-primary rounded-md px-3 py-1.5 border border-primary/30 shadow-sm">
+              <div className="hidden sm:flex items-center gap-1.5 bg-background/10 text-primary rounded-md px-3 py-1.5 border border-primary/30 shadow-sm">
                 <UserCircle2 className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm truncate max-w-[150px] md:max-w-[200px] font-medium">{userDisplayName}</span>
               </div>
             )}
-            <ThemeToggle />
-            <Link href="/" passHref>
-              <Button variant="ghost" className="text-primary hover:bg-muted dark:hover:bg-primary/20 px-2 md:px-3">
-                <Home className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
-                <span className="hidden md:inline">Inicio</span>
-              </Button>
-            </Link>
             <Button variant="ghost" className="text-destructive hover:bg-destructive/20 px-2 md:px-3" onClick={logout}>
               <LogOut className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
               <span className="hidden md:inline">Salir</span>
             </Button>
           </>
         ) : (
-          // Unauthenticated view
+          // Unauthenticated view (Header is not shown on login pages, but this is a fallback)
           <>
-            <ThemeToggle />
-            <Link href="/" passHref>
-              <Button variant="ghost" className="text-primary hover:bg-muted dark:hover:bg-primary/20 px-2 md:px-3">
-                <Home className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
-                <span className="hidden md:inline">Inicio</span>
+             <Link href="/login" passHref>
+              <Button variant="default">
+                <LogIn className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                <span className="hidden sm:inline">Iniciar Sesión</span>
+                <span className="inline sm:hidden">Entrar</span>
+              </Button>
+            </Link>
+            <Link href="/register" passHref>
+              <Button variant="outline">
+                <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                <span className="hidden sm:inline">Registrarse</span>
               </Button>
             </Link>
           </>

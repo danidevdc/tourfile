@@ -1,20 +1,63 @@
 "use client";
 
 import Header from '@/components/layout/header';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
-import { AuthProvider } from '@/hooks/useAuth';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
+import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+// Define public paths that don't require authentication
+const PUBLIC_PATHS = ["/login", "/register", "/forgot-password"];
 
 export default function MainAppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    // If auth is not loading, we have a definitive answer about authentication
+    if (!isLoading) {
+      const isPublicPath = PUBLIC_PATHS.includes(pathname);
+      
+      // If the user is NOT authenticated and the path is NOT public
+      if (!isAuthenticated && !isPublicPath) {
+        console.log(`Redirecting to /login from protected route: ${pathname}`);
+        router.replace("/login");
+      }
+    }
+  }, [isLoading, isAuthenticated, pathname, router]);
+
+  // While loading authentication state, show a spinner.
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  // If the user is not authenticated and trying to access a protected route,
+  // we show a spinner while the redirection happens.
+  if (!isAuthenticated && !PUBLIC_PATHS.includes(pathname)) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      );
+  }
+
+  // Render the full layout for authenticated users
   return (
-    <AuthProvider>
+    <>
       <Header />
       <main>
-        <ProtectedRoute>{children}</ProtectedRoute>
+        {children}
       </main>
-    </AuthProvider>
+    </>
   );
 }
