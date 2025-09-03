@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -7,44 +8,27 @@ service cloud.firestore {
     function isAuth() {
       return request.auth != null;
     }
+    
     function isAdmin() {
-      // Check if the user's profile in Firestore has the isAdmin flag set to true.
-      // This is more secure than relying on custom claims alone for Firestore rules.
       return isAuth() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
+
     function isOwner(email) {
-      // Check if the requesting user's verified email matches the owner's email.
       return isAuth() && request.auth.token.email == email;
     }
 
     // --- User Profiles ---
-    // Anyone can create their own user profile (register).
-    // Users can only read/update their own profile. Admins can read any profile.
-    // Deletion is restricted to admins only.
+    // Users can read their own profile.
+    // Admins can read any profile.
+    // Users can only create their own profile.
+    // Users can only update their own profile.
     match /userProfiles/{userId} {
-      allow read, update: if isAuth() && (request.auth.uid == userId || isAdmin());
-      allow create: if isAuth();
-      allow delete: if isAdmin();
+      allow read: if isAuth() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuth() && request.auth.uid == userId;
+      allow update: if isAuth() && request.auth.uid == userId;
+      allow delete: if isAdmin(); // Only admins can delete profiles
     }
-    
-    // --- Generated Reports ---
-    // Any authenticated user can create (save) a report log.
-    // Only admins can read the full list of reports.
-    match /generatedReports/{reportId} {
-        allow read: if isAdmin();
-        allow create: if isAuth();
-        allow update, delete: if isAdmin();
-    }
-    
-    // --- Flight Search Stats ---
-    // Any authenticated user can create/update (increment) the stats.
-    // Only admins can read the stats.
-    match /flightSearchStats/{statId} {
-        allow read: if isAdmin();
-        allow create, update: if isAuth();
-        allow delete: if isAdmin();
-    }
-    
+
     // --- Service Orders ---
     // Any authenticated user can read and create orders.
     // Only the owner or an admin can update or delete an order.
@@ -53,16 +37,25 @@ service cloud.firestore {
       allow update, delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
     }
     
-    // --- Expense Rules (Logic) ---
-    // Only admins can manage the business logic rules.
-    match /expenseRules/{ruleId} {
-        allow read, write: if isAdmin();
+    // --- Generated Reports ---
+    // Any authenticated user can create a report record.
+    // Only admins can read all report records.
+    match /generatedReports/{reportId} {
+      allow create: if isAuth();
+      allow read: if isAdmin();
     }
     
-    // --- Master Data Collections (guides, hotels, etc.) ---
+    // --- Flight Search Stats ---
+    // Any authenticated user can read and write (increment) stats.
+     match /flightSearchStats/{statId} {
+      allow read, write: if isAuth();
+    }
+
+    // --- Master Data (Guides, Hotels, Drivers, Activities, Flights) ---
     // Any authenticated user can read this data.
-    // Only admins can write (create, update, delete) to this data.
-    match /{collectionName}/{docId} where collectionName in ['guides', 'hotels', 'activities', 'drivers', 'flights'] {
+    // Only admins can write/delete this data.
+    match /{collectionName}/{docId} 
+        where collectionName in ['guides', 'hotels', 'drivers', 'activities', 'flights', 'expenseRules'] {
       allow read: if isAuth();
       allow write: if isAdmin();
     }
