@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { parse } from "date-fns";
+import { useState, useEffect, useMemo, ChangeEvent } from "react";
+import { parse, format } from "date-fns";
 import { StoredServiceOrder } from "@/lib/serviceOrderStorage";
-import { ServiceOrderData, ServiceItem, ServiceOrderGuide, Activity, Driver, PredefinedFlight } from "@/lib/serviceOrderService";
+import { ServiceOrderData, ServiceItem, ServiceOrderGuide, Activity, Driver, PredefinedFlight, recordActivityTimeUsage, getSuggestedTimeForActivity } from "@/lib/serviceOrderService";
 import { cn } from "@/lib/utils";
 
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Combobox, ComboboxOption } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, X, Split, XCircle } from "lucide-react";
+import { Save, X, Split, XCircle, PlusCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
@@ -28,6 +28,11 @@ interface ServiceOrderEditModalProps {
   onClose: () => void;
 }
 
+const initialNewServiceState: ServiceItem = {
+    fecha: '', hora: '', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
+};
+
+
 function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
   return (
     <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2 text-xs", className)}>
@@ -40,6 +45,12 @@ function MetaItem({ label, value, className }: { label: string; value?: string |
 export function ServiceOrderEditModal({ order, guides, activities, drivers, flights, onSave, onClose }: ServiceOrderEditModalProps) {
   const [editableOrderData, setEditableOrderData] = useState<ServiceOrderData>(JSON.parse(JSON.stringify(order.data)));
   const [isSplitMode, setIsSplitMode] = useState(false);
+  
+  // --- State for the new service form ---
+  const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
+  const [busTypeSelection, setBusTypeSelection] = useState('');
+  const [choferSelection, setChoferSelection] = useState('');
+
 
   useEffect(() => {
     setEditableOrderData(JSON.parse(JSON.stringify(order.data)));
@@ -64,6 +75,42 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
     const updatedServices = editableOrderData.services.filter((_, index) => index !== indexToRemove);
     setEditableOrderData(prev => ({ ...prev, services: updatedServices }));
   };
+  
+  const handleNewServiceChange = (field: keyof ServiceItem, value: string) => {
+    setNewService(prev => ({ ...prev, [field]: value.toUpperCase() }));
+  };
+
+  const handleActivitySelect = async (activityName: string) => {
+      const upperActivityName = activityName.toUpperCase();
+      setNewService(prev => ({...prev, servicio: upperActivityName, hora: ''}));
+      if (upperActivityName !== 'TRF IN' && upperActivityName !== 'TRF OUT') {
+          const suggestedTime = await getSuggestedTimeForActivity(upperActivityName);
+          if (suggestedTime) {
+              handleNewServiceChange('hora', suggestedTime);
+          }
+      }
+  };
+  
+  const handleFlightSelect = (flightNumber: string) => {
+      const selectedFlight = flights.find(f => f.flightNumber.toUpperCase() === flightNumber.toUpperCase());
+      if (selectedFlight) {
+          setNewService(prev => ({ ...prev, vuelo: selectedFlight.flightNumber, hora: selectedFlight.time, observaciones: selectedFlight.observations }));
+      }
+  };
+  
+  const addNewServiceRow = () => {
+      const serviceToAdd: ServiceItem = {
+          ...newService,
+          fecha: format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy'),
+          guia: editableOrderData.guia,
+          bus: busTypeSelection,
+          chofer: choferSelection,
+      };
+      recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
+      setEditableOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd] }));
+      setNewService(prev => ({ ...initialNewServiceState, fecha: prev.fecha }));
+  };
+
 
   const handleGlobalGuideChange = (guideFullName: string) => {
       setEditableOrderData(prev => ({ ...prev, guia: guideFullName }));
@@ -88,6 +135,14 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
       if (numbersOnly.length > 2) formatted += ':' + numbersOnly.slice(2, 4);
       handleServiceChange(index, 'hora', formatted);
   };
+  
+  const handleNewServiceTimeChange = (e: ChangeEvent<HTMLInputElement>) => {
+      const rawValue = e.target.value.replace(/[^0-9]/g, '');
+      let formatted = '';
+      if (rawValue.length > 0) formatted = rawValue.slice(0, 2);
+      if (rawValue.length > 2) formatted += ':' + rawValue.slice(2, 4);
+      handleNewServiceChange('hora', formatted);
+  };
 
   const handleTimeBlur = (index: number, rawValue: string) => {
       const numbersOnly = rawValue.replace(/[^0-9]/g, '');
@@ -104,7 +159,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
         const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
         if (dateA !== dateB) return dateA - dateB;
       } catch {}
-      return a.hora.localeCompare(b.hora);
+      return (a.hora || "").localeCompare(b.hora || "");
     });
   }, [editableOrderData.services]);
 
@@ -126,13 +181,25 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
   const globalGuideOptions: ComboboxOption[] = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
   const activityOptions: ComboboxOption[] = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
-  const flightOptions: ComboboxOption[] = flights.map(f => ({ value: f.flightNumber.toUpperCase(), label: `${f.flightNumber} (${f.time})` }));
   const ownDrivers = drivers.filter(d => !d.name.startsWith('CONT '));
   const externalDrivers = drivers.filter(d => d.name.startsWith('CONT '));
+  
   const driverOptionsForBusType = (busType: string | undefined): ComboboxOption[] => {
       const driverList = busType === 'CONT.' ? externalDrivers : ownDrivers;
       return driverList.map(d => ({ value: d.name.toUpperCase(), label: d.name }));
   };
+
+  const newServiceDriverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\\s/i, '') }));
+
+  const filteredFlightOptions = useMemo(() => {
+      const createOption = (f: PredefinedFlight) => ({ value: f.flightNumber, key: f.id, label: `${f.flightNumber} (${f.time})` });
+      const service = newService.servicio?.toUpperCase();
+      if (service === 'TRF IN') return flights.filter(f => f.observations.toUpperCase().includes('LLEGA')).map(createOption);
+      if (service === 'TRF OUT') return flights.filter(f => f.observations.toUpperCase().includes('SALE')).map(createOption);
+      return flights.map(createOption);
+  }, [newService.servicio, flights]);
+  
+  const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim();
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -169,6 +236,34 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                         <Switch id="split-mode" checked={isSplitMode} onCheckedChange={handleSplitModeToggle} />
                         <Label htmlFor="split-mode" className="flex items-center gap-2 text-sm font-medium"><Split className="h-4 w-4" /> Dividir Orden por Guía</Label>
                     </div>
+                </div>
+                 {/* --- Add New Service Form --- */}
+                <div className="pt-2">
+                   <div className="flex items-end gap-2">
+                        <div style={{ width: '130px' }}>
+                            <Label className="text-xs font-semibold">Fecha</Label>
+                            <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 h-8 text-xs"/>
+                        </div>
+                        <div className="flex-grow">
+                            <Label className="text-xs font-semibold">Actividad</Label>
+                            <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 h-8 text-xs" triggerClassName="bg-card/80" />
+                        </div>
+                        {(newService.servicio?.includes('TRF')) && (
+                          <div className="flex-grow">
+                              <Label className="text-xs font-semibold">Vuelo</Label>
+                              <Combobox options={filteredFlightOptions} value={newService.vuelo || ''} onSelect={handleFlightSelect} placeholder="Seleccionar vuelo..." className="mt-1 h-8 text-xs" triggerClassName="bg-card/80" />
+                          </div>
+                        )}
+                        <div style={{ width: '90px' }}>
+                            <Label className="text-xs font-semibold">Hora</Label>
+                            <Input value={newService.hora} onChange={handleNewServiceTimeChange} onBlur={(e) => handleTimeBlur(-1, e.target.value)} placeholder="HH:mm" maxLength={5} className="mt-1 h-8 text-xs"/>
+                        </div>
+                        <div>
+                            <Button onClick={addNewServiceRow} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isAddServiceDisabled}>
+                                <PlusCircle className="mr-2 h-4 w-4"/>Añadir
+                            </Button>
+                        </div>
+                   </div>
                 </div>
             </div>
 
@@ -235,7 +330,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                       </TableCell>
                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                         <Combobox
-                            options={flightOptions}
+                            options={flights.map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})`}))}
                             value={s.vuelo || ''}
                             onSelect={(value) => handleServiceChange(originalIndex, 'vuelo', value)}
                             placeholder="Vuelo..."

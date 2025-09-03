@@ -355,7 +355,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
     const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\\s/i, '') }));
     const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
-    const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim() || !newService.hora.trim();
+    const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim();
 
     const filteredFlightOptions = useMemo(() => {
         const createOption = (f: PredefinedFlight) => ({
