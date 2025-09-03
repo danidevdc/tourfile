@@ -90,16 +90,21 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
       }
   };
   
-  const addNewServiceRow = () => {
-      const serviceToAdd: ServiceItem = {
-          ...newService,
-          fecha: format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy'),
-          guia: editableOrderData.guia,
-      };
-      recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
-      setEditableOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd] }));
-      setNewService(prev => ({ ...initialNewServiceState, fecha: prev.fecha }));
-  };
+ const addNewServiceRow = () => {
+    const lastService = editableOrderData.services[editableOrderData.services.length - 1];
+
+    const serviceToAdd: ServiceItem = {
+        ...newService,
+        fecha: format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy'),
+        guia: editableOrderData.guia,
+        bus: newService.bus || lastService?.bus || '',
+        chofer: newService.chofer || lastService?.chofer || '',
+    };
+    
+    recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
+    setEditableOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd] }));
+    setNewService(prev => ({ ...initialNewServiceState, fecha: prev.fecha }));
+ };
 
 
   const handleGlobalGuideChange = (guideFullName: string) => {
@@ -193,9 +198,6 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
       <DialogContent className="max-w-7xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
         <DialogHeader className="p-4 border-b">
           <DialogTitle>Editando Orden: {order.orderName.replace(/_/g, ' ')}</DialogTitle>
-          <DialogDescription>
-            Realiza cambios en los servicios. Activa "Dividir Orden" para asignar guías individuales.
-          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-grow overflow-y-auto px-4 py-2 space-y-4">
@@ -251,7 +253,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                             <Label className="text-xs font-semibold">Fecha</Label>
                             <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 h-8 text-xs"/>
                         </div>
-                        <div className="flex-grow">
+                        <div className="flex-grow" style={{maxWidth: '350px'}}>
                             <Label className="text-xs font-semibold">Actividad</Label>
                             <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 h-8 text-xs" triggerClassName="bg-card/80" />
                         </div>
@@ -286,7 +288,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[90px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[120px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
                   <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 h-auto w-[40px] text-center align-middle" style={{fontSize: '11px'}}>Acción</TableHead>
+                  <TableHead className="text-primary font-bold py-1 px-2 h-auto w-[40px] text-center align-middle" style={{fontSize: '11px'}}></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
