@@ -21,11 +21,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { FileSearchStatus } from "@/lib/report-generator";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const initialNewServiceState: ServiceItem = {
     fecha: '', hora: '', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
@@ -349,8 +350,11 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             <SheetContent side="top" className="w-full h-full max-h-screen flex flex-col sm:max-w-full">
                 <SheetHeader>
                      <SheetTitle className="text-2xl font-headline text-primary">
-                        Orden de Servicio
+                        Crear Nueva Orden de Servicio
                     </SheetTitle>
+                    <SheetDescription>
+                        Rellena los datos para generar una nueva orden. Los campos marcados con * son obligatorios.
+                    </SheetDescription>
                 </SheetHeader>
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
@@ -367,7 +371,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     </div>
                                 </div>
                                 <div className="col-span-2">
-                                    <Label htmlFor="file">File:</Label>
+                                    <Label htmlFor="file">File:*</Label>
                                     <div className="flex items-center gap-1 mt-1">
                                         <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} />
                                         <Button type="button" onClick={handleSearchFile} size="icon" disabled={!selectedFile || !orderData.file || isProcessingSearch}>
@@ -385,7 +389,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
-                                <div><Label>Guía Principal</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-card"/></div>
+                                <div><Label>Guía Principal*</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-card"/></div>
                                 <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1 bg-card"/></div>
                                 <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={setBusTypeSelection}><SelectTrigger className="mt-1 bg-card"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
                                 <div><Label>Chofer</Label><Combobox options={driverOptions} value={choferSelection} onSelect={setChoferSelection} placeholder="Seleccionar chofer..." className="mt-1 bg-card"/></div>
@@ -480,18 +484,22 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                         </div>
                         
                         <div className="p-4 border rounded-lg bg-card">
-                             <h3 className="font-semibold mb-2">Observaciones y Notas</h3>
-                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label htmlFor="observaciones">Observaciones Generales</Label>
-                                    <Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={5}/>
-                                </div>
-                                <div>
-                                    <Label htmlFor="nota">Nota (Pie de página)</Label>
-                                    <Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/>
-                                </div>
-                             </div>
+                            <Accordion type="multiple" className="w-full">
+                              <AccordionItem value="item-1">
+                                <AccordionTrigger>Observaciones Generales</AccordionTrigger>
+                                <AccordionContent>
+                                  <Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={5}/>
+                                </AccordionContent>
+                              </AccordionItem>
+                              <AccordionItem value="item-2">
+                                <AccordionTrigger>Nota (Pie de página)</AccordionTrigger>
+                                <AccordionContent>
+                                  <Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/>
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
                         </div>
+
                     </div>
                 </div>
                 <div className="pt-4 border-t gap-2 flex justify-end">

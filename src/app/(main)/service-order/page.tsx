@@ -139,7 +139,8 @@ export default function ServiceOrderListPage() {
 
 
   const handleNewOrderClick = () => {
-    setIntermediateOrderData(initialOrderDataState);
+    // Do not reset the data here, allowing the sheet to open with the last state.
+    // The data is reset on save or explicit clear.
     setIsSheetOpen(true);
   };
 
