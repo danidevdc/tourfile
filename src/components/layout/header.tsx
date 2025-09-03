@@ -9,6 +9,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 
 export default function Header() {
@@ -45,6 +46,9 @@ export default function Header() {
             </h1>
           </div>
         </Link>
+      </div>
+
+      <div className="flex items-center gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
             <Link href="/" passHref>
@@ -58,9 +62,7 @@ export default function Header() {
             <p>Ir a Inicio</p>
           </TooltipContent>
         </Tooltip>
-      </div>
-
-      <div className="flex items-center gap-2">
+        
         <ThemeToggle />
 
         {isLoading ? (
@@ -78,13 +80,13 @@ export default function Header() {
             )}
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline"
+                    <Button
+                      variant="ghost"
                       onClick={logout}
-                      className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive"
+                      className="text-destructive hover:bg-destructive/20 h-10 py-2 px-2 md:px-3"
                     >
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Salir
+                        <LogOut className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
+                        <span className="hidden md:inline">Salir</span>
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent>
