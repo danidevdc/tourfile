@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -37,11 +38,14 @@ service cloud.firestore {
     }
 
     // --- Service Orders ---
-    // Any authenticated user can read, create, and update orders.
-    // Only the owner or an admin can delete an order.
+    // Any authenticated user can read, create, update, or "soft delete" (update status).
+    // The logic in the app will show/hide records based on status.
     match /serviceOrders/{orderId} {
       allow read, create, update: if isAuth();
-      allow delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
+      // The delete action in the app is an update of the 'status' field to 'eliminado',
+      // so the 'update' rule above covers the soft delete action.
+      // A true delete is still restricted.
+      allow delete: if isOwner(resource.data.createdBy) || isAdmin();
     }
 
     // --- User Profiles ---

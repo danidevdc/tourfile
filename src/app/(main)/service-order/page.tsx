@@ -107,7 +107,6 @@ export default function ServiceOrderListPage() {
   }, [authLoading]);
 
   const filteredOrders = useMemo(() => {
-    // Start with all orders and filter based on user role
     const visibleOrders = isCurrentUserAdmin 
       ? orders
       : orders.filter(order => order.status !== 'eliminado');
@@ -453,3 +452,4 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
+
