@@ -19,7 +19,7 @@ service cloud.firestore {
 
     // --- Collections Rules ---
 
-    // Guides, Hotels, Drivers, Flights:
+    // Master Data (Guides, Hotels, etc.):
     // Any authenticated user can read. Only admins can write/delete.
     match /{collection}/{docId} 
       where collection in ['guides', 'hotels', 'drivers', 'flights'] {
@@ -27,45 +27,43 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Activities:
-    // Anyone can read. Admins can create/delete. Users can update learning data.
+    // Activities have special rules for user updates
     match /activities/{activityId} {
       allow read: if isAuth();
       allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timeCounts', 'suggestedTime']));
+      // Admins can update anything. Regular users can only update the learning fields.
+      allow update: if isAdmin() || (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timeCounts', 'suggestedTime']));
     }
 
-    // Expense Rules: Only admins can read or write.
+    // Expense Rules: Admins have full control.
     match /expenseRules/{ruleId} {
         allow read, write: if isAdmin();
     }
     
-    // Flight Search Stats & Generated Reports: 
-    // Any authenticated user can read/create. Admins can do anything.
-     match /{collection}/{docId} 
-      where collection in ['flightSearchStats', 'generatedReports'] {
-      allow read, create: if isAuth();
-      allow update, delete: if isAdmin();
+    // Generated Reports (for Admin Panel): 
+    // Any authenticated user can create a log. Only admins can read/manage them.
+    match /generatedReports/{reportId} {
+      allow create: if isAuth();
+      allow read, update, delete: if isAdmin();
     }
-
-    // --- Service Orders ---
-    // Any authenticated user can read and create orders.
-    // Only the owner or an admin can update or delete an order.
+    
+    // Flight Search Counter: Any authenticated user can write to this.
+    match /flightSearchStats/{day} {
+      allow read, write: if isAuth();
+    }
+    
+    // Service Orders: Any user can read/create. Only owner or admin can modify.
     match /serviceOrders/{orderId} {
       allow read, create: if isAuth();
       allow update, delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
     }
     
-    // --- Learning Data for AI/Suggestions ---
-    // Any authenticated user can contribute to the learning data.
+    // Learning Data for AI/Suggestions: Any authenticated user can contribute.
     match /activityTimeSuggestions/{activityName} {
       allow read, write: if isAuth();
     }
 
-    // --- User Profiles ---
-    // Users can read and update their own profile. Admins can read/update any profile.
-    // Users can create their own profile document.
-    // Only admins can delete profiles (but not their own).
+    // User Profiles: Users can manage their own profile. Admins can manage any.
     match /userProfiles/{userId} {
       allow read, update: if isAuth() && (request.auth.uid == userId || isAdmin());
       allow create: if isAuth() && request.auth.uid == userId;
