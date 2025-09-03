@@ -163,7 +163,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         
         let found = false, colIdx = -1, rowIdxWhereFileNumberFound = -1;
         
-        // Find file number
         const fileNumberToSearch = orderData.file.trim().toUpperCase();
         for (let j = 0; j < excelData[0].length; j++) {
             for (let i = 0; i < excelData.length; i++) {
@@ -178,11 +177,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             setFileSearchStatus("found");
             const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[colIdx] || "No encontrado").toUpperCase();
             
-            // Now, find PAX number more robustly
             let dateRowIndex = -1;
             let dateFound = false;
 
-            // Start searching for a date from the file number row downwards
             for (let i = rowIdxWhereFileNumberFound; i < excelData.length; i++) {
                 const cellValue = excelData[i]?.[colIdx];
                 if (!cellValue) continue;
@@ -190,7 +187,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 if (cellValue instanceof Date && !isNaN(cellValue.valueOf())) {
                     dateFound = true; dateRowIndex = i; break;
                 }
-                if (typeof cellValue === 'number' && cellValue > 25569) { // Excel serial date check
+                if (typeof cellValue === 'number' && cellValue > 25569) {
                     const parsed = XLSX.SSF.parse_date_code(cellValue);
                     if (parsed) { dateFound = true; dateRowIndex = i; break; }
                 }
@@ -198,16 +195,14 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             
             let pax = "N/A";
             if (dateFound) {
-                 // Start searching for PAX from the row right after the date
                 for (let i = dateRowIndex + 1; i < excelData.length; i++) {
                     const paxRaw = excelData[i]?.[colIdx];
                     if (paxRaw !== null && paxRaw !== undefined) {
                         const paxValue = String(paxRaw).trim();
-                        // Refined regex for PAX format like "1" or "16" or "16+1"
                         const paxRegex = /^\d{1,2}(\s*\+\s*\d{1,2})?$/;
                         if (paxRegex.test(paxValue)) {
                             pax = paxValue;
-                            break; // Found, stop searching
+                            break;
                         }
                     }
                 }
@@ -375,11 +370,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             <SheetContent side="top" className="w-full h-full max-h-screen flex flex-col sm:max-w-full">
                 <SheetHeader>
                      <SheetTitle className="text-2xl font-headline text-primary">
-                        Crear Nueva Orden de Servicio
+                        Nueva Orden de Servicio
                     </SheetTitle>
-                    <SheetDescription>
-                        Rellena los datos para generar una nueva orden. Los campos marcados con * son obligatorios.
-                    </SheetDescription>
                 </SheetHeader>
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
@@ -414,10 +406,48 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
-                                <div><Label>Guía Principal*</Label><Combobox options={guideOptions} value={orderData.guia} onSelect={(val) => handleSelectChange('guide', val)} placeholder="Buscar guía..." className="mt-1 bg-card"/></div>
-                                <div><Label>Hotel</Label><Combobox options={hotelOptions} value={orderData.hotel} onSelect={(val) => handleSelectChange('hotel', val)} placeholder="Buscar hotel..." className="mt-1 bg-card"/></div>
-                                <div><Label>Bus/Tipo Chofer</Label><Select value={busTypeSelection} onValueChange={setBusTypeSelection}><SelectTrigger className="mt-1 bg-card"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
-                                <div><Label>Chofer</Label><Combobox options={driverOptions} value={choferSelection} onSelect={setChoferSelection} placeholder="Seleccionar chofer..." className="mt-1 bg-card"/></div>
+                                <div>
+                                    <Label>Guía Principal*</Label>
+                                    <Combobox 
+                                        options={guideOptions} 
+                                        value={orderData.guia} 
+                                        onSelect={(val) => handleSelectChange('guide', val)} 
+                                        placeholder="Buscar guía..." 
+                                        className="mt-1 bg-card"
+                                        triggerClassName={cn(orderData.guia && "border-green-500 font-medium")}
+                                    />
+                                </div>
+                                <div>
+                                    <Label>Hotel</Label>
+                                    <Combobox 
+                                        options={hotelOptions} 
+                                        value={orderData.hotel} 
+                                        onSelect={(val) => handleSelectChange('hotel', val)} 
+                                        placeholder="Buscar hotel..." 
+                                        className="mt-1 bg-card"
+                                        triggerClassName={cn(orderData.hotel && "border-green-500 font-medium")}
+                                    />
+                                </div>
+                                <div>
+                                    <Label>Bus/Tipo Chofer</Label>
+                                    <Select value={busTypeSelection} onValueChange={setBusTypeSelection}>
+                                        <SelectTrigger className={cn("mt-1 bg-card", busTypeSelection && "border-green-500 font-medium")}>
+                                            <SelectValue placeholder="Seleccionar..." />
+                                        </SelectTrigger>
+                                        <SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label>Chofer</Label>
+                                    <Combobox 
+                                        options={driverOptions} 
+                                        value={choferSelection} 
+                                        onSelect={setChoferSelection} 
+                                        placeholder="Seleccionar chofer..." 
+                                        className="mt-1 bg-card"
+                                        triggerClassName={cn(choferSelection && "border-green-500 font-medium")}
+                                    />
+                                </div>
                             </div>
                         </div>
                         
@@ -430,12 +460,26 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 </div>
                                 <div className="flex-grow" style={{ minWidth: '250px' }}>
                                     <Label>Actividad</Label>
-                                    <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 bg-card"/>
+                                    <Combobox 
+                                        options={activityOptions} 
+                                        value={newService.servicio} 
+                                        onSelect={handleActivitySelect} 
+                                        placeholder="Buscar actividad..." 
+                                        className="mt-1 bg-card"
+                                        triggerClassName={cn(newService.servicio && "border-green-500 font-medium")}
+                                    />
                                 </div>
                                 {(newService.servicio?.includes('TRF IN') || newService.servicio?.includes('TRF OUT')) && (
                                     <div className="flex-grow" style={{ minWidth: '200px' }}>
                                         <Label>Vuelo</Label>
-                                        <Combobox options={filteredFlightOptions} value={newService.vuelo || ''} onSelect={handleFlightSelect} placeholder="Seleccionar vuelo..." className="mt-1 bg-card"/>
+                                        <Combobox 
+                                            options={filteredFlightOptions} 
+                                            value={newService.vuelo || ''} 
+                                            onSelect={handleFlightSelect} 
+                                            placeholder="Seleccionar vuelo..." 
+                                            className="mt-1 bg-card"
+                                            triggerClassName={cn(newService.vuelo && "border-green-500 font-medium")}
+                                        />
                                     </div>
                                 )}
                                 <div style={{ width: '100px' }}>
