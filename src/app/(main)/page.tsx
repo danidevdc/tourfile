@@ -1,14 +1,15 @@
+
 "use client";
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileSpreadsheet, ArrowRight, ClipboardList, Settings, Plane } from "lucide-react";
+import { FileSpreadsheet, ArrowRight, ClipboardList, Settings, Plane, Database } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth"; 
 import { version } from '../../../package.json';
 
 export default function HomePage() {
-  const { isCurrentUserAdmin, isLoading: authLoading } = useAuth(); 
+  const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated } = useAuth(); 
 
   const appVersion = `${version} - DC`;
 
@@ -40,6 +41,26 @@ export default function HomePage() {
                 <ArrowRight className="h-8 w-8 ml-auto text-primary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
               </Button>
             </Link>
+
+            {isAuthenticated && (
+                 <Link href="/admin/contribute" passHref>
+                  <Button
+                    variant="outline"
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-blue-500/20 hover:border-blue-500 text-blue-600 dark:text-blue-400"
+                  >
+                    <Database className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                    <div className="text-left flex-grow">
+                      <span className="block text-2xl font-bold">
+                        Aportar Datos
+                      </span>
+                       <span className="block text-sm font-normal text-muted-foreground">
+                        Añade nuevos guías, hoteles, vuelos, etc. a la base de datos
+                      </span>
+                    </div>
+                    <ArrowRight className="h-8 w-8 ml-auto text-blue-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                  </Button>
+                </Link>
+            )}
 
             {!authLoading && isCurrentUserAdmin && (
               <>

@@ -142,6 +142,31 @@ export async function getFlightsFromFirestore(): Promise<PredefinedFlight[]> {
   } as PredefinedFlight)).sort((a, b) => a.flightNumber.localeCompare(b.flightNumber));
 }
 
+
+// --- Functions to Check for Duplicates ---
+
+async function checkExists(collectionName: string, fieldName: string, value: string): Promise<boolean> {
+    if (!db) return false;
+    const q = query(collection(db, collectionName), where(fieldName, "==", value.toUpperCase()));
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+}
+
+export const checkIfHotelExists = (name: string) => checkExists('hotels', 'name', name);
+export const checkIfActivityExists = (name: string) => checkExists('activities', 'name', name);
+export const checkIfDriverExists = (name: string) => checkExists('drivers', 'name', name);
+export const checkIfFlightExists = (flightNumber: string) => checkExists('flights', 'flightNumber', flightNumber);
+export async function checkIfGuideExists(firstName: string, lastName: string): Promise<boolean> {
+    if (!db) return false;
+    const q = query(collection(db, 'guides'), 
+        where("firstName", "==", firstName.toUpperCase()),
+        where("lastName", "==", lastName.toUpperCase())
+    );
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+}
+
+
 // --- Data Creation Functions (Single) ---
 
 export const createGuide = (guide: {firstName: string, lastName: string}) => addDoc(collection(db!, 'guides'), guide);

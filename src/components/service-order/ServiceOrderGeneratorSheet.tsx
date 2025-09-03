@@ -21,7 +21,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -320,7 +319,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     const filteredFlightOptions = useMemo(() => {
         const createOption = (f: PredefinedFlight) => ({
             value: f.flightNumber,
-            // Use the flight's unique ID for the key prop to avoid React key errors with duplicate flight numbers
             key: f.id,
             label: `${f.flightNumber} (${f.time})`
         });
@@ -469,15 +467,19 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                             </div>
                         </div>
                         
-                        <Accordion type="single" collapsible className="w-full border rounded-lg bg-card">
-                            <AccordionItem value="item-1">
-                                <AccordionTrigger className="text-lg font-medium p-4">Observaciones y Notas</AccordionTrigger>
-                                <AccordionContent className="space-y-4 px-4 pb-4">
-                                    <div><Label htmlFor="observaciones">Observaciones Generales</Label><Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={3}/></div>
-                                    <div><Label htmlFor="nota">Nota (Pie de página)</Label><Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/></div>
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Accordion>
+                        <div className="p-4 border rounded-lg bg-card">
+                             <h3 className="font-semibold mb-2">Observaciones y Notas</h3>
+                             <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="observaciones">Observaciones Generales</Label>
+                                    <Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={5}/>
+                                </div>
+                                <div>
+                                    <Label htmlFor="nota">Nota (Pie de página)</Label>
+                                    <Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/>
+                                </div>
+                             </div>
+                        </div>
                     </div>
                 </div>
                 <div className="pt-4 border-t gap-2 flex justify-end">
