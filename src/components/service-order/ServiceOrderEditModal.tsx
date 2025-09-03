@@ -247,7 +247,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                     </div>
                 </div>
                  {/* --- Add New Service Form --- */}
-                <div className="pt-2">
+                <div className="pt-2 space-y-2">
                    <div className="flex items-end gap-2">
                         <div style={{ width: '130px' }}>
                             <Label className="text-xs font-semibold">Fecha</Label>
@@ -263,6 +263,8 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                               <Combobox options={filteredFlightOptions} value={newService.vuelo || ''} onSelect={handleFlightSelect} placeholder="Seleccionar vuelo..." className="mt-1 h-8 text-xs" triggerClassName="bg-card/80" />
                           </div>
                         )}
+                   </div>
+                   <div className="flex items-end gap-2">
                         <div style={{ width: '90px' }}>
                             <Label className="text-xs font-semibold">Hora</Label>
                             <Input value={newService.hora} onChange={handleNewServiceTimeChange} onBlur={(e) => handleTimeBlur(-1, e.target.value)} placeholder="HH:mm" maxLength={5} className="mt-1 h-8 text-xs"/>
