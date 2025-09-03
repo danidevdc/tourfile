@@ -285,12 +285,10 @@ export default function ServiceOrderListPage() {
         <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go home">
             <ArrowLeft className="h-5 w-5" />
         </Button>
-        {isCurrentUserAdmin && (
-          <Button onClick={handleNewOrderClick}>
-              <FilePlus className="mr-2 h-4 w-4" />
-              Nueva Orden de Servicio
-          </Button>
-        )}
+        <Button onClick={handleNewOrderClick}>
+            <FilePlus className="mr-2 h-4 w-4" />
+            Nueva Orden de Servicio
+        </Button>
       </div>
 
        <Card className="w-full max-w-7xl shadow-lg">
