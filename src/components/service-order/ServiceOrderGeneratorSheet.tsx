@@ -161,11 +161,14 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         setIsProcessingSearch(true); setFileSearchStatus("searching");
         await new Promise(resolve => setTimeout(resolve, 300));
         
-        let found = false, colIdx = -1, rowIdx = -1;
+        let found = false, colIdx = -1, rowIdxWhereFileNumberFound = -1;
+        
+        // Find file number
+        const fileNumberToSearch = orderData.file.trim().toUpperCase();
         for (let j = 0; j < excelData[0].length; j++) {
             for (let i = 0; i < excelData.length; i++) {
-                if (String(excelData[i][j]).trim().toUpperCase() === orderData.file.trim().toUpperCase()) {
-                    found = true; colIdx = j; rowIdx = i; break;
+                if (String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch) {
+                    found = true; colIdx = j; rowIdxWhereFileNumberFound = i; break;
                 }
             }
             if (found) break;
@@ -173,24 +176,46 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
         if (found) {
             setFileSearchStatus("found");
-            const groupName = String(excelData[rowIdx + 1]?.[colIdx] || "No encontrado").toUpperCase();
+            const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[colIdx] || "No encontrado").toUpperCase();
             
-            let pax = "N/A";
-            for (let i = rowIdx + 2; i < excelData.length; i++) {
-                const paxRaw = excelData[i]?.[colIdx];
-                if (paxRaw !== null && paxRaw !== undefined && String(paxRaw).trim() !== "") {
-                    const paxValue = String(paxRaw).trim();
-                    const plusFormatRegex = /^\\d+\\s*\\+\\s*\\d+$/;
-                    const numberRegex = /^\\d{1,2}$/;
-                    if (numberRegex.test(paxValue) || plusFormatRegex.test(paxValue)) {
-                        pax = paxValue;
-                        break; 
-                    }
+            // Now, find PAX number more robustly
+            let dateRowIndex = -1;
+            let dateFound = false;
+
+            // Start searching for a date from the file number row downwards
+            for (let i = rowIdxWhereFileNumberFound; i < excelData.length; i++) {
+                const cellValue = excelData[i]?.[colIdx];
+                if (!cellValue) continue;
+
+                if (cellValue instanceof Date && !isNaN(cellValue.valueOf())) {
+                    dateFound = true; dateRowIndex = i; break;
+                }
+                if (typeof cellValue === 'number' && cellValue > 25569) { // Excel serial date check
+                    const parsed = XLSX.SSF.parse_date_code(cellValue);
+                    if (parsed) { dateFound = true; dateRowIndex = i; break; }
                 }
             }
             
+            let pax = "N/A";
+            if (dateFound) {
+                 // Start searching for PAX from the row right after the date
+                for (let i = dateRowIndex + 1; i < excelData.length; i++) {
+                    const paxRaw = excelData[i]?.[colIdx];
+                    if (paxRaw !== null && paxRaw !== undefined) {
+                        const paxValue = String(paxRaw).trim();
+                        // Refined regex for PAX format like "1" or "16" or "16+1"
+                        const paxRegex = /^\d{1,2}(\s*\+\s*\d{1,2})?$/;
+                        if (paxRegex.test(paxValue)) {
+                            pax = paxValue;
+                            break; // Found, stop searching
+                        }
+                    }
+                }
+            }
+
             setOrderData({ ...orderData, ref: groupName, nPax: pax });
             toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+
         } else {
             setFileSearchStatus("not_found");
             setOrderData({ ...orderData, ref: '', nPax: '' });
@@ -517,5 +542,3 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         </Sheet>
     );
 }
-
-    
