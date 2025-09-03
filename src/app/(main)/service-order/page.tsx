@@ -447,7 +447,7 @@ export default function ServiceOrderListPage() {
             onSave={onSheetSave}
             orderData={intermediateOrderData}
             setOrderData={setIntermediateOrderData}
-            onClearAndNew={onClearAndNew}
+            onClearAndNew={onSheetClearAndNew}
         />
     </div>
     </TooltipProvider>
