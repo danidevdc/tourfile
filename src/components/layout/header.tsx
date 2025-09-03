@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -48,7 +49,7 @@ export default function Header() {
           <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
             <FileSpreadsheet className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             <h1 className="text-lg sm:text-xl font-bold text-primary">
-              TourFile Generator
+              TourFile
             </h1>
           </div>
         </Link>
@@ -66,7 +67,7 @@ export default function Header() {
           // Authenticated view
           <>
             {userDisplayName && (
-              <div className="hidden sm:flex items-center gap-1.5 bg-background/10 text-primary rounded-md px-3 py-1.5 border border-primary/30 shadow-sm">
+              <div className="hidden sm:flex items-center gap-1.5 bg-primary text-primary-foreground rounded-md px-3 py-1.5 shadow-sm">
                 <UserCircle2 className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm truncate max-w-[150px] md:max-w-[200px] font-medium">{userDisplayName}</span>
               </div>
