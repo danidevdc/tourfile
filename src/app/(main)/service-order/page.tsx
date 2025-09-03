@@ -7,8 +7,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { cn } from "@/lib/utils";
 
-import { getAllServiceOrders, deleteServiceOrder, updateServiceOrder, type StoredServiceOrder, saveServiceOrder } from '@/lib/serviceOrderStorage';
+import { getAllServiceOrders, deleteServiceOrder, updateServiceOrder, type StoredServiceOrder, saveServiceOrder, type OrderStatus } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 
 import { Button } from "@/components/ui/button";
@@ -106,9 +107,15 @@ export default function ServiceOrderListPage() {
   }, [authLoading]);
 
   const filteredOrders = useMemo(() => {
-    if (!searchTerm) return orders;
+    // Start with all orders and filter based on user role
+    const visibleOrders = isCurrentUserAdmin 
+      ? orders
+      : orders.filter(order => order.status !== 'eliminado');
+
+    if (!searchTerm) return visibleOrders;
+
     const lowercasedFilter = searchTerm.toLowerCase();
-    return orders.filter(order => {
+    return visibleOrders.filter(order => {
         const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
         return (
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
@@ -117,7 +124,7 @@ export default function ServiceOrderListPage() {
             date.toLowerCase().includes(lowercasedFilter)
         );
     });
-  }, [searchTerm, orders]);
+  }, [searchTerm, orders, isCurrentUserAdmin]);
   
   const paginatedOrders = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -208,6 +215,7 @@ export default function ServiceOrderListPage() {
   const handleDeleteOrder = async () => {
     if(!orderToDelete || !orderToDelete.id) return;
     try {
+      // This now performs a soft delete by setting status to 'eliminado'
       await deleteServiceOrder(orderToDelete.id);
       toast({ title: "Éxito", description: "Orden de servicio eliminada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
       fetchOrders();
@@ -221,7 +229,7 @@ export default function ServiceOrderListPage() {
   const handlePrintToPdf = async (order: StoredServiceOrder) => {
     setIsPrintingPdfId(order.id);
     try {
-      if (order.status !== 'enviado') {
+      if (order.status !== 'enviado' && order.status !== 'eliminado') {
         await updateServiceOrder(order.id, order.data, 'enviado');
         fetchOrders();
       }
@@ -253,6 +261,8 @@ export default function ServiceOrderListPage() {
     const status = order.status || 'creado';
 
     switch (status) {
+        case 'eliminado':
+            return <Badge variant="destructive">Eliminado</Badge>;
         case 'enviado':
             return <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">Enviado</Badge>;
         case 'editado':
@@ -315,58 +325,61 @@ export default function ServiceOrderListPage() {
                     </TableHeader>
                     <TableBody>
                         {paginatedOrders.length > 0 ? (
-                            paginatedOrders.map((order) => (
-                                <TableRow key={order.id}>
-                                    <TableCell className="font-medium border-r">{order.orderName.replace(/_/g, ' ')}</TableCell>
-                                    <TableCell className="border-r">{order.data.guia}</TableCell>
-                                    <TableCell className="border-r">{order.createdBy}</TableCell>
-                                    <TableCell className="border-r">{format(order.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
-                                    <TableCell className="border-r">{getStatusBadge(order)}</TableCell>
-                                    <TableCell className="text-left space-x-1">
-                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
-                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditOrderClick(order)} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
-                                        
-                                        <Tooltip><TooltipTrigger asChild>
-                                           <Button 
-                                              variant="outline"
-                                              size="icon" 
-                                              onClick={() => handlePrintToPdf(order)}
-                                              disabled={isPrintingPdfId === order.id}
-                                              className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700"
-                                            >
-                                              {isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
-                                           </Button>
-                                        </TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>
-                                        
-                                        <AlertDialog>
-                                            <Tooltip><TooltipTrigger asChild>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="destructive" size="icon" onClick={() => setOrderToDelete(order)}>
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                            </TooltipTrigger><TooltipContent><p>Eliminar Orden</p></TooltipContent></Tooltip>
+                            paginatedOrders.map((order) => {
+                                const isDeleted = order.status === 'eliminado';
+                                return (
+                                    <TableRow key={order.id} className={cn(isDeleted && "bg-destructive/10 text-muted-foreground")}>
+                                        <TableCell className="font-medium border-r">{order.orderName.replace(/_/g, ' ')}</TableCell>
+                                        <TableCell className="border-r">{order.data.guia}</TableCell>
+                                        <TableCell className="border-r">{order.createdBy}</TableCell>
+                                        <TableCell className="border-r">{format(order.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
+                                        <TableCell className="border-r">{getStatusBadge(order)}</TableCell>
+                                        <TableCell className="text-left space-x-1">
+                                            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
+                                            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditOrderClick(order)} disabled={isDeleted} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
                                             
-                                            {orderToDelete && orderToDelete.id === order.id && (
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Se eliminará permanentemente la orden "{orderToDelete.orderName.replace(/_/g, ' ')}". Esta acción no se puede deshacer.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cerrar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">
-                                                            Sí, eliminar
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            )}
-                                        </AlertDialog>
-                                    </TableCell>
-                                </TableRow>
-                            ))
+                                            <Tooltip><TooltipTrigger asChild>
+                                               <Button 
+                                                  variant="outline"
+                                                  size="icon" 
+                                                  onClick={() => handlePrintToPdf(order)}
+                                                  disabled={isPrintingPdfId === order.id || isDeleted}
+                                                  className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                  {isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
+                                               </Button>
+                                            </TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>
+                                            
+                                            <AlertDialog>
+                                                <Tooltip><TooltipTrigger asChild>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="destructive" size="icon" disabled={isDeleted} onClick={() => setOrderToDelete(order)}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                </TooltipTrigger><TooltipContent><p>Eliminar Orden</p></TooltipContent></Tooltip>
+                                                
+                                                {orderToDelete && orderToDelete.id === order.id && (
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Se eliminará la orden "{orderToDelete.orderName.replace(/_/g, ' ')}". El registro será ocultado pero permanecerá visible para los administradores.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cerrar</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">
+                                                                Sí, eliminar
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                )}
+                                            </AlertDialog>
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
@@ -434,7 +447,7 @@ export default function ServiceOrderListPage() {
             onSave={onSheetSave}
             orderData={intermediateOrderData}
             setOrderData={setIntermediateOrderData}
-            onClearAndNew={onSheetClearAndNew}
+            onClearAndNew={onClearAndNew}
         />
     </div>
     </TooltipProvider>

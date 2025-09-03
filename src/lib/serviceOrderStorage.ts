@@ -19,7 +19,7 @@ import { type ServiceOrderData } from './serviceOrderGenerator';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export type OrderStatus = 'creado' | 'editado' | 'enviado';
+export type OrderStatus = 'creado' | 'editado' | 'enviado' | 'eliminado';
 
 export interface StoredServiceOrder {
   id: string;
@@ -150,8 +150,17 @@ export async function getServiceOrderById(orderId: string): Promise<StoredServic
 }
 
 
+/**
+ * Performs a soft delete on a service order by setting its status to 'eliminado'.
+ * The document is not actually removed from the database.
+ * @param orderId The ID of the service order to "delete".
+ */
 export async function deleteServiceOrder(orderId: string): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
     const orderRef = doc(db, 'serviceOrders', orderId);
-    await deleteDoc(orderRef);
+    // Instead of deleteDoc, we update the status.
+    await updateDoc(orderRef, {
+        status: 'eliminado',
+        updatedAt: serverTimestamp()
+    });
 }
