@@ -161,9 +161,20 @@ export default function ContributeDataPage() {
     router.push(`/admin/contribute?tab=${tabValue}`, { scroll: false });
   };
 
+  const getTitleForType = (type: DataType): string => {
+    switch (type) {
+        case 'guides': return 'Añadir Nuevo Guía';
+        case 'hotels': return 'Añadir Nuevo Hotel';
+        case 'drivers': return 'Añadir Nuevo Chofer';
+        case 'activities': return 'Añadir Nueva Actividad';
+        case 'flights': return 'Añadir Nuevo Vuelo';
+        default: return 'Añadir Nuevo';
+    }
+  }
+
   const renderAddForm = (type: DataType) => (
     <Card className="mt-4">
-      <CardHeader><CardTitle className="text-lg">Añadir Nuevo {type === 'flights' ? 'Vuelo' : type.slice(0, -1)}</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-lg">{getTitleForType(type)}</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         {type === 'flights' ? (
              <div className="flex gap-2 items-center flex-col sm:flex-row">
