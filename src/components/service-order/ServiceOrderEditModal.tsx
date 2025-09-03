@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, ChangeEvent } from "react";
 import { parse, format } from "date-fns";
 import { StoredServiceOrder } from "@/lib/serviceOrderStorage";
-import { ServiceOrderData, ServiceItem, ServiceOrderGuide, Activity, Driver, PredefinedFlight, recordActivityTimeUsage, getSuggestedTimeForActivity } from "@/lib/serviceOrderService";
+import { ServiceOrderData, ServiceItem, ServiceOrderGuide, Activity, Driver, PredefinedFlight, Hotel, recordActivityTimeUsage, getSuggestedTimeForActivity } from "@/lib/serviceOrderService";
 import { cn } from "@/lib/utils";
 
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -24,6 +24,7 @@ interface ServiceOrderEditModalProps {
   activities: Activity[];
   drivers: Driver[];
   flights: PredefinedFlight[];
+  hotels: Hotel[];
   onSave: (updatedOrderData: ServiceOrderData, isSplitOrder: boolean) => void;
   onClose: () => void;
 }
@@ -33,28 +34,19 @@ const initialNewServiceState: ServiceItem = {
 };
 
 
-function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
-  return (
-    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2 text-xs", className)}>
-      <p className="font-bold text-primary">{label}</p>
-      <p className="font-normal">{value || "—"}</p>
-    </div>
-  );
-}
-
-export function ServiceOrderEditModal({ order, guides, activities, drivers, flights, onSave, onClose }: ServiceOrderEditModalProps) {
+export function ServiceOrderEditModal({ order, guides, activities, drivers, flights, hotels, onSave, onClose }: ServiceOrderEditModalProps) {
   const [editableOrderData, setEditableOrderData] = useState<ServiceOrderData>(JSON.parse(JSON.stringify(order.data)));
   const [isSplitMode, setIsSplitMode] = useState(false);
   
-  // --- State for the new service form ---
   const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
-  const [busTypeSelection, setBusTypeSelection] = useState('');
-  const [choferSelection, setChoferSelection] = useState('');
-
 
   useEffect(() => {
     setEditableOrderData(JSON.parse(JSON.stringify(order.data)));
   }, [order]);
+  
+  const handleDataChange = (field: keyof ServiceOrderData, value: string) => {
+    setEditableOrderData(prev => ({...prev, [field]: value.toUpperCase() }));
+  }
 
   const handleServiceChange = (index: number, field: keyof ServiceItem, value: string) => {
     const updatedServices = [...editableOrderData.services];
@@ -83,7 +75,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
   const handleActivitySelect = async (activityName: string) => {
       const upperActivityName = activityName.toUpperCase();
       setNewService(prev => ({...prev, servicio: upperActivityName, hora: ''}));
-      if (upperActivityName !== 'TRF IN' && upperActivityName !== 'TRF OUT') {
+      if (upperActivityName !== 'TRF IN' && upperActivityName !== 'TRF OUT' && !prev.hora) {
           const suggestedTime = await getSuggestedTimeForActivity(upperActivityName);
           if (suggestedTime) {
               handleNewServiceChange('hora', suggestedTime);
@@ -103,8 +95,6 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
           ...newService,
           fecha: format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy'),
           guia: editableOrderData.guia,
-          bus: busTypeSelection,
-          chofer: choferSelection,
       };
       recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
       setEditableOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd] }));
@@ -118,7 +108,6 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
   const handleSplitModeToggle = (checked: boolean) => {
     setIsSplitMode(checked);
-    // When splitting, ensure every service has a guide assigned, defaulting to the main guide if not set
     if (checked) {
         const updatedServices = editableOrderData.services.map(service => ({
             ...service,
@@ -151,7 +140,6 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
       }
   };
 
-
   const sortedServices = useMemo(() => {
     return [...editableOrderData.services].sort((a, b) => {
       try {
@@ -181,6 +169,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
   const globalGuideOptions: ComboboxOption[] = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
   const activityOptions: ComboboxOption[] = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
+  const hotelOptions: ComboboxOption[] = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
   const ownDrivers = drivers.filter(d => !d.name.startsWith('CONT '));
   const externalDrivers = drivers.filter(d => d.name.startsWith('CONT '));
   
@@ -188,8 +177,6 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
       const driverList = busType === 'CONT.' ? externalDrivers : ownDrivers;
       return driverList.map(d => ({ value: d.name.toUpperCase(), label: d.name }));
   };
-
-  const newServiceDriverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\\s/i, '') }));
 
   const filteredFlightOptions = useMemo(() => {
       const createOption = (f: PredefinedFlight) => ({ value: f.flightNumber, key: f.id, label: `${f.flightNumber} (${f.time})` });
@@ -213,12 +200,32 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
         <div className="flex-grow overflow-y-auto px-4 py-2 space-y-4">
             <div className="space-y-2 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
-                <div className="flex items-stretch gap-2">
-                   <MetaItem label="File:" value={order.data.file} className="flex-none w-32" />
-                   <MetaItem label="Ref:" value={order.data.ref} className="flex-1" />
-                   <MetaItem label="Nº Pax:" value={order.data.nPax} className="flex-none w-32" />
-                   <MetaItem label="Hotel:" value={order.data.hotel} className="flex-1"/>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <Label htmlFor="file-edit">File</Label>
+                        <Input id="file-edit" value={editableOrderData.file} onChange={(e) => handleDataChange('file', e.target.value)} className="h-9 mt-1 bg-card/80"/>
+                    </div>
+                     <div>
+                        <Label htmlFor="ref-edit">Ref (Grupo)</Label>
+                        <Input id="ref-edit" value={editableOrderData.ref} onChange={(e) => handleDataChange('ref', e.target.value)} className="h-9 mt-1 bg-card/80"/>
+                    </div>
+                    <div>
+                        <Label htmlFor="pax-edit">Nº Pax</Label>
+                        <Input id="pax-edit" value={editableOrderData.nPax} onChange={(e) => handleDataChange('nPax', e.target.value)} className="h-9 mt-1 bg-card/80"/>
+                    </div>
+                     <div>
+                        <Label>Hotel</Label>
+                        <Combobox
+                            options={hotelOptions}
+                            value={editableOrderData.hotel}
+                            onSelect={(value) => handleDataChange('hotel', value)}
+                            placeholder="Buscar hotel..."
+                            className="h-9 mt-1"
+                            triggerClassName="bg-card/80"
+                        />
+                    </div>
                 </div>
+
                 <div className="pt-2 flex items-center gap-4">
                     <div className="flex-1">
                         <Label className="text-xs font-semibold text-muted-foreground">Guía Principal</Label>
@@ -290,14 +297,8 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                   const originalIndex = editableOrderData.services.findIndex(os => os === s);
                   const currentDriverOptions = driverOptionsForBusType(s.bus);
                   
-                  const guideForThisRow = s.guia || editableOrderData.guia;
-                  const guiaFirstName = (guideForThisRow || '').split(' ')[0];
-                  
-                  const choferCompleto = s.chofer || '';
-                  const choferSanitized = choferCompleto.replace(/^CONT\s/i, '');
-                  const choferFirstName = choferSanitized.split(' ')[0];
+                  const guiaFirstName = (s.guia || editableOrderData.guia || '').split(' ')[0];
                   const canDelete = editableOrderData.services.length > 1;
-
 
                   return (
                     <TableRow key={originalIndex} className={cn("break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>

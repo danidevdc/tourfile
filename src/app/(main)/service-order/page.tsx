@@ -424,6 +424,7 @@ export default function ServiceOrderListPage() {
             activities={activities}
             drivers={drivers}
             flights={flights}
+            hotels={hotels}
             onSave={handleSaveFromEditModal}
             onClose={() => {
               setIsEditModalOpen(false);
@@ -454,5 +455,3 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
-
-    
