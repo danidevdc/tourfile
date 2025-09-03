@@ -1,6 +1,4 @@
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -9,51 +7,54 @@ service cloud.firestore {
     function isAuth() {
       return request.auth != null;
     }
-
     function isAdmin() {
-      // Check if the user is authenticated and if their profile has isAdmin set to true.
+      // Check if the user is authenticated and their profile has isAdmin set to true.
       return isAuth() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
-
     function isOwner(email) {
-      // Check if the authenticated user's email matches the creator's email on a document.
+      // Check if the authenticated user's email matches the creator's email stored in a document.
       return isAuth() && request.auth.token.email == email;
     }
 
     // --- Collections Rules ---
 
-    // Master Data (Guides, Hotels, etc.): Any authenticated user can read. Only admins can write/delete.
-    match /{collection}/{docId} where collection in ['guides', 'hotels', 'drivers', 'activities', 'flights'] {
+    // Guides, Hotels, Drivers, Activities, Flights:
+    // Any authenticated user can read. Only admins can write/delete.
+    match /{collection}/{docId} 
+      where collection in ['guides', 'hotels', 'drivers', 'activities', 'flights'] {
       allow read: if isAuth();
       allow write: if isAdmin();
     }
 
-    // Expense Rules: Only admins can manage these.
+    // Expense Rules: Only admins can read or write.
     match /expenseRules/{ruleId} {
-      allow read, write: if isAdmin();
+        allow read, write: if isAdmin();
     }
     
-    // Stats & Reports: Any authenticated user can create. Admins can read/delete.
-    match /{collection}/{docId} where collection in ['flightSearchStats', 'generatedReports'] {
-      allow read: if isAdmin();
-      allow create: if isAuth();
+    // Flight Search Stats & Generated Reports: 
+    // Any authenticated user can read/create. Admins can do anything.
+     match /{collection}/{docId} 
+      where collection in ['flightSearchStats', 'generatedReports'] {
+      allow read, create: if isAuth();
       allow update, delete: if isAdmin();
     }
 
     // --- Service Orders ---
-    // Any authenticated user can read/create orders. Only the owner or an admin can update/delete.
+    // Any authenticated user can read and create orders.
+    // Only the owner or an admin can update or delete an order.
     match /serviceOrders/{orderId} {
       allow read, create: if isAuth();
       allow update, delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
     }
 
     // --- User Profiles ---
-    // Users can create and manage their own profile. Admins can manage any profile.
+    // Users can read and update their own profile. Admins can read/update any profile.
+    // Users can create their own profile document.
+    // Only admins can delete profiles (but not their own).
     match /userProfiles/{userId} {
+      allow read, update: if isAuth() && (request.auth.uid == userId || isAdmin());
       allow create: if isAuth() && request.auth.uid == userId;
-      allow read: if isAuth() && (request.auth.uid == userId || isAdmin());
-      allow update: if isAuth() && (request.auth.uid == userId || isAdmin());
-      allow delete: if isAdmin() && request.auth.uid != userId; // Admins can't delete themselves.
+      allow delete: if isAdmin() && request.auth.uid != userId;
     }
   }
 }
