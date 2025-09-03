@@ -223,9 +223,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                     if (dateCellValue instanceof Date && !isNaN(dateCellValue.valueOf())) {
                         currentDate = format(dateCellValue, 'dd/MM/yyyy');
                     }
-                    const serviceCellValue = excelData[i]?.[colIdx+1]?.toString().trim().toUpperCase();
+                    // Ensure the cell value is a string before calling methods on it.
+                    const serviceCellValue = excelData[i]?.[colIdx + 1]?.toString() || '';
                     if(serviceCellValue) {
-                        const matchedRule = serviceOrderRules.find(rule => serviceCellValue.includes(rule.keyword.toUpperCase()));
+                        const excelKeyword = serviceCellValue.trim().toUpperCase();
+                        // Find a rule where the excel keyword includes the rule's keyword.
+                        const matchedRule = serviceOrderRules.find(rule => excelKeyword.includes(rule.keyword.toUpperCase()));
+
                         if(matchedRule) {
                             generatedServices.push({
                                 fecha: currentDate,
