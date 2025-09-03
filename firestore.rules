@@ -1,4 +1,5 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -18,12 +19,20 @@ service cloud.firestore {
 
     // --- Collections Rules ---
 
-    // Guides, Hotels, Drivers, Activities, Flights:
+    // Guides, Hotels, Drivers, Flights:
     // Any authenticated user can read. Only admins can write/delete.
     match /{collection}/{docId} 
-      where collection in ['guides', 'hotels', 'drivers', 'activities', 'flights'] {
+      where collection in ['guides', 'hotels', 'drivers', 'flights'] {
       allow read: if isAuth();
       allow write: if isAdmin();
+    }
+    
+    // Activities:
+    // Anyone can read. Admins can create/delete. Users can update learning data.
+    match /activities/{activityId} {
+      allow read: if isAuth();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timeCounts', 'suggestedTime']));
     }
 
     // Expense Rules: Only admins can read or write.
@@ -46,6 +55,12 @@ service cloud.firestore {
       allow read, create: if isAuth();
       allow update, delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
     }
+    
+    // --- Learning Data for AI/Suggestions ---
+    // Any authenticated user can contribute to the learning data.
+    match /activityTimeSuggestions/{activityName} {
+      allow read, write: if isAuth();
+    }
 
     // --- User Profiles ---
     // Users can read and update their own profile. Admins can read/update any profile.
@@ -55,12 +70,6 @@ service cloud.firestore {
       allow read, update: if isAuth() && (request.auth.uid == userId || isAdmin());
       allow create: if isAuth() && request.auth.uid == userId;
       allow delete: if isAdmin() && request.auth.uid != userId;
-    }
-
-    // --- Learning Data for AI/Suggestions ---
-    // Any authenticated user can contribute to the learning data.
-    match /activityTimeSuggestions/{activityName} {
-      allow read, write: if isAuth();
     }
   }
 }
