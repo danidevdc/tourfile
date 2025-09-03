@@ -98,13 +98,15 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
     const serviceToAdd: ServiceItem = {
         ...newService,
-        fecha: format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy'),
+        fecha: newService.fecha ? format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '',
         guia: editableOrderData.guia,
         bus: newService.bus || lastService?.bus || '',
         chofer: newService.chofer || lastService?.chofer || '',
     };
     
-    recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
+    if (serviceToAdd.servicio && serviceToAdd.hora) {
+      recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
+    }
     setEditableOrderData(prev => ({ ...prev, services: [...prev.services, serviceToAdd] }));
     setNewService(prev => ({ ...initialNewServiceState, fecha: prev.fecha }));
  };
@@ -205,20 +207,20 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
         <div className="flex-grow overflow-y-auto px-4 py-2 space-y-4">
             <div className="space-y-2 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <div className="md:col-span-1">
                         <Label htmlFor="file-edit">File</Label>
                         <Input id="file-edit" value={editableOrderData.file} onChange={(e) => handleDataChange('file', e.target.value)} className="h-9 mt-1 bg-card/80"/>
                     </div>
-                     <div>
+                     <div className="md:col-span-2">
                         <Label htmlFor="ref-edit">Ref (Grupo)</Label>
                         <Input id="ref-edit" value={editableOrderData.ref} onChange={(e) => handleDataChange('ref', e.target.value)} className="h-9 mt-1 bg-card/80"/>
                     </div>
-                    <div>
+                    <div className="md:col-span-1">
                         <Label htmlFor="pax-edit">Nº Pax</Label>
                         <Input id="pax-edit" value={editableOrderData.nPax} onChange={(e) => handleDataChange('nPax', e.target.value)} className="h-9 mt-1 bg-card/80"/>
                     </div>
-                     <div>
+                     <div className="md:col-span-2">
                         <Label>Hotel</Label>
                         <Combobox
                             options={hotelOptions}
@@ -251,7 +253,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                 </div>
                  {/* --- Add New Service Form --- */}
                 <div className="pt-2 space-y-2">
-                   <div className="flex items-end gap-px">
+                   <div className="flex items-end gap-2">
                         <div style={{ width: '130px' }}>
                             <Label className="text-xs font-semibold">Fecha</Label>
                             <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 h-8 text-xs"/>
