@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -8,6 +7,8 @@ import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 export default function Header() {
   const pathname = usePathname();
@@ -27,23 +28,13 @@ export default function Header() {
     }
   }
   
-  // Don't render the header on auth pages for a cleaner look
   if (isAuthPage) {
     return null;
   }
 
-  const renderAuthSkeletons = () => (
-    <>
-      <Skeleton className="h-9 w-36 rounded-md" />
-      <Skeleton className="h-9 w-9 rounded-md" />
-      <Skeleton className="h-9 w-20 rounded-md" />
-      <Skeleton className="h-9 w-20 rounded-md" />
-    </>
-  );
-
   return (
+    <TooltipProvider delayDuration={150}>
     <header className="flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b shadow-md sticky top-0 z-50">
-      {/* Logo and Title */}
       <div className="flex items-center gap-2">
         <Link href="/" passHref>
           <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
@@ -55,16 +46,29 @@ export default function Header() {
         </Link>
       </div>
 
-      {/* Actions: Theme Toggle and Auth Buttons */}
       <div className="flex items-center gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link href="/" passHref>
+              <Button variant="ghost" size="icon" className="text-primary dark:text-primary-foreground hover:bg-muted">
+                <Home className="h-[1.2rem] w-[1.2rem]" />
+                <span className="sr-only">Ir a Inicio</span>
+              </Button>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Ir a Inicio</p>
+          </TooltipContent>
+        </Tooltip>
+
         <ThemeToggle />
+
         {isLoading ? (
           <div className="flex items-center gap-2">
              <Skeleton className="h-9 w-24 rounded-md" />
              <Skeleton className="h-9 w-24 rounded-md" />
           </div>
         ) : isAuthenticated ? (
-          // Authenticated view
           <>
             {userDisplayName && (
               <div className="hidden sm:flex items-center gap-1.5 bg-primary text-primary-foreground rounded-md px-3 py-1.5 shadow-sm">
@@ -72,13 +76,19 @@ export default function Header() {
                 <span className="text-sm truncate max-w-[150px] md:max-w-[200px] font-medium">{userDisplayName}</span>
               </div>
             )}
-            <Button variant="ghost" className="text-destructive hover:bg-destructive/20 px-2 md:px-3" onClick={logout}>
-              <LogOut className="h-4 w-4 sm:h-5 sm:w-5 md:mr-2" />
-              <span className="hidden md:inline">Salir</span>
-            </Button>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" className="text-destructive hover:bg-destructive/20" size="icon" onClick={logout}>
+                        <LogOut className="h-5 w-5" />
+                        <span className="sr-only">Salir</span>
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Cerrar Sesión</p>
+                </TooltipContent>
+            </Tooltip>
           </>
         ) : (
-          // Unauthenticated view (Header is not shown on login pages, but this is a fallback)
           <>
              <Link href="/login" passHref>
               <Button variant="default">
@@ -97,5 +107,6 @@ export default function Header() {
         )}
       </div>
     </header>
+    </TooltipProvider>
   );
 }
