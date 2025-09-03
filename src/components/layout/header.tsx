@@ -73,7 +73,7 @@ export default function Header() {
         ) : isAuthenticated ? (
           <>
             {userDisplayName && (
-              <div className="hidden sm:flex items-center gap-1.5 bg-primary text-primary-foreground rounded-md px-3 py-1.5 shadow-sm transition-colors hover:bg-primary/90">
+              <div className="hidden sm:flex items-center gap-1.5 bg-primary text-primary-foreground rounded-md px-3 py-1.5 shadow-sm transition-all duration-200 ease-in-out hover:bg-primary/90 hover:shadow-md">
                 <UserCircle2 className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm truncate max-w-[150px] md:max-w-[200px] font-medium">{userDisplayName}</span>
               </div>
