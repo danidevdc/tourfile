@@ -12,6 +12,7 @@ import {
   recordActivityTimeUsage, getSuggestedTimeForActivity,
   type ServiceOrderGuide, type Hotel, type Driver, type Activity, type ServiceItem, type PredefinedFlight,
 } from '@/lib/serviceOrderService';
+import { getServiceOrderRules, type ServiceOrderRule } from '@/lib/serviceOrderRuleService';
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { saveServiceOrder } from '@/lib/serviceOrderStorage';
 
@@ -21,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -42,9 +43,10 @@ interface ServiceOrderGeneratorSheetProps {
     orderData: ServiceOrderData;
     setOrderData: (data: ServiceOrderData) => void;
     onClearAndNew: () => void;
+    isAutomatedMode: boolean;
 }
 
-export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData, setOrderData, onClearAndNew }: ServiceOrderGeneratorSheetProps) {
+export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData, setOrderData, onClearAndNew, isAutomatedMode }: ServiceOrderGeneratorSheetProps) {
     const { currentUser } = useAuth();
     const { toast } = useToast();
 
@@ -58,6 +60,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     const [externalDrivers, setExternalDrivers] = useState<Driver[]>([]);
     const [activities, setActivities] = useState<Activity[]>([]);
     const [flights, setFlights] = useState<PredefinedFlight[]>([]);
+    const [serviceOrderRules, setServiceOrderRules] = useState<ServiceOrderRule[]>([]);
     
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedFile, setSelectedFile] = useState<{name: string} | null>(null);
@@ -125,8 +128,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         async function loadInitialData() {
             setIsLoadingData(true);
             try {
-                const [fetchedGuides, fetchedHotels, fetchedDrivers, fetchedActivities, fetchedFlights] = await Promise.all([
-                    getGuidesFromFirestore(), getHotelsFromFirestore(), getDriversFromFirestore(), getActivitiesFromFirestore(), getFlightsFromFirestore()
+                const [fetchedGuides, fetchedHotels, fetchedDrivers, fetchedActivities, fetchedFlights, fetchedRules] = await Promise.all([
+                    getGuidesFromFirestore(), getHotelsFromFirestore(), getDriversFromFirestore(), getActivitiesFromFirestore(), getFlightsFromFirestore(), getServiceOrderRules()
                 ]);
                 setGuides(fetchedGuides);
                 setHotels(fetchedHotels);
@@ -135,6 +138,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 setExternalDrivers(fetchedDrivers.filter(d => d.name.startsWith('CONT ')));
                 setActivities(fetchedActivities);
                 setFlights(fetchedFlights);
+                setServiceOrderRules(fetchedRules);
             } catch (error) {
                 toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
             } finally {
@@ -156,7 +160,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
     const clearFile = () => {
         setSelectedFile(null); setExcelData(null); setFileSearchStatus("idle");
-        setOrderData({ ...orderData, file: '', ref: '', nPax: '' });
+        setOrderData({ ...orderData, file: '', ref: '', nPax: '', services: [] });
         if (fileInputRef.current) fileInputRef.current.value = "";
         sessionStorage.removeItem(SESSION_STORAGE_FILE_KEY);
         sessionStorage.removeItem(SESSION_STORAGE_FILENAME_KEY);
@@ -171,7 +175,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         await new Promise(resolve => setTimeout(resolve, 300));
         
         let found = false, colIdx = -1, rowIdxWhereFileNumberFound = -1;
-        
         const fileNumberToSearch = orderData.file.trim().toUpperCase();
         for (let j = 0; j < excelData[0].length; j++) {
             for (let i = 0; i < excelData.length; i++) {
@@ -183,7 +186,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         }
 
         if (found) {
-             setFileSearchStatus("found");
+            setFileSearchStatus("found");
             const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[colIdx] || "No encontrado").toUpperCase();
             
             let dateRowIndex = -1;
@@ -193,18 +196,10 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 const cellValue = excelData[i]?.[colIdx];
                 if (!cellValue) continue;
 
-                if (cellValue instanceof Date && !isNaN(cellValue.valueOf())) {
-                    dateFound = true;
-                    dateRowIndex = i;
-                    break;
-                }
+                if (cellValue instanceof Date && !isNaN(cellValue.valueOf())) { dateFound = true; dateRowIndex = i; break; }
                 if (typeof cellValue === 'number' && cellValue > 25569) {
                     const parsed = XLSX.SSF.parse_date_code(cellValue);
-                    if (parsed) {
-                        dateFound = true;
-                        dateRowIndex = i;
-                        break;
-                    }
+                    if (parsed) { dateFound = true; dateRowIndex = i; break; }
                 }
             }
             
@@ -215,20 +210,42 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                     if (paxRaw !== null && paxRaw !== undefined) {
                         const paxValue = String(paxRaw).trim();
                         const paxRegex = /^\d{1,2}(\s*\+\s*\d{1,2})?$/;
-                        if (paxRegex.test(paxValue)) {
-                            pax = paxValue;
-                            break;
-                        }
+                        if (paxRegex.test(paxValue)) { pax = paxValue; break; }
                     }
                 }
             }
-            setOrderData({ ...orderData, ref: groupName, nPax: pax });
-            toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+            
+            if (isAutomatedMode) {
+                const generatedServices: ServiceItem[] = [];
+                let currentDate = '';
+                for (let i = dateRowIndex; i < excelData.length; i++) {
+                    const dateCellValue = excelData[i]?.[colIdx];
+                    if (dateCellValue instanceof Date && !isNaN(dateCellValue.valueOf())) {
+                        currentDate = format(dateCellValue, 'dd/MM/yyyy');
+                    }
+                    const serviceCellValue = excelData[i]?.[colIdx+1]?.toString().trim().toUpperCase();
+                    if(serviceCellValue) {
+                        const matchedRule = serviceOrderRules.find(rule => serviceCellValue.includes(rule.keyword.toUpperCase()));
+                        if(matchedRule) {
+                            generatedServices.push({
+                                fecha: currentDate,
+                                servicio: matchedRule.activity,
+                                hora: '', bus: '', chofer: '', guia: '', observaciones: '', vuelo: ''
+                            });
+                        }
+                    }
+                }
+                 setOrderData({ ...orderData, ref: groupName, nPax: pax, services: generatedServices });
+                 toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServices.length} servicios.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+            } else {
+                 setOrderData({ ...orderData, ref: groupName, nPax: pax, services: [] });
+                 toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+            }
 
         } else {
             setFileSearchStatus("not_found");
-            setOrderData({ ...orderData, ref: '', nPax: '' });
-            toast({ title: "Búsqueda Fallida", description: "Número de file no encontrado en el programa.", variant: "destructive" });
+            setOrderData({ ...orderData, ref: '', nPax: '', services: [] });
+            toast({ title: "Búsqueda Fallida", description: "Número de file no encontrado.", variant: "destructive" });
         }
         setIsProcessingSearch(false);
     };
@@ -388,8 +405,11 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             <SheetContent side="top" className="w-full h-full max-h-screen flex flex-col sm:max-w-full">
                 <SheetHeader>
                      <SheetTitle className="text-2xl font-headline text-primary">
-                        Nueva Orden de Servicio
+                        {isAutomatedMode ? "Generar Orden de Servicio Automatizada" : "Nueva Orden de Servicio"}
                     </SheetTitle>
+                    <SheetDescription>
+                        {isAutomatedMode ? "Busca un file en tu programa y el sistema generará los servicios automáticamente." : "Llena los campos manualmente para crear una nueva orden de servicio."}
+                    </SheetDescription>
                 </SheetHeader>
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
@@ -469,48 +489,50 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                             </div>
                         </div>
                         
-                        <div className="p-4 border rounded-lg bg-card">
-                            <h3 className="font-semibold mb-2">Añadir Servicio</h3>
-                             <div className="flex items-end gap-2">
-                                <div style={{ width: '150px' }}>
-                                  <Label>Fecha</Label>
-                                  <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/>
-                                </div>
-                                <div className="flex-grow" style={{ minWidth: '250px' }}>
-                                    <Label>Actividad</Label>
-                                    <Combobox 
-                                        options={activityOptions} 
-                                        value={newService.servicio} 
-                                        onSelect={handleActivitySelect} 
-                                        placeholder="Buscar actividad..." 
-                                        className="mt-1 bg-card"
-                                        triggerClassName={cn(newService.servicio && "border-green-500 font-medium")}
-                                    />
-                                </div>
-                                {(newService.servicio?.includes('TRF IN') || newService.servicio?.includes('TRF OUT')) && (
-                                    <div className="flex-grow" style={{ minWidth: '200px' }}>
-                                        <Label>Vuelo</Label>
+                        {!isAutomatedMode && (
+                            <div className="p-4 border rounded-lg bg-card">
+                                <h3 className="font-semibold mb-2">Añadir Servicio Manualmente</h3>
+                                 <div className="flex items-end gap-2">
+                                    <div style={{ width: '150px' }}>
+                                      <Label>Fecha</Label>
+                                      <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/>
+                                    </div>
+                                    <div className="flex-grow" style={{ minWidth: '250px' }}>
+                                        <Label>Actividad</Label>
                                         <Combobox 
-                                            options={filteredFlightOptions} 
-                                            value={newService.vuelo || ''} 
-                                            onSelect={handleFlightSelect} 
-                                            placeholder="Seleccionar vuelo..." 
+                                            options={activityOptions} 
+                                            value={newService.servicio} 
+                                            onSelect={handleActivitySelect} 
+                                            placeholder="Buscar actividad..." 
                                             className="mt-1 bg-card"
-                                            triggerClassName={cn(newService.vuelo && "border-green-500 font-medium")}
+                                            triggerClassName={cn(newService.servicio && "border-green-500 font-medium")}
                                         />
                                     </div>
-                                )}
-                                <div style={{ width: '100px' }}>
-                                    <Label>Hora</Label>
-                                    <Input value={newService.hora} onChange={handleTimeInputChange} onBlur={handleTimeInputBlur} placeholder="HH:mm" maxLength={5} className="mt-1 w-full"/>
-                                </div>
-                                <div>
-                                    <Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}>
-                                        <PlusCircle className="mr-2 h-5 w-5"/>Añadir
-                                    </Button>
+                                    {(newService.servicio?.includes('TRF IN') || newService.servicio?.includes('TRF OUT')) && (
+                                        <div className="flex-grow" style={{ minWidth: '200px' }}>
+                                            <Label>Vuelo</Label>
+                                            <Combobox 
+                                                options={filteredFlightOptions} 
+                                                value={newService.vuelo || ''} 
+                                                onSelect={handleFlightSelect} 
+                                                placeholder="Seleccionar vuelo..." 
+                                                className="mt-1 bg-card"
+                                                triggerClassName={cn(newService.vuelo && "border-green-500 font-medium")}
+                                            />
+                                        </div>
+                                    )}
+                                    <div style={{ width: '100px' }}>
+                                        <Label>Hora</Label>
+                                        <Input value={newService.hora} onChange={handleTimeInputChange} onBlur={handleTimeInputBlur} placeholder="HH:mm" maxLength={5} className="mt-1 w-full"/>
+                                    </div>
+                                    <div>
+                                        <Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}>
+                                            <PlusCircle className="mr-2 h-5 w-5"/>Añadir
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         <div className="p-4 border rounded-lg bg-card">
                              <div className="flex justify-between items-center mb-2">
@@ -561,7 +583,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         ) : (
                                             <TableRow>
                                                 <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
-                                                    El resumen está vacío. Añade un servicio arriba.
+                                                    El resumen está vacío.
                                                 </TableCell>
                                             </TableRow>
                                         )}

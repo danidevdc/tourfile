@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Loader2, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -63,6 +63,7 @@ export default function ServiceOrderListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isAutomatedMode, setIsAutomatedMode] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   
@@ -138,9 +139,13 @@ export default function ServiceOrderListPage() {
 
 
   const handleNewOrderClick = () => {
-    // Do not reset the data here, allowing the sheet to open with the last state.
-    // The data is reset on save or explicit clear.
+    setIsAutomatedMode(false);
     setIsSheetOpen(true);
+  };
+  
+  const handleAutomatedOrderClick = () => {
+      setIsAutomatedMode(true);
+      setIsSheetOpen(true);
   };
 
   const handleEditOrderClick = (order: StoredServiceOrder) => {
@@ -285,10 +290,16 @@ export default function ServiceOrderListPage() {
         <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go home">
             <ArrowLeft className="h-5 w-5" />
         </Button>
-        <Button onClick={handleNewOrderClick}>
-            <FilePlus className="mr-2 h-4 w-4" />
-            Nueva Orden de Servicio
-        </Button>
+        <div className="flex gap-2">
+            <Button onClick={handleAutomatedOrderClick} className="bg-green-600 hover:bg-green-700 text-white">
+                <Bot className="mr-2 h-4 w-4" />
+                Generar Orden Automatizada
+            </Button>
+            <Button onClick={handleNewOrderClick}>
+                <FilePlus className="mr-2 h-4 w-4" />
+                Nueva Orden de Servicio
+            </Button>
+        </div>
       </div>
 
        <Card className="w-full max-w-7xl shadow-lg">
@@ -450,6 +461,7 @@ export default function ServiceOrderListPage() {
             orderData={intermediateOrderData}
             setOrderData={setIntermediateOrderData}
             onClearAndNew={onClearAndNew}
+            isAutomatedMode={isAutomatedMode}
         />
     </div>
     </TooltipProvider>
