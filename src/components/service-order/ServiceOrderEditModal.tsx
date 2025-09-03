@@ -7,7 +7,7 @@ import { StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { ServiceOrderData, ServiceItem, ServiceOrderGuide, Activity, Driver, PredefinedFlight, Hotel, recordActivityTimeUsage, getSuggestedTimeForActivity } from "@/lib/serviceOrderService";
 import { cn } from "@/lib/utils";
 
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -74,8 +74,11 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
   const handleActivitySelect = async (activityName: string) => {
       const upperActivityName = activityName.toUpperCase();
+      const currentHora = newService.hora;
+      
       setNewService(prev => ({...prev, servicio: upperActivityName, hora: ''}));
-      if (upperActivityName !== 'TRF IN' && upperActivityName !== 'TRF OUT' && !prev.hora) {
+      
+      if (upperActivityName !== 'TRF IN' && upperActivityName !== 'TRF OUT' && !currentHora) {
           const suggestedTime = await getSuggestedTimeForActivity(upperActivityName);
           if (suggestedTime) {
               handleNewServiceChange('hora', suggestedTime);
@@ -263,8 +266,6 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                               <Combobox options={filteredFlightOptions} value={newService.vuelo || ''} onSelect={handleFlightSelect} placeholder="Seleccionar vuelo..." className="mt-1 h-8 text-xs" triggerClassName="bg-card/80" />
                           </div>
                         )}
-                   </div>
-                   <div className="flex items-end gap-2">
                         <div style={{ width: '90px' }}>
                             <Label className="text-xs font-semibold">Hora</Label>
                             <Input value={newService.hora} onChange={handleNewServiceTimeChange} onBlur={(e) => handleTimeBlur(-1, e.target.value)} placeholder="HH:mm" maxLength={5} className="mt-1 h-8 text-xs"/>
