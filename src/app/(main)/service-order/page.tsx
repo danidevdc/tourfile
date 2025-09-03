@@ -254,8 +254,9 @@ export default function ServiceOrderListPage() {
     setIsSheetOpen(false);
   }
 
-  const onSheetClearAndNew = () => {
+  const onClearAndNew = () => {
       setIntermediateOrderData(initialOrderDataState);
+      setOrderToEdit(null);
   };
   
   const getStatusBadge = (order: StoredServiceOrder) => {
@@ -446,7 +447,7 @@ export default function ServiceOrderListPage() {
             onSave={onSheetSave}
             orderData={intermediateOrderData}
             setOrderData={setIntermediateOrderData}
-            onClearAndNew={onSheetClearAndNew}
+            onClearAndNew={onClearAndNew}
         />
     </div>
     </TooltipProvider>
