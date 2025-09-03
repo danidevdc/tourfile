@@ -179,8 +179,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 const paxRaw = excelData[i]?.[colIdx];
                 if (paxRaw !== null && paxRaw !== undefined && String(paxRaw).trim() !== "") {
                     const paxValue = String(paxRaw).trim();
-                    const plusFormatRegex = /^\d+\s*\+\s*\d+$/;
-                    const numberRegex = /^\d{1,2}$/;
+                    const plusFormatRegex = /^\\d+\\s*\\+\\s*\\d+$/;
+                    const numberRegex = /^\\d{1,2}$/;
                     if (numberRegex.test(paxValue) || plusFormatRegex.test(paxValue)) {
                         pax = paxValue;
                         break; 
@@ -210,6 +210,12 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
     const handleNewServiceChange = (field: keyof ServiceItem, value: string) => {
         setNewService(prev => ({ ...prev, [field]: value.toUpperCase() }));
+    };
+
+    const handleServiceSummaryChange = (index: number, field: keyof ServiceItem, value: string) => {
+        const updatedServices = [...orderData.services];
+        updatedServices[index] = { ...updatedServices[index], [field]: value };
+        setOrderData(prev => ({ ...prev, services: updatedServices }));
     };
     
     const handleTimeInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -312,7 +318,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
     const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
     const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
-    const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\s/i, '') }));
+    const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\\s/i, '') }));
     const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
     const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim() || !newService.hora.trim();
 
@@ -446,8 +452,14 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                                     <TableCell className="p-2 border-r border-primary/20">{s.vuelo}</TableCell>
                                                     <TableCell className="p-2 border-r border-primary/20 font-sans">{s.guia}</TableCell>
                                                     <TableCell className="p-2 border-r border-primary/20">{s.bus}</TableCell>
-                                                    <TableCell className="p-2 border-r border-primary/20 font-sans">{s.chofer?.replace(/^CONT\s/i, '')}</TableCell>
-                                                    <TableCell className="p-2 border-r border-primary/20 font-sans">{s.observaciones}</TableCell>
+                                                    <TableCell className="p-2 border-r border-primary/20 font-sans">{s.chofer?.replace(/^CONT\\s/i, '')}</TableCell>
+                                                    <TableCell className="p-1 border-r border-primary/20 font-sans">
+                                                        <Input
+                                                          value={s.observaciones || ''}
+                                                          onChange={(e) => handleServiceSummaryChange(i, 'observaciones', e.target.value)}
+                                                          className="h-8 text-xs bg-card/80"
+                                                        />
+                                                    </TableCell>
                                                      <TableCell className="p-1 text-center">
                                                         <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10" onClick={() => removeServiceRow(i)}>
                                                             <XCircle className="h-4 w-4" />
