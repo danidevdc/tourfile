@@ -3,3 +3,5 @@ run: npm run start
 env:
   - variable: BROWSER_ARGS
     value: '--no-sandbox'
+scaling:
+  maxInstances: 10
