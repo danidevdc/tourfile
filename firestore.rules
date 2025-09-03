@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -52,7 +53,7 @@ service cloud.firestore {
     match /userProfiles/{userId} {
       allow read: if isOwner(resource.data.email) || isAdmin();
       allow create: if isAuth() && request.auth.uid == userId;
-      allow update: if isOwner(resource.data.email) || isAdmin();
+      allow update: if (isAuth() && request.auth.uid == userId) || isAdmin();
       allow delete: if isAdmin() && request.auth.uid != userId;
     }
   }
