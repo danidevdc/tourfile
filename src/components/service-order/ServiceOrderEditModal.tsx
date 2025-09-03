@@ -208,15 +208,15 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
         <div className="flex-grow overflow-y-auto px-4 py-2 space-y-4">
             <div className="space-y-2 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-3">
                         <Label htmlFor="file-edit">File</Label>
                         <Input id="file-edit" value={editableOrderData.file} onChange={(e) => handleDataChange('file', e.target.value)} className="h-9 mt-1 bg-card/80"/>
                     </div>
-                     <div className="md:col-span-4">
+                     <div className="md:col-span-6">
                         <Label htmlFor="ref-edit">Ref (Grupo)</Label>
                         <Input id="ref-edit" value={editableOrderData.ref} onChange={(e) => handleDataChange('ref', e.target.value)} className="h-9 mt-1 bg-card/80"/>
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-3">
                         <Label htmlFor="pax-edit">Nº Pax</Label>
                         <Input id="pax-edit" value={editableOrderData.nPax} onChange={(e) => handleDataChange('nPax', e.target.value)} className="h-9 mt-1 bg-card/80"/>
                     </div>
@@ -253,8 +253,8 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                 </div>
                  {/* --- Add New Service Form --- */}
                 <div className="pt-2 space-y-2">
-                   <div className="flex items-end gap-2">
-                        <div style={{ width: '130px' }}>
+                   <div className="flex items-end gap-px">
+                        <div style={{ width: '150px' }}>
                             <Label className="text-xs font-semibold">Fecha</Label>
                             <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 h-8 text-xs"/>
                         </div>
