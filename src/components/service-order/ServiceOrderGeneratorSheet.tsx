@@ -276,7 +276,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         
         setNewService(prev => ({...prev, servicio: upperActivityName, hora: ''}));
         
-        if (upperActivityName !== 'TRF IN' && upperActivityName !== 'TRF OUT') {
+        if (upperActivityName !== 'TRF IN' && upperActivityName !== 'TRF OUT' && !newService.hora) {
             const suggestedTime = await getSuggestedTimeForActivity(upperActivityName);
             if (suggestedTime) {
                 handleNewServiceChange('hora', suggestedTime);
@@ -298,17 +298,21 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
 
     const addNewServiceRow = () => {
+        const lastService = orderData.services[orderData.services.length - 1];
         const selectedGuide = guides.find(g => g.fullName.toUpperCase() === orderData.guia.toUpperCase());
+        
         const serviceToAdd: ServiceItem = {
             ...newService,
             fecha: format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy'),
             guia: selectedGuide?.fullName.toUpperCase() || '',
-            bus: busTypeSelection === 'CONT.' ? 'CONT.' : busTypeSelection,
-            chofer: choferSelection,
+            bus: busTypeSelection || lastService?.bus || '',
+            chofer: choferSelection || lastService?.chofer || '',
         };
+
         recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
         setOrderData({ ...orderData, services: [...orderData.services, serviceToAdd] });
         
+        // Reset for next entry, keeping date and bus/chofer selections
         setNewService(prev => ({ 
             ...initialNewServiceState, 
             fecha: prev.fecha,
@@ -348,7 +352,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             }
         } catch (e) {
         }
-        return a.hora.localeCompare(b.hora);
+        return (a.hora || "").localeCompare(b.hora || "");
     });
 
     const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
