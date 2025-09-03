@@ -3,19 +3,23 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --- Helper Functions ---
+    // These functions make the rules below easier to read and maintain.
     function isAuth() {
       return request.auth != null;
     }
     function isAdmin() {
+      // Check if the user is authenticated and their profile has isAdmin set to true.
       return isAuth() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
     function isOwner(email) {
+      // Check if the authenticated user's email matches the creator's email stored in a document.
       return isAuth() && request.auth.token.email == email;
     }
 
     // --- Collections Rules ---
 
-    // Guides, Hotels, Drivers, Activities, Flights: Any authenticated user can read. Only admins can write/delete.
+    // Guides, Hotels, Drivers, Activities, Flights:
+    // Any authenticated user can read. Only admins can write/delete.
     match /{collection}/{docId} 
       where collection in ['guides', 'hotels', 'drivers', 'activities', 'flights'] {
       allow read: if isAuth();
@@ -27,7 +31,8 @@ service cloud.firestore {
         allow read, write: if isAdmin();
     }
     
-    // Flight Search Stats & Generated Reports: Any authenticated user can read/create. Admins can do anything.
+    // Flight Search Stats & Generated Reports: 
+    // Any authenticated user can read/create. Admins can do anything.
      match /{collection}/{docId} 
       where collection in ['flightSearchStats', 'generatedReports'] {
       allow read, create: if isAuth();
@@ -41,12 +46,6 @@ service cloud.firestore {
       allow read, create: if isAuth();
       allow update, delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
     }
-    
-    // --- Learning Data for AI/Suggestions ---
-    // Any authenticated user can contribute to the learning data.
-    match /activityTimeSuggestions/{activityName} {
-      allow read, write: if isAuth();
-    }
 
     // --- User Profiles ---
     // Users can read and update their own profile. Admins can read/update any profile.
@@ -56,6 +55,12 @@ service cloud.firestore {
       allow read, update: if isAuth() && (request.auth.uid == userId || isAdmin());
       allow create: if isAuth() && request.auth.uid == userId;
       allow delete: if isAdmin() && request.auth.uid != userId;
+    }
+
+    // --- Learning Data for AI/Suggestions ---
+    // Any authenticated user can contribute to the learning data.
+    match /activityTimeSuggestions/{activityName} {
+      allow read, write: if isAuth();
     }
   }
 }
