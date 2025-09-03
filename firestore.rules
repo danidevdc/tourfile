@@ -1,70 +1,102 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if a user is an admin
-    function isUserAdmin(userId) {
-      return get(/databases/$(database)/documents/userProfiles/$(userId)).data.isAdmin == true;
+    
+    // --- Helper Functions ---
+    function isAuth() {
+      return request.auth != null;
     }
-
-    // Rules for user profiles
+    function isAdmin() {
+      return isAuth() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    function isOwner(email) {
+      return isAuth() && request.auth.token.email == email;
+    }
+    
+    // --- User Profiles ---
+    // Users can only read/update their own profile. Admins have special access.
     match /userProfiles/{userId} {
-      // Admins can read and write any profile
-      // Users can only read their own profile
-      allow read, write: if isUserAdmin(request.auth.uid);
-      allow read: if request.auth.uid == userId;
-    }
-    
-    // Rules for generated reports metadata
-    match /generatedReports/{reportId} {
-      // Any authenticated user can create a report record
-      allow create: if request.auth != null;
-      // Only admins can read all reports
-      allow read, list: if isUserAdmin(request.auth.uid);
-    }
-    
-    // Rules for flight search statistics
-    match /flightSearchStats/{date} {
-      // Allow any authenticated user to read stats (for the chart)
-      allow get: if request.auth != null;
-      // Allow any authenticated user to create/update their own search count
-      allow write: if request.auth != null;
+      // Any authenticated user can create their own profile during registration.
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // Users can read their own profile. Admins can read any profile.
+      allow read: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true);
+
+      // Users can update their own profile. Admins can update any profile.
+      allow update: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true);
+
+      // Only admins can delete profiles (but not their own).
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true && request.auth.uid != userId;
     }
 
-    // Rules for master data (guides, hotels, etc.)
-    match /{collection}/{docId} where collection in ['guides', 'hotels', 'drivers', 'activities', 'flights'] {
-      // Any authenticated user can read the master data
+    // --- Master Data (Guides, Hotels, etc.) ---
+    // Anyone logged in can read. Only admins can write.
+    match /{collectionName=**}/guides/{docId} {
+      allow read, write: if request.auth != null;
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    match /{collectionName=**}/hotels/{docId} {
+      allow read, write: if request.auth != null;
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    match /{collectionName=**}/drivers/{docId} {
+      allow read, write: if request.auth != null;
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    match /activities/{activityId} {
       allow read: if request.auth != null;
-      // Only admins can write to the master data
-      allow write: if isUserAdmin(request.auth.uid);
+      // Admins can create and delete activities.
+      allow create, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+      // Admins can update anything. Regular users can only update the learning fields.
+      allow update: if request.auth != null && 
+        (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true ||
+         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timeCounts', 'suggestedTime'])));
     }
-
-    // Rules for expense rules logic
-    match /expenseRules/{ruleId} {
-        // Any authenticated user can read the rules to generate reports
-        allow read: if request.auth != null;
-        // Only admins can modify the rules
-        allow write: if isUserAdmin(request.auth.uid);
+    match /flights/{flightId} {
+      allow read, write: if request.auth != null;
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
     
-    // Rules for service order rules logic
-    match /serviceOrderRules/{ruleId} {
-        // Any authenticated user can read the rules to generate orders
+    // --- Business Logic Rules ---
+    // Anyone logged in can read to generate reports. Only admins can modify them.
+    match /expenseRules/{ruleId} {
         allow read: if request.auth != null;
-        // Only admins can modify the rules
-        allow write: if isUserAdmin(request.auth.uid);
+        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Rules for the new Service Order Logic editor
+    match /serviceOrderRules/{ruleId} {
+      allow read: if request.auth != null;
+      allow write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // --- Generated Report Logging (For Admin Panel) ---
+    // Any authenticated user can create a report log entry. Only admins can read them.
+    match /generatedReports/{reportId} {
+      allow create: if request.auth != null;
+      allow read: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // --- Flight Search Counter ---
+    // Any authenticated user can create or update a counter document for flight searches.
+    match /flightSearchStats/{day} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // --- Service Orders ---
+    // Any authenticated user can read and create orders.
+    // Only the owner or an admin can update or delete an order.
+    match /serviceOrders/{orderId} {
+      allow read, create: if isAuth();
+      allow update, delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
     }
 
-    // Rules for service orders
-    match /serviceOrders/{orderId} {
-      // Users can create orders
-      allow create: if request.auth != null;
-      // Users can read/update/delete their own orders. Admins can manage any order.
-      allow read, update, delete: if isUserAdmin(request.auth.uid) || resource.data.createdBy == request.auth.token.email;
-      // Admins can list all orders, but users cannot (for security/privacy)
-      allow list: if isUserAdmin(request.auth.uid);
+    // --- Learning Data for AI/Suggestions ---
+    // Any authenticated user can contribute to the learning data.
+    match /activityTimeSuggestions/{activityName} {
+      allow read, write: if isAuth();
     }
+
   }
 }
