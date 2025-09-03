@@ -336,16 +336,16 @@ export default function ServiceOrderListPage() {
                                         <TableCell className="border-r">{format(order.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
                                         <TableCell className="border-r">{getStatusBadge(order)}</TableCell>
                                         <TableCell className="text-left space-x-1">
-                                            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
-                                            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditOrderClick(order)} disabled={isDeleted || !canModify} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
+                                            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary h-8 w-8 p-0"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
+                                            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} disabled={isDeleted || !canModify} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
                                             
                                             <Tooltip><TooltipTrigger asChild>
                                                <Button 
                                                   variant="outline"
-                                                  size="icon" 
+                                                  size="sm" 
                                                   onClick={() => handlePrintToPdf(order)}
                                                   disabled={isPrintingPdfId === order.id || isDeleted}
-                                                  className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                  className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"
                                                 >
                                                   {isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
                                                </Button>
@@ -354,7 +354,7 @@ export default function ServiceOrderListPage() {
                                             <AlertDialog>
                                                 <Tooltip><TooltipTrigger asChild>
                                                     <AlertDialogTrigger asChild>
-                                                        <Button variant="destructive" size="icon" disabled={isDeleted || !canModify} onClick={() => setOrderToDelete(order)}>
+                                                        <Button variant="destructive" size="sm" disabled={isDeleted || !canModify} onClick={() => setOrderToDelete(order)} className="h-8 w-8 p-0">
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
                                                     </AlertDialogTrigger>
@@ -454,3 +454,5 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
+
+    
