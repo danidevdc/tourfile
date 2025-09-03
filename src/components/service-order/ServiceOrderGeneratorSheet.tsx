@@ -227,7 +227,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                     const serviceCellValue = excelData[i]?.[colIdx + 1]?.toString() || '';
                     if(serviceCellValue) {
                         const excelKeyword = serviceCellValue.trim().toUpperCase();
-                        const matchedRule = serviceOrderRules.find(rule => excelKeyword.includes(rule.keyword.toUpperCase()));
+                        const matchedRule = serviceOrderRules.find(rule => rule.isActive && excelKeyword.includes(rule.keyword.toUpperCase()));
 
                         if(matchedRule) {
                             generatedServices.push({
