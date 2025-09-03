@@ -126,6 +126,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
     useEffect(() => {
         async function loadInitialData() {
+            if (!isOpen) return; // Don't load data if the sheet is not open
             setIsLoadingData(true);
             try {
                 const [fetchedGuides, fetchedHotels, fetchedDrivers, fetchedActivities, fetchedFlights, fetchedRules] = await Promise.all([
@@ -138,7 +139,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 setExternalDrivers(fetchedDrivers.filter(d => d.name.startsWith('CONT ')));
                 setActivities(fetchedActivities);
                 setFlights(fetchedFlights);
-                setServiceOrderRules(fetchedRules);
+                setServiceOrderRules(fetchedRules); // Load the latest rules
             } catch (error) {
                 toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
             } finally {
@@ -146,7 +147,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             }
         }
         loadInitialData();
-    }, [toast]);
+    }, [isOpen, toast]);
     
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -223,11 +224,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                     if (dateCellValue instanceof Date && !isNaN(dateCellValue.valueOf())) {
                         currentDate = format(dateCellValue, 'dd/MM/yyyy');
                     }
-                    // Ensure the cell value is a string before calling methods on it.
                     const serviceCellValue = excelData[i]?.[colIdx + 1]?.toString() || '';
                     if(serviceCellValue) {
                         const excelKeyword = serviceCellValue.trim().toUpperCase();
-                        // Find a rule where the excel keyword includes the rule's keyword.
                         const matchedRule = serviceOrderRules.find(rule => excelKeyword.includes(rule.keyword.toUpperCase()));
 
                         if(matchedRule) {
