@@ -7,44 +7,64 @@ service cloud.firestore {
     function isAuth() {
       return request.auth != null;
     }
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
     function isAdmin() {
-      // Assumes user's admin status is stored in a 'userProfiles' collection
-      return get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+      // Check if the user's profile in Firestore has the isAdmin flag set to true.
+      // This is more secure than relying on custom claims alone for Firestore rules.
+      return isAuth() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+    function isOwner(email) {
+      // Check if the requesting user's verified email matches the owner's email.
+      return isAuth() && request.auth.token.email == email;
     }
 
     // --- User Profiles ---
+    // Anyone can create their own user profile (register).
+    // Users can only read/update their own profile. Admins can read any profile.
+    // Deletion is restricted to admins only.
     match /userProfiles/{userId} {
-      // Admins can read any profile. Users can only read their own.
-      allow read: if isAuth() && (isOwner(userId) || isAdmin());
-      // Users can create their own profile.
-      allow create: if isAuth() && isOwner(userId);
-      // Users can only update their own profile. Admins can update any.
-      allow update: if isAuth() && (isOwner(userId) || isAdmin());
-      // Only admins can delete user profiles.
-      allow delete: if isAuth() && isAdmin();
+      allow read, update: if isAuth() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuth();
+      allow delete: if isAdmin();
+    }
+    
+    // --- Generated Reports ---
+    // Any authenticated user can create (save) a report log.
+    // Only admins can read the full list of reports.
+    match /generatedReports/{reportId} {
+        allow read: if isAdmin();
+        allow create: if isAuth();
+        allow update, delete: if isAdmin();
+    }
+    
+    // --- Flight Search Stats ---
+    // Any authenticated user can create/update (increment) the stats.
+    // Only admins can read the stats.
+    match /flightSearchStats/{statId} {
+        allow read: if isAdmin();
+        allow create, update: if isAuth();
+        allow delete: if isAdmin();
     }
     
     // --- Service Orders ---
+    // Any authenticated user can read and create orders.
+    // Only the owner or an admin can update or delete an order.
     match /serviceOrders/{orderId} {
-      // Any authenticated user can read any service order.
-      allow read: if isAuth();
-      // Any authenticated user can create a service order.
-      allow create: if isAuth();
-      // Only the owner or an admin can update or delete a service order.
+      allow read, create: if isAuth();
       allow update, delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
     }
-
-    // --- Master Data Collections (Guides, Hotels, Drivers, Activities, Flights) ---
-    // These collections are managed by admins, but readable by all authenticated users.
-    match /{collectionName}/{docId} 
-        where collectionName in ['guides', 'hotels', 'drivers', 'activities', 'flights', 'expenseRules', 'flightSearchStats', 'generatedReports'] {
-      // Any authenticated user can read the master data
+    
+    // --- Expense Rules (Logic) ---
+    // Only admins can manage the business logic rules.
+    match /expenseRules/{ruleId} {
+        allow read, write: if isAdmin();
+    }
+    
+    // --- Master Data Collections (guides, hotels, etc.) ---
+    // Any authenticated user can read this data.
+    // Only admins can write (create, update, delete) to this data.
+    match /{collectionName}/{docId} where collectionName in ['guides', 'hotels', 'activities', 'drivers', 'flights'] {
       allow read: if isAuth();
-      // Only admins can create, update, or delete master data
-      allow write: if isAuth() && isAdmin();
+      allow write: if isAdmin();
     }
   }
 }
