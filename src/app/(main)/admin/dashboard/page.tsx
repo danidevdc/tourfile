@@ -108,7 +108,9 @@ export default function AdminDashboardPage() {
                     getAllUserProfiles(),
                 ]);
                 
-                setIntermediateEmail(currentIntermediateEmail || "");
+                // Set the initial value for the select component.
+                // If the email is null or empty, use 'none', otherwise use the email.
+                setIntermediateEmail(currentIntermediateEmail || 'none');
                 setAllUsers(userProfiles.filter(u => u.email));
 
                 if (reports.length > 0) {
@@ -165,7 +167,9 @@ export default function AdminDashboardPage() {
   const handleSaveIntermediateEmail = async () => {
     setIsSavingEmail(true);
     try {
-        await setIntermediateUserEmail(intermediateEmail.trim());
+        // If 'none' is selected, save an empty string to Firestore.
+        const emailToSave = intermediateEmail === 'none' ? '' : intermediateEmail.trim();
+        await setIntermediateUserEmail(emailToSave);
         toast({
             title: "Éxito",
             description: "El permiso de rol intermedio ha sido actualizado.",
@@ -256,11 +260,13 @@ export default function AdminDashboardPage() {
                                 <SelectValue placeholder="Seleccionar usuario..." />
                            </SelectTrigger>
                            <SelectContent>
-                                <SelectItem value="">Ninguno (Deshabilitado)</SelectItem>
+                                <SelectItem value="none">Ninguno (Deshabilitado)</SelectItem>
                                 {allUsers.map(user => (
-                                    <SelectItem key={user.uid} value={user.email}>
-                                        {user.email}
-                                    </SelectItem>
+                                    user.email && (
+                                        <SelectItem key={user.uid} value={user.email}>
+                                            {user.email}
+                                        </SelectItem>
+                                    )
                                 ))}
                            </SelectContent>
                         </Select>

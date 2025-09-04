@@ -26,7 +26,7 @@ export default function HomePage() {
             return;
         }
         const intermediateEmail = await getIntermediateUserEmail();
-        setCanSeeIntermediateButton(currentUser.email === intermediateEmail);
+        setCanSeeIntermediateButton(!!intermediateEmail && currentUser.email === intermediateEmail);
     }
     checkPermissions();
   }, [authLoading, currentUser, isCurrentUserAdmin]);

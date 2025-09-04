@@ -45,13 +45,16 @@ export default function EditServiceOrderLogicPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [ruleToDelete, setRuleToDelete] = useState<ServiceOrderRule | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
+  const [isCheckingPermission, setIsCheckingPermission] = useState(true);
 
   useEffect(() => {
     async function checkPermissions() {
         if (authLoading) return;
 
+        setIsCheckingPermission(true);
         if (isCurrentUserAdmin) {
             setHasPermission(true);
+            setIsCheckingPermission(false);
             return;
         }
 
@@ -63,6 +66,7 @@ export default function EditServiceOrderLogicPage() {
             toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
             router.replace('/');
         }
+        setIsCheckingPermission(false);
     }
     checkPermissions();
   }, [authLoading, isCurrentUserAdmin, currentUser, router, toast]);
@@ -156,7 +160,7 @@ export default function EditServiceOrderLogicPage() {
 
   const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
 
-  if (authLoading || isLoading || !hasPermission) {
+  if (authLoading || isCheckingPermission || isLoading || !hasPermission) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
