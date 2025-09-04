@@ -338,10 +338,12 @@ export default function ServiceOrderListPage() {
             <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex gap-2">
-            <Button onClick={handleAutomatedOrderClick} className="bg-green-600 hover:bg-green-700 text-white">
-                <Bot className="mr-2 h-4 w-4" />
-                Generar Orden Automatizada
-            </Button>
+            {isCurrentUserAdmin && (
+              <Button onClick={handleAutomatedOrderClick} className="bg-green-600 hover:bg-green-700 text-white">
+                  <Bot className="mr-2 h-4 w-4" />
+                  Generar Orden Automatizada
+              </Button>
+            )}
             <Button onClick={handleNewOrderClick}>
                 <FilePlus className="mr-2 h-4 w-4" />
                 Nueva Orden de Servicio
@@ -396,12 +398,13 @@ export default function ServiceOrderListPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            {isCurrentUserAdmin && filterState !== 'deleted' && (
+                            {isCurrentUserAdmin && (
                                 <TableHead className="w-12">
                                     <Checkbox
                                         checked={isAllSelected}
                                         onCheckedChange={(checked) => handleSelectAll(!!checked)}
                                         aria-label="Seleccionar todas las órdenes en esta página"
+                                        disabled={filterState === 'deleted'}
                                     />
                                 </TableHead>
                             )}
@@ -420,18 +423,17 @@ export default function ServiceOrderListPage() {
                                 const isDeleted = order.status === 'eliminado';
                                 return (
                                     <TableRow key={order.id} className={cn(isDeleted && "bg-destructive/10 text-muted-foreground")}>
-                                        {isCurrentUserAdmin && !isDeleted && (
+                                        {isCurrentUserAdmin && (
                                             <TableCell>
-                                                <Checkbox
-                                                    checked={selectedOrderIds.has(order.id)}
-                                                    onCheckedChange={(checked) => handleSelectOne(order.id, !!checked)}
-                                                    aria-label={`Seleccionar orden ${order.orderName}`}
-                                                />
+                                                {!isDeleted && (
+                                                    <Checkbox
+                                                        checked={selectedOrderIds.has(order.id)}
+                                                        onCheckedChange={(checked) => handleSelectOne(order.id, !!checked)}
+                                                        aria-label={`Seleccionar orden ${order.orderName}`}
+                                                    />
+                                                )}
                                             </TableCell>
                                         )}
-                                        {isCurrentUserAdmin && isDeleted && <TableCell></TableCell>}
-                                        {!isCurrentUserAdmin && <TableCell></TableCell>}
-
                                         <TableCell className="font-medium border-r">{order.orderName.replace(/_/g, ' ')}</TableCell>
                                         <TableCell className="border-r">{order.data.guia}</TableCell>
                                         <TableCell className="border-r">{order.createdBy}</TableCell>
@@ -485,7 +487,7 @@ export default function ServiceOrderListPage() {
                             })
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
+                                <TableCell colSpan={isCurrentUserAdmin ? 7 : 6} className="text-center h-24 text-muted-foreground">
                                     {searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}
                                 </TableCell>
                             </TableRow>
