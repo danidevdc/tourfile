@@ -1,58 +1,80 @@
 
+"use client";
+
 import type { ServiceItem } from './serviceOrderService';
 import type { ServiceOrderRule } from './serviceOrderRuleService';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
+
 
 /**
  * Generates a list of services by processing a specific column from Excel data against a set of rules.
+ * This version iterates through the Excel rows and checks all rules against each row for matches.
  * @param excelData The full 2D array of data from the Excel sheet.
- * @param columnIndex The index of the column to process.
- * @param rules An array of service order rules to apply.
- * @returns An array of generated ServiceItem objects.
+ * @param fileColumnIndex The index of the column where the File Number was found.
+ * @param rules An array of active service order rules to apply.
+ * @returns An array of generated ServiceItem objects, in the order they were found.
  */
 export function generateServicesFromExcelColumn(
   excelData: any[][] | null,
-  columnIndex: number,
+  fileColumnIndex: number,
   rules: ServiceOrderRule[]
 ): ServiceItem[] {
-  if (!excelData || columnIndex === -1) {
+  if (!excelData || fileColumnIndex === -1) {
     return [];
   }
 
   const generatedServices: ServiceItem[] = [];
-  const activeRules = rules.filter(r => r.isActive);
+  const activeRules = rules.filter(r => r.isActive).sort((a, b) => (b.keyword.length - a.keyword.length)); // Sort by keyword length descending to match longer keywords first
 
-  // Extract all non-empty, string-convertible cell values from the target and adjacent columns.
-  // The structure { value, row } helps in associating found keywords with their original row.
-  const serviceColumnValues = excelData
-    .map((row, rowIndex) => ({ value: row[columnIndex + 1] ? String(row[columnIndex + 1]).trim().toUpperCase() : '', row: rowIndex }))
-    .filter(item => item.value !== '');
+  let firstDateFound = false;
+
+  // Iterate over each row of the excel data
+  for (let i = 0; i < excelData.length; i++) {
+    const row = excelData[i];
+    if (!row) continue;
+
+    const dateCell = row[fileColumnIndex];
+    let isDateRow = false;
+
+    // Check if the current row contains a valid date in the file column
+    if (dateCell instanceof Date && !isNaN(dateCell.valueOf())) {
+      isDateRow = true;
+      firstDateFound = true;
+    } else if (typeof dateCell === 'number' && dateCell > 25569) { // Excel serial date check
+        const parsed = XLSX.SSF.parse_date_code(dateCell);
+        if (parsed) {
+          isDateRow = true;
+          firstDateFound = true;
+        }
+    }
+
+    if (!firstDateFound) {
+        continue; // Skip rows until we find the first date
+    }
     
-  // Iterate over each rule and check for its keyword in the extracted column values.
-  for (const rule of activeRules) {
-    const keyword = rule.keyword.toUpperCase();
+    // The activity description is in the column to the right of the date column
+    const activityCellIndex = fileColumnIndex + 1;
+    const activityText = row[activityCellIndex] ? String(row[activityCellIndex]).trim().toUpperCase() : '';
 
-    // Check if any cell in the service column includes the keyword.
-    // This is more flexible than an exact match.
-    const matchingCells = serviceColumnValues.filter(cell => cell.value.includes(keyword));
+    if (activityText) {
+      // Find the first rule that matches the activity text
+      const matchingRule = activeRules.find(rule => activityText.includes(rule.keyword.toUpperCase()));
 
-    for (const match of matchingCells) {
-        // We found a match, now create a service item.
-        // Date and time are left blank as per the new requirement.
+      if (matchingRule) {
         generatedServices.push({
-            fecha: '', // User will fill this manually
-            hora: '',  // User will fill this manually
-            servicio: rule.activity, // The matched activity from the rule
-            vuelo: '', // Default empty values
-            guia: '',
-            bus: '',
-            chofer: '',
-            observaciones: '',
+          fecha: '', // Leave blank for manual input
+          hora: '',  // Leave blank for manual input
+          servicio: matchingRule.activity,
+          vuelo: '',
+          guia: '',
+          bus: '',
+          chofer: '',
+          observaciones: '',
         });
+      }
     }
   }
 
-  // A simple way to remove duplicate services if a keyword matches multiple times for the same activity
-  const uniqueServices = Array.from(new Map(generatedServices.map(item => [item.servicio, item])).values());
-
-  return uniqueServices;
+  return generatedServices;
 }
