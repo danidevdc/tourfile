@@ -400,24 +400,25 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
     const sortedServices = useMemo(() => {
         return [...orderData.services].sort((a, b) => {
-          try {
-            const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
-            const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
-            if (dateA !== dateB) return dateA - dateB;
-          } catch {}
-    
-          const hasTimeA = a.hora && a.hora.trim() !== '';
-          const hasTimeB = b.hora && b.hora.trim() !== '';
-    
-          if (hasTimeA && !hasTimeB) return -1;
-          if (!hasTimeA && hasTimeB) return 1;
-          if (hasTimeA && hasTimeB) {
-            return a.hora.localeCompare(b.hora);
-          }
-          
-          return 0;
+            try {
+                const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
+                const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
+                if (dateA !== dateB) return dateA - dateB;
+            } catch {}
+
+            const hasTimeA = a.hora && a.hora.trim() !== '';
+            const hasTimeB = b.hora && b.hora.trim() !== '';
+
+            if (hasTimeA && !hasTimeB) return -1;
+            if (!hasTimeA && hasTimeB) return 1;
+            if (hasTimeA && hasTimeB) {
+                return a.hora.localeCompare(b.hora);
+            }
+            
+            return 0; // Maintain original order if no dates/times to compare
         });
     }, [orderData.services]);
+
 
     const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
     const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
@@ -605,9 +606,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {orderData.services.length > 0 ? (
-                                            orderData.services.map((s, i) => {
-                                                const originalIndex = i;
+                                        {sortedServices.length > 0 ? (
+                                            sortedServices.map((s, i) => {
+                                                const originalIndex = orderData.services.indexOf(s);
                                                 const guiaFirstName = (s.guia || "").split(" ")[0];
                                                 const choferName = (s.chofer || "").replace(/^CONT\s/i, '');
                                                 const isTransfer = s.servicio?.toUpperCase().includes('TRF');
@@ -665,27 +666,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     </TableBody>
                                 </Table>
                             </div>
-                            {orderData.services.length > 0 && (
-                                <div className="p-2">
-                                     <div className="flex items-center gap-2 p-2 rounded-lg border bg-background/70 shadow-sm">
-                                        <span className="text-sm font-medium pl-2">Asignar fecha a seleccionados:</span>
-                                         <Input 
-                                            type="date" 
-                                            id="master-date" 
-                                            value={masterDate}
-                                            onChange={(e) => setMasterDate(e.target.value)}
-                                            className="h-9 w-36"
-                                        />
-                                        <Button onClick={handleApplyDateToSelected} size="sm" variant="default" disabled={!masterDate || selectedServices.size === 0}>
-                                            Asignar Fecha
-                                        </Button>
-                                        <Button onClick={() => setSelectedServices(new Set())} size="sm" variant="ghost" disabled={selectedServices.size === 0}>
-                                            <XCircle className="mr-2 h-4 w-4"/>
-                                            Limpiar Selección ({selectedServices.size})
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                         
                         <div className="p-4 border rounded-lg bg-card">
