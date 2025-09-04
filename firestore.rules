@@ -13,15 +13,16 @@ service cloud.firestore {
     function isOwner(email) {
       return isAuth() && request.auth.token.email == email;
     }
+    // <<< CAMBIO AQUÍ: Nueva función para verificar el rol intermedio.
     function isIntermediateUser() {
       return isAuth() && request.auth.token.email == get(/databases/$(database)/documents/appConfig/specialRoles).data.intermediateUserEmail;
     }
     
     // --- User Profiles ---
     match /userProfiles/{userId} {
-      allow create: if isAuth() && request.auth.uid == userId;
-      allow read: if isAuth() && (request.auth.uid == userId || isAdmin());
-      allow update: if isAuth() && (request.auth.uid == userId || isAdmin());
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin() && request.auth.uid != userId;
     }
 
@@ -39,10 +40,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /activities/{activityId} {
-      allow read: if isAuth();
-      allow create, delete: if isAdmin();
-      allow update: if isAuth() && 
-        (isAdmin() || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timeCounts', 'suggestedTime'])));
+        // <<< CAMBIO AQUÍ: Permitir lectura a cualquier usuario autenticado.
+        allow read: if isAuth();
+        allow create, delete: if isAdmin();
+        allow update: if isAuth() && 
+            (isAdmin() ||
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timeCounts', 'suggestedTime'])));
     }
     match /flights/{flightId} {
       allow read, write: if isAuth();
@@ -54,6 +57,8 @@ service cloud.firestore {
         allow read: if isAuth();
         allow write: if isAdmin();
     }
+    
+    // <<< CAMBIO AQUÍ: Permitir escritura al rol intermedio.
     match /serviceOrderRules/{ruleId} {
       allow read: if isAuth();
       allow write: if isAdmin() || isIntermediateUser();
