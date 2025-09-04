@@ -212,15 +212,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             }
             
             let hotelName = "";
-            // Search for a cell in the found column that contains "HOTEL"
             for (let i = 0; i < excelData.length; i++) {
                 const cellText = String(excelData[i]?.[fileColumnIndex] || "").toUpperCase();
                 if (cellText.includes("HOTEL")) {
-                    // Once found, try to match it against the hotels from DB
                     const foundHotel = hotels.find(h => cellText.includes(h.name.toUpperCase()));
                     if (foundHotel) {
                         hotelName = foundHotel.name;
-                        break; // Stop after finding the first match
+                        break; 
                     }
                 }
             }
@@ -399,7 +397,26 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         setSelectedServices(newSelection);
     };
 
-    const sortedServices = orderData.services;
+    const sortedServices = useMemo(() => {
+        return [...orderData.services].sort((a, b) => {
+          try {
+            const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
+            const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
+            if (dateA !== dateB) return dateA - dateB;
+          } catch {}
+    
+          const hasTimeA = a.hora && a.hora.trim() !== '';
+          const hasTimeB = b.hora && b.hora.trim() !== '';
+    
+          if (hasTimeA && !hasTimeB) return -1;
+          if (!hasTimeA && hasTimeB) return 1;
+          if (hasTimeA && hasTimeB) {
+            return a.hora.localeCompare(b.hora);
+          }
+          
+          return 0;
+        });
+    }, [orderData.services]);
 
     const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
     const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
