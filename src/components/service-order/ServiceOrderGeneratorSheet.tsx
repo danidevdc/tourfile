@@ -203,26 +203,34 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 }
             }
             
-            // --- Find Hotel ---
             let hotelName = "";
-            const hotelRow = excelData.find(row => String(row[fileColumnIndex] || "").toUpperCase().includes("HOTEL"));
-            if (hotelRow) {
-                const hotelCellText = String(hotelRow[fileColumnIndex] || "").toUpperCase();
-                const foundHotel = hotels.find(h => hotelCellText.includes(h.name.toUpperCase()));
+            const columnDataForHotelSearch = excelData.map(row => String(row[fileColumnIndex] || ""));
+            const hotelCellText = columnDataForHotelSearch.find(cellText => cellText.toUpperCase().includes("HOTEL"));
+
+            if (hotelCellText) {
+                const foundHotel = hotels.find(h => hotelCellText.toUpperCase().includes(h.name.toUpperCase()));
                 if(foundHotel) {
                     hotelName = foundHotel.name;
                 }
             }
-            // --- End Find Hotel ---
 
+            const mainGuide = orderData.guia || '';
+            const mainBus = busTypeSelection || '';
+            const mainChofer = choferSelection || '';
 
-            // Update main form data
             setOrderData(prev => ({ ...prev, ref: groupName, nPax: pax, hotel: hotelName }));
 
             if (isAutomatedMode) {
-                const generatedServices = generateServicesFromExcelColumn(excelData, fileColumnIndex, serviceOrderRules);
-                setOrderData(prev => ({ ...prev, services: generatedServices }));
-                toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServices.length} servicios. Revisa y ajusta los detalles.`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
+                const generatedServicesRaw = generateServicesFromExcelColumn(excelData, fileColumnIndex, serviceOrderRules);
+                const generatedServicesWithDetails = generatedServicesRaw.map(service => ({
+                    ...service,
+                    guia: mainGuide,
+                    bus: mainBus,
+                    chofer: mainChofer,
+                }));
+                
+                setOrderData(prev => ({ ...prev, services: generatedServicesWithDetails }));
+                toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServicesRaw.length} servicios. Revisa y ajusta los detalles.`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
             } else {
                  setOrderData(prev => ({ ...prev, services: [] }));
                  toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}, Hotel: ${hotelName || 'No encontrado'}`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
@@ -393,15 +401,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                      <SheetTitle className="text-2xl font-headline text-primary">
                         {isAutomatedMode ? "Generar Orden de Servicio Automatizada" : "Nueva Orden de Servicio"}
                     </SheetTitle>
-                    <SheetDescription>
-                        {isAutomatedMode ? "Busca un file en tu programa y el sistema generará los servicios automáticamente." : "Llena los campos manualmente para crear una nueva orden de servicio."}
-                    </SheetDescription>
                 </SheetHeader>
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
                          <div className="space-y-4 p-4 border rounded-lg bg-card">
-                            <div className="grid grid-cols-12 gap-x-4 items-end">
-                                <div className="col-span-4">
+                            {/* Fila 1 */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
                                     <Label>Programa:</Label>
                                     <div className="flex items-center gap-2 mt-1">
                                         <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className={cn("w-full justify-start", selectedFile && "border-green-500 font-medium text-green-700")}>
@@ -411,7 +417,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile}><Trash2 className="h-4 w-4" /></Button>}
                                     </div>
                                 </div>
-                                <div className="col-span-2">
+                                <div>
                                     <Label htmlFor="file">File:*</Label>
                                     <div className="flex items-center gap-1 mt-1">
                                         <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} className={cn(orderData.file && "border-green-500")} />
@@ -420,26 +426,16 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         </Button>
                                     </div>
                                 </div>
-                                <div className="col-span-5">
+                            </div>
+                            {/* Fila 2 */}
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
                                   <Label htmlFor="ref">Ref (Grupo):</Label>
                                   <Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", orderData.ref && "border-green-500")} />
                                 </div>
-                                <div className="col-span-1">
+                                <div>
                                   <Label htmlFor="nPax">Nº Pax:</Label>
                                   <Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className={cn("mt-1", orderData.nPax && "border-green-500")} />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
-                                <div>
-                                    <Label>Guía Principal*</Label>
-                                    <Combobox 
-                                        options={guideOptions} 
-                                        value={orderData.guia} 
-                                        onSelect={(val) => handleSelectChange('guide', val)} 
-                                        placeholder="Buscar guía..." 
-                                        className="mt-1 bg-card"
-                                        triggerClassName={cn(orderData.guia && "border-green-500 font-medium")}
-                                    />
                                 </div>
                                 <div>
                                     <Label>Hotel</Label>
@@ -450,6 +446,20 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         placeholder="Buscar hotel..." 
                                         className="mt-1 bg-card"
                                         triggerClassName={cn(orderData.hotel && "border-green-500 font-medium")}
+                                    />
+                                </div>
+                            </div>
+                             {/* Fila 3 */}
+                             <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <Label>Guía Principal*</Label>
+                                    <Combobox 
+                                        options={guideOptions} 
+                                        value={orderData.guia} 
+                                        onSelect={(val) => handleSelectChange('guide', val)} 
+                                        placeholder="Buscar guía..." 
+                                        className="mt-1 bg-card"
+                                        triggerClassName={cn(orderData.guia && "border-green-500 font-medium")}
                                     />
                                 </div>
                                 <div>
