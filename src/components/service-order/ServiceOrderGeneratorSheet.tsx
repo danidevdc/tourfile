@@ -394,14 +394,28 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         setSelectedServices(newSelection);
     };
 
-    const sortedServices = [...orderData.services].sort((a, b) => {
-        try {
-            const dateA = parse(a.fecha, 'dd/MM/yyyy', new Date()).getTime();
-            const dateB = parse(b.fecha, 'dd/MM/yyyy', new Date()).getTime();
-            if (dateA !== dateB) { return dateA - dateB; }
-        } catch (e) {}
-        return (a.hora || "").localeCompare(b.hora || "");
-    });
+    const sortedServices = useMemo(() => {
+        return [...orderData.services].sort((a, b) => {
+            try {
+                const dateA = a.fecha ? parse(a.fecha, 'dd/MM/yyyy', new Date()).getTime() : 0;
+                const dateB = b.fecha ? parse(b.fecha, 'dd/MM/yyyy', new Date()).getTime() : 0;
+                if (dateA !== dateB) return dateA - dateB;
+            } catch (e) {
+                // Handle parsing errors, maybe treat invalid dates as unequal
+            }
+
+            const hasTimeA = a.hora && a.hora.trim() !== '';
+            const hasTimeB = b.hora && b.hora.trim() !== '';
+
+            if (hasTimeA && !hasTimeB) return -1; // a comes first
+            if (!hasTimeA && hasTimeB) return 1;  // b comes first
+            if (hasTimeA && hasTimeB) {
+                return a.hora.localeCompare(b.hora);
+            }
+            
+            return 0; // if dates are same and both have/don't have time, keep original relative order
+        });
+    }, [orderData.services]);
 
     const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
     const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
@@ -651,7 +665,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                                         <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10" onClick={() => removeServiceRow(originalIndex)}>
                                                             <XCircle className="h-4 w-4" />
                                                         </Button>
-                                                    </TableCell>
+                                                     </TableCell>
                                                 </TableRow>
                                             )})
                                         ) : (
