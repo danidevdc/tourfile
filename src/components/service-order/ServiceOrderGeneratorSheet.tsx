@@ -218,28 +218,39 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             
             if (isAutomatedMode) {
                 const generatedServices: ServiceItem[] = [];
+                const activeRules = serviceOrderRules.filter(r => r.isActive);
                 let currentDate = '';
+                
+                // Start from the first date row and go to the end of the data
                 for (let i = dateRowIndex; i < excelData.length; i++) {
+                    // Update current date if a new one is found in the date column
                     const dateCellValue = excelData[i]?.[colIdx];
                     if (dateCellValue instanceof Date && !isNaN(dateCellValue.valueOf())) {
                         currentDate = format(dateCellValue, 'dd/MM/yyyy');
                     }
+                    
+                    // Check the service column (to the right of the date column)
                     const serviceCellValue = excelData[i]?.[colIdx + 1]?.toString() || '';
-                    if(serviceCellValue) {
-                        const excelKeyword = serviceCellValue.trim().toUpperCase();
-                        const matchedRule = serviceOrderRules.find(rule => rule.isActive && excelKeyword.includes(rule.keyword.toUpperCase()));
+                    if (!serviceCellValue) continue;
 
-                        if(matchedRule) {
-                            generatedServices.push({
-                                fecha: currentDate,
-                                servicio: matchedRule.activity,
-                                hora: '', bus: '', chofer: '', guia: '', observaciones: '', vuelo: ''
-                            });
-                        }
+                    const excelKeyword = serviceCellValue.trim().toUpperCase();
+
+                    // Find if any active rule's keyword is present in the cell
+                    const matchedRule = activeRules.find(rule => 
+                        excelKeyword.includes(rule.keyword.toUpperCase())
+                    );
+
+                    if (matchedRule) {
+                        generatedServices.push({
+                            fecha: currentDate,
+                            servicio: matchedRule.activity,
+                            hora: '', bus: '', chofer: '', guia: '', observaciones: '', vuelo: ''
+                        });
                     }
                 }
+
                  setOrderData({ ...orderData, ref: groupName, nPax: pax, services: generatedServices });
-                 toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServices.length} servicios.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+                 toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServices.length} servicios. Revisa y ajusta los detalles.`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
             } else {
                  setOrderData({ ...orderData, ref: groupName, nPax: pax, services: [] });
                  toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
@@ -629,3 +640,5 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         </Sheet>
     );
 }
+
+    
