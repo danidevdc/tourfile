@@ -108,14 +108,12 @@ export default function ServiceOrderListPage() {
   }, [authLoading]);
 
   const filteredOrders = useMemo(() => {
-    const visibleOrders = isCurrentUserAdmin 
-      ? orders
-      : orders.filter(order => order.status !== 'eliminado');
-
-    if (!searchTerm) return visibleOrders;
+    // Hard delete means we don't need to filter by 'eliminado' status anymore.
+    // The filtering logic is now simpler.
+    if (!searchTerm) return orders;
 
     const lowercasedFilter = searchTerm.toLowerCase();
-    return visibleOrders.filter(order => {
+    return orders.filter(order => {
         const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
         return (
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
@@ -124,7 +122,7 @@ export default function ServiceOrderListPage() {
             date.toLowerCase().includes(lowercasedFilter)
         );
     });
-  }, [searchTerm, orders, isCurrentUserAdmin]);
+  }, [searchTerm, orders]);
   
   const paginatedOrders = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -220,9 +218,9 @@ export default function ServiceOrderListPage() {
   const handleDeleteOrder = async () => {
     if(!orderToDelete || !orderToDelete.id) return;
     try {
-      // This now performs a soft delete by setting status to 'eliminado'
+      // This now performs a HARD delete.
       await deleteServiceOrder(orderToDelete.id);
-      toast({ title: "Éxito", description: "Orden de servicio eliminada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      toast({ title: "Éxito", description: "Orden de servicio eliminada permanentemente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
       fetchOrders();
     } catch (error) {
       toast({ title: "Error", description: "No se pudo eliminar la orden.", variant: "destructive"});
@@ -267,7 +265,7 @@ export default function ServiceOrderListPage() {
     const status = order.status || 'creado';
 
     switch (status) {
-        case 'eliminado':
+        case 'eliminado': // This case may no longer be hit with hard deletes, but kept for safety.
             return <Badge variant="destructive">Eliminado</Badge>;
         case 'enviado':
             return <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">Enviado</Badge>;
@@ -336,11 +334,11 @@ export default function ServiceOrderListPage() {
                     <TableBody>
                         {paginatedOrders.length > 0 ? (
                             paginatedOrders.map((order) => {
-                                const isDeleted = order.status === 'eliminado';
+                                // Since we do hard deletes, isDeleted check is no longer needed here.
                                 const canModify = isCurrentUserAdmin || currentUser?.email === order.createdBy;
 
                                 return (
-                                    <TableRow key={order.id} className={cn(isDeleted && "bg-destructive/10 text-muted-foreground")}>
+                                    <TableRow key={order.id}>
                                         <TableCell className="font-medium border-r">{order.orderName.replace(/_/g, ' ')}</TableCell>
                                         <TableCell className="border-r">{order.data.guia}</TableCell>
                                         <TableCell className="border-r">{order.createdBy}</TableCell>
@@ -348,14 +346,14 @@ export default function ServiceOrderListPage() {
                                         <TableCell className="border-r">{getStatusBadge(order)}</TableCell>
                                         <TableCell className="text-left space-x-1">
                                             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary h-8 w-8 p-0"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
-                                            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} disabled={isDeleted || !canModify} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
+                                            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} disabled={!canModify} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
                                             
                                             <Tooltip><TooltipTrigger asChild>
                                                <Button 
                                                   variant="outline"
                                                   size="sm" 
                                                   onClick={() => handlePrintToPdf(order)}
-                                                  disabled={isPrintingPdfId === order.id || isDeleted}
+                                                  disabled={isPrintingPdfId === order.id}
                                                   className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"
                                                 >
                                                   {isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
@@ -365,7 +363,7 @@ export default function ServiceOrderListPage() {
                                             <AlertDialog>
                                                 <Tooltip><TooltipTrigger asChild>
                                                     <AlertDialogTrigger asChild>
-                                                        <Button variant="destructive" size="sm" disabled={isDeleted || !canModify} onClick={() => setOrderToDelete(order)} className="h-8 w-8 p-0">
+                                                        <Button variant="destructive" size="sm" disabled={!canModify} onClick={() => setOrderToDelete(order)} className="h-8 w-8 p-0">
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
                                                     </AlertDialogTrigger>
@@ -374,15 +372,15 @@ export default function ServiceOrderListPage() {
                                                 {orderToDelete && orderToDelete.id === order.id && (
                                                     <AlertDialogContent>
                                                         <AlertDialogHeader>
-                                                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                            <AlertDialogTitle>¿Estás seguro de eliminar esta orden?</AlertDialogTitle>
                                                             <AlertDialogDescription>
-                                                                Se eliminará la orden "{orderToDelete.orderName.replace(/_/g, ' ')}". El registro será ocultado pero permanecerá visible para los administradores.
+                                                                Se eliminará permanentemente la orden "{orderToDelete.orderName.replace(/_/g, ' ')}". Esta acción es irreversible.
                                                             </AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
                                                             <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cerrar</AlertDialogCancel>
                                                             <AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">
-                                                                Sí, eliminar
+                                                                Sí, eliminar permanentemente
                                                             </AlertDialogAction>
                                                         </AlertDialogFooter>
                                                     </AlertDialogContent>

@@ -151,16 +151,11 @@ export async function getServiceOrderById(orderId: string): Promise<StoredServic
 
 
 /**
- * Performs a soft delete on a service order by setting its status to 'eliminado'.
- * The document is not actually removed from the database.
+ * Performs a hard delete on a service order, permanently removing it from the database.
  * @param orderId The ID of the service order to "delete".
  */
 export async function deleteServiceOrder(orderId: string): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
     const orderRef = doc(db, 'serviceOrders', orderId);
-    // Instead of deleteDoc, we update the status.
-    await updateDoc(orderRef, {
-        status: 'eliminado',
-        updatedAt: serverTimestamp()
-    });
+    await deleteDoc(orderRef);
 }
