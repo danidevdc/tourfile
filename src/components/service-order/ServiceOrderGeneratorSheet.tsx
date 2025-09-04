@@ -212,10 +212,11 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             }
             
             let hotelName = "";
+            const hotelRegex = /hotel/i;
             for (let i = 0; i < excelData.length; i++) {
-                const cellText = String(excelData[i]?.[fileColumnIndex] || "").toUpperCase();
-                if (cellText.includes("HOTEL")) {
-                    const foundHotel = hotels.find(h => cellText.includes(h.name.toUpperCase()));
+                const cellText = String(excelData[i]?.[fileColumnIndex] || "");
+                if (hotelRegex.test(cellText)) {
+                    const foundHotel = hotels.find(h => cellText.toUpperCase().includes(h.name.toUpperCase()));
                     if (foundHotel) {
                         hotelName = foundHotel.name;
                         break; 
@@ -441,7 +442,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                         {isAutomatedMode ? "Generar Orden de Servicio Automatizada" : "Nueva Orden de Servicio"}
                     </SheetTitle>
                 </SheetHeader>
-                <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
+                <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6 relative">
                     <div className="space-y-4 py-4">
                          <div className="space-y-4 p-4 border rounded-lg bg-card">
                             <div className="grid grid-cols-2 gap-4">
@@ -664,19 +665,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     </TableBody>
                                 </Table>
                             </div>
-                            <div className="flex justify-end items-center mt-2 gap-2">
-                                <Label htmlFor="master-date" className="text-sm">Fecha para asignar:</Label>
-                                <Input 
-                                    type="date" 
-                                    id="master-date" 
-                                    value={masterDate}
-                                    onChange={(e) => setMasterDate(e.target.value)}
-                                    className="h-8 w-36"
-                                />
-                                <Button onClick={handleApplyDateToSelected} size="sm" variant="outline" disabled={!masterDate || selectedServices.size === 0}>
-                                    Asignar Fecha
-                                </Button>
-                            </div>
                         </div>
                         
                         <div className="p-4 border rounded-lg bg-card">
@@ -695,8 +683,29 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                               </AccordionItem>
                             </Accordion>
                         </div>
-
                     </div>
+
+                    {selectedServices.size > 0 && (
+                        <div className="sticky bottom-4 w-full flex justify-center">
+                            <div className="flex items-center gap-2 p-2 rounded-lg border bg-background shadow-lg animate-in fade-in-50 slide-in-from-bottom-5">
+                                <span className="text-sm font-medium pl-2">{selectedServices.size} servicio(s) seleccionado(s)</span>
+                                 <Input 
+                                    type="date" 
+                                    id="master-date" 
+                                    value={masterDate}
+                                    onChange={(e) => setMasterDate(e.target.value)}
+                                    className="h-9 w-36"
+                                />
+                                <Button onClick={handleApplyDateToSelected} size="sm" variant="default" disabled={!masterDate}>
+                                    Asignar Fecha
+                                </Button>
+                                <Button onClick={() => setSelectedServices(new Set())} size="sm" variant="ghost">
+                                    <XCircle className="mr-2 h-4 w-4"/>
+                                    Limpiar
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="pt-4 border-t gap-2 flex justify-end">
                     <Button variant="outline" onClick={handleClearForm} className="mr-auto border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
