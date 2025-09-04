@@ -176,14 +176,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         setIsProcessingSearch(true); setFileSearchStatus("searching");
         await new Promise(resolve => setTimeout(resolve, 300));
         
-        let found = false, colIdx = -1, rowIdxWhereFileNumberFound = -1;
+        let found = false, fileColumnIndex = -1, rowIdxWhereFileNumberFound = -1;
         const fileNumberToSearch = orderData.file.trim().toUpperCase();
         
-        // Find the column with the file number
         for (let j = 0; j < excelData[0].length; j++) {
             for (let i = 0; i < excelData.length; i++) {
                  if (excelData[i][j] && String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch) {
-                    found = true; colIdx = j; rowIdxWhereFileNumberFound = i; break;
+                    found = true; fileColumnIndex = j; rowIdxWhereFileNumberFound = i; break;
                 }
             }
             if (found) break;
@@ -192,29 +191,41 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         if (found) {
             setFileSearchStatus("found");
             
-            const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[colIdx] || "No encontrado").toUpperCase();
+            const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[fileColumnIndex] || "No encontrado").toUpperCase();
             
             let pax = "N/A";
-            // Find PAX (search multiple rows below file for a number)
             for (let i = rowIdxWhereFileNumberFound + 1; i < excelData.length && i < rowIdxWhereFileNumberFound + 10; i++) {
-                const paxRaw = excelData[i]?.[colIdx];
+                const paxRaw = excelData[i]?.[fileColumnIndex];
                 if (paxRaw !== null && paxRaw !== undefined) {
                     const paxValue = String(paxRaw).trim();
                     const paxRegex = /^\d{1,2}(\s*\+\s*\d{1,2})?$/;
                     if (paxRegex.test(paxValue)) { pax = paxValue; break; }
                 }
             }
+            
+            // --- Find Hotel ---
+            let hotelName = "";
+            const hotelRow = excelData.find(row => String(row[fileColumnIndex] || "").toUpperCase().includes("HOTEL"));
+            if (hotelRow) {
+                const hotelCellText = String(hotelRow[fileColumnIndex] || "").toUpperCase();
+                const foundHotel = hotels.find(h => hotelCellText.includes(h.name.toUpperCase()));
+                if(foundHotel) {
+                    hotelName = foundHotel.name;
+                }
+            }
+            // --- End Find Hotel ---
+
 
             // Update main form data
-            setOrderData({ ...orderData, ref: groupName, nPax: pax });
+            setOrderData(prev => ({ ...prev, ref: groupName, nPax: pax, hotel: hotelName }));
 
             if (isAutomatedMode) {
-                const generatedServices = generateServicesFromExcelColumn(excelData, colIdx, serviceOrderRules);
+                const generatedServices = generateServicesFromExcelColumn(excelData, fileColumnIndex, serviceOrderRules);
                 setOrderData(prev => ({ ...prev, services: generatedServices }));
                 toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServices.length} servicios. Revisa y ajusta los detalles.`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
             } else {
                  setOrderData(prev => ({ ...prev, services: [] }));
-                 toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+                 toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}, Hotel: ${hotelName || 'No encontrado'}`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
             }
 
         } else {
