@@ -270,6 +270,15 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     const handleServiceSummaryChange = (index: number, field: keyof ServiceItem, value: string) => {
         const updatedServices = [...orderData.services];
         updatedServices[index] = { ...updatedServices[index], [field]: value };
+        
+        if (field === 'vuelo') {
+            const selectedFlight = flights.find(f => f.flightNumber.toUpperCase() === value.toUpperCase());
+            if (selectedFlight) {
+                updatedServices[index].hora = selectedFlight.time;
+                updatedServices[index].observaciones = selectedFlight.observations;
+            }
+        }
+        
         setOrderData(prev => ({ ...prev, services: updatedServices }));
     };
     
@@ -290,6 +299,22 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
              handleNewServiceChange('hora', `${rawValue.slice(0,2)}:${rawValue.slice(2,4)}`);
         }
     };
+    
+    const handleSummaryTimeChange = (index: number, rawValue: string) => {
+        const numbersOnly = rawValue.replace(/[^0-9]/g, '');
+        let formatted = '';
+        if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
+        if (numbersOnly.length > 2) formatted += ':' + numbersOnly.slice(2, 4);
+        handleServiceSummaryChange(index, 'hora', formatted);
+    };
+
+    const handleSummaryTimeBlur = (index: number, rawValue: string) => {
+        const numbersOnly = rawValue.replace(/[^0-9]/g, '');
+        if (numbersOnly.length === 4) {
+            handleServiceSummaryChange(index, 'hora', `${numbersOnly.slice(0, 2)}:${numbersOnly.slice(2, 4)}`);
+        }
+    };
+
 
     const handleActivitySelect = async (activityName: string) => {
         const upperActivityName = activityName.toUpperCase();
@@ -414,7 +439,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                     <div className="space-y-4 py-4">
                          <div className="space-y-4 p-4 border rounded-lg bg-card">
                             {/* Fila 1 */}
-                             <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label>Programa:</Label>
                                     <div className="flex items-center gap-2 mt-1">
@@ -458,8 +483,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 </div>
                             </div>
                              {/* Fila 3 */}
-                            <div className="grid grid-cols-4 items-end gap-4">
-                                <div className="col-span-1">
+                            <div className="grid grid-cols-10 items-end gap-4">
+                                <div className="col-span-3">
                                     <Label>Guía Principal*</Label>
                                     <Combobox 
                                         options={guideOptions} 
@@ -470,7 +495,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         triggerClassName={cn(orderData.guia && "border-green-500 font-medium")}
                                     />
                                 </div>
-                                <div className="col-span-1">
+                                <div className="col-span-2">
                                     <Label>Bus/Tipo Chofer</Label>
                                     <Select value={busTypeSelection} onValueChange={setBusTypeSelection}>
                                         <SelectTrigger className={cn("mt-1 bg-card", busTypeSelection && "border-green-500 font-medium")}>
@@ -479,7 +504,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         <SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                                     </Select>
                                 </div>
-                                <div className="col-span-1">
+                                <div className="col-span-3">
                                     <Label>Chofer</Label>
                                     <Combobox 
                                         options={driverOptions} 
@@ -491,8 +516,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     />
                                 </div>
                                 {isAutomatedMode && (
-                                <div className="col-span-1 flex items-center">
-                                    <Button onClick={handleGenerateServices} disabled={fileSearchStatus !== "found"} variant="outline" className="w-full h-10 border-green-600 text-green-600 hover:bg-green-100 hover:text-green-700">
+                                <div className="col-span-2 flex items-center">
+                                    <Button onClick={handleGenerateServices} disabled={fileSearchStatus !== "found"} variant="default" className="w-full h-10 bg-green-600 hover:bg-green-700 text-white">
                                       <CheckCircle className="mr-2 h-5 w-5"/>
                                       Generar Servicios
                                     </Button>
@@ -554,13 +579,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10 hover:bg-primary/10">
                                         <TableRow className="border-b-primary/20">
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '86px'}}>Fecha</TableHead>
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '56px'}}>Hora</TableHead>
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '120px'}}>Fecha</TableHead>
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '90px'}}>Hora</TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20">Servicio</TableHead>
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '70px'}}>Vuelo</TableHead>
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '150px'}}>Guía</TableHead>
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '180px'}}>Vuelo</TableHead>
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '120px'}}>Guía</TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '70px'}}>Bus</TableHead>
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '150px'}}>Chofer</TableHead>
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '120px'}}>Chofer</TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20">Observaciones</TableHead>
                                             <TableHead className="text-primary font-bold p-2" style={{width: '40px'}}></TableHead>
                                         </TableRow>
@@ -569,15 +594,33 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         {sortedServices.length > 0 ? (
                                             sortedServices.map((s, i) => {
                                                 const showDate = i === 0 || sortedServices[i-1].fecha !== s.fecha;
+                                                const guiaFirstName = (s.guia || "").split(" ")[0];
+                                                const choferName = (s.chofer || "").replace(/^CONT\s/i, '');
+                                                const isTransfer = s.servicio?.toUpperCase().includes('TRF');
+
                                                 return (
                                                 <TableRow key={i} className="font-mono border-b-primary/20">
-                                                    <TableCell className="p-2 border-r border-primary/20">{showDate ? s.fecha : ''}</TableCell>
-                                                    <TableCell className="p-2 border-r border-primary/20">{s.hora}</TableCell>
+                                                    <TableCell className="p-1 border-r border-primary/20">
+                                                        <Input type="date" value={s.fecha ? format(parse(s.fecha, 'dd/MM/yyyy', new Date()), 'yyyy-MM-dd') : ''} onChange={(e) => handleServiceSummaryChange(i, 'fecha', e.target.value ? format(parse(e.target.value, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '')} className="h-8 text-xs bg-card/80"/>
+                                                    </TableCell>
+                                                    <TableCell className="p-1 border-r border-primary/20">
+                                                        <Input value={s.hora} onChange={(e) => handleSummaryTimeChange(i, e.target.value)} onBlur={(e) => handleSummaryTimeBlur(i, e.target.value)} placeholder="HH:mm" maxLength={5} className="h-8 text-xs bg-card/80"/>
+                                                    </TableCell>
                                                     <TableCell className="p-2 border-r border-primary/20 font-sans">{s.servicio}</TableCell>
-                                                    <TableCell className="p-2 border-r border-primary/20">{s.vuelo}</TableCell>
-                                                    <TableCell className="p-2 border-r border-primary/20 font-sans">{s.guia}</TableCell>
+                                                    <TableCell className="p-1 border-r border-primary/20">
+                                                        {isTransfer ? (
+                                                             <Combobox 
+                                                                options={flights.map(f => ({value: f.flightNumber, label: `${f.flightNumber} (${f.time})`}))} 
+                                                                value={s.vuelo || ''} 
+                                                                onSelect={(val) => handleServiceSummaryChange(i, 'vuelo', val)} 
+                                                                placeholder="Vuelo..." 
+                                                                className="h-8 text-xs" triggerClassName="bg-card/80"
+                                                            />
+                                                        ) : s.vuelo}
+                                                    </TableCell>
+                                                    <TableCell className="p-2 border-r border-primary/20 font-sans">{guiaFirstName}</TableCell>
                                                     <TableCell className="p-2 border-r border-primary/20">{s.bus}</TableCell>
-                                                    <TableCell className="p-2 border-r border-primary/20 font-sans">{s.chofer?.replace(/^CONT\\s/i, '')}</TableCell>
+                                                    <TableCell className="p-2 border-r border-primary/20 font-sans">{choferName}</TableCell>
                                                     <TableCell className="p-1 border-r border-primary/20 font-sans">
                                                         <Input
                                                           value={s.observaciones || ''}
