@@ -338,12 +338,10 @@ export default function ServiceOrderListPage() {
             <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex gap-2">
-            {isCurrentUserAdmin && (
-              <Button onClick={handleAutomatedOrderClick} className="bg-green-600 hover:bg-green-700 text-white">
-                  <Bot className="mr-2 h-4 w-4" />
-                  Generar Orden Automatizada
-              </Button>
-            )}
+            <Button onClick={handleAutomatedOrderClick} className="bg-green-600 hover:bg-green-700 text-white">
+                <Bot className="mr-2 h-4 w-4" />
+                Generar Orden Automatizada
+            </Button>
             <Button onClick={handleNewOrderClick}>
                 <FilePlus className="mr-2 h-4 w-4" />
                 Nueva Orden de Servicio
@@ -526,5 +524,3 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
-
-    
