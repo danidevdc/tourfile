@@ -32,9 +32,12 @@ import {
 import { getActivitiesFromFirestore, type Activity } from '@/lib/serviceOrderService';
 import { Switch } from '@/components/ui/switch';
 
+// --- Definir el email del usuario intermedio aquí ---
+const INTERMEDIATE_USER_EMAIL = 'usuario.intermedio@ejemplo.com';
+
 
 export default function EditServiceOrderLogicPage() {
-  const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
+  const { isCurrentUserAdmin, currentUser, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -44,16 +47,18 @@ export default function EditServiceOrderLogicPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [ruleToDelete, setRuleToDelete] = useState<ServiceOrderRule | null>(null);
 
+  const hasPermission = isCurrentUserAdmin || (currentUser?.email === INTERMEDIATE_USER_EMAIL);
+
   useEffect(() => {
-    if (!authLoading && !isCurrentUserAdmin) {
-      toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder.", variant: "destructive" });
-      router.replace('/admin/dashboard');
+    if (!authLoading && !hasPermission) {
+      toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
+      router.replace('/');
     }
-  }, [authLoading, isCurrentUserAdmin, router, toast]);
+  }, [authLoading, hasPermission, router, toast]);
 
   useEffect(() => {
     async function fetchLogicData() {
-      if (isCurrentUserAdmin) {
+      if (hasPermission) {
         setIsLoading(true);
         try {
           await initializeDefaultServiceOrderRules(); 
@@ -76,7 +81,7 @@ export default function EditServiceOrderLogicPage() {
     if (!authLoading) {
       fetchLogicData();
     }
-  }, [isCurrentUserAdmin, authLoading, toast]);
+  }, [hasPermission, authLoading, toast]);
 
 
   const handleInputChange = (id: string, field: keyof ServiceOrderRule, value: string | boolean) => {
@@ -140,7 +145,7 @@ export default function EditServiceOrderLogicPage() {
 
   const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
 
-  if (authLoading || isLoading) {
+  if (authLoading || isLoading || !hasPermission) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

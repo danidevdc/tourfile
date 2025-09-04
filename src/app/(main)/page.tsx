@@ -4,14 +4,18 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileSpreadsheet, ArrowRight, ClipboardList, Settings, Plane, Database } from "lucide-react";
+import { FileSpreadsheet, ArrowRight, ClipboardList, Settings, Plane, Database, ClipboardEdit } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth"; 
 import { version } from '../../../package.json';
 
+// --- Definir el email del usuario intermedio aquí ---
+const INTERMEDIATE_USER_EMAIL = 'usuario.intermedio@ejemplo.com';
+
 export default function HomePage() {
-  const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated } = useAuth(); 
+  const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated, currentUser } = useAuth(); 
 
   const appVersion = `${version} - DC`;
+  const canSeeIntermediateButton = isCurrentUserAdmin || (currentUser?.email === INTERMEDIATE_USER_EMAIL);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
@@ -77,6 +81,26 @@ export default function HomePage() {
                   </Button>
                 </Link>
               </>
+            )}
+
+            {!authLoading && canSeeIntermediateButton && (
+              <Link href="/admin/edit-service-order-logic" passHref>
+                  <Button
+                    variant="outline"
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-amber-500/20 hover:border-amber-500 text-amber-600 dark:text-amber-400"
+                  >
+                    <ClipboardEdit className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                    <div className="text-left flex-grow">
+                      <span className="block text-2xl font-bold">
+                        Editar Lógica de Órdenes
+                      </span>
+                       <span className="block text-sm font-normal text-muted-foreground">
+                        Modificar las reglas de generación de órdenes de servicio
+                      </span>
+                    </div>
+                    <ArrowRight className="h-8 w-8 ml-auto text-amber-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                  </Button>
+                </Link>
             )}
 
             {!authLoading && isCurrentUserAdmin && (
