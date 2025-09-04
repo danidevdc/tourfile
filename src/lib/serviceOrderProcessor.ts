@@ -5,6 +5,15 @@ import type { ServiceOrderRule } from './serviceOrderRuleService';
 import type { Activity, PredefinedFlight, ServiceItem } from './serviceOrderService';
 
 /**
+ * Normalizes a string for comparison by removing spaces and slashes and converting to uppercase.
+ * @param str The string to normalize.
+ * @returns The normalized string.
+ */
+const normalizeComparisonString = (str: string): string => {
+    return str.replace(/[\s/]/g, '').toUpperCase();
+}
+
+/**
  * Generates a list of services by processing a specific column from Excel data against a set of rules.
  * This version iterates through each row of the specified column and checks ALL active rules against each cell
  * to find multiple potential activities within a single cell.
@@ -50,10 +59,12 @@ export function generateServicesFromExcelColumn(
           let detectedFlightNumber = '';
           const isTransfer = rule.activity.toUpperCase().includes('TRF');
           if (isTransfer) {
+              const normalizedActivityText = normalizeComparisonString(activityText);
               // Search for a flight number within the same activity cell text
               for (const flight of flights) {
-                  if (activityText.includes(flight.flightNumber.toUpperCase())) {
-                      detectedFlightNumber = flight.flightNumber;
+                  const normalizedFlightNumber = normalizeComparisonString(flight.flightNumber);
+                  if (normalizedActivityText.includes(normalizedFlightNumber)) {
+                      detectedFlightNumber = flight.flightNumber; // Store the original, pretty-formatted flight number
                       break; // Found the first matching flight, stop searching
                   }
               }
