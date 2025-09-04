@@ -5,11 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart, Save, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
-import { getAllReportsFromFirestore, type ReportInfo } from '@/lib/reportService';
+import { getAllReportsFromFirestore } from '@/lib/reportService';
+import { getIntermediateUserEmail, setIntermediateUserEmail } from '@/lib/appConfigService';
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
@@ -73,6 +76,8 @@ export default function AdminDashboardPage() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [guideUsage, setGuideUsage] = useState<GuideUsageData[]>([]);
   const [monthlyReports, setMonthlyReports] = useState<MonthlyReportData[]>([]);
+  const [intermediateEmail, setIntermediateEmail] = useState("");
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
 
 
   useEffect(() => {
@@ -89,8 +94,13 @@ export default function AdminDashboardPage() {
               setIsLoadingData(true);
               try {
                 // Fetch all data in parallel
-                const reports = await getAllReportsFromFirestore();
+                const [reports, currentIntermediateEmail] = await Promise.all([
+                    getAllReportsFromFirestore(),
+                    getIntermediateUserEmail()
+                ]);
                 
+                setIntermediateEmail(currentIntermediateEmail || "");
+
                 if (reports.length > 0) {
                     // Process guide usage data
                     const guideCounts: { [key: string]: number } = {};
@@ -141,6 +151,22 @@ export default function AdminDashboardPage() {
         }
     }
   }, [authLoading, isCurrentUserAdmin, router, toast]);
+
+  const handleSaveIntermediateEmail = async () => {
+    setIsSavingEmail(true);
+    try {
+        await setIntermediateUserEmail(intermediateEmail.trim());
+        toast({
+            title: "Éxito",
+            description: "El correo del usuario intermedio ha sido actualizado.",
+            className: "bg-green-100 dark:bg-green-900 border-green-500",
+        });
+    } catch (error) {
+        toast({ title: "Error", description: "No se pudo guardar el correo.", variant: "destructive" });
+    } finally {
+        setIsSavingEmail(false);
+    }
+  };
 
   if (authLoading || (!isCurrentUserAdmin && !authLoading)) {
     return (
@@ -200,6 +226,40 @@ export default function AdminDashboardPage() {
         </CardContent>
       </Card>
       
+      <div className="w-full max-w-6xl grid grid-cols-1 gap-6">
+        <Card className="shadow-lg">
+            <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2">
+                    <Mail className="text-primary"/> Gestionar Rol Intermedio
+                </CardTitle>
+                <CardDescription>
+                    Ingresa el correo del usuario al que deseas darle permiso para "Editar Lógica de Órdenes".
+                    Deja el campo vacío para deshabilitar el acceso a cualquier no-administrador.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col sm:flex-row items-end gap-4">
+                    <div className="flex-grow w-full sm:w-auto">
+                        <Label htmlFor="intermediate-email">Correo del Usuario Intermedio</Label>
+                        <Input
+                            id="intermediate-email"
+                            type="email"
+                            placeholder="usuario@ejemplo.com"
+                            value={intermediateEmail}
+                            onChange={(e) => setIntermediateEmail(e.target.value)}
+                            className="mt-2"
+                        />
+                    </div>
+                    <Button onClick={handleSaveIntermediateEmail} disabled={isSavingEmail}>
+                        {isSavingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Guardar Permiso
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+      </div>
+
+
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-1 gap-6">
         <Card className="shadow-lg lg:col-span-1">
           <CardHeader>

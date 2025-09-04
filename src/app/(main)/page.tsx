@@ -7,15 +7,31 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { FileSpreadsheet, ArrowRight, ClipboardList, Settings, Plane, Database, ClipboardEdit } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth"; 
 import { version } from '../../../package.json';
+import { useEffect, useState } from "react";
+import { getIntermediateUserEmail } from "@/lib/appConfigService";
 
-// --- Definir el email del usuario intermedio aquí ---
-const INTERMEDIATE_USER_EMAIL = 'usuario.intermedio@ejemplo.com';
 
 export default function HomePage() {
   const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated, currentUser } = useAuth(); 
+  const [canSeeIntermediateButton, setCanSeeIntermediateButton] = useState(false);
+
+  useEffect(() => {
+    async function checkPermissions() {
+        if (authLoading || !currentUser) {
+            setCanSeeIntermediateButton(false);
+            return;
+        }
+        if (isCurrentUserAdmin) {
+            setCanSeeIntermediateButton(true);
+            return;
+        }
+        const intermediateEmail = await getIntermediateUserEmail();
+        setCanSeeIntermediateButton(currentUser.email === intermediateEmail);
+    }
+    checkPermissions();
+  }, [authLoading, currentUser, isCurrentUserAdmin]);
 
   const appVersion = `${version} - DC`;
-  const canSeeIntermediateButton = isCurrentUserAdmin || (currentUser?.email === INTERMEDIATE_USER_EMAIL);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
