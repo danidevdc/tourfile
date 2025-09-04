@@ -2,7 +2,7 @@
 "use client";
 
 import type { ServiceOrderRule } from './serviceOrderRuleService';
-import type { Activity, ServiceItem } from './serviceOrderService';
+import type { Activity, PredefinedFlight, ServiceItem } from './serviceOrderService';
 
 /**
  * Generates a list of services by processing a specific column from Excel data against a set of rules.
@@ -12,13 +12,15 @@ import type { Activity, ServiceItem } from './serviceOrderService';
  * @param fileColumnIndex The index of the column where the File Number was found.
  * @param rules An array of active service order rules to apply.
  * @param activities The list of all activities from the database, used to find suggested times.
+ * @param flights The list of all predefined flights from the database, used for automatic detection.
  * @returns An array of generated ServiceItem objects, in the order they were found.
  */
 export function generateServicesFromExcelColumn(
   excelData: any[][] | null,
   fileColumnIndex: number,
   rules: ServiceOrderRule[],
-  activities: Activity[]
+  activities: Activity[],
+  flights: PredefinedFlight[]
 ): ServiceItem[] {
   if (!excelData || fileColumnIndex === -1) {
     return [];
@@ -44,12 +46,25 @@ export function generateServicesFromExcelColumn(
           const matchedActivity = activityMap.get(rule.activity.toUpperCase());
           const suggestedTime = matchedActivity?.suggestedTime || '';
 
+          // --- New Flight Detection Logic ---
+          let detectedFlightNumber = '';
+          const isTransfer = rule.activity.toUpperCase().includes('TRF');
+          if (isTransfer) {
+              // Search for a flight number within the same activity cell text
+              for (const flight of flights) {
+                  if (activityText.includes(flight.flightNumber.toUpperCase())) {
+                      detectedFlightNumber = flight.flightNumber;
+                      break; // Found the first matching flight, stop searching
+                  }
+              }
+          }
+
           // If a match is found, add the corresponding service.
           generatedServices.push({
             fecha: '', // To be filled manually
             hora: suggestedTime,  // Use suggested time if available
             servicio: rule.activity, // Use the activity from the rule
-            vuelo: '',
+            vuelo: detectedFlightNumber, // Populate detected flight number
             guia: '',
             bus: '',
             chofer: '',

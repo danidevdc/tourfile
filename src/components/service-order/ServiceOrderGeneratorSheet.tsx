@@ -212,12 +212,17 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             }
             
             let hotelName = "";
-            const columnDataForHotelSearch = excelData.map(row => String(row[fileColumnIndex] || ""));
-            const hotelCellText = columnDataForHotelSearch.find(cellText => cellText.toUpperCase().includes("HOTEL"));
-
-            if (hotelCellText) {
-                const foundHotel = hotels.find(h => hotelCellText.toUpperCase().includes(h.name.toUpperCase()));
-                if(foundHotel) { hotelName = foundHotel.name; }
+            // Search for a cell in the found column that contains "HOTEL"
+            for (let i = 0; i < excelData.length; i++) {
+                const cellText = String(excelData[i]?.[fileColumnIndex] || "").toUpperCase();
+                if (cellText.includes("HOTEL")) {
+                    // Once found, try to match it against the hotels from DB
+                    const foundHotel = hotels.find(h => cellText.includes(h.name.toUpperCase()));
+                    if (foundHotel) {
+                        hotelName = foundHotel.name;
+                        break; // Stop after finding the first match
+                    }
+                }
             }
             
             setOrderData(prev => ({ ...prev, ref: groupName, nPax: pax, hotel: hotelName, services: [] }));
@@ -245,7 +250,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             toast({ title: "Información Requerida", description: "Por favor, selecciona Guía, Bus y Chofer antes de generar servicios.", variant: "destructive", duration: 5000 }); return;
         }
 
-        const generatedServicesRaw = generateServicesFromExcelColumn(excelData, foundFileColumnIndex, serviceOrderRules, activities);
+        const generatedServicesRaw = generateServicesFromExcelColumn(excelData, foundFileColumnIndex, serviceOrderRules, activities, flights);
         const generatedServicesWithDetails = generatedServicesRaw.map(service => ({
             ...service,
             guia: mainGuide,
@@ -477,7 +482,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     />
                                 </div>
                                 <div className="col-span-2">
-                                    <Label>Bus/Tipo Chofer</Label>
+                                    <Label>Bus/Tipo Chofer*</Label>
                                     <Select value={busTypeSelection} onValueChange={setBusTypeSelection}>
                                         <SelectTrigger className={cn("mt-1 bg-card", busTypeSelection && "border-green-500 font-medium")}>
                                             <SelectValue placeholder="Seleccionar..." />
@@ -486,7 +491,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     </Select>
                                 </div>
                                 <div className="col-span-3">
-                                    <Label>Chofer</Label>
+                                    <Label>Chofer*</Label>
                                     <Combobox 
                                         options={driverOptions} 
                                         value={choferSelection} 
@@ -498,7 +503,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 </div>
                                 {isAutomatedMode && (
                                 <div className="col-span-2 flex items-center">
-                                     <Button onClick={handleGenerateServices} disabled={fileSearchStatus !== "found"} className="w-full h-10 bg-green-600 hover:bg-green-700 text-white">
+                                     <Button onClick={handleGenerateServices} disabled={fileSearchStatus !== "found" || !orderData.guia || !busTypeSelection || !choferSelection} className="w-full h-10 bg-green-600 hover:bg-green-700 text-white">
                                       <CheckCircle className="mr-2 h-5 w-5"/>
                                       Generar Servicios
                                     </Button>
@@ -553,22 +558,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                         )}
 
                         <div className="p-4 border rounded-lg bg-card">
-                             <div className="flex justify-between items-center mb-2">
-                                <h3 className="font-semibold">Resumen ({orderData.services.length} servicios)</h3>
-                                <div className="flex items-center gap-2">
-                                    <Label htmlFor="master-date" className="text-sm">Fecha para asignar:</Label>
-                                    <Input 
-                                        type="date" 
-                                        id="master-date" 
-                                        value={masterDate}
-                                        onChange={(e) => setMasterDate(e.target.value)}
-                                        className="h-8 w-36"
-                                    />
-                                    <Button onClick={handleApplyDateToSelected} size="sm" variant="outline" disabled={!masterDate || selectedServices.size === 0}>
-                                        Asignar Fecha
-                                    </Button>
-                                </div>
-                            </div>
+                             <h3 className="font-semibold mb-2">Resumen ({orderData.services.length} servicios)</h3>
                             <div className="max-h-64 overflow-y-auto border rounded-md bg-card font-mono">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10 hover:bg-primary/10">
@@ -657,6 +647,19 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     </TableBody>
                                 </Table>
                             </div>
+                            <div className="flex justify-end items-center mt-2 gap-2">
+                                <Label htmlFor="master-date" className="text-sm">Fecha para asignar:</Label>
+                                <Input 
+                                    type="date" 
+                                    id="master-date" 
+                                    value={masterDate}
+                                    onChange={(e) => setMasterDate(e.target.value)}
+                                    className="h-8 w-36"
+                                />
+                                <Button onClick={handleApplyDateToSelected} size="sm" variant="outline" disabled={!masterDate || selectedServices.size === 0}>
+                                    Asignar Fecha
+                                </Button>
+                            </div>
                         </div>
                         
                         <div className="p-4 border rounded-lg bg-card">
@@ -693,5 +696,3 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         </Sheet>
     );
 }
-
-    
