@@ -245,7 +245,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             toast({ title: "Información Requerida", description: "Por favor, selecciona Guía, Bus y Chofer antes de generar servicios.", variant: "destructive", duration: 5000 }); return;
         }
 
-        const generatedServicesRaw = generateServicesFromExcelColumn(excelData, foundFileColumnIndex, serviceOrderRules);
+        const generatedServicesRaw = generateServicesFromExcelColumn(excelData, foundFileColumnIndex, serviceOrderRules, activities);
         const generatedServicesWithDetails = generatedServicesRaw.map(service => ({
             ...service,
             guia: mainGuide,
@@ -450,7 +450,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     </div>
                                 </div>
                             </div>
-                             <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-3 gap-4">
                                 <div>
                                   <Label htmlFor="ref">Ref (Grupo):</Label>
                                   <Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", orderData.ref && "border-green-500")} />
@@ -471,7 +471,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-10 items-end gap-4">
+                             <div className="grid grid-cols-10 items-end gap-4">
                                 <div className="col-span-3">
                                     <Label>Guía Principal*</Label>
                                     <Combobox 
@@ -505,7 +505,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 </div>
                                 {isAutomatedMode && (
                                 <div className="col-span-2 flex items-center">
-                                    <Button onClick={handleGenerateServices} disabled={fileSearchStatus !== "found"} className="w-full h-10 bg-green-600 hover:bg-green-700 text-white">
+                                     <Button onClick={handleGenerateServices} disabled={fileSearchStatus !== "found"} className="w-full h-10 bg-green-600 hover:bg-green-700 text-white">
                                       <CheckCircle className="mr-2 h-5 w-5"/>
                                       Generar Servicios
                                     </Button>
@@ -576,7 +576,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     </Button>
                                 </div>
                             </div>
-                            <div className="max-h-64 overflow-y-auto border rounded-md bg-card">
+                            <div className="max-h-64 overflow-y-auto border rounded-md bg-card font-mono">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10 hover:bg-primary/10">
                                         <TableRow className="border-b-primary/20">
@@ -595,7 +595,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '120px'}}>Fecha</TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '90px'}}>Hora</TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20">Servicio</TableHead>
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '180px'}}>Vuelo</TableHead>
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '200px'}}>Vuelo</TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '120px'}}>Guía</TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '70px'}}>Bus</TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '120px'}}>Chofer</TableHead>
