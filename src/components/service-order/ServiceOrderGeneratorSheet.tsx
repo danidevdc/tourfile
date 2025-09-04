@@ -213,7 +213,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                     hotelName = foundHotel.name;
                 }
             }
-
+            
             const mainGuide = orderData.guia || '';
             const mainBus = busTypeSelection || '';
             const mainChofer = choferSelection || '';
@@ -221,6 +221,12 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             setOrderData(prev => ({ ...prev, ref: groupName, nPax: pax, hotel: hotelName }));
 
             if (isAutomatedMode) {
+                if (!mainGuide || !mainBus || !mainChofer) {
+                    toast({ title: "Información Requerida", description: "Por favor, selecciona Guía, Bus y Chofer antes de generar servicios.", variant: "destructive", duration: 5000 });
+                    setIsProcessingSearch(false);
+                    return;
+                }
+
                 const generatedServicesRaw = generateServicesFromExcelColumn(excelData, fileColumnIndex, serviceOrderRules);
                 const generatedServicesWithDetails = generatedServicesRaw.map(service => ({
                     ...service,
@@ -310,12 +316,11 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
     const addNewServiceRow = () => {
         const lastService = orderData.services[orderData.services.length - 1];
-        const selectedGuide = guides.find(g => g.fullName.toUpperCase() === orderData.guia.toUpperCase());
         
         const serviceToAdd: ServiceItem = {
             ...newService,
             fecha: newService.fecha ? format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '',
-            guia: selectedGuide?.fullName.toUpperCase() || '',
+            guia: orderData.guia,
             bus: busTypeSelection || lastService?.bus || '',
             chofer: choferSelection || lastService?.chofer || '',
         };
