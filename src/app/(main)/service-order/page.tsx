@@ -121,27 +121,28 @@ export default function ServiceOrderListPage() {
   }, [authLoading]);
 
   const filteredOrders = useMemo(() => {
-    let filtered = orders;
-
-    if (!isCurrentUserAdmin) {
-        filtered = filtered.filter(order => order.status !== 'eliminado');
-    } else {
-        if (filterState === 'active') {
-            filtered = filtered.filter(order => order.status !== 'eliminado');
-        } else if (filterState === 'deleted') {
-            filtered = filtered.filter(order => order.status === 'eliminado');
-        } // 'all' shows everything
+    let statusFilteredOrders = orders;
+    
+    // 1. Filter by status (active/deleted/all)
+    const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
+    if (currentFilterState === 'active') {
+        statusFilteredOrders = orders.filter(order => order.status !== 'eliminado');
+    } else if (currentFilterState === 'deleted') {
+        statusFilteredOrders = orders.filter(order => order.status === 'eliminado');
     }
 
-    if (!searchTerm) return filtered;
+    // 2. Filter by search term
+    if (!searchTerm) {
+        return statusFilteredOrders;
+    }
 
     const lowercasedFilter = searchTerm.toLowerCase();
-    return filtered.filter(order => {
+    return statusFilteredOrders.filter(order => {
         const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
         return (
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
             order.data.guia.toLowerCase().includes(lowercasedFilter) ||
-            order.createdBy.toLowerCase().includes(lowercasedFilter) ||
+            (order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
             date.toLowerCase().includes(lowercasedFilter)
         );
     });
@@ -395,7 +396,7 @@ export default function ServiceOrderListPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            {filterState !== 'deleted' && (
+                            {isCurrentUserAdmin && filterState !== 'deleted' && (
                                 <TableHead className="w-12">
                                     <Checkbox
                                         checked={isAllSelected}
@@ -419,7 +420,7 @@ export default function ServiceOrderListPage() {
                                 const isDeleted = order.status === 'eliminado';
                                 return (
                                     <TableRow key={order.id} className={cn(isDeleted && "bg-destructive/10 text-muted-foreground")}>
-                                        {!isDeleted && (
+                                        {isCurrentUserAdmin && !isDeleted && (
                                             <TableCell>
                                                 <Checkbox
                                                     checked={selectedOrderIds.has(order.id)}
@@ -428,7 +429,9 @@ export default function ServiceOrderListPage() {
                                                 />
                                             </TableCell>
                                         )}
-                                        {isDeleted && <TableCell></TableCell>}
+                                        {isCurrentUserAdmin && isDeleted && <TableCell></TableCell>}
+                                        {!isCurrentUserAdmin && <TableCell></TableCell>}
+
                                         <TableCell className="font-medium border-r">{order.orderName.replace(/_/g, ' ')}</TableCell>
                                         <TableCell className="border-r">{order.data.guia}</TableCell>
                                         <TableCell className="border-r">{order.createdBy}</TableCell>
@@ -521,3 +524,5 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
+
+    
