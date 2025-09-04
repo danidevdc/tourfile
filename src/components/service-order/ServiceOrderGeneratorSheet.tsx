@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import { format, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 import {
   getGuidesFromFirestore, getHotelsFromFirestore, getDriversFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore,
@@ -23,12 +24,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser, CheckCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { FileSearchStatus } from "@/lib/report-generator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const initialNewServiceState: ServiceItem = {
     fecha: '', hora: '', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
@@ -74,6 +76,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     const [busTypeSelection, setBusTypeSelection] = useState('');
     const [choferSelection, setChoferSelection] = useState('');
 
+    const [selectedServices, setSelectedServices] = useState<Set<number>>(new Set());
+    const [masterDate, setMasterDate] = useState<string>('');
     
     const processAndStoreFile = (file: File) => {
         const reader = new FileReader();
@@ -102,6 +106,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         setChoferSelection('');
         setNewService(initialNewServiceState);
         setFileSearchStatus("idle");
+        setSelectedServices(new Set());
+        setMasterDate('');
         toast({ title: "Formulario Limpiado" });
     }
 
@@ -191,7 +197,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
         if (found) {
             setFileSearchStatus("found");
-            setFoundFileColumnIndex(fileColumnIndex); // Save the found column index
+            setFoundFileColumnIndex(fileColumnIndex); 
             
             const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[fileColumnIndex] || "No encontrado").toUpperCase();
             
@@ -211,9 +217,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
             if (hotelCellText) {
                 const foundHotel = hotels.find(h => hotelCellText.toUpperCase().includes(h.name.toUpperCase()));
-                if(foundHotel) {
-                    hotelName = foundHotel.name;
-                }
+                if(foundHotel) { hotelName = foundHotel.name; }
             }
             
             setOrderData(prev => ({ ...prev, ref: groupName, nPax: pax, hotel: hotelName, services: [] }));
@@ -315,36 +319,24 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         }
     };
 
-
     const handleActivitySelect = async (activityName: string) => {
         const upperActivityName = activityName.toUpperCase();
-        
         setNewService(prev => ({...prev, servicio: upperActivityName, hora: ''}));
-        
         if (upperActivityName !== 'TRF IN' && upperActivityName !== 'TRF OUT' && !newService.hora) {
             const suggestedTime = await getSuggestedTimeForActivity(upperActivityName);
-            if (suggestedTime) {
-                handleNewServiceChange('hora', suggestedTime);
-            }
+            if (suggestedTime) { handleNewServiceChange('hora', suggestedTime); }
         }
     };
     
     const handleFlightSelect = (flightNumber: string) => {
         const selectedFlight = flights.find(f => f.flightNumber.toUpperCase() === flightNumber.toUpperCase());
         if (selectedFlight) {
-            setNewService(prev => ({
-                ...prev,
-                vuelo: selectedFlight.flightNumber,
-                hora: selectedFlight.time,
-                observaciones: selectedFlight.observations
-            }));
+            setNewService(prev => ({ ...prev, vuelo: selectedFlight.flightNumber, hora: selectedFlight.time, observaciones: selectedFlight.observations }));
         }
     };
 
-
     const addNewServiceRow = () => {
         const lastService = orderData.services[orderData.services.length - 1];
-        
         const serviceToAdd: ServiceItem = {
             ...newService,
             fecha: newService.fecha ? format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '',
@@ -352,28 +344,18 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             bus: busTypeSelection || lastService?.bus || '',
             chofer: choferSelection || lastService?.chofer || '',
         };
-
         recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
         setOrderData({ ...orderData, services: [...orderData.services, serviceToAdd] });
-        
-        // Reset for next entry, keeping date and bus/chofer selections
-        setNewService(prev => ({ 
-            ...initialNewServiceState, 
-            fecha: prev.fecha,
-        }));
+        setNewService(prev => ({ ...initialNewServiceState, fecha: prev.fecha, }));
     };
 
     const removeServiceRow = (index: number) => {
-        setOrderData({
-            ...orderData,
-            services: orderData.services.filter((_, i) => i !== index)
-        });
+        setOrderData({ ...orderData, services: orderData.services.filter((_, i) => i !== index) });
     };
 
     const handleSaveOrder = async () => {
         if (!orderData.guia || !orderData.file || !currentUser?.email) {
-            toast({ title: "Datos Requeridos", description: "El guía y el número de file son obligatorios.", variant: "destructive" });
-            return;
+            toast({ title: "Datos Requeridos", description: "El guía y el número de file son obligatorios.", variant: "destructive" }); return;
         }
         setIsSaving(true);
         try {
@@ -386,16 +368,38 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             setIsSaving(false);
         }
     };
+    
+    const handleApplyDateToSelected = () => {
+        if (!masterDate || selectedServices.size === 0) {
+            toast({ title: "Datos incompletos", description: "Selecciona una fecha y al menos un servicio.", variant: "destructive" }); return;
+        }
+        const formattedDate = format(parse(masterDate, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy');
+        const updatedServices = orderData.services.map((service, index) => {
+            if (selectedServices.has(index)) {
+                return { ...service, fecha: formattedDate };
+            }
+            return service;
+        });
+        setOrderData({ ...orderData, services: updatedServices });
+        setSelectedServices(new Set()); // Clear selection after applying
+    };
+
+    const handleSelectService = (index: number, checked: boolean) => {
+        const newSelection = new Set(selectedServices);
+        if (checked) {
+            newSelection.add(index);
+        } else {
+            newSelection.delete(index);
+        }
+        setSelectedServices(newSelection);
+    };
 
     const sortedServices = [...orderData.services].sort((a, b) => {
         try {
             const dateA = parse(a.fecha, 'dd/MM/yyyy', new Date()).getTime();
             const dateB = parse(b.fecha, 'dd/MM/yyyy', new Date()).getTime();
-            if (dateA !== dateB) {
-                return dateA - dateB;
-            }
-        } catch (e) {
-        }
+            if (dateA !== dateB) { return dateA - dateB; }
+        } catch (e) {}
         return (a.hora || "").localeCompare(b.hora || "");
     });
 
@@ -406,23 +410,10 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim();
 
     const filteredFlightOptions = useMemo(() => {
-        const createOption = (f: PredefinedFlight) => ({
-            value: f.flightNumber,
-            key: f.id,
-            label: `${f.flightNumber} (${f.time})`
-        });
-
+        const createOption = (f: PredefinedFlight) => ({ value: f.flightNumber, key: f.id, label: `${f.flightNumber} (${f.time})` });
         const service = newService.servicio?.toUpperCase();
-        if (service === 'TRF IN') {
-            return flights
-                .filter(f => f.observations.toUpperCase().includes('LLEGA'))
-                .map(createOption);
-        }
-        if (service === 'TRF OUT') {
-            return flights
-                .filter(f => f.observations.toUpperCase().includes('SALE'))
-                .map(createOption);
-        }
+        if (service === 'TRF IN') { return flights.filter(f => f.observations.toUpperCase().includes('LLEGA')).map(createOption); }
+        if (service === 'TRF OUT') { return flights.filter(f => f.observations.toUpperCase().includes('SALE')).map(createOption); }
         return flights.map(createOption);
     }, [newService.servicio, flights]);
     
@@ -438,7 +429,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6">
                     <div className="space-y-4 py-4">
                          <div className="space-y-4 p-4 border rounded-lg bg-card">
-                            {/* Fila 1 */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label>Programa:</Label>
@@ -460,7 +450,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     </div>
                                 </div>
                             </div>
-                            {/* Fila 2 */}
                              <div className="grid grid-cols-3 gap-4">
                                 <div>
                                   <Label htmlFor="ref">Ref (Grupo):</Label>
@@ -482,7 +471,6 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     />
                                 </div>
                             </div>
-                             {/* Fila 3 */}
                             <div className="grid grid-cols-10 items-end gap-4">
                                 <div className="col-span-3">
                                     <Label>Guía Principal*</Label>
@@ -517,7 +505,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 </div>
                                 {isAutomatedMode && (
                                 <div className="col-span-2 flex items-center">
-                                    <Button onClick={handleGenerateServices} disabled={fileSearchStatus !== "found"} variant="default" className="w-full h-10 bg-green-600 hover:bg-green-700 text-white">
+                                    <Button onClick={handleGenerateServices} disabled={fileSearchStatus !== "found"} className="w-full h-10 bg-green-600 hover:bg-green-700 text-white">
                                       <CheckCircle className="mr-2 h-5 w-5"/>
                                       Generar Servicios
                                     </Button>
@@ -574,11 +562,36 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                         <div className="p-4 border rounded-lg bg-card">
                              <div className="flex justify-between items-center mb-2">
                                 <h3 className="font-semibold">Resumen ({orderData.services.length} servicios)</h3>
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor="master-date" className="text-sm">Fecha para asignar:</Label>
+                                    <Input 
+                                        type="date" 
+                                        id="master-date" 
+                                        value={masterDate}
+                                        onChange={(e) => setMasterDate(e.target.value)}
+                                        className="h-8 w-36"
+                                    />
+                                    <Button onClick={handleApplyDateToSelected} size="sm" variant="outline" disabled={!masterDate || selectedServices.size === 0}>
+                                        Asignar Fecha
+                                    </Button>
+                                </div>
                             </div>
                             <div className="max-h-64 overflow-y-auto border rounded-md bg-card">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10 hover:bg-primary/10">
                                         <TableRow className="border-b-primary/20">
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '40px'}}>
+                                                 <Checkbox 
+                                                    checked={selectedServices.size > 0 && selectedServices.size === orderData.services.length}
+                                                    onCheckedChange={(checked) => {
+                                                        const newSelection = new Set<number>();
+                                                        if (checked) {
+                                                            orderData.services.forEach((_, index) => newSelection.add(index));
+                                                        }
+                                                        setSelectedServices(newSelection);
+                                                    }}
+                                                 />
+                                            </TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '120px'}}>Fecha</TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '90px'}}>Hora</TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20">Servicio</TableHead>
@@ -593,18 +606,24 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     <TableBody>
                                         {sortedServices.length > 0 ? (
                                             sortedServices.map((s, i) => {
-                                                const showDate = i === 0 || sortedServices[i-1].fecha !== s.fecha;
+                                                const originalIndex = orderData.services.findIndex(os => os === s);
                                                 const guiaFirstName = (s.guia || "").split(" ")[0];
                                                 const choferName = (s.chofer || "").replace(/^CONT\s/i, '');
                                                 const isTransfer = s.servicio?.toUpperCase().includes('TRF');
 
                                                 return (
                                                 <TableRow key={i} className="font-mono border-b-primary/20">
+                                                     <TableCell className="p-1 border-r border-primary/20 text-center">
+                                                        <Checkbox 
+                                                            checked={selectedServices.has(originalIndex)}
+                                                            onCheckedChange={(checked) => handleSelectService(originalIndex, !!checked)}
+                                                        />
+                                                     </TableCell>
                                                     <TableCell className="p-1 border-r border-primary/20">
-                                                        <Input type="date" value={s.fecha ? format(parse(s.fecha, 'dd/MM/yyyy', new Date()), 'yyyy-MM-dd') : ''} onChange={(e) => handleServiceSummaryChange(i, 'fecha', e.target.value ? format(parse(e.target.value, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '')} className="h-8 text-xs bg-card/80"/>
+                                                        <Input type="date" value={s.fecha ? format(parse(s.fecha, 'dd/MM/yyyy', new Date()), 'yyyy-MM-dd') : ''} onChange={(e) => handleServiceSummaryChange(originalIndex, 'fecha', e.target.value ? format(parse(e.target.value, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '')} className="h-8 text-xs bg-card/80"/>
                                                     </TableCell>
                                                     <TableCell className="p-1 border-r border-primary/20">
-                                                        <Input value={s.hora} onChange={(e) => handleSummaryTimeChange(i, e.target.value)} onBlur={(e) => handleSummaryTimeBlur(i, e.target.value)} placeholder="HH:mm" maxLength={5} className="h-8 text-xs bg-card/80"/>
+                                                        <Input value={s.hora} onChange={(e) => handleSummaryTimeChange(originalIndex, e.target.value)} onBlur={(e) => handleSummaryTimeBlur(originalIndex, e.target.value)} placeholder="HH:mm" maxLength={5} className="h-8 text-xs bg-card/80"/>
                                                     </TableCell>
                                                     <TableCell className="p-2 border-r border-primary/20 font-sans">{s.servicio}</TableCell>
                                                     <TableCell className="p-1 border-r border-primary/20">
@@ -612,7 +631,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                                              <Combobox 
                                                                 options={flights.map(f => ({value: f.flightNumber, label: `${f.flightNumber} (${f.time})`}))} 
                                                                 value={s.vuelo || ''} 
-                                                                onSelect={(val) => handleServiceSummaryChange(i, 'vuelo', val)} 
+                                                                onSelect={(val) => handleServiceSummaryChange(originalIndex, 'vuelo', val)} 
                                                                 placeholder="Vuelo..." 
                                                                 className="h-8 text-xs" triggerClassName="bg-card/80"
                                                             />
@@ -624,12 +643,12 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                                     <TableCell className="p-1 border-r border-primary/20 font-sans">
                                                         <Input
                                                           value={s.observaciones || ''}
-                                                          onChange={(e) => handleServiceSummaryChange(i, 'observaciones', e.target.value)}
+                                                          onChange={(e) => handleServiceSummaryChange(originalIndex, 'observaciones', e.target.value)}
                                                           className="h-8 text-xs bg-card/80"
                                                         />
                                                     </TableCell>
                                                      <TableCell className="p-1 text-center">
-                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10" onClick={() => removeServiceRow(i)}>
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10" onClick={() => removeServiceRow(originalIndex)}>
                                                             <XCircle className="h-4 w-4" />
                                                         </Button>
                                                     </TableCell>
@@ -637,7 +656,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                             )})
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                                                <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                                                     El resumen está vacío.
                                                 </TableCell>
                                             </TableRow>
