@@ -134,13 +134,15 @@ export async function generateExpenseDetails(
     return { expenses: [], tourStartDate: tourStartDate };
   }
   
+  // CRITICAL FIX: Ensure only active rules are used for generation.
   const activeRules = rules.filter(r => r.isActive).sort((a,b) => a.order - b.order);
   
+  // Prepare column data for searching. Convert to lower case once for efficiency.
   const columnData = excelData.map(row => String(row[columnIndex] || '').toLowerCase());
   const contiene = (keyword: string) => columnData.some(cell => cell.includes(keyword.toLowerCase()));
 
   // --- Apply Rules to Generate Expenses ---
-  for (const rule of activeRules) {
+  for (const rule of activeRules) { // Iterate over ACTIVE rules only
      if (contiene(rule.keyword)) {
       // Handle special case for 'AM' which also requires 'City Tour'
       if (rule.keyword.toLowerCase() === 'am' && !contiene('city tour')) {
