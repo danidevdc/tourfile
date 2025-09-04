@@ -195,7 +195,7 @@ export default function EditServiceOrderLogicPage() {
                     <TableCell>
                       <Input
                         value={rule.keyword}
-                        onChange={(e) => handleInputChange(rule.id, 'keyword', e.target.value.toUpperCase())}
+                        onChange={(e) => handleInputChange(rule.id, 'keyword', e.target.value)}
                         placeholder="Ej: CITY TOUR"
                       />
                     </TableCell>
