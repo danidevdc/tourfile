@@ -8,13 +8,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart, Save, Mail } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, type UserProfile } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { getAllReportsFromFirestore } from '@/lib/reportService';
 import { getIntermediateUserEmail, setIntermediateUserEmail } from '@/lib/appConfigService';
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { 
   BarChart, 
   Bar, 
@@ -70,7 +77,7 @@ const AdminLinkCard: React.FC<AdminLinkCardProps> = ({ href, icon: Icon, title, 
 
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
+  const { isCurrentUserAdmin, isLoading: authLoading, getAllUserProfiles } = useAuth();
   const { toast } = useToast();
   
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -78,6 +85,7 @@ export default function AdminDashboardPage() {
   const [monthlyReports, setMonthlyReports] = useState<MonthlyReportData[]>([]);
   const [intermediateEmail, setIntermediateEmail] = useState("");
   const [isSavingEmail, setIsSavingEmail] = useState(false);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
 
 
   useEffect(() => {
@@ -94,12 +102,14 @@ export default function AdminDashboardPage() {
               setIsLoadingData(true);
               try {
                 // Fetch all data in parallel
-                const [reports, currentIntermediateEmail] = await Promise.all([
+                const [reports, currentIntermediateEmail, userProfiles] = await Promise.all([
                     getAllReportsFromFirestore(),
-                    getIntermediateUserEmail()
+                    getIntermediateUserEmail(),
+                    getAllUserProfiles(),
                 ]);
                 
                 setIntermediateEmail(currentIntermediateEmail || "");
+                setAllUsers(userProfiles.filter(u => u.email));
 
                 if (reports.length > 0) {
                     // Process guide usage data
@@ -150,7 +160,7 @@ export default function AdminDashboardPage() {
             fetchData();
         }
     }
-  }, [authLoading, isCurrentUserAdmin, router, toast]);
+  }, [authLoading, isCurrentUserAdmin, router, toast, getAllUserProfiles]);
 
   const handleSaveIntermediateEmail = async () => {
     setIsSavingEmail(true);
@@ -158,11 +168,11 @@ export default function AdminDashboardPage() {
         await setIntermediateUserEmail(intermediateEmail.trim());
         toast({
             title: "Éxito",
-            description: "El correo del usuario intermedio ha sido actualizado.",
+            description: "El permiso de rol intermedio ha sido actualizado.",
             className: "bg-green-100 dark:bg-green-900 border-green-500",
         });
     } catch (error) {
-        toast({ title: "Error", description: "No se pudo guardar el correo.", variant: "destructive" });
+        toast({ title: "Error", description: "No se pudo guardar el permiso.", variant: "destructive" });
     } finally {
         setIsSavingEmail(false);
     }
@@ -233,22 +243,27 @@ export default function AdminDashboardPage() {
                     <Mail className="text-primary"/> Gestionar Rol Intermedio
                 </CardTitle>
                 <CardDescription>
-                    Ingresa el correo del usuario al que deseas darle permiso para "Editar Lógica de Órdenes".
-                    Deja el campo vacío para deshabilitar el acceso a cualquier no-administrador.
+                    Selecciona al usuario al que deseas darle permiso para "Editar Lógica de Órdenes". 
+                    Elige "Ninguno" para deshabilitar el acceso a cualquier no-administrador.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex flex-col sm:flex-row items-end gap-4">
                     <div className="flex-grow w-full sm:w-auto">
-                        <Label htmlFor="intermediate-email">Correo del Usuario Intermedio</Label>
-                        <Input
-                            id="intermediate-email"
-                            type="email"
-                            placeholder="usuario@ejemplo.com"
-                            value={intermediateEmail}
-                            onChange={(e) => setIntermediateEmail(e.target.value)}
-                            className="mt-2"
-                        />
+                        <Label htmlFor="intermediate-user-select">Usuario con Permiso Intermedio</Label>
+                        <Select value={intermediateEmail} onValueChange={setIntermediateEmail}>
+                           <SelectTrigger id="intermediate-user-select" className="mt-2">
+                                <SelectValue placeholder="Seleccionar usuario..." />
+                           </SelectTrigger>
+                           <SelectContent>
+                                <SelectItem value="">Ninguno (Deshabilitado)</SelectItem>
+                                {allUsers.map(user => (
+                                    <SelectItem key={user.uid} value={user.email}>
+                                        {user.email}
+                                    </SelectItem>
+                                ))}
+                           </SelectContent>
+                        </Select>
                     </div>
                     <Button onClick={handleSaveIntermediateEmail} disabled={isSavingEmail}>
                         {isSavingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
