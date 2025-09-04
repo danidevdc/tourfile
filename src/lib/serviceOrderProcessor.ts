@@ -53,33 +53,36 @@ export function generateServicesFromExcelColumn(
         if (activityText.includes(rule.keyword.toUpperCase())) {
           
           const matchedActivity = activityMap.get(rule.activity.toUpperCase());
-          const suggestedTime = matchedActivity?.suggestedTime || '';
-
-          // --- New Flight Detection Logic ---
-          let detectedFlightNumber = '';
+          let suggestedTime = matchedActivity?.suggestedTime || '';
+          let detectedFlight: PredefinedFlight | null = null;
+          
           const isTransfer = rule.activity.toUpperCase().includes('TRF');
           if (isTransfer) {
               const normalizedActivityText = normalizeComparisonString(activityText);
-              // Search for a flight number within the same activity cell text
               for (const flight of flights) {
                   const normalizedFlightNumber = normalizeComparisonString(flight.flightNumber);
                   if (normalizedActivityText.includes(normalizedFlightNumber)) {
-                      detectedFlightNumber = flight.flightNumber; // Store the original, pretty-formatted flight number
-                      break; // Found the first matching flight, stop searching
+                      detectedFlight = flight; // Store the whole flight object
+                      break; 
                   }
               }
+          }
+
+          // If a flight was detected, its data overrides any defaults.
+          if (detectedFlight) {
+            suggestedTime = detectedFlight.time;
           }
 
           // If a match is found, add the corresponding service.
           generatedServices.push({
             fecha: '', // To be filled manually
-            hora: suggestedTime,  // Use suggested time if available
+            hora: suggestedTime,  // Use flight time or suggested time
             servicio: rule.activity, // Use the activity from the rule
-            vuelo: detectedFlightNumber, // Populate detected flight number
+            vuelo: detectedFlight?.flightNumber || '', // Populate detected flight number
             guia: '',
             bus: '',
             chofer: '',
-            observaciones: '',
+            observaciones: detectedFlight?.observations || '', // Populate flight observations
           });
         }
       }
