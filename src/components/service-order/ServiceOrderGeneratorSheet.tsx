@@ -14,6 +14,7 @@ import {
 } from '@/lib/serviceOrderService';
 import { getServiceOrderRules, type ServiceOrderRule } from '@/lib/serviceOrderRuleService';
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
+import { generateServicesFromExcelColumn } from '@/lib/serviceOrderProcessor';
 import { saveServiceOrder } from '@/lib/serviceOrderStorage';
 
 import { Button } from "@/components/ui/button";
@@ -177,9 +178,11 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         
         let found = false, colIdx = -1, rowIdxWhereFileNumberFound = -1;
         const fileNumberToSearch = orderData.file.trim().toUpperCase();
+        
+        // Find the column with the file number
         for (let j = 0; j < excelData[0].length; j++) {
             for (let i = 0; i < excelData.length; i++) {
-                if (String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch) {
+                 if (excelData[i][j] && String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch) {
                     found = true; colIdx = j; rowIdxWhereFileNumberFound = i; break;
                 }
             }
@@ -189,72 +192,28 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         if (found) {
             setFileSearchStatus("found");
             
-            // Log the entire column's data for debugging
-            const columnData = excelData.map(row => row[colIdx]).filter(cell => cell !== null && cell !== undefined);
-            console.log("Datos encontrados en la columna del file:", columnData);
-
             const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[colIdx] || "No encontrado").toUpperCase();
             
-            let dateRowIndex = -1;
-            let dateFound = false;
-            
-            for (let i = rowIdxWhereFileNumberFound; i < excelData.length; i++) {
-                const cellValue = excelData[i]?.[colIdx];
-                if (!cellValue) continue;
-
-                if (cellValue instanceof Date && !isNaN(cellValue.valueOf())) { dateFound = true; dateRowIndex = i; break; }
-                if (typeof cellValue === 'number' && cellValue > 25569) {
-                    const parsed = XLSX.SSF.parse_date_code(cellValue);
-                    if (parsed) { dateFound = true; dateRowIndex = i; break; }
-                }
-            }
-            
             let pax = "N/A";
-            if (dateFound) {
-                for (let i = dateRowIndex + 1; i < excelData.length; i++) {
-                    const paxRaw = excelData[i]?.[colIdx];
-                    if (paxRaw !== null && paxRaw !== undefined) {
-                        const paxValue = String(paxRaw).trim();
-                        const paxRegex = /^\d{1,2}(\s*\+\s*\d{1,2})?$/;
-                        if (paxRegex.test(paxValue)) { pax = paxValue; break; }
-                    }
+            // Find PAX (search multiple rows below file for a number)
+            for (let i = rowIdxWhereFileNumberFound + 1; i < excelData.length && i < rowIdxWhereFileNumberFound + 10; i++) {
+                const paxRaw = excelData[i]?.[colIdx];
+                if (paxRaw !== null && paxRaw !== undefined) {
+                    const paxValue = String(paxRaw).trim();
+                    const paxRegex = /^\d{1,2}(\s*\+\s*\d{1,2})?$/;
+                    if (paxRegex.test(paxValue)) { pax = paxValue; break; }
                 }
             }
-            
+
+            // Update main form data
+            setOrderData({ ...orderData, ref: groupName, nPax: pax });
+
             if (isAutomatedMode) {
-                const generatedServices: ServiceItem[] = [];
-                const activeRules = serviceOrderRules.filter(r => r.isActive);
-                let currentDate = '';
-                
-                // Start from the first date row and go to the end of the data
-                for (let i = dateRowIndex; i < excelData.length; i++) {
-                    const dateCellValue = excelData[i]?.[colIdx];
-                    if (dateCellValue instanceof Date && !isNaN(dateCellValue.valueOf())) {
-                        currentDate = format(dateCellValue, 'dd/MM/yyyy');
-                    }
-                    
-                    const serviceCellValue = excelData[i]?.[colIdx + 1]?.toString() || '';
-                    if (!serviceCellValue) continue;
-
-                    const excelKeyword = serviceCellValue.trim().toUpperCase();
-                    
-                    const matchedRule = activeRules.find(rule => 
-                        excelKeyword.includes(rule.keyword.toUpperCase())
-                    );
-
-                    if (matchedRule) {
-                        generatedServices.push({
-                            fecha: currentDate,
-                            servicio: matchedRule.activity,
-                            hora: '', bus: '', chofer: '', guia: '', observaciones: '', vuelo: ''
-                        });
-                    }
-                }
-
-                 setOrderData({ ...orderData, ref: groupName, nPax: pax, services: generatedServices });
-                 toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServices.length} servicios. Revisa y ajusta los detalles.`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
+                const generatedServices = generateServicesFromExcelColumn(excelData, colIdx, serviceOrderRules);
+                setOrderData(prev => ({ ...prev, services: generatedServices }));
+                toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServices.length} servicios. Revisa y ajusta los detalles.`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
             } else {
-                 setOrderData({ ...orderData, ref: groupName, nPax: pax, services: [] });
+                 setOrderData(prev => ({ ...prev, services: [] }));
                  toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
             }
 
@@ -336,7 +295,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         
         const serviceToAdd: ServiceItem = {
             ...newService,
-            fecha: format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy'),
+            fecha: newService.fecha ? format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '',
             guia: selectedGuide?.fullName.toUpperCase() || '',
             bus: busTypeSelection || lastService?.bus || '',
             chofer: choferSelection || lastService?.chofer || '',
@@ -642,7 +601,3 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         </Sheet>
     );
 }
-
-    
-
-    
