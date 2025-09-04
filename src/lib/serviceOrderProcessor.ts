@@ -59,13 +59,19 @@ export function generateServicesFromExcelColumn(
           const isTransfer = rule.activity.toUpperCase().includes('TRF');
           if (isTransfer) {
               const normalizedActivityText = normalizeComparisonString(activityText);
+              let bestMatch: PredefinedFlight | null = null;
+
               for (const flight of flights) {
                   const normalizedFlightNumber = normalizeComparisonString(flight.flightNumber);
                   if (normalizedActivityText.includes(normalizedFlightNumber)) {
-                      detectedFlight = flight; // Store the whole flight object
-                      break; 
+                      // If we find a match, check if it's better than the current best match.
+                      // A "better" match is a longer one.
+                      if (!bestMatch || normalizedFlightNumber.length > normalizeComparisonString(bestMatch.flightNumber).length) {
+                          bestMatch = flight;
+                      }
                   }
               }
+              detectedFlight = bestMatch;
           }
 
           // If a flight was detected, its data overrides any defaults.
