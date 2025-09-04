@@ -577,7 +577,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
                         <div className="p-4 border rounded-lg bg-card">
                              <h3 className="font-semibold mb-2">Resumen ({orderData.services.length} servicios)</h3>
-                            <div className="max-h-64 overflow-y-auto border rounded-md bg-card font-mono">
+                            <div className="max-h-64 overflow-y-auto border rounded-md bg-card">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10 hover:bg-primary/10">
                                         <TableRow className="border-b-primary/20">
@@ -605,9 +605,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {sortedServices.length > 0 ? (
-                                            sortedServices.map((s, i) => {
-                                                const originalIndex = orderData.services.findIndex(os => os === s);
+                                        {orderData.services.length > 0 ? (
+                                            orderData.services.map((s, i) => {
+                                                const originalIndex = i;
                                                 const guiaFirstName = (s.guia || "").split(" ")[0];
                                                 const choferName = (s.chofer || "").replace(/^CONT\s/i, '');
                                                 const isTransfer = s.servicio?.toUpperCase().includes('TRF');
@@ -665,6 +665,27 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                     </TableBody>
                                 </Table>
                             </div>
+                            {orderData.services.length > 0 && (
+                                <div className="p-2">
+                                     <div className="flex items-center gap-2 p-2 rounded-lg border bg-background/70 shadow-sm">
+                                        <span className="text-sm font-medium pl-2">Asignar fecha a seleccionados:</span>
+                                         <Input 
+                                            type="date" 
+                                            id="master-date" 
+                                            value={masterDate}
+                                            onChange={(e) => setMasterDate(e.target.value)}
+                                            className="h-9 w-36"
+                                        />
+                                        <Button onClick={handleApplyDateToSelected} size="sm" variant="default" disabled={!masterDate || selectedServices.size === 0}>
+                                            Asignar Fecha
+                                        </Button>
+                                        <Button onClick={() => setSelectedServices(new Set())} size="sm" variant="ghost" disabled={selectedServices.size === 0}>
+                                            <XCircle className="mr-2 h-4 w-4"/>
+                                            Limpiar Selección ({selectedServices.size})
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         
                         <div className="p-4 border rounded-lg bg-card">
@@ -685,7 +706,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                         </div>
                     </div>
 
-                    {selectedServices.size > 0 && (
+                    {selectedServices.size > 1 && (
                         <div className="sticky bottom-4 w-full flex justify-center">
                             <div className="flex items-center gap-2 p-2 rounded-lg border bg-background shadow-lg animate-in fade-in-50 slide-in-from-bottom-5">
                                 <span className="text-sm font-medium pl-2">{selectedServices.size} servicio(s) seleccionado(s)</span>
