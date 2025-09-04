@@ -1,11 +1,8 @@
 
 "use client";
 
-import type { ServiceItem } from './serviceOrderService';
 import type { ServiceOrderRule } from './serviceOrderRuleService';
-import * as XLSX from 'xlsx';
-import { format } from 'date-fns';
-
+import type { ServiceItem } from './serviceOrderService';
 
 /**
  * Generates a list of services by processing a specific column from Excel data against a set of rules.
@@ -25,7 +22,8 @@ export function generateServicesFromExcelColumn(
   }
 
   const generatedServices: ServiceItem[] = [];
-  const activeRules = rules.filter(r => r.isActive).sort((a, b) => (b.keyword.length - a.keyword.length)); // Sort by keyword length descending to match longer keywords first
+  // Sort by keyword length descending to match longer keywords first, preventing "CITY TOUR" from matching before "HD CITY TOUR" if both were present.
+  const activeRules = rules.filter(r => r.isActive).sort((a, b) => b.keyword.length - a.keyword.length); 
 
   let firstDateFound = false;
 
@@ -34,28 +32,8 @@ export function generateServicesFromExcelColumn(
     const row = excelData[i];
     if (!row) continue;
 
-    const dateCell = row[fileColumnIndex];
-    let isDateRow = false;
-
-    // Check if the current row contains a valid date in the file column
-    if (dateCell instanceof Date && !isNaN(dateCell.valueOf())) {
-      isDateRow = true;
-      firstDateFound = true;
-    } else if (typeof dateCell === 'number' && dateCell > 25569) { // Excel serial date check
-        const parsed = XLSX.SSF.parse_date_code(dateCell);
-        if (parsed) {
-          isDateRow = true;
-          firstDateFound = true;
-        }
-    }
-
-    if (!firstDateFound) {
-        continue; // Skip rows until we find the first date
-    }
-    
-    // The activity description is in the column to the right of the date column
-    const activityCellIndex = fileColumnIndex + 1;
-    const activityText = row[activityCellIndex] ? String(row[activityCellIndex]).trim().toUpperCase() : '';
+    // The activity text is in the SAME column as the file number.
+    const activityText = row[fileColumnIndex] ? String(row[fileColumnIndex]).trim().toUpperCase() : '';
 
     if (activityText) {
       // Find the first rule that matches the activity text
