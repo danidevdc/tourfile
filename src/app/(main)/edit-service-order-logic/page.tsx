@@ -58,15 +58,23 @@ export default function EditServiceOrderLogicPage() {
             return;
         }
 
-        const intermediateEmail = await getIntermediateUserEmail();
-        if (currentUser?.email && currentUser.email === intermediateEmail) {
-            setHasPermission(true);
-        } else {
+        try {
+            const intermediateEmail = await getIntermediateUserEmail();
+            if (currentUser?.email && currentUser.email === intermediateEmail) {
+                setHasPermission(true);
+            } else {
+                setHasPermission(false);
+                toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
+                router.replace('/');
+            }
+        } catch (error) {
+            console.error("Permission check failed:", error);
             setHasPermission(false);
-            toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
+            toast({ title: "Error de Permisos", description: "No se pudo verificar tu nivel de acceso.", variant: "destructive" });
             router.replace('/');
+        } finally {
+            setIsCheckingPermission(false);
         }
-        setIsCheckingPermission(false);
     }
     checkPermissions();
   }, [authLoading, isCurrentUserAdmin, currentUser, router, toast]);
@@ -262,3 +270,5 @@ export default function EditServiceOrderLogicPage() {
     </div>
   );
 }
+
+    
