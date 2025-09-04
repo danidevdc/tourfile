@@ -24,7 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser } from "lucide-react";
+import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser, CheckCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { FileSearchStatus } from "@/lib/report-generator";
@@ -68,6 +68,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     const [excelData, setExcelData] = useState<any[][] | null>(null);
     const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
     const [isProcessingSearch, setIsProcessingSearch] = useState(false);
+    const [foundFileColumnIndex, setFoundFileColumnIndex] = useState<number | null>(null);
     
     const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
     const [busTypeSelection, setBusTypeSelection] = useState('');
@@ -190,6 +191,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
         if (found) {
             setFileSearchStatus("found");
+            setFoundFileColumnIndex(fileColumnIndex); // Save the found column index
             
             const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[fileColumnIndex] || "No encontrado").toUpperCase();
             
@@ -214,40 +216,41 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 }
             }
             
-            const mainGuide = orderData.guia || '';
-            const mainBus = busTypeSelection || '';
-            const mainChofer = choferSelection || '';
-
-            setOrderData(prev => ({ ...prev, ref: groupName, nPax: pax, hotel: hotelName }));
-
-            if (isAutomatedMode) {
-                if (!mainGuide || !mainBus || !mainChofer) {
-                    toast({ title: "Información Requerida", description: "Por favor, selecciona Guía, Bus y Chofer antes de generar servicios.", variant: "destructive", duration: 5000 });
-                    setIsProcessingSearch(false);
-                    return;
-                }
-
-                const generatedServicesRaw = generateServicesFromExcelColumn(excelData, fileColumnIndex, serviceOrderRules);
-                const generatedServicesWithDetails = generatedServicesRaw.map(service => ({
-                    ...service,
-                    guia: mainGuide,
-                    bus: mainBus,
-                    chofer: mainChofer,
-                }));
-                
-                setOrderData(prev => ({ ...prev, services: generatedServicesWithDetails }));
-                toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServicesRaw.length} servicios. Revisa y ajusta los detalles.`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
-            } else {
-                 setOrderData(prev => ({ ...prev, services: [] }));
-                 toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}, Hotel: ${hotelName || 'No encontrado'}`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
-            }
-
+            setOrderData(prev => ({ ...prev, ref: groupName, nPax: pax, hotel: hotelName, services: [] }));
+            toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}, Hotel: ${hotelName || 'No encontrado'}`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
+            
         } else {
             setFileSearchStatus("not_found");
-            setOrderData({ ...orderData, ref: '', nPax: '', services: [] });
+            setOrderData({ ...orderData, ref: '', nPax: '', hotel: '', services: [] });
+            setFoundFileColumnIndex(null);
             toast({ title: "Búsqueda Fallida", description: "Número de file no encontrado.", variant: "destructive" });
         }
         setIsProcessingSearch(false);
+    };
+
+    const handleGenerateServices = () => {
+        if (fileSearchStatus !== "found" || foundFileColumnIndex === null) {
+            toast({ title: "Búsqueda Requerida", description: "Primero busca y encuentra un file válido.", variant: "destructive" }); return;
+        }
+
+        const mainGuide = orderData.guia || '';
+        const mainBus = busTypeSelection || '';
+        const mainChofer = choferSelection || '';
+
+        if (!mainGuide || !mainBus || !mainChofer) {
+            toast({ title: "Información Requerida", description: "Por favor, selecciona Guía, Bus y Chofer antes de generar servicios.", variant: "destructive", duration: 5000 }); return;
+        }
+
+        const generatedServicesRaw = generateServicesFromExcelColumn(excelData, foundFileColumnIndex, serviceOrderRules);
+        const generatedServicesWithDetails = generatedServicesRaw.map(service => ({
+            ...service,
+            guia: mainGuide,
+            bus: mainBus,
+            chofer: mainChofer,
+        }));
+        
+        setOrderData(prev => ({ ...prev, services: generatedServicesWithDetails }));
+        toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServicesRaw.length} servicios.`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
     };
 
     const handleInputChange = (field: keyof ServiceOrderData, value: string) => {
@@ -411,7 +414,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                     <div className="space-y-4 py-4">
                          <div className="space-y-4 p-4 border rounded-lg bg-card">
                             {/* Fila 1 */}
-                            <div className="grid grid-cols-2 gap-4">
+                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label>Programa:</Label>
                                     <div className="flex items-center gap-2 mt-1">
@@ -433,7 +436,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 </div>
                             </div>
                             {/* Fila 2 */}
-                            <div className="grid grid-cols-3 gap-4">
+                             <div className="grid grid-cols-3 gap-4">
                                 <div>
                                   <Label htmlFor="ref">Ref (Grupo):</Label>
                                   <Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", orderData.ref && "border-green-500")} />
@@ -455,8 +458,8 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 </div>
                             </div>
                              {/* Fila 3 */}
-                             <div className="grid grid-cols-3 gap-4">
-                                <div>
+                            <div className="grid grid-cols-4 items-end gap-4">
+                                <div className="col-span-1">
                                     <Label>Guía Principal*</Label>
                                     <Combobox 
                                         options={guideOptions} 
@@ -467,7 +470,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         triggerClassName={cn(orderData.guia && "border-green-500 font-medium")}
                                     />
                                 </div>
-                                <div>
+                                <div className="col-span-1">
                                     <Label>Bus/Tipo Chofer</Label>
                                     <Select value={busTypeSelection} onValueChange={setBusTypeSelection}>
                                         <SelectTrigger className={cn("mt-1 bg-card", busTypeSelection && "border-green-500 font-medium")}>
@@ -476,7 +479,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         <SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                                     </Select>
                                 </div>
-                                <div>
+                                <div className="col-span-1">
                                     <Label>Chofer</Label>
                                     <Combobox 
                                         options={driverOptions} 
@@ -487,6 +490,14 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         triggerClassName={cn(choferSelection && "border-green-500 font-medium")}
                                     />
                                 </div>
+                                {isAutomatedMode && (
+                                <div className="col-span-1 flex items-center">
+                                    <Button onClick={handleGenerateServices} disabled={fileSearchStatus !== "found"} variant="outline" className="w-full h-10 border-green-600 text-green-600 hover:bg-green-100 hover:text-green-700">
+                                      <CheckCircle className="mr-2 h-5 w-5"/>
+                                      Generar Servicios
+                                    </Button>
+                                </div>
+                                )}
                             </div>
                         </div>
                         
