@@ -126,7 +126,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
     useEffect(() => {
         async function loadInitialData() {
-            if (!isOpen) return; // Don't load data if the sheet is not open
+            if (!isOpen) return;
             setIsLoadingData(true);
             try {
                 const [fetchedGuides, fetchedHotels, fetchedDrivers, fetchedActivities, fetchedFlights, fetchedRules] = await Promise.all([
@@ -139,7 +139,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 setExternalDrivers(fetchedDrivers.filter(d => d.name.startsWith('CONT ')));
                 setActivities(fetchedActivities);
                 setFlights(fetchedFlights);
-                setServiceOrderRules(fetchedRules); // Load the latest rules
+                setServiceOrderRules(fetchedRules);
             } catch (error) {
                 toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
             } finally {
@@ -188,6 +188,11 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
         if (found) {
             setFileSearchStatus("found");
+            
+            // Log the entire column's data for debugging
+            const columnData = excelData.map(row => row[colIdx]).filter(cell => cell !== null && cell !== undefined);
+            console.log("Datos encontrados en la columna del file:", columnData);
+
             const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[colIdx] || "No encontrado").toUpperCase();
             
             let dateRowIndex = -1;
@@ -223,19 +228,16 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                 
                 // Start from the first date row and go to the end of the data
                 for (let i = dateRowIndex; i < excelData.length; i++) {
-                    // Update current date if a new one is found in the date column
                     const dateCellValue = excelData[i]?.[colIdx];
                     if (dateCellValue instanceof Date && !isNaN(dateCellValue.valueOf())) {
                         currentDate = format(dateCellValue, 'dd/MM/yyyy');
                     }
                     
-                    // Check the service column (to the right of the date column)
                     const serviceCellValue = excelData[i]?.[colIdx + 1]?.toString() || '';
                     if (!serviceCellValue) continue;
 
                     const excelKeyword = serviceCellValue.trim().toUpperCase();
-
-                    // Find if any active rule's keyword is present in the cell
+                    
                     const matchedRule = activeRules.find(rule => 
                         excelKeyword.includes(rule.keyword.toUpperCase())
                     );
@@ -640,5 +642,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         </Sheet>
     );
 }
+
+    
 
     
