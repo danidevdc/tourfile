@@ -14,36 +14,18 @@ service cloud.firestore {
       return isAuth() && request.auth.token.email == email;
     }
     function isIntermediateUser() {
-      let intermediateEmail = get(/databases/$(database)/documents/appConfig/specialRoles).data.intermediateUserEmail;
-      return isAuth() && request.auth.token.email == intermediateEmail;
+      return isAuth() && request.auth.token.email == get(/databases/$(database)/documents/appConfig/specialRoles).data.intermediateUserEmail;
     }
     
     // --- User Profiles ---
-    // Users can only read/update their own profile. Admins have special access.
     match /userProfiles/{userId} {
-      // Any authenticated user can create their own profile during registration.
       allow create: if request.auth != null && request.auth.uid == userId;
-
-      // Users can read their own profile. Admins can read any profile.
       allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
-
-      // Users can update their own profile. Admins can update any profile.
       allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
-
-      // Only admins can delete profiles (but not their own).
-      allow delete: if request.auth != null && isAdmin() && request.auth.uid != userId;
-    }
-    
-    // --- App Configuration (Special Roles) ---
-    // Only admins can write to this document.
-    // Any authenticated user can read it to check for special permissions.
-    match /appConfig/{docId} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
+      allow delete: if isAdmin() && request.auth.uid != userId;
     }
 
     // --- Master Data (Guides, Hotels, etc.) ---
-    // Anyone logged in can contribute/write. Only admins can delete.
     match /guides/{docId} {
       allow read, write: if isAuth();
       allow delete: if isAdmin();
@@ -56,12 +38,12 @@ service cloud.firestore {
       allow read, write: if isAuth();
       allow delete: if isAdmin();
     }
-    match /flights/{flightId} {
+    // Any authenticated user can contribute activities, but only admins can delete.
+    match /activities/{activityId} {
       allow read, write: if isAuth();
       allow delete: if isAdmin();
     }
-    match /activities/{activityId} {
-      // Regular users can read/write. Admins can also delete.
+    match /flights/{flightId} {
       allow read, write: if isAuth();
       allow delete: if isAdmin();
     }
@@ -76,7 +58,13 @@ service cloud.firestore {
       allow write: if isAdmin() || isIntermediateUser();
     }
     
-    // --- Generated Report Logging (For Admin Panel) ---
+    // --- App Configuration (Special Roles) ---
+    match /appConfig/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    
+    // --- Generated Report Logging ---
     match /generatedReports/{reportId} {
       allow create: if isAuth();
       allow read: if isAdmin();
@@ -94,6 +82,9 @@ service cloud.firestore {
     }
 
     // --- Learning Data for AI/Suggestions ---
-    // This is handled via the specific update rule on the activities collection
+    match /activityTimeSuggestions/{activityName} {
+      allow read, write: if isAuth();
+    }
+
   }
 }
