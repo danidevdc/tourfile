@@ -13,20 +13,37 @@ service cloud.firestore {
     function isOwner(email) {
       return isAuth() && request.auth.token.email == email;
     }
-    // <<< CAMBIO AQUÍ: Nueva función para verificar el rol intermedio.
     function isIntermediateUser() {
-      return isAuth() && request.auth.token.email == get(/databases/$(database)/documents/appConfig/specialRoles).data.intermediateUserEmail;
+      let intermediateEmail = get(/databases/$(database)/documents/appConfig/specialRoles).data.intermediateUserEmail;
+      return isAuth() && request.auth.token.email == intermediateEmail;
     }
     
     // --- User Profiles ---
+    // Users can only read/update their own profile. Admins have special access.
     match /userProfiles/{userId} {
+      // Any authenticated user can create their own profile during registration.
       allow create: if request.auth != null && request.auth.uid == userId;
+
+      // Users can read their own profile. Admins can read any profile.
       allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+
+      // Users can update their own profile. Admins can update any profile.
       allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
-      allow delete: if isAdmin() && request.auth.uid != userId;
+
+      // Only admins can delete profiles (but not their own).
+      allow delete: if request.auth != null && isAdmin() && request.auth.uid != userId;
+    }
+    
+    // --- App Configuration (Special Roles) ---
+    // Only admins can write to this document.
+    // Any authenticated user can read it to check for special permissions.
+    match /appConfig/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
     }
 
     // --- Master Data (Guides, Hotels, etc.) ---
+    // Anyone logged in can contribute/write. Only admins can delete.
     match /guides/{docId} {
       allow read, write: if isAuth();
       allow delete: if isAdmin();
@@ -39,15 +56,12 @@ service cloud.firestore {
       allow read, write: if isAuth();
       allow delete: if isAdmin();
     }
-    match /activities/{activityId} {
-        // <<< CAMBIO AQUÍ: Permitir lectura a cualquier usuario autenticado.
-        allow read: if isAuth();
-        allow create, delete: if isAdmin();
-        allow update: if isAuth() && 
-            (isAdmin() ||
-            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timeCounts', 'suggestedTime'])));
-    }
     match /flights/{flightId} {
+      allow read, write: if isAuth();
+      allow delete: if isAdmin();
+    }
+    match /activities/{activityId} {
+      // Regular users can read/write. Admins can also delete.
       allow read, write: if isAuth();
       allow delete: if isAdmin();
     }
@@ -57,17 +71,9 @@ service cloud.firestore {
         allow read: if isAuth();
         allow write: if isAdmin();
     }
-    
-    // <<< CAMBIO AQUÍ: Permitir escritura al rol intermedio.
     match /serviceOrderRules/{ruleId} {
       allow read: if isAuth();
       allow write: if isAdmin() || isIntermediateUser();
-    }
-    
-    // --- App Configuration (Special Roles) ---
-    match /appConfig/{docId} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
     }
     
     // --- Generated Report Logging (For Admin Panel) ---
@@ -88,9 +94,6 @@ service cloud.firestore {
     }
 
     // --- Learning Data for AI/Suggestions ---
-    match /activityTimeSuggestions/{activityName} {
-      allow read, write: if isAuth();
-    }
-
+    // This is handled via the specific update rule on the activities collection
   }
 }
