@@ -58,7 +58,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   const infoValueStyle: Partial<ExcelJS.Style> = {
     font: { name: 'Calibri', size: 11 },
     border: fullThinBorders,
-    alignment: { horizontal: 'center', vertical: 'middle' }
+    alignment: { horizontal: 'left', vertical: 'middle' }
   };
 
   const tableHeaderStyle: Partial<ExcelJS.Style> = {
