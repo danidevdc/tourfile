@@ -88,7 +88,8 @@ export function generateServicesFromExcelColumn(
         if (activityText.includes(rule.keyword.toUpperCase())) {
           
           const matchedActivity = activityMap.get(rule.activity.toUpperCase());
-          let suggestedTime = matchedActivity?.suggestedTime || '';
+          // let suggestedTime = matchedActivity?.suggestedTime || ''; // DISABLED LEARNING FEATURE
+          let suggestedTime = '';
           let detectedFlight: PredefinedFlight | null = null;
           
           const isTransfer = rule.activity.toUpperCase().includes('TRF');
