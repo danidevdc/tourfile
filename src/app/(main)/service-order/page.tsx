@@ -273,8 +273,8 @@ export default function ServiceOrderListPage() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      if (order.status !== 'enviado' && order.status !== 'eliminado') {
-        await updateServiceOrder(order.id, order.data, 'enviado');
+      if (order.status !== 'excel' && order.status !== 'eliminado') {
+        await updateServiceOrder(order.id, order.data, 'excel');
         fetchOrders();
       }
 
@@ -342,11 +342,13 @@ export default function ServiceOrderListPage() {
         case 'eliminado':
             return <Badge variant="destructive" className="flex items-center gap-1"><ShieldAlert className="h-3 w-3"/>Eliminado</Badge>;
         case 'enviado':
-            return <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">Enviado</Badge>;
+            return <Badge variant="default" className="bg-red-500 hover:bg-red-600">PDF</Badge>;
+        case 'excel':
+            return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Excel</Badge>;
         case 'editado':
             return <Badge variant="secondary" className="bg-orange-500 text-white hover:bg-orange-600">Editado</Badge>;
-        default:
-            return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Creado</Badge>;
+        default: // creado
+            return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Creado</Badge>;
     }
   };
 

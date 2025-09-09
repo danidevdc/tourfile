@@ -20,7 +20,7 @@ import { type ServiceOrderData } from './serviceOrderGenerator';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export type OrderStatus = 'creado' | 'editado' | 'enviado' | 'eliminado';
+export type OrderStatus = 'creado' | 'editado' | 'enviado' | 'eliminado' | 'excel';
 
 export interface StoredServiceOrder {
   id: string;
