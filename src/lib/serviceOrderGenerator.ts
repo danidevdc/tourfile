@@ -58,21 +58,20 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   const infoValueStyle: Partial<ExcelJS.Style> = {
     font: { name: 'Calibri', size: 11 },
     border: fullThinBorders,
-    alignment: { horizontal: 'center', vertical: 'middle' } // Alineación al centro para estas celdas
+    alignment: { horizontal: 'center', vertical: 'middle' }
   };
 
   const tableHeaderStyle: Partial<ExcelJS.Style> = {
     font: { name: 'Calibri', size: 11, bold: true },
-    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }, // Gris claro
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } },
     alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
     border: fullThinBorders
   };
   
-  // Estilo para celdas del cuerpo: sin bordes horizontales, verticales punteados
   const tableBodyCellStyle: Partial<ExcelJS.Style> = {
     font: { name: 'Calibri', size: 11 },
     alignment: { vertical: 'middle', wrapText: true },
-    border: { top: undefined, bottom: undefined, left: dotted, right: dotted }
+    border: { left: dotted, right: dotted }
   };
 
   const noteFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }; // Gris muy claro
@@ -99,18 +98,11 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
       worksheet.getCell(`B${r}`).value = item.label;
       worksheet.getCell(`B${r}`).style = infoHeaderStyle;
       
-      // Combinar celdas C y D, y aplicar estilo
       worksheet.mergeCells(`C${r}:D${r}`);
-      const valueCell = worksheet.getCell(`C${r}`);
-      valueCell.value = item.value;
-      valueCell.style = infoValueStyle;
-      
-      // Aplicar borde al rango combinado
-      for(let col = 3; col <= 4; col++) {
-          worksheet.getCell(r, col).style = infoValueStyle;
-      }
-      
-      // Combinar el resto de celdas y aplicar borde
+      worksheet.getCell(`C${r}`).value = item.value;
+      worksheet.getCell(`C${r}`).style = infoValueStyle;
+      worksheet.getCell(`D${r}`).style = infoValueStyle;
+
       worksheet.mergeCells(`E${r}:I${r}`);
       for(let col = 5; col <= 9; col++) {
           worksheet.getCell(r, col).style = infoValueStyle;
@@ -161,11 +153,10 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
           cell.alignment = { ...(cell.alignment || {}), horizontal: 'left', vertical: 'middle' };
         }
       });
-      // Restaurar bordes externos
+      
       row.getCell(2).border = { ...row.getCell(2).border, left: thin };
       row.getCell(9).border = { ...row.getCell(9).border, right: thin };
-
-      // Si es la última fila, añadir borde inferior
+      
       if (index === data.services.length - 1) {
           row.eachCell((cell, col) => {
               if (col >= 2) cell.border = { ...cell.border, bottom: thin };
@@ -177,8 +168,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   // ---- FOOTER: OBSERVACIONES y NOTA ----
   const lastRowIndex = worksheet.rowCount;
   
-  // OBSERVACIONES
-  const obsLabelRowIndex = lastRowIndex + 2;
+  const obsLabelRowIndex = lastRowIndex + 1;
   worksheet.getCell(`B${obsLabelRowIndex}`).value = 'OBSERVACIONES:';
   worksheet.getCell(`B${obsLabelRowIndex}`).style = { font: { name: 'Calibri', size: 11, bold: true }};
 
@@ -194,7 +184,6 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   };
   worksheet.getRow(obsContentRowIndex).height = 45;
 
-  // NOTA
   const notaLabelRowIndex = obsContentRowIndex + 1;
   worksheet.getCell(`B${notaLabelRowIndex}`).value = 'NOTA:';
   worksheet.getCell(`B${notaLabelRowIndex}`).style = { font: { name: 'Calibri', size: 11, bold: true }};
