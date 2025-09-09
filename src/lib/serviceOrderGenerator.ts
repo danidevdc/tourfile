@@ -1,4 +1,3 @@
-
 import ExcelJS from 'exceljs';
 
 export interface ServiceOrderData {
@@ -27,138 +26,190 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Orden de Servicios');
 
-  // Leave column A empty by setting its width and starting content from B
-  worksheet.getColumn('A').width = 2;
-  worksheet.columns = [
-    { key: 'A', width: 2},
-    { key: 'fecha', width: 12 }, { key: 'hora', width: 8 },
-    { key: 'servicio', width: 40 }, { key: 'vuelo', width: 12 },
-    { key: 'guia', width: 22 }, { key: 'bus', width: 10 },
-    { key: 'chofer', width: 22 }, { key: 'observaciones', width: 35 }
-  ];
+  // ---- COLUMN SETUP (A como margen) ----
+  worksheet.getColumn(1).width = 2; // A
+  worksheet.getColumn(2).width = 12;       // B FECHA
+  worksheet.getColumn(3).width = 8;        // C HORA
+  worksheet.getColumn(4).width = 40;       // D SERVICIO
+  worksheet.getColumn(5).width = 14.71;    // E VUELO
+  worksheet.getColumn(6).width = 14.86;    // F GUIA
+  worksheet.getColumn(7).width = 10;       // G BUS
+  worksheet.getColumn(8).width = 10.71;    // H CHOFER
+  worksheet.getColumn(9).width = 49.86;    // I OBSERVACIONES
 
-  // --- STYLES ---
-  const thinBorder: Partial<ExcelJS.Border> = { style: 'thin' };
-  const fullThinBorder: Partial<ExcelJS.Borders> = { top: thinBorder, left: thinBorder, bottom: thinBorder, right: thinBorder };
+  // ---- STYLES ----
+  const thin: Partial<ExcelJS.Border> = { style: 'thin' };
+  const dotted: Partial<ExcelJS.Border> = { style: 'dotted' };
+  const fullThin: Partial<ExcelJS.Borders> = { top: thin, left: thin, bottom: thin, right: thin };
 
-  const titleStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 16, bold: true }, alignment: { horizontal: 'center', vertical: 'middle' } };
-  
-  const infoHeaderStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 11, bold: true }, border: fullThinBorder };
-  const infoValueStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 11 }, border: fullThinBorder, alignment: { vertical: 'middle' } };
-  
-  const tableHeaderStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 11, bold: true }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }, alignment: { horizontal: 'center', vertical: 'middle', wrapText: true }, border: fullThinBorder };
-  
-  const verticalDottedBorder: Partial<ExcelJS.Borders> = {
-      left: { style: 'dotted' },
-      right: { style: 'dotted' }
+  const titleStyle: Partial<ExcelJS.Style> = {
+    font: { name: 'Calibri', size: 16, bold: true },
+    alignment: { horizontal: 'center', vertical: 'middle' }
   };
-  const tableCellStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 11 }, alignment: { vertical: 'middle', wrapText: true }, border: verticalDottedBorder };
-  
-  const noteHeaderStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 11, bold: true }, alignment: { vertical: 'top' }};
-  const noteTextStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 10 }, alignment: { vertical: 'top', wrapText: true }, border: fullThinBorder };
-  
 
-  // --- HEADER ---
+  const infoHeaderStyle: Partial<ExcelJS.Style> = {
+    font: { name: 'Calibri', size: 11, bold: true },
+    border: fullThin
+  };
+  const infoValueStyle: Partial<ExcelJS.Style> = {
+    font: { name: 'Calibri', size: 11 },
+    border: fullThin,
+    alignment: { vertical: 'middle' }
+  };
+
+  const tableHeaderStyle: Partial<ExcelJS.Style> = {
+    font: { name: 'Calibri', size: 11, bold: true },
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } },
+    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+    border: fullThin
+  };
+
+  const verticalDotted: Partial<ExcelJS.Borders> = { left: dotted, right: dotted };
+  const tableCellBase: Partial<ExcelJS.Style> = {
+    font: { name: 'Calibri', size: 11 },
+    alignment: { vertical: 'middle', wrapText: true },
+  };
+  // Nota/Obs fondo suave (amarillo claro Excel)
+  const noteFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } }; // similar a “E2E2A” pastel
+
+  // ---- TITLE ----
   worksheet.mergeCells('B1:I1');
-  const titleCell = worksheet.getCell('B1');
-  titleCell.value = 'ORDEN DE SERVICIOS';
-  titleCell.style = titleStyle;
-  worksheet.getRow(1).height = 20;
+  const title = worksheet.getCell('B1');
+  title.value = 'ORDEN DE SERVICIOS';
+  title.style = titleStyle;
+  worksheet.getRow(1).height = 20; // ~20.1
 
+  // ---- INFO BLOCK (filas 2–6 como en el modelo) ----
   const infoData = [
-    { label: 'GUIA:', value: data.guia }, { label: 'FILE:', value: data.file },
-    { label: 'REF:', value: data.ref }, { label: 'N° PAX:', value: data.nPax },
+    { label: 'GUIA:', value: data.guia },
+    { label: 'FILE:', value: data.file },
+    { label: 'REF:', value: data.ref },
+    { label: 'N° PAX:', value: data.nPax },
     { label: 'HOTEL:', value: data.hotel }
   ];
 
-  let currentRowNum = 3; // Start info section from row 3
-  infoData.forEach(info => {
-    worksheet.getCell(`B${currentRowNum}`).value = info.label;
-    worksheet.getCell(`B${currentRowNum}`).style = infoHeaderStyle;
-    
-    worksheet.mergeCells(`C${currentRowNum}:D${currentRowNum}`);
-    worksheet.getCell(`C${currentRowNum}`).value = info.value;
-    worksheet.getCell(`C${currentRowNum}`).style = infoValueStyle;
-    
-    // To make it look clean, we merge the rest of the row and apply border
-    worksheet.mergeCells(`E${currentRowNum}:I${currentRowNum}`);
-    worksheet.getCell(`E${currentRowNum}`).style = infoValueStyle;
+  let r = 2; // empezar en fila 2 (coincide con el archivo de referencia)
+  for (const item of infoData) {
+    worksheet.getCell(`B${r}`).value = item.label;
+    worksheet.getCell(`B${r}`).style = infoHeaderStyle;
 
-    currentRowNum++;
-  });
-  
-  // --- TABLE HEADER ---
-  const TABLE_START_ROW = currentRowNum + 1; // Add a space after info
-  const tableHeaderRow = worksheet.getRow(TABLE_START_ROW);
-  tableHeaderRow.values = [null, 'FECHA', 'HORA', 'SERVICIO', 'VUELO', 'GUIA', 'BUS', 'CHOFER', 'OBSERVACIONES'];
-  tableHeaderRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-      if(cell.value && colNumber > 1) cell.style = tableHeaderStyle;
-  });
-  
-  // --- TABLE BODY ---
-  if(data.services.length > 0) {
-      data.services.forEach(service => {
-        const guiaCompleto = service.guia || data.guia || '';
-        const guiaFirstName = guiaCompleto.split(' ')[0];
-        
-        const row = worksheet.addRow([
-          null,
-          service.fecha || '', service.hora || '',
-          service.servicio || '', service.vuelo || '',
-          guiaFirstName, // Only first name
-          service.bus || '', 
-          service.chofer ? service.chofer.replace(/^CONT\s/i, '') : '',
-          service.observaciones || ''
-        ]);
-        
-        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-            if (colNumber > 1) { // Apply style from column B onwards
-                cell.style = tableCellStyle;
-                if (['B','C'].some(c => cell.address.startsWith(c))) {
-                    cell.alignment = {...(cell.alignment || {}), horizontal: 'center' };
-                }
-            }
-        });
-        row.height = 25;
-      });
+    worksheet.mergeCells(`C${r}:D${r}`);
+    worksheet.getCell(`C${r}`).value = item.value;
+    worksheet.getCell(`C${r}`).style = infoValueStyle;
 
-      // Add a thin bottom border to the last row of the table
-      const lastRow = worksheet.lastRow;
-      if(lastRow) {
-          lastRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-              if (colNumber > 1) {
-                  cell.border = {
-                      ...cell.border,
-                      bottom: { style: 'thin' }
-                  }
-              }
-          });
-      }
+    worksheet.mergeCells(`E${r}:I${r}`);
+    // celda ancla para el merge E..I -> E
+    worksheet.getCell(`E${r}`).style = infoValueStyle;
+    r++;
   }
 
-  // --- FOOTER NOTES ---
-  let finalRow = (worksheet.lastRow?.number || TABLE_START_ROW) + 2;
+  // ---- TABLE HEADER (fila 7) ----
+  const headerRowIdx = 7;
+  const headerRow = worksheet.getRow(headerRowIdx);
+  headerRow.values = [null, 'FECHA', 'HORA', 'SERVICIO', 'VUELO', 'GUIA', 'BUS', 'CHOFER', 'OBSERVACIONES'];
+  headerRow.eachCell((cell, col) => {
+    if (col >= 2) cell.style = tableHeaderStyle;
+  });
 
+  // ---- TABLE BODY ----
+  const firstBodyRow = headerRowIdx + 1;
+  let current = firstBodyRow;
+
+  if (data.services?.length) {
+    for (const s of data.services) {
+      const guiaCompleto = s.guia || data.guia || '';
+      const guiaFirst = guiaCompleto.trim().split(/\s+/)[0] || '';
+
+      const row = worksheet.addRow([
+        null,
+        s.fecha || '',
+        s.hora || '',
+        s.servicio || '',
+        s.vuelo || '',
+        guiaFirst,
+        s.bus || '',
+        (s.chofer || '').replace(/^CONT\s/i, ''),
+        s.observaciones || ''
+      ]);
+
+      // Alto como en el modelo
+      row.height = 25;
+
+      row.eachCell((cell, col) => {
+        if (col < 2) return;
+
+        // Base
+        cell.style = tableCellBase;
+
+        // Alineaciones por columna
+        const addr = cell.address;
+        const colLetter = addr.replace(/\d+/g, '');
+        if (['B', 'C', 'E', 'F', 'G', 'H'].includes(colLetter)) {
+          cell.alignment = { ...(cell.alignment || {}), horizontal: 'center' };
+        } else {
+          // D (SERVICIO) e I (OBSERVACIONES)
+          cell.alignment = { ...(cell.alignment || {}), horizontal: 'left' };
+        }
+
+        // Bordes verticales punteados interiores + arriba fino en el cuerpo
+        cell.border = {
+          top: thin,                                      // borde superior fino como el archivo
+          left: dotted,
+          right: dotted,
+          bottom: undefined
+        };
+      });
+
+      // Borde izquierdo fino en B y derecho fino en I (bordes externos de la tabla)
+      const leftCell = row.getCell(2);
+      leftCell.border = { ...(leftCell.border || {}), left: thin };
+
+      const rightCell = row.getCell(9);
+      rightCell.border = { ...(rightCell.border || {}), right: thin };
+
+      current++;
+    }
+
+    // Borde inferior fino para la última fila del cuerpo
+    const lastRow = worksheet.getRow(current - 1);
+    lastRow.eachCell((cell, col) => {
+      if (col >= 2) {
+        cell.border = { ...(cell.border || {}), bottom: thin };
+      }
+    });
+  }
+
+  // ---- FOOTER: OBSERVACIONES y NOTA (filas 13–16) ----
   // OBSERVACIONES
-  worksheet.getCell(`B${finalRow}`).value = 'OBSERVACIONES:';
-  worksheet.getCell(`B${finalRow}`).style = noteHeaderStyle;
-  finalRow++; // Content starts on the next row
-  const obsCell = worksheet.getCell(`B${finalRow}`);
-  worksheet.mergeCells(`B${finalRow}:I${finalRow + 1}`); // Merge for 2 rows height
-  obsCell.value = data.observations || '';
-  obsCell.style = noteTextStyle;
+  worksheet.getCell('B13').value = 'OBSERVACIONES:';
+  worksheet.getCell('B13').style = { font: { name: 'Calibri', size: 11, bold: true }, alignment: { vertical: 'top' } };
 
-  finalRow += 3; // Space + 2 rows for obs
+  worksheet.mergeCells('B14:I14');
+  const obsCell = worksheet.getCell('B14'); // ancla del merge
+  obsCell.value = data.observations || '';
+  obsCell.style = {
+    font: { name: 'Calibri', size: 10 },
+    alignment: { vertical: 'top', horizontal: 'left', wrapText: true },
+    border: fullThin,
+    fill: noteFill
+  };
 
   // NOTA
-  worksheet.getCell(`B${finalRow}`).value = 'NOTA:';
-  worksheet.getCell(`B${finalRow}`).style = noteHeaderStyle;
-  finalRow++; // Content starts on the next row
-  const notaCell = worksheet.getCell(`B${finalRow}`);
-  worksheet.mergeCells(`B${finalRow}:I${finalRow + 2}`); // Merge for 3 rows height
+  worksheet.getCell('B15').value = 'NOTA:';
+  worksheet.getCell('B15').style = { font: { name: 'Calibri', size: 11, bold: true }, alignment: { vertical: 'top' } };
+
+  worksheet.mergeCells('B16:I16');
+  const notaCell = worksheet.getCell('B16'); // ancla del merge
   notaCell.value = data.nota || '';
-  notaCell.style = noteTextStyle;
-  
+  notaCell.style = {
+    font: { name: 'Calibri', size: 11 },
+    alignment: { vertical: 'top', horizontal: 'left', wrapText: true },
+    border: fullThin,
+    fill: noteFill
+  };
+  worksheet.getRow(16).height = 34.5; // coincide con el modelo
+
+  // Export
   const buffer = await workbook.xlsx.writeBuffer();
   return buffer as Buffer;
 }
