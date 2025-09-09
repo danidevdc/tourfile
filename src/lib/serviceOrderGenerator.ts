@@ -71,10 +71,12 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   const tableBodyCellStyle: Partial<ExcelJS.Style> = {
     font: { name: 'Calibri', size: 11 },
     alignment: { vertical: 'middle', wrapText: true },
-    border: { left: dotted, right: dotted }
+    border: { left: dotted, right: dotted, bottom: { style: 'none' }, top: { style: 'none' } }
   };
+  
+  const tableBottomBorderStyle: Partial<ExcelJS.Borders> = { bottom: thin };
 
-  const noteFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }; // Gris muy claro
+  const noteFill: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }; // Gris muy claro
 
   // ---- TITLE ----
   worksheet.mergeCells('B1:I1');
@@ -99,9 +101,10 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
       worksheet.getCell(`B${r}`).style = infoHeaderStyle;
       
       worksheet.mergeCells(`C${r}:D${r}`);
-      worksheet.getCell(`C${r}`).value = item.value;
-      worksheet.getCell(`C${r}`).style = infoValueStyle;
-      worksheet.getCell(`D${r}`).style = infoValueStyle;
+      const valueCell = worksheet.getCell(`C${r}`);
+      valueCell.value = item.value;
+      valueCell.style = infoValueStyle;
+      worksheet.getCell(`D${r}`).style = infoValueStyle; // Apply style to merged cell
 
       worksheet.mergeCells(`E${r}:I${r}`);
       for(let col = 5; col <= 9; col++) {
@@ -143,7 +146,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
 
       row.height = 25;
 
-      row.eachCell((cell, col) => {
+      row.eachCell({ includeEmpty: false }, (cell, col) => {
         if (col < 2) return;
         cell.style = tableBodyCellStyle;
         const colLetter = cell.address.replace(/\d+/g, '');
@@ -156,19 +159,20 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
       
       row.getCell(2).border = { ...row.getCell(2).border, left: thin };
       row.getCell(9).border = { ...row.getCell(9).border, right: thin };
-      
-      if (index === data.services.length - 1) {
-          row.eachCell((cell, col) => {
-              if (col >= 2) cell.border = { ...cell.border, bottom: thin };
-          });
-      }
     }
+     // Add bottom border to the last row of the table
+    const lastRow = worksheet.getRow(worksheet.rowCount);
+    lastRow.eachCell({ includeEmpty: false }, (cell, col) => {
+        if (col >= 2) {
+            cell.border = { ...cell.border, bottom: thin };
+        }
+    });
   }
 
   // ---- FOOTER: OBSERVACIONES y NOTA ----
   const lastRowIndex = worksheet.rowCount;
   
-  const obsLabelRowIndex = lastRowIndex + 1;
+  const obsLabelRowIndex = lastRowIndex + 1; // Removed empty row
   worksheet.getCell(`B${obsLabelRowIndex}`).value = 'OBSERVACIONES:';
   worksheet.getCell(`B${obsLabelRowIndex}`).style = { font: { name: 'Calibri', size: 11, bold: true }};
 
@@ -179,8 +183,8 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   obsCell.style = {
     font: { name: 'Calibri', size: 10 },
     alignment: { vertical: 'top', horizontal: 'left', wrapText: true },
-    border: fullThinBorders,
     fill: noteFill
+    // Border property is removed
   };
   worksheet.getRow(obsContentRowIndex).height = 45;
 
@@ -195,8 +199,8 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   notaCell.style = {
     font: { name: 'Calibri', size: 11 },
     alignment: { vertical: 'top', horizontal: 'left', wrapText: true },
-    border: fullThinBorders,
     fill: noteFill
+    // Border property is removed
   };
   worksheet.getRow(notaContentRowIndex).height = 34.5;
 
