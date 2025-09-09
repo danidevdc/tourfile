@@ -97,6 +97,7 @@ export default function ServiceOrderListPage() {
         getAllServiceOrders(),
         getGuidesFromFirestore(),
         getDriversFromFirestore(),
+        getDriversFromFirestore(),
         getHotelsFromFirestore(),
         getActivitiesFromFirestore(),
         getFlightsFromFirestore(),
@@ -440,7 +441,7 @@ export default function ServiceOrderListPage() {
                             {isCurrentUserAdmin && (
                                 <>
                                     <TableHead>Creado Por</TableHead>
-                                    <TableHead>Fecha de Creación</TableHead>
+                                    <TableHead className="w-[120px]">Fecha</TableHead>
                                     <TableHead>Estado</TableHead>
                                 </>
                             )}
@@ -565,7 +566,7 @@ export default function ServiceOrderListPage() {
         )}
 
         <ServiceOrderGeneratorSheet 
-            isOpen={isSheetOpen} onClose={onSheetClose} onSave={onSheetSave}
+            isOpen={isSheetOpen} onClose={onClose} onSave={onSave}
             orderData={intermediateOrderData} setOrderData={setIntermediateOrderData}
             onClearAndNew={onClearAndNew} isAutomatedMode={isAutomatedMode}
         />
@@ -573,7 +574,5 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
-
-    
 
     
