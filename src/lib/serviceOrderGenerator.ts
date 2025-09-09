@@ -38,17 +38,24 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   ];
 
   // --- STYLES ---
+  const thinBorder: Partial<ExcelJS.Border> = { style: 'thin' };
+  const fullThinBorder: Partial<ExcelJS.Borders> = { top: thinBorder, left: thinBorder, bottom: thinBorder, right: thinBorder };
+
   const titleStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 16, bold: true }, alignment: { horizontal: 'center', vertical: 'middle' } };
-  const infoHeaderStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 11, bold: true } };
-  const tableHeaderStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 11, bold: true }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }, alignment: { horizontal: 'center', vertical: 'middle', wrapText: true }, border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } } };
+  
+  const infoHeaderStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 11, bold: true }, border: fullThinBorder };
+  const infoValueStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 11 }, border: fullThinBorder, alignment: { vertical: 'middle' } };
+  
+  const tableHeaderStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 11, bold: true }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }, alignment: { horizontal: 'center', vertical: 'middle', wrapText: true }, border: fullThinBorder };
   
   const verticalDottedBorder: Partial<ExcelJS.Borders> = {
       left: { style: 'dotted' },
       right: { style: 'dotted' }
   };
   const tableCellStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 11 }, alignment: { vertical: 'middle', wrapText: true }, border: verticalDottedBorder };
+  
   const noteHeaderStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 11, bold: true }, alignment: { vertical: 'top' }};
-  const noteTextStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 10 }, alignment: { vertical: 'top', wrapText: true }, border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } } };
+  const noteTextStyle: Partial<ExcelJS.Style> = { font: { name: 'Calibri', size: 10 }, alignment: { vertical: 'top', wrapText: true }, border: fullThinBorder };
   
 
   // --- HEADER ---
@@ -64,21 +71,28 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
     { label: 'HOTEL:', value: data.hotel }
   ];
 
-  let currentRowNum = 2;
+  let currentRowNum = 3; // Start info section from row 3
   infoData.forEach(info => {
     worksheet.getCell(`B${currentRowNum}`).value = info.label;
     worksheet.getCell(`B${currentRowNum}`).style = infoHeaderStyle;
+    
     worksheet.mergeCells(`C${currentRowNum}:D${currentRowNum}`);
     worksheet.getCell(`C${currentRowNum}`).value = info.value;
+    worksheet.getCell(`C${currentRowNum}`).style = infoValueStyle;
+    
+    // To make it look clean, we merge the rest of the row and apply border
     worksheet.mergeCells(`E${currentRowNum}:I${currentRowNum}`);
+    worksheet.getCell(`E${currentRowNum}`).style = infoValueStyle;
+
     currentRowNum++;
   });
   
   // --- TABLE HEADER ---
-  const tableHeaderRow = worksheet.getRow(7);
+  const TABLE_START_ROW = currentRowNum + 1; // Add a space after info
+  const tableHeaderRow = worksheet.getRow(TABLE_START_ROW);
   tableHeaderRow.values = [null, 'FECHA', 'HORA', 'SERVICIO', 'VUELO', 'GUIA', 'BUS', 'CHOFER', 'OBSERVACIONES'];
-  tableHeaderRow.eachCell({ includeEmpty: true }, cell => {
-      if(cell.value) cell.style = tableHeaderStyle;
+  tableHeaderRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      if(cell.value && colNumber > 1) cell.style = tableHeaderStyle;
   });
   
   // --- TABLE BODY ---
@@ -123,23 +137,25 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   }
 
   // --- FOOTER NOTES ---
-  let finalRow = (worksheet.lastRow?.number || 7) + 2;
+  let finalRow = (worksheet.lastRow?.number || TABLE_START_ROW) + 2;
 
   // OBSERVACIONES
-  worksheet.getCell(`B${finalRow}`).value = 'OBS:';
+  worksheet.getCell(`B${finalRow}`).value = 'OBSERVACIONES:';
   worksheet.getCell(`B${finalRow}`).style = noteHeaderStyle;
-  const obsCell = worksheet.getCell(`C${finalRow}`);
-  worksheet.mergeCells(`C${finalRow}:I${finalRow+1}`); // Merge for 2 rows height
+  finalRow++; // Content starts on the next row
+  const obsCell = worksheet.getCell(`B${finalRow}`);
+  worksheet.mergeCells(`B${finalRow}:I${finalRow + 1}`); // Merge for 2 rows height
   obsCell.value = data.observations || '';
   obsCell.style = noteTextStyle;
 
-  finalRow += 3;
+  finalRow += 3; // Space + 2 rows for obs
 
   // NOTA
   worksheet.getCell(`B${finalRow}`).value = 'NOTA:';
   worksheet.getCell(`B${finalRow}`).style = noteHeaderStyle;
-  const notaCell = worksheet.getCell(`C${finalRow}`);
-  worksheet.mergeCells(`C${finalRow}:I${finalRow+2}`); // Merge for 3 rows height
+  finalRow++; // Content starts on the next row
+  const notaCell = worksheet.getCell(`B${finalRow}`);
+  worksheet.mergeCells(`B${finalRow}:I${finalRow + 2}`); // Merge for 3 rows height
   notaCell.value = data.nota || '';
   notaCell.style = noteTextStyle;
   
