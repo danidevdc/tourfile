@@ -1,6 +1,8 @@
 
 "use client";
 
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
 import type { ServiceOrderRule } from './serviceOrderRuleService';
 import type { Activity, PredefinedFlight, ServiceItem } from './serviceOrderService';
 
@@ -14,9 +16,34 @@ const normalizeComparisonString = (str: string): string => {
 }
 
 /**
+ * Checks if a value from an Excel cell is a valid date (either a Date object or an Excel serial number).
+ * @param cellValue The value from the cell.
+ * @returns The Date object if it's a valid date, otherwise null.
+ */
+const getValidDateFromCell = (cellValue: any): Date | null => {
+    if (!cellValue) return null;
+
+    if (cellValue instanceof Date && !isNaN(cellValue.valueOf())) {
+        return cellValue;
+    }
+    
+    // Check for Excel's serial date format (numbers generally > 25569 for dates after 1970)
+    if (typeof cellValue === 'number' && cellValue > 25569) {
+        const parsed = XLSX.SSF.parse_date_code(cellValue);
+        if (parsed && parsed.y >= 2000) { // Basic validation for year
+            // Construct a UTC date to avoid timezone shifts from the server's locale
+            return new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0));
+        }
+    }
+    
+    return null;
+};
+
+
+/**
  * Generates a list of services by processing a specific column from Excel data against a set of rules.
  * This version iterates through each row of the specified column and checks ALL active rules against each cell
- * to find multiple potential activities within a single cell.
+ * to find multiple potential activities within a single cell. It now also extracts the date from Column A.
  * @param excelData The full 2D array of data from the Excel sheet.
  * @param fileColumnIndex The index of the column where the File Number was found.
  * @param rules An array of active service order rules to apply.
@@ -36,19 +63,27 @@ export function generateServicesFromExcelColumn(
   }
 
   const generatedServices: ServiceItem[] = [];
-  // Sort by keyword length descending to match longer keywords first ("HD CITY TOUR" before "CITY TOUR").
   const activeRules = rules.filter(r => r.isActive).sort((a, b) => b.keyword.length - a.keyword.length); 
   const activityMap = new Map(activities.map(a => [a.name.toUpperCase(), a]));
+  
+  let currentDate: string = ''; // Variable to hold the last seen date
 
-  // Iterate over each row of the excel data in the specified column
+  // Iterate over each row of the excel data
   for (let i = 0; i < excelData.length; i++) {
     const row = excelData[i];
     if (!row) continue;
 
+    // --- Step 1: Check for and update the current date from Column A (index 0) ---
+    const dateCell = row[0];
+    const validDate = getValidDateFromCell(dateCell);
+    if (validDate) {
+        currentDate = format(validDate, 'dd/MM/yyyy');
+    }
+
+    // --- Step 2: Check for activities in the file's column ---
     const activityText = row[fileColumnIndex] ? String(row[fileColumnIndex]).trim().toUpperCase() : '';
 
     if (activityText) {
-      // For each cell, iterate through ALL active rules to find potential matches.
       for (const rule of activeRules) {
         if (activityText.includes(rule.keyword.toUpperCase())) {
           
@@ -64,8 +99,6 @@ export function generateServicesFromExcelColumn(
               for (const flight of flights) {
                   const normalizedFlightNumber = normalizeComparisonString(flight.flightNumber);
                   if (normalizedActivityText.includes(normalizedFlightNumber)) {
-                      // If we find a match, check if it's better than the current best match.
-                      // A "better" match is a longer one.
                       if (!bestMatch || normalizedFlightNumber.length > normalizeComparisonString(bestMatch.flightNumber).length) {
                           bestMatch = flight;
                       }
@@ -74,21 +107,19 @@ export function generateServicesFromExcelColumn(
               detectedFlight = bestMatch;
           }
 
-          // If a flight was detected, its data overrides any defaults.
           if (detectedFlight) {
             suggestedTime = detectedFlight.time;
           }
 
-          // If a match is found, add the corresponding service.
           generatedServices.push({
-            fecha: '', // To be filled manually
-            hora: suggestedTime,  // Use flight time or suggested time
-            servicio: rule.activity, // Use the activity from the rule
-            vuelo: detectedFlight?.flightNumber || '', // Populate detected flight number
+            fecha: currentDate, // Assign the last seen date
+            hora: suggestedTime,
+            servicio: rule.activity,
+            vuelo: detectedFlight?.flightNumber || '',
             guia: '',
             bus: '',
             chofer: '',
-            observaciones: detectedFlight?.observations || '', // Populate flight observations
+            observaciones: detectedFlight?.observations || '',
           });
         }
       }

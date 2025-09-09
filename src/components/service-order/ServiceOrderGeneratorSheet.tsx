@@ -84,7 +84,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         reader.onload = (e) => {
             try {
                 const data = new Uint8Array(e.target?.result as ArrayBuffer);
-                const workbook = XLSX.read(data, { type: 'array' });
+                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                 const ws = workbook.Sheets[workbook.SheetNames[0]];
                 const jsonData: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null });
                 setExcelData(jsonData);
@@ -123,7 +123,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                     const byteArray = new Uint8Array(byteNumbers);
                     const file = new File([new Blob([byteArray])], storedFileName);
                     setSelectedFile({ name: file.name });
-                    const workbook = XLSX.read(byteArray, { type: 'array' });
+                    const workbook = XLSX.read(byteArray, { type: 'array', cellDates: true });
                     setExcelData(XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, blankrows: false, defval: null }));
                 } catch (e) {
                     clearFile();
