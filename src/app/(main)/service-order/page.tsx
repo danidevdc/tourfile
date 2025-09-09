@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Loader2, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -87,6 +87,7 @@ export default function ServiceOrderListPage() {
 
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
   const [isPrintingPdfId, setIsPrintingPdfId] = useState<string | null>(null);
+  const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
 
 
   const fetchOrders = async () => {
@@ -142,8 +143,8 @@ export default function ServiceOrderListPage() {
         return (
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
             order.data.guia.toLowerCase().includes(lowercasedFilter) ||
-            (order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
-            date.toLowerCase().includes(lowercasedFilter)
+            (isCurrentUserAdmin && order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
+            (isCurrentUserAdmin && date.toLowerCase().includes(lowercasedFilter))
         );
     });
   }, [searchTerm, orders, isCurrentUserAdmin, filterState]);
@@ -253,6 +254,34 @@ export default function ServiceOrderListPage() {
         fetchOrders();
     } catch (error) {
         toast({ title: "Error de Eliminación", description: "No se pudieron eliminar las órdenes.", variant: "destructive" });
+    }
+  };
+
+  const handleDownloadExcel = async (order: StoredServiceOrder) => {
+    setIsDownloadingId(order.id);
+    try {
+      if (!order.id) throw new Error("ID de orden no válido");
+      
+      const buffer = await generateServiceOrderExcel(order.data);
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${order.orderName.replace(/[\s/]/g, '_')}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      if (order.status !== 'enviado' && order.status !== 'eliminado') {
+        await updateServiceOrder(order.id, order.data, 'enviado');
+        fetchOrders();
+      }
+
+    } catch(error) {
+      toast({ title: "Error", description: "No se pudo generar el archivo Excel.", variant: "destructive" });
+    } finally {
+      setIsDownloadingId(null);
     }
   };
   
@@ -406,12 +435,16 @@ export default function ServiceOrderListPage() {
                                     />
                                 </TableHead>
                             )}
-                            <TableHead className="w-[30%] border-r">Nombre de la Orden</TableHead>
-                            <TableHead className="w-[18%] border-r">Guía Asignado</TableHead>
-                            <TableHead className="w-[15%] border-r">Creado Por</TableHead>
-                            <TableHead className="w-[10%] border-r">Fecha de Creación</TableHead>
-                            <TableHead className="w-[10%] border-r">Estado</TableHead>
-                            <TableHead className="text-left w-[17%]">Acciones</TableHead>
+                            <TableHead>Nombre de la Orden</TableHead>
+                            <TableHead>Guía Asignado</TableHead>
+                            {isCurrentUserAdmin && (
+                                <>
+                                    <TableHead>Creado Por</TableHead>
+                                    <TableHead>Fecha de Creación</TableHead>
+                                    <TableHead>Estado</TableHead>
+                                </>
+                            )}
+                            <TableHead className="text-left">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -432,24 +465,40 @@ export default function ServiceOrderListPage() {
                                                 )}
                                             </TableCell>
                                         )}
-                                        <TableCell className="font-medium border-r">{order.orderName.replace(/_/g, ' ')}</TableCell>
-                                        <TableCell className="border-r">{order.data.guia}</TableCell>
-                                        <TableCell className="border-r">{order.createdBy}</TableCell>
-                                        <TableCell className="border-r">{format(order.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
-                                        <TableCell className="border-r">{getStatusBadge(order)}</TableCell>
+                                        <TableCell className="font-medium">{order.orderName.replace(/_/g, ' ')}</TableCell>
+                                        <TableCell>{order.data.guia}</TableCell>
+                                        {isCurrentUserAdmin && (
+                                            <>
+                                                <TableCell>{order.createdBy}</TableCell>
+                                                <TableCell>{format(order.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
+                                                <TableCell>{getStatusBadge(order)}</TableCell>
+                                            </>
+                                        )}
                                         <TableCell className="text-left space-x-1">
                                             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary h-8 w-8 p-0"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
                                             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} disabled={!canModify || isDeleted} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
                                             
                                             <Tooltip><TooltipTrigger asChild>
                                                <Button 
-                                                  variant="outline" size="sm" onClick={() => handlePrintToPdf(order)}
-                                                  disabled={isPrintingPdfId === order.id || isDeleted}
-                                                  className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"
+                                                  variant="outline" size="sm" onClick={() => handleDownloadExcel(order)}
+                                                  disabled={isDownloadingId === order.id || isDeleted}
+                                                  className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"
                                                 >
-                                                  {isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
+                                                  {isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="h-4 w-4"/>}
                                                </Button>
-                                            </TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>
+                                            </TooltipTrigger><TooltipContent><p>Descargar Excel</p></TooltipContent></Tooltip>
+                                            
+                                            {isCurrentUserAdmin && (
+                                                <Tooltip><TooltipTrigger asChild>
+                                                   <Button 
+                                                      variant="outline" size="sm" onClick={() => handlePrintToPdf(order)}
+                                                      disabled={isPrintingPdfId === order.id || isDeleted}
+                                                      className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"
+                                                    >
+                                                      {isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
+                                                   </Button>
+                                                </TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>
+                                            )}
                                             
                                             {!isDeleted && (
                                                 <AlertDialog>
@@ -485,7 +534,7 @@ export default function ServiceOrderListPage() {
                             })
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={isCurrentUserAdmin ? 7 : 6} className="text-center h-24 text-muted-foreground">
+                                <TableCell colSpan={isCurrentUserAdmin ? 7 : 4} className="text-center h-24 text-muted-foreground">
                                     {searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}
                                 </TableCell>
                             </TableRow>
@@ -524,3 +573,7 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
+
+    
+
+    
