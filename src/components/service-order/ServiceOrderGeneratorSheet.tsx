@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, type ChangeEvent, useMemo } from "react";
@@ -368,9 +367,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             await saveServiceOrder(orderData, currentUser.email);
             toast({ title: "Éxito", description: "Orden de servicio guardada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
             onSave();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error al guardar la orden:", error); // DEBUG LOG
-            toast({ title: "Error", description: "No se pudo guardar la orden de servicio.", variant: "destructive" });
+            toast({ title: "Error", description: error.message || "No se pudo guardar la orden de servicio.", variant: "destructive" });
         } finally {
             setIsSaving(false);
         }
@@ -446,7 +445,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                         {isAutomatedMode ? "Generar Orden de Servicio Automatizada" : "Nueva Orden de Servicio"}
                     </SheetTitle>
                     <SheetDescription>
-                        Completa los detalles de la orden aquí. Haz clic en guardar cuando hayas terminado.
+                       Completa los detalles de la orden aquí. Haz clic en guardar cuando hayas terminado.
                     </SheetDescription>
                 </SheetHeader>
                 <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6 relative">
@@ -508,7 +507,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 </div>
                                 <div className="col-span-2">
                                     <Label>Bus/Tipo Chofer*</Label>
-                                    <Select value={busTypeSelection} onValueChange={setBusTypeSelection}>
+                                    <Select value={busTypeSelection} onValueChange={setChoferSelection}>
                                         <SelectTrigger className={cn("mt-1 bg-card", busTypeSelection && "border-green-500 font-medium")}>
                                             <SelectValue placeholder="Seleccionar..." />
                                         </SelectTrigger>
@@ -524,6 +523,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         placeholder="Seleccionar chofer..." 
                                         className="mt-1 bg-card"
                                         triggerClassName={cn(choferSelection && "border-green-500 font-medium")}
+                                        disabled={!busTypeSelection}
                                     />
                                 </div>
                                 {isAutomatedMode && (
