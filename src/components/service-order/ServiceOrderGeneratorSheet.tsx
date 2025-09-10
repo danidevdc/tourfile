@@ -251,16 +251,15 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
 
         const generatedServicesRaw = generateServicesFromExcelColumn(excelData, foundFileColumnIndex, serviceOrderRules, activities, flights);
         
-        // FIX: Ensure main guide, bus, and chofer are assigned to each generated service
         const generatedServicesWithDetails = generatedServicesRaw.map(service => ({
             ...service,
-            guia: service.guia || mainGuide,
-            bus: service.bus || mainBus,
-            chofer: service.chofer || mainChofer,
+            guia: mainGuide,
+            bus: mainBus,
+            chofer: mainChofer,
         }));
         
         setOrderData(prev => ({ ...prev, services: generatedServicesWithDetails }));
-        toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServicesRaw.length} servicios.`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
+        toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServicesWithDetails.length} servicios.`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
     };
 
     const handleInputChange = (field: keyof ServiceOrderData, value: string) => {
@@ -364,11 +363,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
             toast({ title: "Datos Requeridos", description: "El guía y el número de file son obligatorios.", variant: "destructive" }); return;
         }
         setIsSaving(true);
+        console.log("Attempting to save order with data:", JSON.stringify(orderData, null, 2)); // DEBUG LOG
         try {
             await saveServiceOrder(orderData, currentUser.email);
             toast({ title: "Éxito", description: "Orden de servicio guardada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
             onSave();
         } catch (error) {
+            console.error("Error al guardar la orden:", error); // DEBUG LOG
             toast({ title: "Error", description: "No se pudo guardar la orden de servicio.", variant: "destructive" });
         } finally {
             setIsSaving(false);
