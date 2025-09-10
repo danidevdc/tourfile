@@ -31,6 +31,7 @@ export interface StoredServiceOrder {
   data: ServiceOrderData;
   status: OrderStatus; // Status is now mandatory
   deletedBy?: string; // Optional field for who deleted it
+  splitFrom?: string; // ID of the parent order if this is a split child
 }
 
 function getFirstDateFromServices(services: ServiceOrderData['services']): Date {
@@ -57,28 +58,28 @@ function getFirstDateFromServices(services: ServiceOrderData['services']): Date 
 function formatOrderName(date: Date, fileNumber: string, splitSuffix?: string): string {
     const datePart = format(date, 'dd_MMMM_yyyy', { locale: es }).toUpperCase();
     const baseName = `ODS_${datePart}_${fileNumber.replace(/[\s/]/g, '_')}`;
-    const guideNamePart = splitSuffix ? splitSuffix.split(' ')[0] : undefined;
-    return guideNamePart ? `${baseName} - ${guideNamePart}` : baseName;
+    const namePart = splitSuffix ? splitSuffix.split(' ')[0] : undefined;
+    return namePart ? `${baseName} - ${namePart}` : baseName;
 }
 
-export async function saveServiceOrder(orderData: ServiceOrderData, createdByEmail: string, baseOrderName?: string): Promise<string> {
+export async function saveServiceOrder(orderData: ServiceOrderData, createdByEmail: string, baseOrderName?: string, splitKey?: string): Promise<string> {
     if (!db) throw new Error("Firestore not initialized.");
 
     let orderName;
-    const guideFirstName = orderData.guia.split(' ')[0];
+    const firstDate = getFirstDateFromServices(orderData.services);
 
-    if (baseOrderName) {
-        orderName = `${baseOrderName} - ${guideFirstName}`;
+    if (baseOrderName && splitKey) {
+        orderName = `${baseOrderName} - ${splitKey.split(' ')[0]}`;
     } else {
-        const firstDate = getFirstDateFromServices(orderData.services);
         orderName = formatOrderName(firstDate, orderData.file);
     }
 
-    const newOrder: Omit<StoredServiceOrder, 'id' | 'createdAt' | 'updatedAt'> = {
+    const newOrder: Omit<StoredServiceOrder, 'id' | 'createdAt' | 'updatedAt' > = {
         orderName,
         createdBy: createdByEmail,
         data: orderData,
         status: 'creado',
+        splitFrom: baseOrderName ? orderData.id : undefined, // Link back to the parent
     };
     
     const docRef = await addDoc(collection(db, 'serviceOrders'), {

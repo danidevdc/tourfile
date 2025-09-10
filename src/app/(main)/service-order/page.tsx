@@ -182,30 +182,38 @@ export default function ServiceOrderListPage() {
     setIsPreviewModalOpen(true);
   }
   
- const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData, isSplitOrder: boolean) => {
+ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData, splitBy: 'guide' | 'driver' | null) => {
     if (!orderToEdit || !currentUser?.email) return;
 
-    if (isSplitOrder) {
-        const servicesByGuide = new Map<string, ServiceOrderData['services']>();
+    if (splitBy) {
+        const serviceMap = new Map<string, ServiceOrderData['services']>();
+        const keyField = splitBy === 'guide' ? 'guia' : 'chofer';
+        const mainAssignee = splitBy === 'guide' ? updatedOrderData.guia : updatedOrderData.services[0]?.chofer || 'N/A';
+
         updatedOrderData.services.forEach(service => {
-            const guideName = service.guia || updatedOrderData.guia;
-            if (!guideName) return; 
-            if (!servicesByGuide.has(guideName)) {
-                servicesByGuide.set(guideName, []);
+            const assignee = service[keyField] || mainAssignee;
+            if (!assignee) return; 
+            if (!serviceMap.has(assignee)) {
+                serviceMap.set(assignee, []);
             }
-            servicesByGuide.get(guideName)!.push(service);
+            serviceMap.get(assignee)!.push(service);
         });
 
-        const assignedGuides = Array.from(servicesByGuide.keys());
-
-        if (assignedGuides.length > 1) {
+        const assignedKeys = Array.from(serviceMap.keys());
+        if (assignedKeys.length > 1) {
             try {
-                await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, guia: assignedGuides.join(', ') }, 'editado');
-                for (const [guideName, guideServices] of servicesByGuide.entries()) {
-                    const newSplitOrderData: ServiceOrderData = { ...updatedOrderData, guia: guideName, services: guideServices };
-                    await saveServiceOrder(newSplitOrderData, currentUser.email, orderToEdit.orderName);
+                // Mark original order as a split parent
+                await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, isSplitParent: true }, 'editado');
+                
+                for (const [key, services] of serviceMap.entries()) {
+                    const newSplitOrderData: ServiceOrderData = { ...updatedOrderData };
+                    if(splitBy === 'guide') newSplitOrderData.guia = key;
+                    newSplitOrderData.services = services;
+                    
+                    await saveServiceOrder(newSplitOrderData, currentUser.email, orderToEdit.orderName, key);
                 }
-                toast({ title: "Éxito", description: `La orden ha sido dividida en ${servicesByGuide.size} nuevas órdenes.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+                
+                toast({ title: "Éxito", description: `La orden ha sido dividida en ${serviceMap.size} nuevas órdenes por ${splitBy}.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
                 fetchOrders();
             } catch (e) {
                  toast({ title: "Error al Dividir", description: "No se pudo dividir la orden.", variant: "destructive" });
@@ -217,6 +225,7 @@ export default function ServiceOrderListPage() {
         }
     }
     
+    // Regular save without splitting
     try {
       await updateServiceOrder(orderToEdit.id, updatedOrderData, 'editado');
       toast({ title: "Éxito", description: "Orden actualizada correctamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
@@ -351,6 +360,26 @@ export default function ServiceOrderListPage() {
             return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Creado</Badge>;
     }
   };
+  
+  const getRowClass = (order: StoredServiceOrder) => {
+      if (order.data.isSplitParent) {
+          return "bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200/80 dark:hover:bg-purple-900/50";
+      }
+      if (order.splitFrom) {
+          const parentOrder = orders.find(o => o.id === order.splitFrom);
+          if (parentOrder) {
+              const guideNameInOrder = order.data.guia.split(' ')[0].toUpperCase();
+              const driverNameInOrder = order.data.services[0]?.chofer?.split(' ')[0].toUpperCase() || '';
+              if (order.orderName.includes(guideNameInOrder)) {
+                  return "bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200/80 dark:hover:bg-blue-900/50";
+              }
+              if (order.orderName.includes(driverNameInOrder)) {
+                  return "bg-green-100 dark:bg-green-900/30 hover:bg-green-200/80 dark:hover:bg-green-900/50";
+              }
+          }
+      }
+      return "";
+  };
 
   const numSelected = selectedOrderIds.size;
   const numInPage = paginatedOrders.filter(o => o.status !== 'eliminado').length;
@@ -455,7 +484,7 @@ export default function ServiceOrderListPage() {
                                 const canModify = isCurrentUserAdmin || currentUser?.email === order.createdBy;
                                 const isDeleted = order.status === 'eliminado';
                                 return (
-                                    <TableRow key={order.id} className={cn(isDeleted && "bg-destructive/10 text-muted-foreground")}>
+                                    <TableRow key={order.id} className={cn(isDeleted && "bg-destructive/10 text-muted-foreground", getRowClass(order))}>
                                         {isCurrentUserAdmin && (
                                             <TableCell>
                                                 {!isDeleted && (

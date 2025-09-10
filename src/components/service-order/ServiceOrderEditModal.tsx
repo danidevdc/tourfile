@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Combobox, ComboboxOption } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, X, Split, XCircle, PlusCircle } from "lucide-react";
+import { Save, X, Split, XCircle, PlusCircle, Car, User } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
@@ -25,7 +25,7 @@ interface ServiceOrderEditModalProps {
   drivers: Driver[];
   flights: PredefinedFlight[];
   hotels: Hotel[];
-  onSave: (updatedOrderData: ServiceOrderData, isSplitOrder: boolean) => void;
+  onSave: (updatedOrderData: ServiceOrderData, splitBy: 'guide' | 'driver' | null) => void;
   onClose: () => void;
 }
 
@@ -36,7 +36,7 @@ const initialNewServiceState: ServiceItem = {
 
 export function ServiceOrderEditModal({ order, guides, activities, drivers, flights, hotels, onSave, onClose }: ServiceOrderEditModalProps) {
   const [editableOrderData, setEditableOrderData] = useState<ServiceOrderData>(JSON.parse(JSON.stringify(order.data)));
-  const [isSplitMode, setIsSplitMode] = useState(false);
+  const [splitBy, setSplitBy] = useState<'guide' | 'driver' | null>(null);
   
   const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
 
@@ -116,16 +116,22 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
       setEditableOrderData(prev => ({ ...prev, guia: guideFullName }));
   }
 
-  const handleSplitModeToggle = (checked: boolean) => {
-    setIsSplitMode(checked);
+ const handleSplitModeToggle = (mode: 'guide' | 'driver', checked: boolean) => {
     if (checked) {
+        setSplitBy(mode);
+        const keyField = mode === 'guide' ? 'guia' : 'chofer';
+        const mainAssignee = mode === 'guide' ? editableOrderData.guia : editableOrderData.services[0]?.chofer || '';
+        
         const updatedServices = editableOrderData.services.map(service => ({
             ...service,
-            guia: service.guia || editableOrderData.guia,
+            [keyField]: service[keyField] || mainAssignee,
         }));
         setEditableOrderData(prev => ({ ...prev, services: updatedServices }));
+    } else if (splitBy === mode) {
+        setSplitBy(null);
     }
-  }
+ };
+
 
   const handleTimeChange = (index: number, rawValue: string) => {
       const numbersOnly = rawValue.replace(/[^0-9]/g, '');
@@ -241,7 +247,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                     </div>
                 </div>
 
-                <div className="pt-2 flex items-center gap-4">
+                <div className="pt-2 flex items-center justify-between">
                     <div className="flex-1">
                         <Label className="text-xs font-semibold text-muted-foreground">Guía Principal</Label>
                         <Combobox
@@ -251,12 +257,18 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                             placeholder="Seleccionar guía..."
                             className="h-9 mt-1"
                             triggerClassName="bg-card/80"
-                            disabled={isSplitMode}
+                            disabled={splitBy === 'guide'}
                         />
                     </div>
-                    <div className="flex items-center space-x-2 pt-5">
-                        <Switch id="split-mode" checked={isSplitMode} onCheckedChange={handleSplitModeToggle} />
-                        <Label htmlFor="split-mode" className="flex items-center gap-2 text-sm font-medium"><Split className="h-4 w-4" /> Dividir Orden por Guía</Label>
+                    <div className="flex items-center gap-4 pl-8 pt-5">
+                       <div className="flex items-center space-x-2">
+                           <Switch id="split-guide-mode" checked={splitBy === 'guide'} onCheckedChange={(c) => handleSplitModeToggle('guide', c)} />
+                           <Label htmlFor="split-guide-mode" className="flex items-center gap-2 text-sm font-medium"><User className="h-4 w-4" /> Dividir por Guía</Label>
+                       </div>
+                       <div className="flex items-center space-x-2">
+                           <Switch id="split-driver-mode" checked={splitBy === 'driver'} onCheckedChange={(c) => handleSplitModeToggle('driver', c)} />
+                           <Label htmlFor="split-driver-mode" className="flex items-center gap-2 text-sm font-medium"><Car className="h-4 w-4" /> Dividir por Chofer</Label>
+                       </div>
                     </div>
                 </div>
                  {/* --- Add New Service Form --- */}
@@ -355,7 +367,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                         />
                       </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium">
-                         {isSplitMode ? (
+                         {splitBy === 'guide' ? (
                             <Combobox
                                 options={globalGuideOptions}
                                 value={s.guia || ''}
@@ -369,7 +381,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                          )}
                       </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
-                         <Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)}>
+                         <Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)} disabled={splitBy !== 'driver'}>
                             <SelectTrigger className="h-8 text-xs bg-card/80"><SelectValue placeholder="..." /></SelectTrigger>
                             <SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent>
                         </Select>
@@ -382,6 +394,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                           placeholder="Chofer..."
                           className="h-8 text-xs"
                           triggerClassName="bg-card/80"
+                          disabled={splitBy !== 'driver'}
                         />
                       </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-left">
@@ -413,7 +426,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
         <DialogFooter className="p-4 border-t bg-background">
           <Button variant="outline" onClick={onClose}><X className="mr-2 h-4 w-4"/>Cerrar</Button>
-          <Button onClick={() => onSave(editableOrderData, isSplitMode)}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
+          <Button onClick={() => onSave(editableOrderData, splitBy)}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
