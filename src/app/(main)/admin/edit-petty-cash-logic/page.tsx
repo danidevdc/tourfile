@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -52,8 +53,6 @@ export default function EditPettyCashLogicPage() {
       if (isCurrentUserAdmin) {
         setIsLoading(true);
         try {
-          // This function ensures the default rules exist in Firestore if the collection is empty.
-          // It's safe to call every time, as it won't overwrite existing rules.
           await initializeDefaultRules(); 
           
           const fetchedRules = await getExpenseRulesFromFirestore('La Paz');
@@ -97,7 +96,6 @@ export default function EditPettyCashLogicPage() {
   const handleDeleteRule = async () => {
     if (!ruleToDelete) return;
     
-    // If it's a new rule not yet saved, just remove from state
     if (ruleToDelete.id.startsWith('new_')) {
       setRules(prev => prev.filter(r => r.id !== ruleToDelete.id));
       toast({ title: "Regla Removida", description: "La nueva regla ha sido descartada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
@@ -105,7 +103,6 @@ export default function EditPettyCashLogicPage() {
       return;
     }
 
-    // If it's a saved rule, delete from Firestore
     try {
       await deleteExpenseRuleFromFirestore(ruleToDelete.id);
       setRules(prev => prev.filter(r => r.id !== ruleToDelete.id));
@@ -118,10 +115,15 @@ export default function EditPettyCashLogicPage() {
   };
 
   const handleSaveChanges = async () => {
+    const hasEmptyKeyword = rules.some(rule => !rule.keyword.trim());
+    if (hasEmptyKeyword) {
+        toast({ title: "Error de Validación", description: "Todas las reglas deben tener una 'Palabra Clave'. No se guardaron los cambios.", variant: "destructive", duration: 5000 });
+        return;
+    }
+
     setIsSaving(true);
     try {
       await saveExpenseRulesToFirestore(rules);
-      // Refetch to get Firestore-generated IDs for new rules
       const fetchedRules = await getExpenseRulesFromFirestore('La Paz');
       setRules(fetchedRules.sort((a, b) => a.order - b.order));
       toast({ title: "Éxito", description: "Todas las reglas han sido guardadas.", className: "bg-green-100 dark:bg-green-900 border-green-500" });

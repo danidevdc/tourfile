@@ -148,13 +148,16 @@ export default function EditServiceOrderLogicPage() {
   };
 
   const handleSaveChanges = async () => {
+    const hasEmptyRule = rules.some(rule => !rule.keyword.trim() || !rule.activity.trim());
+    if (hasEmptyRule) {
+        toast({ title: "Error de Validación", description: "Todas las reglas deben tener una 'Palabra Clave' y una 'Actividad' asignada.", variant: "destructive", duration: 5000 });
+        return;
+    }
+
     setIsSaving(true);
     try {
-      // Save all current rules (new and existing) to Firestore
       await saveServiceOrderRules(rules);
       
-      // After saving, re-fetch all rules from Firestore to get a fresh list
-      // with new IDs assigned by the database and to confirm the state.
       const fetchedRules = await getServiceOrderRules();
       setRules(fetchedRules.sort((a, b) => a.order - b.order));
       
