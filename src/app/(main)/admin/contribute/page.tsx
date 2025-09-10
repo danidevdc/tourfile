@@ -12,6 +12,7 @@ import {
   createGuide, getGuidesFromFirestore,
   createFlight, getFlightsFromFirestore,
   checkIfGuideExists, checkIfHotelExists, checkIfDriverExists, checkIfActivityExists, checkIfFlightExists,
+  deleteGuide, deleteHotel, deleteDriver, deleteActivity, deleteFlight,
   type Hotel, type Driver, type Activity, type ServiceOrderGuide, type PredefinedFlight
 } from '@/lib/serviceOrderService';
 
@@ -19,13 +20,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ArrowLeft, PlusCircle, Hotel as HotelIcon, Car, ListChecks, UserSquare, Plane } from 'lucide-react';
+import { Loader2, ArrowLeft, PlusCircle, Hotel as HotelIcon, Car, ListChecks, UserSquare, Plane, Trash2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type DataType = 'guides' | 'hotels' | 'drivers' | 'activities' | 'flights';
 const VALID_TABS: DataType[] = ['guides', 'hotels', 'drivers', 'activities', 'flights'];
+type ItemToDelete = (Hotel | Driver | Activity | ServiceOrderGuide | PredefinedFlight) & { type: DataType; name?: string; fullName?: string; flightNumber?: string; };
+
 
 export default function ContributeDataPage() {
   const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -49,6 +57,8 @@ export default function ContributeDataPage() {
   const [newFlightNumber, setNewFlightNumber] = useState('');
   const [newFlightTime, setNewFlightTime] = useState('');
   const [newFlightObs, setNewFlightObs] = useState('');
+
+  const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null);
 
   const initialTab = searchParams.get('tab') as DataType | null;
   const activeTab = initialTab && VALID_TABS.includes(initialTab) ? initialTab : 'guides';
@@ -157,6 +167,28 @@ export default function ContributeDataPage() {
     }
   };
 
+  const handleDeleteItem = async () => {
+    if (!itemToDelete) return;
+    try {
+      const id = 'uid' in itemToDelete ? itemToDelete.uid : itemToDelete.id;
+      if (!id) throw new Error("ID is missing");
+      
+      if (itemToDelete.type === 'hotels') await deleteHotel(id);
+      else if (itemToDelete.type === 'drivers') await deleteDriver(id);
+      else if (itemToDelete.type === 'activities') await deleteActivity(id);
+      else if (itemToDelete.type === 'guides') await deleteGuide(id);
+      else if (itemToDelete.type === 'flights') await deleteFlight(id);
+
+      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      await fetchData(); // Refresh data
+    } catch (error) {
+       toast({ title: "Error", description: `No se pudo eliminar el registro.`, variant: "destructive" });
+    } finally {
+      setItemToDelete(null);
+    }
+  };
+
+
   const handleTabChange = (tabValue: string) => {
     router.push(`/admin/contribute?tab=${tabValue}`, { scroll: false });
   };
@@ -208,7 +240,15 @@ export default function ContributeDataPage() {
     </Card>
   );
 
-  const renderTable = (data: any[], type: DataType) => (
+  const renderTable = (data: any[], type: DataType) => {
+    const displayName = (item: any) => {
+        if ('fullName' in item) return item.fullName;
+        if ('flightNumber' in item) return item.flightNumber;
+        if ('name' in item) return item.name;
+        return '';
+    };
+
+    return (
     <div className="border rounded-lg mt-4 overflow-hidden">
       <div className="max-h-96 overflow-y-auto">
         <Table>
@@ -223,16 +263,17 @@ export default function ContributeDataPage() {
               ) : (
                 <TableHead>{type === 'guides' ? 'Nombre Completo' : 'Nombre'}</TableHead>
               )}
+               <TableHead className="text-right w-[100px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.length === 0 ? (
-              <TableRow><TableCell colSpan={type === 'flights' ? 3 : 1} className="text-center h-24">No hay datos.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={type === 'flights' ? 4 : 2} className="text-center h-24">No hay datos.</TableCell></TableRow>
             ) : (
               data.map(item => (
                 <TableRow key={item.id || item.uid}>
                   <TableCell className="font-medium">
-                    {'fullName' in item ? item.fullName : 'flightNumber' in item ? item.flightNumber : item.name}
+                    {displayName(item)}
                   </TableCell>
                   {type === 'flights' && 'time' in item && (
                     <>
@@ -240,6 +281,31 @@ export default function ContributeDataPage() {
                       <TableCell>{'observations' in item ? item.observations : ''}</TableCell>
                     </>
                   )}
+                  <TableCell className="text-right">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="icon" title={`Eliminar ${type.slice(0, -1)}`} onClick={() => setItemToDelete({ ...item, type })}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      {itemToDelete && ('uid' in itemToDelete ? itemToDelete.uid : itemToDelete.id) === (item.uid || item.id) && (
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Se eliminará permanentemente "{displayName(itemToDelete)}". Esta acción no se puede deshacer.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive hover:bg-destructive/90">
+                              Sí, eliminar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      )}
+                    </AlertDialog>
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -248,6 +314,8 @@ export default function ContributeDataPage() {
       </div>
     </div>
   );
+  };
+
 
   if (authLoading || isLoading) {
     return <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
@@ -287,3 +355,4 @@ export default function ContributeDataPage() {
     </div>
   );
 }
+
