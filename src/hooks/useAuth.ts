@@ -129,7 +129,46 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       return null;
     }
   }, [toast]);
+  
+  // Effect for handling onAuthStateChanged
+  useEffect(() => {
+    if (!auth) {
+      toast({ title: "Error Crítico", description: "La autenticación de Firebase no está disponible.", variant: "destructive", duration: 10000 });
+      setIsLoading(false);
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsLoading(true);
+      if (firebaseUser) {
+        const profile = await fetchUserProfile(firebaseUser.uid);
+        setCurrentUser({ ...firebaseUser, profile: profile || undefined });
+      } else {
+        setCurrentUser(null);
+        if (typeof window !== 'undefined') sessionStorage.removeItem(SESSION_ID_KEY);
+      }
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [fetchUserProfile, toast]);
 
+
+  // Effect for checking session validity on each render/navigation
+  useEffect(() => {
+    const checkSession = async () => {
+      if (isLoading || !currentUser || !currentUser.profile) return;
+      
+      const localSessionId = sessionStorage.getItem(SESSION_ID_KEY);
+      const dbSessionId = currentUser.profile.activeSessionId;
+
+      if (dbSessionId && localSessionId !== dbSessionId) {
+        await handleLogout(true, 'Tu sesión se ha cerrado porque iniciaste sesión en otro dispositivo.');
+      }
+    };
+    checkSession();
+  }, [currentUser, isLoading, handleLogout]);
+  
+  
+  // Effect for handling inactivity timeout
   useEffect(() => {
     if (typeof window === 'undefined' || !currentUser) return;
     let inactivityTimer: NodeJS.Timeout;
@@ -153,31 +192,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       window.removeEventListener('scroll', handleUserActivity);
     };
   }, [currentUser, handleLogout]);
-
-  useEffect(() => {
-    if (!auth) {
-      toast({ title: "Error Crítico", description: "La autenticación de Firebase no está disponible.", variant: "destructive", duration: 10000 });
-      setIsLoading(false);
-      return;
-    }
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setIsLoading(true);
-      if (firebaseUser) {
-        const profile = await fetchUserProfile(firebaseUser.uid);
-        const localSessionId = sessionStorage.getItem(SESSION_ID_KEY);
-        if (profile && profile.activeSessionId && localSessionId !== profile.activeSessionId) {
-          handleLogout(true, 'Tu sesión se ha cerrado porque iniciaste sesión en otro dispositivo.');
-          return;
-        }
-        setCurrentUser({ ...firebaseUser, profile: profile || undefined });
-      } else {
-        setCurrentUser(null);
-        sessionStorage.removeItem(SESSION_ID_KEY);
-      }
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, [fetchUserProfile, handleLogout, toast]);
+  
 
   const login = useCallback(async (emailInput?: string, passwordInput?: string) => {
     setIsLoading(true);
@@ -320,3 +335,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+    
