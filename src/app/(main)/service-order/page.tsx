@@ -206,7 +206,7 @@ export default function ServiceOrderListPage() {
                 await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, isSplitParent: true }, 'editado');
                 
                 for (const [key, services] of serviceMap.entries()) {
-                    const newSplitOrderData: ServiceOrderData = { ...updatedOrderData };
+                    const newSplitOrderData: ServiceOrderData = { ...updatedOrderData, isSplitParent: false };
                     if(splitBy === 'guide') newSplitOrderData.guia = key;
                     newSplitOrderData.services = services;
                     
@@ -362,20 +362,28 @@ export default function ServiceOrderListPage() {
   };
   
   const getRowClass = (order: StoredServiceOrder) => {
-      if (order.data.isSplitParent) {
-          return "bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200/80 dark:hover:bg-purple-900/50";
-      }
-      if (order.splitFrom) {
-          const guideNameInOrder = order.data.guia.split(' ')[0].toUpperCase();
-          if (order.orderName.toUpperCase().includes(guideNameInOrder)) {
-              return "bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200/80 dark:hover:bg-blue-900/50";
-          }
-          const choferNameInOrder = (order.data.services[0]?.chofer || '').replace(/^CONT\.\s/i, '').split(' ')[0].toUpperCase();
-          if (choferNameInOrder && order.orderName.toUpperCase().includes(choferNameInOrder)) {
-              return "bg-green-100 dark:bg-green-900/30 hover:bg-green-200/80 dark:hover:bg-green-900/50";
-          }
-      }
-      return "";
+    // 1. Parent orders are purple
+    if (order.data.isSplitParent) {
+        return "bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200/80 dark:hover:bg-purple-900/50";
+    }
+    
+    // 2. Split children are blue or green
+    if (order.splitFrom) {
+        const guideNameInOrder = order.data.guia.split(' ')[0].toUpperCase();
+        const choferNameInOrder = (order.data.services[0]?.chofer || '').replace(/^CONT\.\s/i, '').split(' ')[0].toUpperCase();
+        
+        // Check for guide split first (blue)
+        if (order.orderName.toUpperCase().includes(`- ${guideNameInOrder}`)) {
+             return "bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200/80 dark:hover:bg-blue-900/50";
+        }
+        // Then check for driver split (green)
+        if (choferNameInOrder && order.orderName.toUpperCase().includes(`- ${choferNameInOrder}`)) {
+            return "bg-green-100 dark:bg-green-900/30 hover:bg-green-200/80 dark:hover:bg-green-900/50";
+        }
+    }
+    
+    // 3. Default row
+    return "";
   };
 
   const numSelected = selectedOrderIds.size;

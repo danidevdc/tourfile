@@ -59,7 +59,7 @@ function getFirstDateFromServices(services: ServiceOrderData['services']): Date 
 function formatOrderName(date: Date, fileNumber: string, splitSuffix?: string): string {
     const datePart = format(date, 'dd_MMMM_yyyy', { locale: es }).toUpperCase();
     const baseName = `ODS_${datePart}_${fileNumber.replace(/[\s/]/g, '_')}`;
-    const namePart = splitSuffix ? splitSuffix.replace(/^CONT\.\s/i, '').split(' ')[0] : undefined;
+    const namePart = splitSuffix ? splitSuffix.replace(/^CONT\.\s/i, '').split(' ')[0].toUpperCase() : undefined;
     return namePart ? `${baseName} - ${namePart}` : baseName;
 }
 
@@ -79,7 +79,7 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
         updatedAt: serverTimestamp(),
     };
     
-    // If this is a split order, store the ID of the parent order.
+    // If this is a split order, store the original order name.
     if (baseOrderName) {
         newOrderPayload.splitFrom = baseOrderName;
     }
