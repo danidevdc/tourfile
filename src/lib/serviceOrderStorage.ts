@@ -28,11 +28,12 @@ export interface StoredServiceOrder {
   createdBy: string;
   createdAt: Date;
   updatedAt?: Date;
-  data: ServiceOrderData;
+  data: ServiceOrderData & { isSplitParent?: boolean }; // Add isSplitParent to the data object
   status: OrderStatus; // Status is now mandatory
   deletedBy?: string; // Optional field for who deleted it
   splitFrom?: string; // ID of the parent order if this is a split child
 }
+
 
 function getFirstDateFromServices(services: ServiceOrderData['services']): Date {
     if (!services || services.length === 0) {
@@ -65,31 +66,35 @@ function formatOrderName(date: Date, fileNumber: string, splitSuffix?: string): 
 export async function saveServiceOrder(orderData: ServiceOrderData, createdByEmail: string, baseOrderName?: string, splitKey?: string): Promise<string> {
     if (!db) throw new Error("Firestore not initialized.");
 
-    let orderName;
+    let orderName: string;
     const firstDate = getFirstDateFromServices(orderData.services);
 
     if (baseOrderName && splitKey) {
-        orderName = `${baseOrderName} - ${splitKey.split(' ')[0]}`;
+        orderName = `${baseOrderName.split(' - ')[0]} - ${splitKey.split(' ')[0]}`;
     } else {
         orderName = formatOrderName(firstDate, orderData.file);
     }
-
-    const newOrder: Omit<StoredServiceOrder, 'id' | 'createdAt' | 'updatedAt' > = {
+    
+    // Base object for the new order
+    const newOrderPayload: any = {
         orderName,
         createdBy: createdByEmail,
         data: orderData,
         status: 'creado',
-        splitFrom: baseOrderName ? orderData.id : undefined, // Link back to the parent
-    };
-    
-    const docRef = await addDoc(collection(db, 'serviceOrders'), {
-        ...newOrder,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-    });
+    };
+    
+    // Conditionally add the splitFrom field only if it's a split operation
+    if (baseOrderName) {
+        newOrderPayload.splitFrom = baseOrderName.split(' - ')[0]; // Store the original base name
+    }
+
+    const docRef = await addDoc(collection(db, 'serviceOrders'), newOrderPayload);
 
     return docRef.id;
 }
+
 
 export async function updateServiceOrder(orderId: string, orderData: ServiceOrderData, status: OrderStatus = 'editado'): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
