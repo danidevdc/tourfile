@@ -59,21 +59,15 @@ function getFirstDateFromServices(services: ServiceOrderData['services']): Date 
 function formatOrderName(date: Date, fileNumber: string, splitSuffix?: string): string {
     const datePart = format(date, 'dd_MMMM_yyyy', { locale: es }).toUpperCase();
     const baseName = `ODS_${datePart}_${fileNumber.replace(/[\s/]/g, '_')}`;
-    const namePart = splitSuffix ? splitSuffix.split(' ')[0] : undefined;
+    const namePart = splitSuffix ? splitSuffix.replace(/^CONT\.\s/i, '').split(' ')[0] : undefined;
     return namePart ? `${baseName} - ${namePart}` : baseName;
 }
 
 export async function saveServiceOrder(orderData: ServiceOrderData, createdByEmail: string, baseOrderName?: string, splitKey?: string): Promise<string> {
     if (!db) throw new Error("Firestore not initialized.");
 
-    let orderName: string;
     const firstDate = getFirstDateFromServices(orderData.services);
-
-    if (baseOrderName && splitKey) {
-        orderName = `${baseOrderName.split(' - ')[0]} - ${splitKey.split(' ')[0]}`;
-    } else {
-        orderName = formatOrderName(firstDate, orderData.file);
-    }
+    const orderName = formatOrderName(firstDate, orderData.file, splitKey);
     
     // Base object for the new order
     const newOrderPayload: any = {
@@ -85,9 +79,9 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
         updatedAt: serverTimestamp(),
     };
     
-    // Conditionally add the splitFrom field only if it's a split operation
+    // If this is a split order, store the ID of the parent order.
     if (baseOrderName) {
-        newOrderPayload.splitFrom = baseOrderName.split(' - ')[0]; // Store the original base name
+        newOrderPayload.splitFrom = baseOrderName;
     }
 
     const docRef = await addDoc(collection(db, 'serviceOrders'), newOrderPayload);

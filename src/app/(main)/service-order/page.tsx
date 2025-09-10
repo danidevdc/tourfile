@@ -366,16 +366,13 @@ export default function ServiceOrderListPage() {
           return "bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200/80 dark:hover:bg-purple-900/50";
       }
       if (order.splitFrom) {
-          const parentOrder = orders.find(o => o.id === order.splitFrom);
-          if (parentOrder) {
-              const guideNameInOrder = order.data.guia.split(' ')[0].toUpperCase();
-              const driverNameInOrder = order.data.services[0]?.chofer?.split(' ')[0].toUpperCase() || '';
-              if (order.orderName.includes(guideNameInOrder)) {
-                  return "bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200/80 dark:hover:bg-blue-900/50";
-              }
-              if (order.orderName.includes(driverNameInOrder)) {
-                  return "bg-green-100 dark:bg-green-900/30 hover:bg-green-200/80 dark:hover:bg-green-900/50";
-              }
+          const guideNameInOrder = order.data.guia.split(' ')[0].toUpperCase();
+          if (order.orderName.toUpperCase().includes(guideNameInOrder)) {
+              return "bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200/80 dark:hover:bg-blue-900/50";
+          }
+          const choferNameInOrder = (order.data.services[0]?.chofer || '').replace(/^CONT\.\s/i, '').split(' ')[0].toUpperCase();
+          if (choferNameInOrder && order.orderName.toUpperCase().includes(choferNameInOrder)) {
+              return "bg-green-100 dark:bg-green-900/30 hover:bg-green-200/80 dark:hover:bg-green-900/50";
           }
       }
       return "";
