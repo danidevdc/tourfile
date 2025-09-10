@@ -121,9 +121,9 @@ export default function EditServiceOrderLogicPage() {
       keyword: '',
       activity: '',
       isActive: true,
-      order: rules.length > 0 ? Math.max(...rules.map(r => r.order)) + 1 : 0,
+      order: rules.length > 0 ? Math.min(...rules.map(r => r.order)) - 1 : 0,
     };
-    setRules(prevRules => [...prevRules, newRule]);
+    setRules(prevRules => [newRule, ...prevRules]);
   };
 
   const handleDeleteRule = async () => {
