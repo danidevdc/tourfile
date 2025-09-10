@@ -402,8 +402,8 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                           placeholder="Chofer..."
                           className="h-8 text-xs"
                           triggerClassName="bg-card/80"
-                          disabled={splitBy !== 'driver'}
-                        />
+                          disabled={splitBy !== 'driver'}>
+                        </Combobox>
                       </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-left">
                         <Input
