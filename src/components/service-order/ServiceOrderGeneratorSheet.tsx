@@ -507,7 +507,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                 </div>
                                 <div className="col-span-2">
                                     <Label>Bus/Tipo Chofer*</Label>
-                                    <Select value={busTypeSelection} onValueChange={setChoferSelection}>
+                                    <Select value={busTypeSelection} onValueChange={setBusTypeSelection}>
                                         <SelectTrigger className={cn("mt-1 bg-card", busTypeSelection && "border-green-500 font-medium")}>
                                             <SelectValue placeholder="Seleccionar..." />
                                         </SelectTrigger>
