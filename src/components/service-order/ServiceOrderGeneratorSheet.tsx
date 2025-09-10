@@ -250,11 +250,13 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         }
 
         const generatedServicesRaw = generateServicesFromExcelColumn(excelData, foundFileColumnIndex, serviceOrderRules, activities, flights);
+        
+        // FIX: Ensure main guide, bus, and chofer are assigned to each generated service
         const generatedServicesWithDetails = generatedServicesRaw.map(service => ({
             ...service,
-            guia: mainGuide,
-            bus: mainBus,
-            chofer: mainChofer,
+            guia: service.guia || mainGuide,
+            bus: service.bus || mainBus,
+            chofer: service.chofer || mainChofer,
         }));
         
         setOrderData(prev => ({ ...prev, services: generatedServicesWithDetails }));
