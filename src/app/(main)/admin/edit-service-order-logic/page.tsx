@@ -109,9 +109,16 @@ export default function EditServiceOrderLogicPage() {
 
   const handleInputChange = (id: string, field: keyof ServiceOrderRule, value: string | boolean) => {
     setRules(prevRules =>
-      prevRules.map(rule =>
-        rule.id === id ? { ...rule, [field]: value } : rule
-      )
+      prevRules.map(rule => {
+        if (rule.id === id) {
+          const updatedRule = { ...rule, [field]: value };
+           if (rule.id.startsWith('new_') && field === 'keyword' && (value as string).length > 0) {
+            updatedRule.isActive = true;
+          }
+          return updatedRule;
+        }
+        return rule;
+      })
     );
   };
 
@@ -120,7 +127,7 @@ export default function EditServiceOrderLogicPage() {
       id: `new_${Date.now()}`,
       keyword: '',
       activity: '',
-      isActive: true,
+      isActive: false, // Start as disabled by default
       order: rules.length > 0 ? Math.min(...rules.map(r => r.order)) - 1 : 0,
     };
     setRules(prevRules => [newRule, ...prevRules]);

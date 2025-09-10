@@ -73,9 +73,17 @@ export default function EditPettyCashLogicPage() {
 
   const handleInputChange = (id: string, field: keyof ExpenseRule, value: string | number | boolean) => {
     setRules(prevRules =>
-      prevRules.map(rule =>
-        rule.id === id ? { ...rule, [field]: value } : rule
-      )
+      prevRules.map(rule => {
+        if (rule.id === id) {
+          const updatedRule = { ...rule, [field]: value };
+          // If this is a new rule and the user is typing in the keyword field for the first time, activate it.
+          if (rule.id.startsWith('new_') && field === 'keyword' && (value as string).length > 0) {
+            updatedRule.isActive = true;
+          }
+          return updatedRule;
+        }
+        return rule;
+      })
     );
   };
 
@@ -87,7 +95,7 @@ export default function EditPettyCashLogicPage() {
       unitPrice: 0,
       quantityFormula: '1',
       city: 'La Paz',
-      isActive: true,
+      isActive: false, // Start as disabled by default
       order: rules.length > 0 ? Math.min(...rules.map(r => r.order)) - 1 : 0,
     };
     setRules(prevRules => [newRule, ...prevRules]);
