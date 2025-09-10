@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, type ChangeEvent, useMemo } from "react";
@@ -556,19 +557,18 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                             triggerClassName={cn(newService.servicio && "border-green-500 font-medium")}
                                         />
                                     </div>
-                                    {(newService.servicio?.includes('TRF IN') || newService.servicio?.includes('TRF OUT')) && (
-                                        <div className="flex-grow" style={{ minWidth: '200px' }}>
-                                            <Label>Vuelo</Label>
-                                            <Combobox 
-                                                options={filteredFlightOptions} 
-                                                value={newService.vuelo || ''} 
-                                                onSelect={handleFlightSelect} 
-                                                placeholder="Seleccionar vuelo..." 
-                                                className="mt-1 bg-card"
-                                                triggerClassName={cn(newService.vuelo && "border-green-500 font-medium")}
-                                            />
-                                        </div>
-                                    )}
+                                    <div className="flex-grow" style={{ minWidth: '200px' }}>
+                                        <Label>Vuelo</Label>
+                                        <Combobox 
+                                            options={filteredFlightOptions} 
+                                            value={newService.vuelo || ''} 
+                                            onSelect={handleFlightSelect} 
+                                            placeholder="Seleccionar vuelo..." 
+                                            className="mt-1 bg-card"
+                                            triggerClassName={cn(newService.vuelo && "border-green-500 font-medium")}
+                                            disabled={!newService.servicio?.toUpperCase().includes('TRF')}
+                                        />
+                                    </div>
                                     <div style={{ width: '100px' }}>
                                         <Label>Hora</Label>
                                         <Input value={newService.hora} onChange={handleTimeInputChange} onBlur={handleTimeInputBlur} placeholder="HH:mm" maxLength={5} className="mt-1 w-full"/>
@@ -635,15 +635,14 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                                     </TableCell>
                                                     <TableCell className="p-2 border-r border-primary/20 font-sans">{s.servicio}</TableCell>
                                                     <TableCell className="p-1 border-r border-primary/20">
-                                                        {isTransfer ? (
-                                                             <Combobox 
-                                                                options={flights.map(f => ({value: f.flightNumber, label: `${f.flightNumber} (${f.time})`}))} 
-                                                                value={s.vuelo || ''} 
-                                                                onSelect={(val) => handleServiceSummaryChange(originalIndex, 'vuelo', val)} 
-                                                                placeholder="Vuelo..." 
-                                                                className="h-8 text-xs" triggerClassName="bg-card/80"
-                                                            />
-                                                        ) : s.vuelo}
+                                                        <Combobox 
+                                                            options={flights.map(f => ({value: f.flightNumber, label: `${f.flightNumber} (${f.time})`}))} 
+                                                            value={s.vuelo || ''} 
+                                                            onSelect={(val) => handleServiceSummaryChange(originalIndex, 'vuelo', val)} 
+                                                            placeholder="Vuelo..." 
+                                                            className="h-8 text-xs" triggerClassName="bg-card/80"
+                                                            disabled={!isTransfer}
+                                                        />
                                                     </TableCell>
                                                     <TableCell className="p-2 border-r border-primary/20 font-sans">{guiaFirstName}</TableCell>
                                                     <TableCell className="p-2 border-r border-primary/20">{s.bus}</TableCell>

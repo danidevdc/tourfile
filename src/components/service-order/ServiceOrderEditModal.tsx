@@ -282,12 +282,18 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                             <Label className="text-xs font-semibold">Actividad</Label>
                             <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 h-8 text-xs" triggerClassName="bg-card/80" />
                         </div>
-                        {(newService.servicio?.includes('TRF')) && (
-                          <div className="flex-grow">
-                              <Label className="text-xs font-semibold">Vuelo</Label>
-                              <Combobox options={filteredFlightOptions} value={newService.vuelo || ''} onSelect={handleFlightSelect} placeholder="Seleccionar vuelo..." className="mt-1 h-8 text-xs" triggerClassName="bg-card/80" />
-                          </div>
-                        )}
+                        <div className="flex-grow">
+                            <Label className="text-xs font-semibold">Vuelo</Label>
+                            <Combobox 
+                                options={filteredFlightOptions} 
+                                value={newService.vuelo || ''} 
+                                onSelect={handleFlightSelect} 
+                                placeholder="Seleccionar vuelo..." 
+                                className="mt-1 h-8 text-xs" 
+                                triggerClassName="bg-card/80" 
+                                disabled={!newService.servicio?.toUpperCase().includes('TRF')}
+                            />
+                        </div>
                         <div style={{ width: '90px' }}>
                             <Label className="text-xs font-semibold">Hora</Label>
                             <Input value={newService.hora} onChange={handleNewServiceTimeChange} onBlur={(e) => handleTimeBlur(-1, e.target.value)} placeholder="HH:mm" maxLength={5} className="mt-1 h-8 text-xs"/>
@@ -326,6 +332,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                   
                   const guiaFirstName = (s.guia || editableOrderData.guia || '').split(' ')[0];
                   const canDelete = editableOrderData.services.length > 1;
+                  const isTransfer = s.servicio?.toUpperCase().includes('TRF');
 
                   return (
                     <TableRow key={originalIndex} className={cn("break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
@@ -364,6 +371,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                             placeholder="Vuelo..."
                             className="h-8 text-xs"
                             triggerClassName="bg-card/80"
+                            disabled={!isTransfer}
                         />
                       </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium">
