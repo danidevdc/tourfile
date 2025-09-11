@@ -97,16 +97,32 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
                         return (
                           <TableRow key={i} className="break-words h-8 bg-white hover:bg-white text-xs" >
-                             <TableCell className="p-1 border-r border-gray-200 text-center font-semibold flex items-center justify-center">
-                               {showDate && s.fecha ? s.fecha : ""}
+                             <TableCell className="p-1 border-r border-gray-200 text-center font-semibold">
+                               <div className="flex items-center justify-center h-full">
+                                {showDate && s.fecha ? s.fecha : ""}
+                               </div>
                              </TableCell>
-                             <TableCell className="p-1 border-r border-gray-200 text-center flex items-center justify-center">{s.hora}</TableCell>
-                             <TableCell className="p-1 border-r border-gray-200 text-left flex items-center">{s.servicio}</TableCell>
-                             <TableCell className="p-1 border-r border-gray-200 text-center flex items-center justify-center">{s.vuelo || "—"}</TableCell>
-                             <TableCell className="p-1 border-r border-gray-200 text-center flex items-center justify-center">{guiaFirstName}</TableCell>
-                             <TableCell className="p-1 border-r border-gray-200 text-center flex items-center justify-center">{s.bus}</TableCell>
-                             <TableCell className="p-1 border-r border-gray-200 text-center flex items-center justify-center">{choferFirstName}</TableCell>
-                             <TableCell className="p-1 text-left flex items-center">{s.observaciones}</TableCell>
+                             <TableCell className="p-1 border-r border-gray-200 text-center">
+                               <div className="flex items-center justify-center h-full">{s.hora}</div>
+                             </TableCell>
+                             <TableCell className="p-1 border-r border-gray-200 text-left">
+                               <div className="flex items-center h-full">{s.servicio}</div>
+                              </TableCell>
+                             <TableCell className="p-1 border-r border-gray-200 text-center">
+                               <div className="flex items-center justify-center h-full">{s.vuelo || "—"}</div>
+                             </TableCell>
+                             <TableCell className="p-1 border-r border-gray-200 text-center">
+                               <div className="flex items-center justify-center h-full">{guiaFirstName}</div>
+                              </TableCell>
+                             <TableCell className="p-1 border-r border-gray-200 text-center">
+                               <div className="flex items-center justify-center h-full">{s.bus}</div>
+                              </TableCell>
+                             <TableCell className="p-1 border-r border-gray-200 text-center">
+                               <div className="flex items-center justify-center h-full">{choferFirstName}</div>
+                              </TableCell>
+                             <TableCell className="p-1 text-left">
+                               <div className="flex items-center h-full">{s.observaciones}</div>
+                              </TableCell>
                           </TableRow>
                         );
                       })
@@ -283,16 +299,30 @@ export function ServiceOrderPrintPage() {
 
                         return (
                           <TableRow key={i} className="break-words h-8 bg-white hover:bg-white text-xs">
-                            <TableCell className="p-1 border-r border-gray-200 text-center font-semibold flex items-center justify-center">
-                              {showDate && s.fecha ? s.fecha : ""}
+                            <TableCell className="p-1 border-r border-gray-200 text-center font-semibold">
+                              <div className="flex items-center justify-center h-full">{showDate && s.fecha ? s.fecha : ""}</div>
                             </TableCell>
-                             <TableCell className="p-1 border-r border-gray-200 text-center flex items-center justify-center">{s.hora}</TableCell>
-                             <TableCell className="p-1 border-r border-gray-200 text-left flex items-center">{s.servicio}</TableCell>
-                             <TableCell className="p-1 border-r border-gray-200 text-center flex items-center justify-center">{s.vuelo || "—"}</TableCell>
-                             <TableCell className="p-1 border-r border-gray-200 text-center flex items-center justify-center">{guiaFirstName}</TableCell>
-                             <TableCell className="p-1 border-r border-gray-200 text-center flex items-center justify-center">{s.bus}</TableCell>
-                             <TableCell className="p-1 border-r border-gray-200 text-center flex items-center justify-center">{choferFirstName}</TableCell>
-                             <TableCell className="p-1 text-left flex items-center">{s.observaciones}</TableCell>
+                             <TableCell className="p-1 border-r border-gray-200 text-center">
+                               <div className="flex items-center justify-center h-full">{s.hora}</div>
+                             </TableCell>
+                             <TableCell className="p-1 border-r border-gray-200 text-left">
+                               <div className="flex items-center h-full">{s.servicio}</div>
+                              </TableCell>
+                             <TableCell className="p-1 border-r border-gray-200 text-center">
+                               <div className="flex items-center justify-center h-full">{s.vuelo || "—"}</div>
+                             </TableCell>
+                             <TableCell className="p-1 border-r border-gray-200 text-center">
+                               <div className="flex items-center justify-center h-full">{guiaFirstName}</div>
+                              </TableCell>
+                             <TableCell className="p-1 border-r border-gray-200 text-center">
+                               <div className="flex items-center justify-center h-full">{s.bus}</div>
+                              </TableCell>
+                             <TableCell className="p-1 border-r border-gray-200 text-center">
+                               <div className="flex items-center justify-center h-full">{choferFirstName}</div>
+                              </TableCell>
+                             <TableCell className="p-1 text-left">
+                               <div className="flex items-center h-full">{s.observaciones}</div>
+                              </TableCell>
                           </TableRow>
                         );
                       })
@@ -314,3 +344,5 @@ export function ServiceOrderPrintPage() {
       </div>
     );
 }
+
+    
