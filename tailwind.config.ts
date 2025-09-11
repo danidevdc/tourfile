@@ -18,6 +18,7 @@ export default {
         headline: ['Roboto', 'sans-serif'],
         code: ['monospace'],
         mono: ['"Lucida Console"', 'monospace'],
+        sans: ['ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',
@@ -94,3 +95,5 @@ export default {
   },
   plugins: [require('tailwindcss-animate')],
 } satisfies Config;
+
+    

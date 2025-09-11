@@ -51,12 +51,11 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
     await copiarVistaPreviaAlClipboard(captureRef, toast);
   };
 
-  const PrintableView = ({ inModal = false }: { inModal?: boolean }) => (
+  const PrintableView = () => (
      <div className={cn(
-        "bg-white text-zinc-900 p-4 font-sans uppercase",
+        "bg-white text-zinc-900 p-4 ui-sans-serif uppercase",
       )}>
         <div className="relative">
-          <div className="h-1 w-full bg-black" />
            <div className="pt-4 pb-3 flex items-center justify-center font-bold text-sm">
              ORDEN DE SERVICIO
           </div>
@@ -64,9 +63,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
         </div>
 
         {/* New container for the bordered content */}
-        <div className={cn(
-            inModal && "border-2 border-gray-300 rounded-lg mt-4 p-4"
-        )}>
+        <div className="border-2 border-gray-300 rounded-lg mt-4 p-4">
             <div className="space-y-1 text-sm">
               <MetaItem label="Guía:" value={(data.guia || '').split(' ')[0]} />
               <MetaItem label="File:" value={data.file} />
@@ -102,7 +99,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
 
                         return (
-                          <TableRow key={i} className={cn("break-words align-middle h-8 bg-white hover:bg-gray-50 text-xs", i % 2 !== 0 && "bg-gray-50")} >
+                          <TableRow key={i} className="break-words align-middle h-8 bg-white hover:bg-gray-50 text-xs" >
                              <TableCell className="p-1 align-middle border-r border-gray-200 text-center font-semibold">
                                {showDate && s.fecha ? s.fecha : ""}
                              </TableCell>
@@ -142,7 +139,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
         </DialogHeader>
         <div className="flex-grow overflow-y-auto p-4">
           <div ref={captureRef} id="order-preview-capture">
-            <PrintableView inModal={true} />
+            <PrintableView />
           </div>
         </div>
         <DialogFooter className="sticky bottom-0 z-10 flex justify-end gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2 mt-auto">
@@ -176,7 +173,7 @@ function MetaItem({ label, value }: { label: string; value?: string | number; })
 
 function InfoBlock({ title, text }: { title: string; text?: string; }) {
   return (
-    <div className="border border-gray-300 rounded-md p-2">
+    <div className="border border-gray-300 rounded-md p-2 bg-gray-50">
       <p className="tracking-wide mb-1 font-bold text-xs">{title}</p>
       <p className="whitespace-pre-wrap leading-5 text-xs">{text || "—"}</p>
     </div>
@@ -228,9 +225,8 @@ export function ServiceOrderPrintPage() {
     
     // Use a simplified version of the preview modal's content for printing
     return (
-      <div className="bg-white text-zinc-900 p-4 uppercase font-sans">
+      <div className="bg-white text-zinc-900 p-4 uppercase ui-sans-serif">
           <div className="relative">
-            <div className="h-1 w-full bg-black" />
              <div className="pt-4 pb-3 flex items-center justify-center font-bold text-sm">
                ORDEN DE SERVICIO
             </div>
@@ -285,7 +281,7 @@ export function ServiceOrderPrintPage() {
                         const choferFirstName = choferSanitized.split(' ')[0];
 
                         return (
-                          <TableRow key={i} className={cn("break-words align-middle h-8 bg-white hover:bg-gray-50 text-xs", i % 2 !== 0 && "bg-gray-50")}>
+                          <TableRow key={i} className="break-words align-middle h-8 bg-white hover:bg-gray-50 text-xs">
                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center font-semibold">
                               {showDate && s.fecha ? s.fecha : ""}
                             </TableCell>
@@ -317,3 +313,5 @@ export function ServiceOrderPrintPage() {
       </div>
     );
 }
+
+    
