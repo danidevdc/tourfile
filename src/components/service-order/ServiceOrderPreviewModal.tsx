@@ -4,6 +4,7 @@
 import { useMemo, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { parse } from "date-fns";
+import { FaWhatsapp } from "react-icons/fa";
 
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
@@ -175,10 +176,11 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
         <DialogFooter className="sticky bottom-0 z-10 flex justify-end gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2 mt-auto">
             <Button
               type="button"
-              variant="secondary"
+              className="bg-green-600 hover:bg-green-700 text-white"
               size="sm"
               onClick={handleCopy}
             >
+              <FaWhatsapp className="mr-2 h-4 w-4" />
               Copiar imagen (Ctrl+V en WhatsApp)
             </Button>
             <DialogClose asChild>
