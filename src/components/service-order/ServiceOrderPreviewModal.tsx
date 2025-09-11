@@ -55,7 +55,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
         "bg-white text-zinc-900 p-4 ui-sans-serif uppercase",
       )}>
         <div className="relative">
-           <div className="pt-4 pb-3 flex items-center justify-center font-bold text-xl">
+           <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
              ORDEN DE SERVICIO
           </div>
         </div>
@@ -175,7 +175,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
 function MetaItem({ label, value }: { label: string; value?: string | number; }) {
   return (
-    <div className="border border-gray-300 rounded-md p-1 bg-gray-50 text-xs">
+    <div className="border border-gray-300 rounded-md px-1.5 py-0.5 bg-gray-50 text-xs">
       <p className="font-bold text-black inline-block w-20 flex-shrink-0">{label}</p>
       <p className="font-normal inline-block">{value || "—"}</p>
     </div>
@@ -238,7 +238,7 @@ export function ServiceOrderPrintPage() {
     return (
       <div className="bg-white text-zinc-900 p-4 uppercase ui-sans-serif">
           <div className="relative">
-             <div className="pt-4 pb-3 flex items-center justify-center font-bold text-xl">
+             <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
                ORDEN DE SERVICIO
             </div>
           </div>
@@ -344,4 +344,3 @@ export function ServiceOrderPrintPage() {
       </div>
     );
 }
-
