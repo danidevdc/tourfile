@@ -56,14 +56,14 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
         "bg-white text-zinc-900 p-4 ui-sans-serif uppercase",
       )}>
         <div className="relative">
-           <div className="pt-4 pb-3 flex items-center justify-center font-bold text-base">
+           <div className="pt-4 pb-3 flex items-center justify-center font-bold text-lg">
              ORDEN DE SERVICIO
           </div>
         </div>
 
         {/* New container for the bordered content */}
         <div className="border-2 border-gray-400 rounded-lg mt-1 p-4">
-            <div className="space-y-1 text-sm">
+            <div className="space-y-1.5 text-sm">
               <MetaItem label="Guía:" value={(data.guia || '').split(' ')[0]} />
               <MetaItem label="File:" value={data.file} />
               <MetaItem label="Ref:" value={data.ref} />
@@ -161,7 +161,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
 function MetaItem({ label, value }: { label: string; value?: string | number; }) {
   return (
-    <div className="flex items-baseline gap-2">
+    <div className="flex items-center gap-2 border border-gray-300 rounded-md p-1.5 bg-gray-50">
       <p className="font-bold text-black w-20 flex-shrink-0">{label}</p>
       <p className="font-normal flex-grow">{value || "—"}</p>
     </div>
@@ -224,13 +224,13 @@ export function ServiceOrderPrintPage() {
     return (
       <div className="bg-white text-zinc-900 p-4 uppercase ui-sans-serif">
           <div className="relative">
-             <div className="pt-4 pb-3 flex items-center justify-center font-bold text-base">
+             <div className="pt-4 pb-3 flex items-center justify-center font-bold text-lg">
                ORDEN DE SERVICIO
             </div>
           </div>
 
         <div className="border-2 border-gray-400 rounded-lg mt-1 p-4">
-             <div className="space-y-1 text-sm">
+             <div className="space-y-1.5 text-sm">
               <MetaItem label="Guía:" value={(order.data.guia || '').split(' ')[0]} />
               <MetaItem label="File:" value={order.data.file} />
               <MetaItem label="Ref:" value={order.data.ref} />
@@ -316,3 +316,5 @@ export function ServiceOrderPrintPage() {
       </div>
     );
 }
+
+    
