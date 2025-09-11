@@ -52,18 +52,17 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
   };
 
   const PrintableView = () => (
-     <div className={cn(
+     <div ref={captureRef} className={cn(
         "bg-white text-zinc-900 p-4 ui-sans-serif uppercase",
       )}>
         <div className="relative">
-           <div className="pt-4 pb-3 flex items-center justify-center font-bold text-sm">
+           <div className="pt-4 pb-3 flex items-center justify-center font-bold text-base">
              ORDEN DE SERVICIO
           </div>
-          <Separator className="bg-gray-400"/>
         </div>
 
         {/* New container for the bordered content */}
-        <div className="border-2 border-gray-300 rounded-lg mt-4 p-4">
+        <div className="border-2 border-gray-400 rounded-lg mt-1 p-4">
             <div className="space-y-1 text-sm">
               <MetaItem label="Guía:" value={(data.guia || '').split(' ')[0]} />
               <MetaItem label="File:" value={data.file} />
@@ -99,7 +98,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
 
                         return (
-                          <TableRow key={i} className="break-words align-middle h-8 bg-white hover:bg-gray-50 text-xs" >
+                          <TableRow key={i} className="break-words align-middle h-8 bg-white hover:bg-white text-xs" >
                              <TableCell className="p-1 align-middle border-r border-gray-200 text-center font-semibold">
                                {showDate && s.fecha ? s.fecha : ""}
                              </TableCell>
@@ -138,9 +137,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
            <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
         <div className="flex-grow overflow-y-auto p-4">
-          <div ref={captureRef} id="order-preview-capture">
-            <PrintableView />
-          </div>
+          <PrintableView />
         </div>
         <DialogFooter className="sticky bottom-0 z-10 flex justify-end gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2 mt-auto">
             <Button
@@ -166,7 +163,7 @@ function MetaItem({ label, value }: { label: string; value?: string | number; })
   return (
     <div className="flex items-baseline gap-2">
       <p className="font-bold text-black w-20 flex-shrink-0">{label}</p>
-      <p className="font-normal border-b border-dotted border-gray-400 flex-grow">{value || "—"}</p>
+      <p className="font-normal flex-grow">{value || "—"}</p>
     </div>
   );
 }
@@ -227,13 +224,12 @@ export function ServiceOrderPrintPage() {
     return (
       <div className="bg-white text-zinc-900 p-4 uppercase ui-sans-serif">
           <div className="relative">
-             <div className="pt-4 pb-3 flex items-center justify-center font-bold text-sm">
+             <div className="pt-4 pb-3 flex items-center justify-center font-bold text-base">
                ORDEN DE SERVICIO
             </div>
-            <Separator className="bg-gray-400" />
           </div>
 
-        <div className="border-2 border-gray-400 rounded-lg mt-4 p-4">
+        <div className="border-2 border-gray-400 rounded-lg mt-1 p-4">
              <div className="space-y-1 text-sm">
               <MetaItem label="Guía:" value={(order.data.guia || '').split(' ')[0]} />
               <MetaItem label="File:" value={order.data.file} />
@@ -273,7 +269,14 @@ export function ServiceOrderPrintPage() {
                           if (hasTimeB) return 1;
                           return 0;
                         }).map((s, i) => {
-                        const showDate = i === 0 || order.data.services.sort((a,b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora))[i - 1].fecha !== s.fecha;
+                        const showDate = i === 0 || order.data.services.sort((a,b) => {
+                          try {
+                            const dateA = parse(a.fecha, 'dd/MM/yyyy', new Date()).getTime();
+                            const dateB = parse(b.fecha, 'dd/MM/yyyy', new Date()).getTime();
+                            if (dateA !== dateB) return dateA - dateB;
+                          } catch {}
+                          return (a.hora || '').localeCompare(b.hora || '');
+                        })[i - 1].fecha !== s.fecha;
                         const guiaCompleto = s.guia || order.data.guia;
                         const guiaFirstName = (guiaCompleto || '').split(' ')[0];
                         const choferCompleto = s.chofer || '';
@@ -281,7 +284,7 @@ export function ServiceOrderPrintPage() {
                         const choferFirstName = choferSanitized.split(' ')[0];
 
                         return (
-                          <TableRow key={i} className="break-words align-middle h-8 bg-white hover:bg-gray-50 text-xs">
+                          <TableRow key={i} className="break-words align-middle h-8 bg-white hover:bg-white text-xs">
                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center font-semibold">
                               {showDate && s.fecha ? s.fecha : ""}
                             </TableCell>
@@ -313,5 +316,3 @@ export function ServiceOrderPrintPage() {
       </div>
     );
 }
-
-    
