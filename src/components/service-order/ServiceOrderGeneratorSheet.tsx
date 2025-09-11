@@ -36,6 +36,9 @@ const initialNewServiceState: ServiceItem = {
     fecha: '', hora: '', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
 };
 
+const defaultObsText = '';
+const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS REALIZADOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA\nLA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
+
 const SESSION_STORAGE_FILE_KEY = 'serviceOrderProgramFile_v2';
 const SESSION_STORAGE_FILENAME_KEY = 'serviceOrderProgramFileName_v2';
 
@@ -728,3 +731,5 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         </Sheet>
     );
 }
+
+    
