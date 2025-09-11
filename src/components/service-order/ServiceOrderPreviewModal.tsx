@@ -47,77 +47,53 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
     });
   }, [data.services]);
   
-  const dateColorGroupMap = useMemo(() => {
-      const map = new Map<string, number>();
-      if (services.length === 0) return map;
-      
-      let colorGroupIndex = 0;
-      map.set(services[0].fecha, colorGroupIndex);
-
-      for (let i = 1; i < services.length; i++) {
-          if (services[i].fecha !== services[i-1].fecha) {
-              colorGroupIndex++;
-          }
-          map.set(services[i].fecha, colorGroupIndex);
-      }
-      return map;
-  }, [services]);
-
   const handleCopy = async () => {
     await copiarVistaPreviaAlClipboard(captureRef, toast);
   };
 
   const PrintableView = ({ inModal = false }: { inModal?: boolean }) => (
      <div className={cn(
-        "bg-white text-zinc-900 p-4 uppercase",
-      )} style={{fontFamily: '"Lucida Console", monospace'}}>
-        <div className="relative font-mono">
-          <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
-           <div className="pt-4 pb-3 flex items-center justify-center font-bold text-xs" style={{fontSize: '12px'}}>
+        "bg-white text-zinc-900 p-4 font-sans uppercase",
+      )}>
+        <div className="relative">
+          <div className="h-1 w-full bg-black" />
+           <div className="pt-4 pb-3 flex items-center justify-center font-bold text-sm">
              ORDEN DE SERVICIO
           </div>
-          <Separator />
+          <Separator className="bg-gray-400"/>
         </div>
 
         {/* New container for the bordered content */}
         <div className={cn(
-            inModal && "border-2 border-primary/50 rounded-xl mt-4 p-4"
+            inModal && "border-2 border-gray-300 rounded-lg mt-4 p-4"
         )}>
-            <div className="space-y-2">
-                <div className="grid grid-cols-1 gap-2">
-                    <MetaItem label="Guía:" value={(data.guia || '').split(' ')[0]} />
-                </div>
-                <div className="flex items-stretch gap-2">
-                   <MetaItem label="File:" value={data.file} className="flex-none w-40" />
-                   <MetaItem label="Ref:" value={data.ref} className="flex-1" />
-                   <MetaItem label="Nº Pax:" value={data.nPax} className="flex-none w-32" />
-                </div>
-                 <div className="grid grid-cols-1 gap-2">
-                    <MetaItem label="Hotel:" value={data.hotel} />
-                </div>
+            <div className="space-y-1 text-sm">
+              <MetaItem label="Guía:" value={(data.guia || '').split(' ')[0]} />
+              <MetaItem label="File:" value={data.file} />
+              <MetaItem label="Ref:" value={data.ref} />
+              <MetaItem label="Nº Pax:" value={data.nPax} />
+              <MetaItem label="Hotel:" value={data.hotel} />
             </div>
 
             <div className="mt-4">
-              <div className="rounded-xl border border-primary/20 overflow-hidden">
+              <div className="rounded-lg border border-gray-300 overflow-hidden">
                 <Table className="table-fixed">
                   <TableHeader>
-                    <TableRow className="bg-primary/10 hover:bg-primary/10 h-auto">
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[86px] text-center align-middle" style={{fontSize: '11px'}}>Fecha</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[56px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px'}}>Servicio</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[90px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[85px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
+                    <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto">
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle text-xs">Fecha</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle text-xs">Hora</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle text-xs">Servicio</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-xs">Vuelo</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle text-xs">Guía</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-xs">Bus</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center align-middle text-xs">Chofer</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 h-auto text-left align-middle text-xs">Observaciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {services.length > 0 ? (
                       services.map((s, i) => {
                         const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
-                        const colorGroup = dateColorGroupMap.get(s.fecha) || 0;
-                        const rowBgClass = colorGroup % 2 === 0 ? "bg-white" : "bg-zinc-100";
                         const guiaCompleto = s.guia || data.guia;
                         const guiaFirstName = (guiaCompleto || '').split(' ')[0];
                         const choferCompleto = s.chofer || '';
@@ -126,20 +102,16 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
 
                         return (
-                          <TableRow key={i} className={cn("break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
-                               {showDate && s.fecha ? (
-                                <span className="inline-flex items-center justify-center rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-bold text-primary">
-                                  {s.fecha}
-                                </span>
-                              ) : ("")}
+                          <TableRow key={i} className={cn("break-words align-middle h-8 bg-white hover:bg-gray-50 text-xs", i % 2 !== 0 && "bg-gray-50")} >
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center font-semibold">
+                               {showDate && s.fecha ? s.fecha : ""}
                              </TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border">{s.hora}</span></TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{guiaFirstName}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{choferFirstName}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center">{s.hora}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-left">{s.servicio}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center">{s.vuelo || "—"}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center">{guiaFirstName}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center">{s.bus}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center">{choferFirstName}</TableCell>
                              <TableCell className="p-1 align-middle text-left">{s.observaciones}</TableCell>
                           </TableRow>
                         );
@@ -155,8 +127,8 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
             </div>
 
              <div className="mt-4 grid grid-cols-1 gap-4 uppercase">
-                <InfoBlock title="OBSERVACIONES:" text={data.observations} subtle />
-                <InfoBlock title="NOTA:" text={data.nota} subtle />
+                <InfoBlock title="OBSERVACIONES:" text={data.observations} />
+                <InfoBlock title="NOTA:" text={data.nota} />
             </div>
         </div>
       </div>
@@ -193,20 +165,20 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 }
 
 
-function MetaItem({ label, value, className }: { label: string; value?: string | number; className?: string }) {
+function MetaItem({ label, value }: { label: string; value?: string | number; }) {
   return (
-    <div className={cn("rounded-lg border border-primary/50 bg-card/50 px-3 py-1 flex items-center justify-center gap-2 text-xs", className)} style={{fontFamily: '"Lucida Console", monospace'}}>
-      <p className="font-bold text-primary">{label}</p>
-      <p className="font-normal">{value || "—"}</p>
+    <div className="flex items-baseline gap-2">
+      <p className="font-bold text-black w-20 flex-shrink-0">{label}</p>
+      <p className="font-normal border-b border-dotted border-gray-400 flex-grow">{value || "—"}</p>
     </div>
   );
 }
 
-function InfoBlock({ title, text, subtle = false }: { title: string; text?: string; subtle?: boolean }) {
+function InfoBlock({ title, text }: { title: string; text?: string; }) {
   return (
-    <div className={cn("rounded-xl border p-2", subtle ? "bg-zinc-100 border-dashed" : "bg-card/20")}>
-      <p className="tracking-wide mb-1 font-bold" style={{fontSize: '10px'}}>{title}</p>
-      <p className="whitespace-pre-wrap leading-5" style={{fontSize: '10px'}}>{text || "—"}</p>
+    <div className="border border-gray-300 rounded-md p-2">
+      <p className="tracking-wide mb-1 font-bold text-xs">{title}</p>
+      <p className="whitespace-pre-wrap leading-5 text-xs">{text || "—"}</p>
     </div>
   );
 }
@@ -256,43 +228,37 @@ export function ServiceOrderPrintPage() {
     
     // Use a simplified version of the preview modal's content for printing
     return (
-      <div className="bg-white text-zinc-900 p-4 uppercase" style={{fontFamily: '"Lucida Console", monospace'}}>
-          <div className="relative font-mono">
-            <div className="h-1.5 w-full bg-gradient-to-r from-primary/90 via-primary to-primary/70" />
-             <div className="pt-4 pb-3 flex items-center justify-center font-bold text-xs" style={{fontSize: '12px'}}>
+      <div className="bg-white text-zinc-900 p-4 uppercase font-sans">
+          <div className="relative">
+            <div className="h-1 w-full bg-black" />
+             <div className="pt-4 pb-3 flex items-center justify-center font-bold text-sm">
                ORDEN DE SERVICIO
             </div>
-            <Separator />
+            <Separator className="bg-gray-400" />
           </div>
 
-        <div className="border-2 border-primary/50 rounded-xl mt-4 p-4">
-            <div className="space-y-2">
-              <div className="grid grid-cols-1 gap-2">
-                  <MetaItem label="Guía:" value={(order.data.guia || '').split(' ')[0]} />
-              </div>
-              <div className="flex items-stretch gap-2">
-                 <MetaItem label="File:" value={order.data.file} className="flex-none w-40" />
-                 <MetaItem label="Ref:" value={order.data.ref} className="flex-1" />
-                 <MetaItem label="Nº Pax:" value={order.data.nPax} className="flex-none w-32" />
-              </div>
-               <div className="grid grid-cols-1 gap-2">
-                  <MetaItem label="Hotel:" value={order.data.hotel} />
-              </div>
+        <div className="border-2 border-gray-400 rounded-lg mt-4 p-4">
+             <div className="space-y-1 text-sm">
+              <MetaItem label="Guía:" value={(order.data.guia || '').split(' ')[0]} />
+              <MetaItem label="File:" value={order.data.file} />
+              <MetaItem label="Ref:" value={order.data.ref} />
+              <MetaItem label="Nº Pax:" value={order.data.nPax} />
+              <MetaItem label="Hotel:" value={order.data.hotel} />
             </div>
     
             <div className="mt-4">
-              <div className="rounded-xl border border-primary/20 overflow-hidden">
+              <div className="rounded-lg border border-gray-300 overflow-hidden">
                  <Table className="table-fixed">
                   <TableHeader>
-                    <TableRow className="bg-primary/10 hover:bg-primary/10 h-auto">
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[86px] text-center align-middle" style={{fontSize: '11px'}}>Fecha</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[56px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px'}}>Servicio</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[90px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[85px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
+                    <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto">
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle text-xs">Fecha</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle text-xs">Hora</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle text-xs">Servicio</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-xs">Vuelo</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle text-xs">Guía</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-xs">Bus</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center align-middle text-xs">Chofer</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 h-auto text-left align-middle text-xs">Observaciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -319,20 +285,16 @@ export function ServiceOrderPrintPage() {
                         const choferFirstName = choferSanitized.split(' ')[0];
 
                         return (
-                          <TableRow key={i} className="break-words align-middle h-8" style={{fontSize: '11px'}}>
-                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
-                              {showDate && s.fecha ? (
-                                <span className="inline-flex items-center justify-center rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-bold text-primary">
-                                  {s.fecha}
-                                </span>
-                              ) : ("")}
+                          <TableRow key={i} className={cn("break-words align-middle h-8 bg-white hover:bg-gray-50 text-xs", i % 2 !== 0 && "bg-gray-50")}>
+                            <TableCell className="p-1 align-middle border-r border-gray-200 text-center font-semibold">
+                              {showDate && s.fecha ? s.fecha : ""}
                             </TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><span className="rounded px-1 py-0.5 border">{s.hora}</span></TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-left">{s.servicio}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.vuelo || "—"}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{guiaFirstName}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{s.bus}</TableCell>
-                             <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{choferFirstName}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center">{s.hora}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-left">{s.servicio}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center">{s.vuelo || "—"}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center">{guiaFirstName}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center">{s.bus}</TableCell>
+                             <TableCell className="p-1 align-middle border-r border-gray-200 text-center">{choferFirstName}</TableCell>
                              <TableCell className="p-1 align-middle text-left">{s.observaciones}</TableCell>
                           </TableRow>
                         );
@@ -348,12 +310,10 @@ export function ServiceOrderPrintPage() {
             </div>
     
              <div className="mt-4 grid grid-cols-1 gap-4 uppercase">
-                <InfoBlock title="OBSERVACIONES:" text={order.data.observations} subtle />
-                <InfoBlock title="NOTA:" text={order.data.nota} subtle />
+                <InfoBlock title="OBSERVACIONES:" text={order.data.observations} />
+                <InfoBlock title="NOTA:" text={order.data.nota} />
             </div>
         </div>
       </div>
     );
 }
-
-    
