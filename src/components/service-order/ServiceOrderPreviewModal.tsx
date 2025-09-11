@@ -60,7 +60,6 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
           </div>
         </div>
 
-        {/* New container for the bordered content */}
         <div className="border-2 border-gray-400 rounded-lg mt-1 p-4">
             <div className="space-y-1.5">
               <MetaItem label="Guía:" value={(data.guia || '').split(' ')[0]} />
@@ -160,9 +159,9 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
 function MetaItem({ label, value }: { label: string; value?: string | number; }) {
   return (
-    <div className="flex items-center gap-2 border border-gray-300 rounded-md p-1.5 bg-gray-50">
-      <p className="font-bold text-black w-20 flex-shrink-0 text-xs">{label}</p>
-      <p className="font-normal flex-grow text-xs">{value || "—"}</p>
+    <div className="border border-gray-300 rounded-md p-1.5 bg-gray-50 text-xs">
+      <p className="font-bold text-black inline-block w-20 flex-shrink-0">{label}</p>
+      <p className="font-normal inline-block">{value || "—"}</p>
     </div>
   );
 }
@@ -315,5 +314,3 @@ export function ServiceOrderPrintPage() {
       </div>
     );
 }
-
-    
