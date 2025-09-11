@@ -1,18 +1,20 @@
 
 "use client";
 
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { parse } from "date-fns";
 
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
+import { copiarVistaPreviaAlClipboard } from "@/lib/copyPreview";
 
 import { Dialog, DialogContent, DialogFooter, DialogClose, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 
 interface ServiceOrderPreviewModalProps {
@@ -23,6 +25,8 @@ interface ServiceOrderPreviewModalProps {
 // This component is now overloaded. It can act as a modal or a standalone print page.
 export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreviewModalProps) {
   const { data } = order;
+  const { toast } = useToast();
+  const captureRef = useRef<HTMLDivElement>(null);
 
   const services = useMemo(() => {
     return [...data.services].sort((a, b) => {
@@ -57,6 +61,10 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
       }
       return map;
   }, [services]);
+
+  const handleCopy = async () => {
+    await copiarVistaPreviaAlClipboard(captureRef, toast);
+  };
 
   const PrintableView = ({ inModal = false }: { inModal?: boolean }) => (
      <div className={cn(
@@ -160,10 +168,20 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
            <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
         <div className="flex-grow overflow-y-auto p-4">
-          <PrintableView inModal={true} />
+          <div ref={captureRef} id="order-preview-capture">
+            <PrintableView inModal={true} />
+          </div>
         </div>
         <DialogFooter className="sticky bottom-0 z-10 flex justify-end gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2 mt-auto">
-           <DialogClose asChild>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleCopy}
+            >
+              Copiar imagen (Ctrl+V en WhatsApp)
+            </Button>
+            <DialogClose asChild>
               <Button type="button" variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700">Cerrar</Button>
            </DialogClose>
         </DialogFooter>
