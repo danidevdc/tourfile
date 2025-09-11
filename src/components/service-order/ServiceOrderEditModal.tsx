@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, ChangeEvent } from "react";
@@ -8,14 +7,24 @@ import { ServiceOrderData, ServiceItem, ServiceOrderGuide, Activity, Driver, Pre
 import { cn } from "@/lib/utils";
 
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Combobox, ComboboxOption } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, X, Split, XCircle, PlusCircle, Car, User } from "lucide-react";
+import { Save, X, Split, XCircle, PlusCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 
 
 interface ServiceOrderEditModalProps {
@@ -36,9 +45,9 @@ const initialNewServiceState: ServiceItem = {
 
 export function ServiceOrderEditModal({ order, guides, activities, drivers, flights, hotels, onSave, onClose }: ServiceOrderEditModalProps) {
   const [editableOrderData, setEditableOrderData] = useState<ServiceOrderData>(JSON.parse(JSON.stringify(order.data)));
-  const [splitBy, setSplitBy] = useState<'guide' | 'driver' | null>(null);
-  
   const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
+  const [isSplitConfirmOpen, setIsSplitConfirmOpen] = useState(false);
+  const [potentialSplit, setPotentialSplit] = useState<{ by: 'guide' | 'driver'; count: number } | null>(null);
 
   useEffect(() => {
     setEditableOrderData(JSON.parse(JSON.stringify(order.data)));
@@ -111,26 +120,30 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
     setNewService(prev => ({ ...initialNewServiceState, fecha: prev.fecha }));
  };
 
+  const handleSaveClick = () => {
+      const assignedGuides = new Set(editableOrderData.services.map(s => s.guia || editableOrderData.guia));
+      const assignedDrivers = new Set(editableOrderData.services.map(s => s.chofer || ''));
 
-  const handleGlobalGuideChange = (guideFullName: string) => {
-      setEditableOrderData(prev => ({ ...prev, guia: guideFullName }));
-  }
+      if (assignedGuides.size > 1) {
+          setPotentialSplit({ by: 'guide', count: assignedGuides.size });
+          setIsSplitConfirmOpen(true);
+      } else if (assignedDrivers.size > 1) {
+          setPotentialSplit({ by: 'driver', count: assignedDrivers.size });
+          setIsSplitConfirmOpen(true);
+      } else {
+          onSave(editableOrderData, null); // No split needed
+      }
+  };
 
- const handleSplitModeToggle = (mode: 'guide' | 'driver', checked: boolean) => {
-    if (checked) {
-        setSplitBy(mode);
-        const keyField = mode === 'guide' ? 'guia' : 'chofer';
-        const mainAssignee = mode === 'guide' ? editableOrderData.guia : editableOrderData.services[0]?.chofer || '';
-        
-        const updatedServices = editableOrderData.services.map(service => ({
-            ...service,
-            [keyField]: service[keyField] || mainAssignee,
-        }));
-        setEditableOrderData(prev => ({ ...prev, services: updatedServices }));
-    } else if (splitBy === mode) {
-        setSplitBy(null);
-    }
- };
+  const handleConfirmSplit = (shouldSplit: boolean) => {
+      if (shouldSplit && potentialSplit) {
+          onSave(editableOrderData, potentialSplit.by);
+      } else {
+          onSave(editableOrderData, null);
+      }
+      setIsSplitConfirmOpen(false);
+      setPotentialSplit(null);
+  };
 
 
   const handleTimeChange = (index: number, rawValue: string) => {
@@ -247,29 +260,16 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                     </div>
                 </div>
 
-                <div className="pt-2 flex items-center justify-between">
-                    <div className="flex-1">
-                        <Label className="text-xs font-semibold text-muted-foreground">Guía Principal</Label>
-                        <Combobox
-                            options={globalGuideOptions}
-                            value={editableOrderData.guia}
-                            onSelect={handleGlobalGuideChange}
-                            placeholder="Seleccionar guía..."
-                            className="h-9 mt-1"
-                            triggerClassName="bg-card/80"
-                            disabled={splitBy === 'guide'}
-                        />
-                    </div>
-                    <div className="flex items-center gap-4 pl-8 pt-5">
-                       <div className="flex items-center space-x-2">
-                           <Switch id="split-guide-mode" checked={splitBy === 'guide'} onCheckedChange={(c) => handleSplitModeToggle('guide', c)} />
-                           <Label htmlFor="split-guide-mode" className="flex items-center gap-2 text-sm font-medium"><User className="h-4 w-4" /> Dividir por Guía</Label>
-                       </div>
-                       <div className="flex items-center space-x-2">
-                           <Switch id="split-driver-mode" checked={splitBy === 'driver'} onCheckedChange={(c) => handleSplitModeToggle('driver', c)} />
-                           <Label htmlFor="split-driver-mode" className="flex items-center gap-2 text-sm font-medium"><Car className="h-4 w-4" /> Dividir por Chofer</Label>
-                       </div>
-                    </div>
+                <div className="pt-2">
+                    <Label className="text-xs font-semibold text-muted-foreground">Guía Principal (por defecto)</Label>
+                    <Combobox
+                        options={globalGuideOptions}
+                        value={editableOrderData.guia}
+                        onSelect={(value) => handleDataChange('guia', value)}
+                        placeholder="Seleccionar guía principal..."
+                        className="h-9 mt-1"
+                        triggerClassName="bg-card/80"
+                    />
                 </div>
                  {/* --- Add New Service Form --- */}
                 <div className="pt-2 space-y-2">
@@ -330,7 +330,6 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                   const originalIndex = editableOrderData.services.findIndex(os => os === s);
                   const currentDriverOptions = driverOptionsForBusType(s.bus);
                   
-                  const guiaFirstName = (s.guia || editableOrderData.guia || '').split(' ')[0];
                   const canDelete = editableOrderData.services.length > 1;
                   const isTransfer = s.servicio?.toUpperCase().includes('TRF');
 
@@ -375,21 +374,17 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                         />
                       </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium">
-                         {splitBy === 'guide' ? (
-                            <Combobox
-                                options={globalGuideOptions}
-                                value={s.guia || ''}
-                                onSelect={(value) => handleServiceChange(originalIndex, 'guia', value)}
-                                placeholder="Asignar guía..."
-                                className="h-8 text-xs"
-                                triggerClassName="bg-card/80"
-                            />
-                         ) : (
-                            guiaFirstName
-                         )}
+                        <Combobox
+                            options={globalGuideOptions}
+                            value={s.guia || editableOrderData.guia}
+                            onSelect={(value) => handleServiceChange(originalIndex, 'guia', value)}
+                            placeholder="Asignar guía..."
+                            className="h-8 text-xs"
+                            triggerClassName="bg-card/80"
+                        />
                       </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
-                         <Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)} disabled={splitBy !== 'driver'}>
+                         <Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)}>
                             <SelectTrigger className="h-8 text-xs bg-card/80"><SelectValue placeholder="..." /></SelectTrigger>
                             <SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent>
                         </Select>
@@ -401,8 +396,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                           onSelect={(value) => handleServiceChange(originalIndex, 'chofer', value)}
                           placeholder="Chofer..."
                           className="h-8 text-xs"
-                          triggerClassName="bg-card/80"
-                          disabled={splitBy !== 'driver'}>
+                          triggerClassName="bg-card/80">
                         </Combobox>
                       </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-left">
@@ -434,8 +428,33 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
         <DialogFooter className="p-4 border-t bg-background">
           <Button variant="outline" onClick={onClose}><X className="mr-2 h-4 w-4"/>Cerrar</Button>
-          <Button onClick={() => onSave(editableOrderData, splitBy)}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
+          <Button onClick={handleSaveClick}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
         </DialogFooter>
+
+        {isSplitConfirmOpen && potentialSplit && (
+             <AlertDialog open onOpenChange={setIsSplitConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2"><Split className="text-primary"/>¿Dividir Orden de Servicio?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Hemos detectado que has asignado {potentialSplit.count} diferentes {potentialSplit.by === 'guide' ? 'guías' : 'choferes'} a los servicios.
+                            ¿Quieres dividir esta orden en {potentialSplit.count} órdenes separadas, una para cada {potentialSplit.by === 'guide' ? 'guía' : 'chofer'}?
+                            <br/><br/>
+                            - <span className="font-semibold">Sí, dividir:</span> Se crearán nuevas órdenes y la original se marcará como "madre".
+                            <br/>
+                            - <span className="font-semibold">No, solo guardar:</span> Todos los cambios se guardarán en esta única orden.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => handleConfirmSplit(false)}>No, solo guardar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleConfirmSplit(true)}>
+                            Sí, dividir
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+             </AlertDialog>
+        )}
+
       </DialogContent>
     </Dialog>
   );
