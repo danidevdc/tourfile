@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -18,6 +19,7 @@ import {
     deleteBulkServiceOrders
 } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
+import { getBaseName, getFamilyId, childNameFrom, shortPerson } from "@/lib/serviceOrderFamily";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Loader2, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,7 +37,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOrderGeneratorSheet";
@@ -123,7 +125,6 @@ export default function ServiceOrderListPage() {
   const filteredOrders = useMemo(() => {
     let statusFilteredOrders = orders;
     
-    // 1. Filter by status (active/deleted/all)
     const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
     if (currentFilterState === 'active') {
         statusFilteredOrders = orders.filter(order => order.status !== 'eliminado');
@@ -131,7 +132,6 @@ export default function ServiceOrderListPage() {
         statusFilteredOrders = orders.filter(order => order.status === 'eliminado');
     }
 
-    // 2. Filter by search term
     if (!searchTerm) {
         return statusFilteredOrders;
     }
@@ -147,17 +147,48 @@ export default function ServiceOrderListPage() {
         );
     });
   }, [searchTerm, orders, isCurrentUserAdmin, filterState]);
-  
-  const paginatedOrders = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredOrders, currentPage]);
 
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+  const families = useMemo(() => {
+    const byId = new Map<string, StoredServiceOrder>();
+    orders.forEach(o => byId.set(o.id, o));
+  
+    const groups = new Map<string, { parent: StoredServiceOrder, children: StoredServiceOrder[] }>();
+  
+    for (const o of filteredOrders) {
+      const famId = getFamilyId(o);
+      const parent = o.splitFrom ? byId.get(o.splitFrom)! : o;
+
+      // This can happen if the parent order is filtered out (e.g. different status)
+      if (!parent) continue;
+
+      const parentKey = parent.id;
+  
+      if (!groups.has(parentKey)) {
+        groups.set(parentKey, { parent, children: [] });
+      }
+      if (o.id !== parentKey) {
+        groups.get(parentKey)!.children.push(o);
+      }
+    }
+  
+    return Array.from(groups.values())
+      .sort((a, b) => b.parent.createdAt.getTime() - a.parent.createdAt.getTime())
+      .map(g => ({ 
+        ...g, 
+        children: g.children.sort((x, y) => x.orderName.localeCompare(y.orderName)) 
+      }));
+  }, [filteredOrders, orders]);
+  
+  const paginatedFamilies = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return families.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [families, currentPage]);
+
+  const totalPages = Math.ceil(families.length / ITEMS_PER_PAGE);
 
   useEffect(() => {
     setCurrentPage(1);
-    setSelectedOrderIds(new Set()); // Clear selection when filter or search term changes
+    setSelectedOrderIds(new Set()); 
   }, [searchTerm, filterState]);
 
 
@@ -201,18 +232,20 @@ export default function ServiceOrderListPage() {
         const assignedKeys = Array.from(serviceMap.keys());
         if (assignedKeys.length > 1) {
             try {
-                // Mark original order as a split parent
                 await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, isSplitParent: true }, 'editado');
                 
+                const parentBaseName = getBaseName(orderToEdit.orderName);
+
                 for (const [key, services] of serviceMap.entries()) {
                     const newSplitOrderData: ServiceOrderData = { ...updatedOrderData, isSplitParent: false };
                     if(splitBy === 'guide') newSplitOrderData.guia = key;
                     newSplitOrderData.services = services;
                     
-                    await saveServiceOrder(newSplitOrderData, currentUser.email, orderToEdit.orderName, key);
+                    const childOrderName = childNameFrom(parentBaseName, { ...orderToEdit, data: newSplitOrderData });
+                    await saveServiceOrder(newSplitOrderData, currentUser.email, childOrderName);
                 }
                 
-                toast({ title: "Éxito", description: `La orden ha sido dividida en ${serviceMap.size} nuevas órdenes por ${splitBy}.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+                toast({ title: "Éxito", description: `La orden ha sido dividida en ${serviceMap.size} nuevas órdenes.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
                 fetchOrders();
             } catch (e) {
                  toast({ title: "Error al Dividir", description: "No se pudo dividir la orden.", variant: "destructive" });
@@ -224,7 +257,6 @@ export default function ServiceOrderListPage() {
         }
     }
     
-    // Regular save without splitting
     try {
       await updateServiceOrder(orderToEdit.id, updatedOrderData, 'editado');
       toast({ title: "Éxito", description: "Orden actualizada correctamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
@@ -275,7 +307,7 @@ export default function ServiceOrderListPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${order.orderName.replace(/[\s/]/g, '_')}.xlsx`;
+      link.download = `${getBaseName(order.orderName).replace(/[\s/]/g, '_')}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -328,8 +360,11 @@ export default function ServiceOrderListPage() {
   const handleSelectAll = (checked: boolean) => {
     const newSelectedIds = new Set<string>();
     if (checked) {
-        paginatedOrders.forEach(order => {
-            if(order.status !== 'eliminado') newSelectedIds.add(order.id)
+        paginatedFamilies.forEach(({parent, children}) => {
+            if(parent.status !== 'eliminado') newSelectedIds.add(parent.id)
+            children.forEach(child => {
+                if(child.status !== 'eliminado') newSelectedIds.add(child.id)
+            })
         });
     }
     setSelectedOrderIds(newSelectedIds);
@@ -359,28 +394,34 @@ export default function ServiceOrderListPage() {
             return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Creado</Badge>;
     }
   };
-  
-  const getRowClass = (order: StoredServiceOrder) => {
-    if (order.status === 'eliminado') return "bg-destructive/10 text-muted-foreground";
-    if (order.data.isSplitParent) {
-        return "bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200/80 dark:hover:bg-purple-900/50";
-    }
-    if (order.splitFrom) {
-        const guideNameInOrder = order.data.guia.split(' ')[0].toUpperCase();
-        const choferNameInOrder = (order.data.services[0]?.chofer || '').replace(/^CONT\.\s/i, '').split(' ')[0].toUpperCase();
-        if (order.orderName.toUpperCase().includes(`- ${guideNameInOrder}`)) {
-             return "bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200/80 dark:hover:bg-blue-900/50";
-        }
-        if (choferNameInOrder && order.orderName.toUpperCase().includes(`- ${choferNameInOrder}`)) {
-            return "bg-green-100 dark:bg-green-900/30 hover:bg-green-200/80 dark:hover:bg-green-900/50";
-        }
-    }
-    return "";
-  };
 
   const numSelected = selectedOrderIds.size;
-  const numInPage = paginatedOrders.filter(o => o.status !== 'eliminado').length;
-  const isAllSelected = numSelected > 0 && numSelected === numInPage;
+  const numInPage = paginatedFamilies.reduce((acc, {parent, children}) => {
+      let count = parent.status !== 'eliminado' ? 1 : 0;
+      count += children.filter(c => c.status !== 'eliminado').length;
+      return acc + count;
+  }, 0);
+  const isAllSelected = numInPage > 0 && numSelected === numInPage;
+
+  const renderOrderActions = (order: StoredServiceOrder) => {
+    const canModify = isCurrentUserAdmin || currentUser?.email === order.createdBy;
+    const isDeleted = order.status === 'eliminado';
+    return (
+        <div className="text-left space-x-1">
+            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary h-8 w-8 p-0"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} disabled={!canModify || isDeleted} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleDownloadExcel(order)} disabled={isDownloadingId === order.id || isDeleted} className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0">{isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="h-4 w-4"/>}</Button></TooltipTrigger><TooltipContent><p>Descargar Excel</p></TooltipContent></Tooltip>
+            {isCurrentUserAdmin && (<Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePrintToPdf(order)} disabled={isPrintingPdfId === order.id || isDeleted} className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0">{isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}</Button></TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>)}
+            {!isDeleted && (<AlertDialog>
+                <Tooltip><TooltipTrigger asChild><AlertDialogTrigger asChild><Button variant="destructive" size="sm" disabled={!canModify} onClick={() => setOrderToDelete(order)} className="h-8 w-8 p-0"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger></TooltipTrigger><TooltipContent><p>Eliminar Orden</p></TooltipContent></Tooltip>
+                {orderToDelete && orderToDelete.id === order.id && (<AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de eliminar esta orden?</AlertDialogTitle><AlertDialogDescription>La orden "{getBaseName(orderToDelete.orderName)}" será marcada como eliminada. Los administradores podrán verla y recuperarla.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cerrar</AlertDialogCancel><AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">Sí, eliminar</AlertDialogAction></AlertDialogFooter>
+                </AlertDialogContent>)}
+            </AlertDialog>)}
+        </div>
+    );
+  };
 
 
   if (authLoading || isLoading) {
@@ -426,7 +467,7 @@ export default function ServiceOrderListPage() {
             <div className="border rounded-lg overflow-hidden">
                 {numSelected > 0 && filterState !== 'deleted' && (
                   <div className="p-2 bg-muted/50 flex justify-between items-center">
-                    <span className="text-sm font-medium">{numSelected} de {numInPage} seleccionado(s)</span>
+                    <span className="text-sm font-medium">{numSelected} seleccionado(s)</span>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="destructive" size="sm">
@@ -453,119 +494,57 @@ export default function ServiceOrderListPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            {isCurrentUserAdmin && (
-                                <TableHead className="w-12">
-                                    <Checkbox
-                                        checked={isAllSelected}
-                                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                                        aria-label="Seleccionar todas las órdenes en esta página"
-                                        disabled={filterState === 'deleted'}
-                                    />
-                                </TableHead>
-                            )}
+                            {isCurrentUserAdmin && <TableHead className="w-12"><Checkbox checked={isAllSelected} onCheckedChange={(checked) => handleSelectAll(!!checked)} aria-label="Seleccionar todas" disabled={filterState === 'deleted'} /></TableHead>}
                             <TableHead>Nombre de la Orden</TableHead>
                             <TableHead>Guía Asignado</TableHead>
-                            {isCurrentUserAdmin && (
-                                <>
-                                    <TableHead>Creado Por</TableHead>
-                                    <TableHead className="w-[120px]">Fecha</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                </>
-                            )}
+                            {isCurrentUserAdmin && (<><TableHead>Creado Por</TableHead><TableHead className="w-[120px]">Fecha</TableHead><TableHead>Estado</TableHead></>)}
                             <TableHead className="text-left">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {paginatedOrders.length > 0 ? (
-                            paginatedOrders.map((order) => {
-                                const canModify = isCurrentUserAdmin || currentUser?.email === order.createdBy;
-                                const isDeleted = order.status === 'eliminado';
-                                return (
-                                    <TableRow key={order.id} className={cn(getRowClass(order))}>
-                                        {isCurrentUserAdmin && (
-                                            <TableCell>
-                                                {!isDeleted && (
-                                                    <Checkbox
-                                                        checked={selectedOrderIds.has(order.id)}
-                                                        onCheckedChange={(checked) => handleSelectOne(order.id, !!checked)}
-                                                        aria-label={`Seleccionar orden ${order.orderName}`}
-                                                    />
-                                                )}
-                                            </TableCell>
-                                        )}
-                                        <TableCell className="font-medium">{order.orderName.replace(/_/g, ' ')}</TableCell>
-                                        <TableCell>{order.data.guia}</TableCell>
-                                        {isCurrentUserAdmin && (
-                                            <>
-                                                <TableCell>{order.createdBy}</TableCell>
-                                                <TableCell>{format(order.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
-                                                <TableCell>{getStatusBadge(order)}</TableCell>
-                                            </>
-                                        )}
-                                        <TableCell className="text-left space-x-1">
-                                            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary h-8 w-8 p-0"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
-                                            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} disabled={!canModify || isDeleted} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
-                                            
-                                            <Tooltip><TooltipTrigger asChild>
-                                               <Button 
-                                                  variant="outline" size="sm" onClick={() => handleDownloadExcel(order)}
-                                                  disabled={isDownloadingId === order.id || isDeleted}
-                                                  className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"
-                                                >
-                                                  {isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="h-4 w-4"/>}
-                                               </Button>
-                                            </TooltipTrigger><TooltipContent><p>Descargar Excel</p></TooltipContent></Tooltip>
-                                            
-                                            {isCurrentUserAdmin && (
-                                                <Tooltip><TooltipTrigger asChild>
-                                                   <Button 
-                                                      variant="outline" size="sm" onClick={() => handlePrintToPdf(order)}
-                                                      disabled={isPrintingPdfId === order.id || isDeleted}
-                                                      className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"
-                                                    >
-                                                      {isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
-                                                   </Button>
-                                                </TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>
-                                            )}
-                                            
-                                            {!isDeleted && (
-                                                <AlertDialog>
-                                                    <Tooltip><TooltipTrigger asChild>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button variant="destructive" size="sm" disabled={!canModify} onClick={() => setOrderToDelete(order)} className="h-8 w-8 p-0">
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </AlertDialogTrigger>
-                                                    </TooltipTrigger><TooltipContent><p>Eliminar Orden</p></TooltipContent></Tooltip>
-                                                    
-                                                    {orderToDelete && orderToDelete.id === order.id && (
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>¿Estás seguro de eliminar esta orden?</AlertDialogTitle>
-                                                                <AlertDialogDescription>
-                                                                    La orden "{orderToDelete.orderName.replace(/_/g, ' ')}" será marcada como eliminada. Los administradores podrán verla y recuperarla.
-                                                                </AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cerrar</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">
-                                                                    Sí, eliminar
-                                                                </AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    )}
-                                                </AlertDialog>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                            })
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={isCurrentUserAdmin ? 7 : 4} className="text-center h-24 text-muted-foreground">
-                                    {searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}
-                                </TableCell>
-                            </TableRow>
+                        {paginatedFamilies.length ? paginatedFamilies.map(({ parent, children }) => {
+                          const baseName = getBaseName(parent.orderName);
+                          const childCount = children.length;
+                          
+                          return (
+                            <Accordion type="single" collapsible key={parent.id} className="border-b contents">
+                              <AccordionItem value="item" className="contents">
+                                <TableRow>
+                                  {isCurrentUserAdmin && (<TableCell><Checkbox checked={selectedOrderIds.has(parent.id)} onCheckedChange={(c) => handleSelectOne(parent.id, !!c)} aria-label={`Seleccionar ${baseName}`} disabled={parent.status === 'eliminado'} /></TableCell>)}
+                                  <TableCell className="font-semibold"><div className="flex items-center gap-2">
+                                      <AccordionTrigger disabled={childCount === 0} className="px-0 hover:no-underline disabled:cursor-default [&[data-state=open]>svg]:rotate-180"><span className="mr-1">{baseName}</span></AccordionTrigger>
+                                      {childCount > 0 && <Badge variant="secondary">{childCount} hija(s)</Badge>}
+                                      {parent.data.isSplitParent && <Badge className="bg-purple-600 hover:bg-purple-700">Dividida</Badge>}
+                                  </div></TableCell>
+                                  <TableCell>{parent.data.guia}</TableCell>
+                                  {isCurrentUserAdmin && (<><TableCell>{parent.createdBy}</TableCell><TableCell>{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(parent)}</TableCell></>)}
+                                  <TableCell>{renderOrderActions(parent)}</TableCell>
+                                </TableRow>
+
+                                {childCount > 0 && (<AccordionContent asChild>
+                                  <>
+                                    {children.map((child) => {
+                                      const displayName = childNameFrom(baseName, child);
+                                      return (
+                                          <TableRow key={child.id} className="bg-muted/30 hover:bg-muted/50">
+                                              {isCurrentUserAdmin && (<TableCell><Checkbox checked={selectedOrderIds.has(child.id)} onCheckedChange={(c) => handleSelectOne(child.id, !!c)} aria-label={`Seleccionar ${displayName}`} disabled={child.status === 'eliminado'} /></TableCell>)}
+                                              <TableCell className="pl-12"><div className="text-sm">
+                                                  <span className="text-muted-foreground">{baseName} › </span>
+                                                  <span className="font-medium">{displayName.replace(`${baseName} — `, "")}</span>
+                                              </div></TableCell>
+                                              <TableCell>{child.data.guia || shortPerson(child.data.services[0]?.chofer)}</TableCell>
+                                              {isCurrentUserAdmin && (<><TableCell>{child.createdBy}</TableCell><TableCell>{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(child)}</TableCell></>)}
+                                              <TableCell>{renderOrderActions(child)}</TableCell>
+                                          </TableRow>
+                                      );
+                                    })}
+                                  </>
+                                </AccordionContent>)}
+                              </AccordionItem>
+                            </Accordion>
+                          );
+                        }) : (
+                          <TableRow><TableCell colSpan={isCurrentUserAdmin ? 7 : 4} className="text-center h-24 text-muted-foreground">{searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}</TableCell></TableRow>
                         )}
                     </TableBody>
                 </Table>
