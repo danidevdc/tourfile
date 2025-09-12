@@ -212,9 +212,15 @@ export default function ServiceOrderListPage() {
   };
 
   const handlePreviewOrderClick = (order: StoredServiceOrder) => {
-    setOrderToPreview(order);
+    const family = families.find(f => f.parent.id === order.id);
+    if (family && family.children.length > 0) {
+        const allServices = family.children.flatMap(child => child.data.services);
+        setOrderToPreview({ ...order, data: { ...order.data, services: allServices } });
+    } else {
+        setOrderToPreview(order);
+    }
     setIsPreviewModalOpen(true);
-  }
+  };
   
  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     if (!orderToEdit || !currentUser?.email) return;
@@ -239,7 +245,7 @@ export default function ServiceOrderListPage() {
 
         if (serviceMap.size > 1) {
             try {
-                await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, services: [], isSplitParent: true }, 'editado');
+                await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, services: updatedOrderData.services, isSplitParent: true }, 'editado');
                 
                 const parentBaseName = getBaseName(orderToEdit.orderName);
 
