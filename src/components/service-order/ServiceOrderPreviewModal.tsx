@@ -23,7 +23,6 @@ interface ServiceOrderPreviewModalProps {
 }
 
 function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose: () => void }) {
-  const { data } = order;
   const captureRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -49,14 +48,16 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
     await copiarVistaPreviaAlClipboard(captureRef, toast);
   };
   
+  const { data } = order;
+
   return (
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-[1150px] w-full flex flex-col max-h-[95vh] p-0">
+       <DialogContent className="max-w-[1250px] w-full flex flex-col max-h-[95vh] p-0">
         <DialogHeader className="p-4 border-b flex-shrink-0">
           <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
         
-        <div className="flex-grow overflow-auto min-h-0 p-4">
+         <div className="flex-grow overflow-auto min-h-0 p-4">
             <div ref={captureRef} className={cn(
                 "bg-white text-zinc-900 uppercase w-[1120px] mx-auto",
               )}>
@@ -108,7 +109,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                                      <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
                                        {s.hora}
                                      </TableCell>
-                                     <TableCell className="p-2 border-r border-gray-200 text-left align-middle whitespace-nowrap">
+                                     <TableCell className="p-2 border-r border-gray-200 text-left align-middle">
                                        {s.servicio}
                                       </TableCell>
                                      <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
@@ -123,7 +124,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                                      <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
                                        {choferFirstName}
                                       </TableCell>
-                                     <TableCell className="p-2 text-left align-middle whitespace-nowrap">
+                                     <TableCell className="p-2 text-left align-middle">
                                        {s.observaciones}
                                       </TableCell>
                                   </TableRow>
@@ -233,7 +234,7 @@ export function ServiceOrderPrintPage() {
     
     // Use a simplified version of the preview modal's content for printing
     return (
-      <div className="bg-white text-zinc-900 p-4 uppercase ui-sans-serif w-[1120px] mx-auto">
+      <div className="bg-white text-zinc-900 p-4 uppercase w-[1120px] mx-auto">
           <div className="relative">
              <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
                ORDEN DE SERVICIO
@@ -302,7 +303,7 @@ export function ServiceOrderPrintPage() {
                              <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
                                {s.hora}
                              </TableCell>
-                             <TableCell className="p-2 border-r border-gray-200 text-left align-middle whitespace-nowrap">
+                             <TableCell className="p-2 border-r border-gray-200 text-left align-middle">
                                {s.servicio}
                               </TableCell>
                              <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
@@ -317,7 +318,7 @@ export function ServiceOrderPrintPage() {
                              <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
                                {choferFirstName}
                               </TableCell>
-                             <TableCell className="p-2 text-left align-middle whitespace-nowrap">
+                             <TableCell className="p-2 text-left align-middle">
                                 {s.observaciones}
                               </TableCell>
                           </TableRow>
@@ -341,5 +342,3 @@ export function ServiceOrderPrintPage() {
       </div>
     );
 }
-
-    
