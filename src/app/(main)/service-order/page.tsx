@@ -233,8 +233,10 @@ export default function ServiceOrderListPage() {
         const assignedKeys = Array.from(serviceMap.keys());
         if (assignedKeys.length > 1) {
             try {
+                // Mark the original order as a split parent
                 await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, isSplitParent: true }, 'editado');
                 
+                // Use the base name of the parent order for all children
                 const parentBaseName = getBaseName(orderToEdit.orderName);
 
                 for (const [key, services] of serviceMap.entries()) {
@@ -243,7 +245,7 @@ export default function ServiceOrderListPage() {
                     newSplitOrderData.services = services;
                     
                     const childOrderName = childNameFrom(parentBaseName, { ...orderToEdit, data: newSplitOrderData });
-                    await saveServiceOrder(newSplitOrderData, currentUser.email, childOrderName);
+                    await saveServiceOrder(newSplitOrderData, currentUser.email, childOrderName, orderToEdit.id);
                 }
                 
                 toast({ title: "Éxito", description: `La orden ha sido dividida en ${serviceMap.size} nuevas órdenes.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
@@ -574,8 +576,8 @@ export default function ServiceOrderListPage() {
 
         <ServiceOrderGeneratorSheet 
             isOpen={isSheetOpen}
-            onClose={onSheetClose}
-            onSave={onSheetSave}
+            onClose={onClose}
+            onSave={onSave}
             orderData={intermediateOrderData}
             setOrderData={setIntermediateOrderData}
             onClearAndNew={onClearAndNew}

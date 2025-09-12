@@ -61,7 +61,7 @@ function formatOrderName(date: Date, fileNumber: string): string {
     return `ODS_${datePart}_${fileNumber.replace(/[\s/]/g, '_')}`;
 }
 
-export async function saveServiceOrder(orderData: ServiceOrderData, createdByEmail: string, orderName?: string): Promise<string> {
+export async function saveServiceOrder(orderData: ServiceOrderData, createdByEmail: string, orderName?: string, splitFromId?: string): Promise<string> {
     if (!db) throw new Error("Firestore not initialized.");
 
     const finalOrderName = orderName || formatOrderName(getFirstDateFromServices(orderData.services), orderData.file);
@@ -75,9 +75,8 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
         updatedAt: serverTimestamp(),
     };
     
-    if (orderName && orderName.includes(' — ')) {
-        const baseName = orderName.split(' — ')[0].replace(/ /g, '_');
-        newOrderPayload.splitFrom = baseName;
+    if (splitFromId) {
+        newOrderPayload.splitFrom = splitFromId;
     }
 
 
