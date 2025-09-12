@@ -16,18 +16,33 @@ export async function copiarVistaPreviaAlClipboard(
     return;
   }
 
+  // --- NUEVO ENFOQUE: CLONACIÓN ---
+  // 1. Clonar el nodo para evitar problemas con el CSS del modal.
+  const clone = node.cloneNode(true) as HTMLDivElement;
+  
+  // 2. Aplicar estilos para posicionarlo fuera de la pantalla pero con dimensiones reales.
+  clone.style.position = 'absolute';
+  clone.style.left = '-9999px';
+  clone.style.top = '0px';
+  clone.style.width = `${node.offsetWidth}px`; // Usar el ancho del nodo original
+  clone.style.height = 'auto'; // Permitir que la altura se expanda al contenido
+
+  document.body.appendChild(clone);
+  // --- FIN DEL NUEVO ENFOQUE ---
+
   try {
     const html2canvas = (await import("html2canvas")).default;
 
+    // Asegurarse que las fuentes estén listas
     await document.fonts?.ready?.catch(() => {});
 
-    const canvas = await html2canvas(node, {
-      height: node.scrollHeight,
-      windowHeight: node.scrollHeight,
+    // 3. Capturar el CLON, no el nodo original
+    const canvas = await html2canvas(clone, {
       scale: 2,
       useCORS: true,
       backgroundColor: "#fff",
       logging: false,
+      // Ya no necesitamos 'height' y 'windowHeight' porque el clon ya tiene la altura completa.
     });
 
     const blob: Blob = await new Promise((resolve, reject) =>
@@ -52,35 +67,13 @@ export async function copiarVistaPreviaAlClipboard(
   } catch (err) {
     console.error("Error al copiar al portapapeles:", err);
     toast({
-        title: "Copia Fallida, Descargando...",
-        description: "No se pudo copiar al portapapeles. Se descargará un archivo PNG.",
+        title: "Copia Fallida",
+        description: (err as Error).message || "No se pudo copiar la imagen. Intenta de nuevo.",
         variant: "destructive",
         duration: 5000,
     });
-    // Fallback: descarga local para arrastrar o adjuntar
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(node, {
-        height: node.scrollHeight,
-        windowHeight: node.scrollHeight,
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#fff",
-      });
-      const url = canvas.toDataURL("image/png");
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `orden-${Date.now()}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (downloadError) {
-      console.error("Error en el fallback de descarga:", downloadError);
-      toast({
-        title: "Error de Descarga",
-        description: "No se pudo ni copiar ni descargar la imagen automáticamente.",
-        variant: "destructive",
-      });
-    }
+  } finally {
+      // 4. Limpieza: siempre eliminar el clon después de la operación.
+      document.body.removeChild(clone);
   }
 }
