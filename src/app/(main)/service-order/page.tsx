@@ -156,10 +156,10 @@ export default function ServiceOrderListPage() {
     const groups = new Map<string, { parent: StoredServiceOrder, children: StoredServiceOrder[] }>();
   
     for (const o of filteredOrders) {
-      if (o.data.isSplitParent) continue; // Skip split parents from being top-level items
+      if (o.data.isSplitParent) continue;
       
       const famId = getFamilyId(o);
-      const parent = o.splitFrom ? byId.get(o.splitFrom)! : o;
+      const parent = o.splitFrom ? byId.get(o.splitFrom) : o;
 
       if (!parent) continue;
 
@@ -217,12 +217,11 @@ export default function ServiceOrderListPage() {
  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData, splitBy: 'guide' | 'driver' | null) => {
     if (!orderToEdit || !currentUser?.email) return;
 
-    // Check for potential splits first
     const uniqueGuides = new Set(updatedOrderData.services.map(s => s.guia || updatedOrderData.guia).filter(Boolean));
     const uniqueDrivers = new Set(updatedOrderData.services.map(s => s.chofer).filter(Boolean));
 
     const needsGuideSplit = uniqueGuides.size > 1;
-    const needsDriverSplit = uniqueDrivers.size > 1;
+    const needsDriverSplit = !needsGuideSplit && uniqueDrivers.size > 1;
     
     if (needsGuideSplit || needsDriverSplit) {
         const splitDimension = needsGuideSplit ? 'guide' : 'driver';
@@ -238,19 +237,16 @@ export default function ServiceOrderListPage() {
 
         if (serviceMap.size > 1) {
             try {
-                // The original order becomes a "split parent" but we should also clear its services
-                await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, isSplitParent: true }, 'editado');
+                await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, services: [], isSplitParent: true }, 'editado');
                 
                 const parentBaseName = getBaseName(orderToEdit.orderName);
 
                 for (const [key, services] of serviceMap.entries()) {
                     const newSplitOrderData: ServiceOrderData = { ...updatedOrderData, services, isSplitParent: false };
                     
-                    if(splitDimension === 'guide') {
-                      newSplitOrderData.guia = key;
-                    }
+                    if(splitDimension === 'guide') newSplitOrderData.guia = key;
+                    if(splitDimension === 'driver') newSplitOrderData.guia = '';
                     
-                    // Create child name and save
                     const childOrderName = childNameFrom(parentBaseName, { ...orderToEdit, data: newSplitOrderData });
                     await saveServiceOrder(newSplitOrderData, currentUser.email, childOrderName, orderToEdit.id);
                 }
@@ -267,7 +263,6 @@ export default function ServiceOrderListPage() {
         }
     }
     
-    // Standard update if no split is needed
     try {
       await updateServiceOrder(orderToEdit.id, updatedOrderData, 'editado');
       toast({ title: "Éxito", description: "Orden actualizada correctamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
@@ -320,9 +315,9 @@ export default function ServiceOrderListPage() {
       link.href = url;
       
       const fileName = order.orderName
-        .replace(/\s*—\s*/g, '_') // Replaces " — " with "_"
-        .replace(/:/g, '_')        // Replaces ":" with "_"
-        .replace(/[\s/]/g, '_');   // Replaces other whitespace and slashes with "_"
+        .replace(/\s*—\s*/g, '_')
+        .replace(/:/g, '_')
+        .replace(/[\s/]/g, '_');
 
       link.download = `${fileName}.xlsx`;
       
@@ -537,6 +532,14 @@ export default function ServiceOrderListPage() {
                             const childCount = children.length;
                             const isExpanded = expandedFamilies.has(parent.id);
                             
+                            let displayedGuide = parent.data.guia;
+                            if(childCount > 0) {
+                                const childGuides = [...new Set(children.map(c => c.data.guia || ''))].filter(Boolean);
+                                if(childGuides.length > 0) {
+                                    displayedGuide = childGuides.join(', ');
+                                }
+                            }
+
                             return (
                                 <React.Fragment key={parent.id}>
                                     <TableRow>
@@ -557,7 +560,7 @@ export default function ServiceOrderListPage() {
                                                 {parent.data.isSplitParent && <Badge className="bg-purple-600 hover:bg-purple-700">Dividida</Badge>}
                                             </div>
                                         </TableCell>
-                                        <TableCell>{parent.data.guia}</TableCell>
+                                        <TableCell>{displayedGuide}</TableCell>
                                         {isCurrentUserAdmin && (<><TableCell>{parent.createdBy}</TableCell><TableCell>{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(parent)}</TableCell></>)}
                                         <TableCell>{renderOrderActions(parent)}</TableCell>
                                     </TableRow>
@@ -619,6 +622,5 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
-
 
     
