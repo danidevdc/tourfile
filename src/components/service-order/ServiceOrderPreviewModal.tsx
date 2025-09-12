@@ -56,8 +56,8 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
           <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-grow overflow-y-auto min-h-0">
-          <div className="flex justify-center p-4 overflow-x-auto">
+        <div className="flex-grow overflow-auto min-h-0 p-4">
+          <div className="flex justify-center">
               <div ref={captureRef} className={cn(
                   "bg-white text-zinc-900 uppercase w-[1100px]",
                 )}>
@@ -102,7 +102,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                                   const choferFirstName = choferSanitized.split(' ')[0];
 
                                   return (
-                                    <TableRow key={i} className="h-10 bg-white hover:bg-white text-xs" >
+                                    <TableRow key={i} className="h-10 bg-white hover:bg-white text-xs whitespace-nowrap">
                                        <TableCell className="p-2 border-r border-gray-200 text-center font-semibold align-middle">
                                           {showDate && s.fecha ? s.fecha : ""}
                                        </TableCell>
@@ -297,7 +297,7 @@ export function ServiceOrderPrintPage() {
                         const choferFirstName = choferSanitized.split(' ')[0];
 
                         return (
-                          <TableRow key={i} className="h-10 bg-white hover:bg-white text-xs">
+                          <TableRow key={i} className="h-10 bg-white hover:bg-white text-xs whitespace-nowrap">
                             <TableCell className="p-2 border-r border-gray-200 text-center font-semibold align-middle">
                               {showDate && s.fecha ? s.fecha : ""}
                             </TableCell>
