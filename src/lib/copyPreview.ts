@@ -22,7 +22,9 @@ export async function copiarVistaPreviaAlClipboard(
     await document.fonts?.ready?.catch(() => {});
 
     const canvas = await html2canvas(node, {
-      scale: Math.min(3, Math.max(2, window.devicePixelRatio || 2)),
+      height: node.scrollHeight,
+      windowHeight: node.scrollHeight,
+      scale: 2,
       useCORS: true,
       backgroundColor: "#fff",
       logging: false,
@@ -59,6 +61,8 @@ export async function copiarVistaPreviaAlClipboard(
     try {
       const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(node, {
+        height: node.scrollHeight,
+        windowHeight: node.scrollHeight,
         scale: 2,
         useCORS: true,
         backgroundColor: "#fff",
