@@ -17,21 +17,41 @@ export const shortPerson = (full?: string) => {
 
 export type SplitKind = "guide" | "driver" | null;
 
+// Deduces the type of split looking at the services
 export const inferSplitKind = (o: StoredServiceOrder): SplitKind => {
-  if (o.data?.services?.length) {
-    const s0 = o.data.services[0];
-    // Check for chofer first because a service can have both
-    if (s0?.chofer) return "driver";
-  }
+  // If there are multiple guides, it's a guide split.
+  const uniqueGuides = new Set(o.data.services?.map(s => s.guia || o.data.guia));
+  if (uniqueGuides.size > 1) return "guide";
+
+  // If guides are the same, check for different drivers.
+  const uniqueDrivers = new Set(o.data.services?.map(s => s.chofer || ''));
+  if (uniqueDrivers.size > 1) return "driver";
+  
+  // Default fallbacks
+  if (o.data?.services?.[0]?.chofer) return "driver";
   if (o.data?.guia) return "guide";
+
   return null;
 };
 
+// Consistent name for child orders
 export const childNameFrom = (parentBase: string, o: StoredServiceOrder) => {
-  const kind = inferSplitKind(o);
-  if (kind === "guide") return `${parentBase} — G:${shortPerson(o.data.guia)}`;
-  if (kind === "driver") return `${parentBase} — C:${shortPerson(o.data.services[0]?.chofer)}`;
+  // Use a more specific assignee for the name.
+  // If a service has its own guide, use that. Otherwise, use the main guide.
+  const serviceSpecificGuide = o.data.services?.[0]?.guia;
+  const mainGuide = o.data.guia;
+  const guideToUse = serviceSpecificGuide || mainGuide;
   
-  const assignee = o.data.guia || o.data.services?.[0]?.chofer;
-  return `${parentBase} — ${shortPerson(assignee)}`;
+  const choferToUse = o.data.services?.[0]?.chofer;
+
+  // If the guide is present and differs from the parent's main guide, prioritize it for naming.
+  if (guideToUse) {
+      return `${parentBase} — G:${shortPerson(guideToUse)}`;
+  }
+  // Otherwise, use the driver.
+  if (choferToUse) {
+       return `${parentBase} — C:${shortPerson(choferToUse)}`;
+  }
+  // Fallback if neither is defined in the child data.
+  return `${parentBase} — ${shortPerson(guideToUse || choferToUse)}`;
 };

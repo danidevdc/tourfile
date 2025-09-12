@@ -218,11 +218,11 @@ export default function ServiceOrderListPage() {
     if (splitBy) {
         const serviceMap = new Map<string, ServiceOrderData['services']>();
         const keyField = splitBy === 'guide' ? 'guia' : 'chofer';
-        const mainAssignee = splitBy === 'guide' ? updatedOrderData.guia : updatedOrderData.services[0]?.chofer || 'N/A';
+        const mainAssignee = splitBy === 'guide' ? updatedOrderData.guia : (updatedOrderData.services[0]?.chofer || 'N/A');
 
         updatedOrderData.services.forEach(service => {
             const assignee = service[keyField] || mainAssignee;
-            if (!assignee) return; 
+            if (!assignee) return;
             if (!serviceMap.has(assignee)) {
                 serviceMap.set(assignee, []);
             }
@@ -232,15 +232,23 @@ export default function ServiceOrderListPage() {
         const assignedKeys = Array.from(serviceMap.keys());
         if (assignedKeys.length > 1) {
             try {
-                // Mark the original order as a split parent
+                // The original order becomes a "split parent" but we should also clear its services
+                // as they are now distributed among the children. Or we can leave them as a record.
+                // For now, let's mark it and it will be filtered out from the main view of "parents".
                 await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, isSplitParent: true }, 'editado');
                 
                 const parentBaseName = getBaseName(orderToEdit.orderName);
 
                 for (const [key, services] of serviceMap.entries()) {
                     const newSplitOrderData: ServiceOrderData = { ...updatedOrderData, isSplitParent: false };
-                    if(splitBy === 'guide') newSplitOrderData.guia = key;
-                    newSplitOrderData.services = services;
+                    
+                    if(splitBy === 'guide') {
+                      newSplitOrderData.guia = key;
+                      // Ensure services reflect the correct guide for this split
+                      newSplitOrderData.services = services.map(s => ({...s, guia: key}));
+                    } else { // split by driver
+                      newSplitOrderData.services = services.map(s => ({...s, chofer: key}));
+                    }
                     
                     const childOrderName = childNameFrom(parentBaseName, { ...orderToEdit, data: newSplitOrderData });
                     await saveServiceOrder(newSplitOrderData, currentUser.email, childOrderName, orderToEdit.id);
@@ -258,6 +266,7 @@ export default function ServiceOrderListPage() {
         }
     }
     
+    // Standard update if no split is needed
     try {
       await updateServiceOrder(orderToEdit.id, updatedOrderData, 'editado');
       toast({ title: "Éxito", description: "Orden actualizada correctamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
@@ -536,7 +545,7 @@ export default function ServiceOrderListPage() {
                                                     <span>{baseName}</span>
                                                     {childCount > 0 && <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200", isExpanded && "rotate-180")} />}
                                                 </button>
-                                                {childCount > 0 && <Badge variant="secondary">{childCount} hija(s)</Badge>}
+                                                {childCount > 0 && <Badge variant="secondary">{childCount}</Badge>}
                                                 {parent.data.isSplitParent && <Badge className="bg-purple-600 hover:bg-purple-700">Dividida</Badge>}
                                             </div>
                                         </TableCell>
