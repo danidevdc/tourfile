@@ -79,19 +79,33 @@ const defaultBuses = ['Bus 8', 'Bus 9', 'Bus 10'];
 // --- Initialization Functions ---
 export async function initializeDefaultBuses(): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
+    
     const busesRef = collection(db, 'buses');
-    const q = query(busesRef, limit(1));
-    const snapshot = await getDocs(q);
+    
+    try {
+        // First, get all existing buses to prevent duplicates.
+        const existingBusesSnapshot = await getDocs(busesRef);
+        const existingBusNames = new Set(existingBusesSnapshot.docs.map(doc => doc.data().name.toUpperCase()));
 
-    if (snapshot.empty) {
-        console.log('No default buses found. Initializing...');
-        const batch = writeBatch(db);
-        defaultBuses.forEach(busName => {
-            const docRef = doc(busesRef);
-            batch.set(docRef, { name: busName.toUpperCase() });
-        });
-        await batch.commit();
-        console.log('Default buses have been initialized in Firestore.');
+        // Determine which default buses are missing.
+        const busesToCreate = defaultBuses.filter(
+            busName => !existingBusNames.has(busName.toUpperCase())
+        );
+
+        if (busesToCreate.length > 0) {
+            console.log(`Initializing missing default buses: ${busesToCreate.join(', ')}`);
+            const batch = writeBatch(db);
+            busesToCreate.forEach(busName => {
+                const docRef = doc(busesRef); // Create a new doc reference for each
+                batch.set(docRef, { name: busName.toUpperCase() });
+            });
+            await batch.commit();
+            console.log('Default buses have been initialized successfully.');
+        }
+
+    } catch (error) {
+        console.error("Error during default bus initialization:", error);
+        // We don't throw here to avoid breaking the app if Firestore has an issue.
     }
 }
 
@@ -393,3 +407,5 @@ export async function getFlightServiceDetails(
   }
 }
 */
+
+    
