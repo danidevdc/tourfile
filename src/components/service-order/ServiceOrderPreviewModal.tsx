@@ -144,14 +144,14 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
   return (
     <Dialog open onOpenChange={onClose}>
-       <DialogContent className="max-w-6xl w-full p-0 flex flex-col max-h-[95vh]">
+       <DialogContent className="max-w-6xl w-full flex flex-col max-h-[95vh] p-0">
         <DialogHeader className="p-4 flex-shrink-0">
            <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto flex justify-center py-4">
+        <div className="flex-grow overflow-y-auto p-4 flex justify-center">
             <PrintableView />
         </div>
-        <DialogFooter className="flex-shrink-0 sticky bottom-0 z-10 flex justify-end gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2 mt-auto">
+        <DialogFooter className="flex-shrink-0 sticky bottom-0 z-10 flex justify-end gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2">
             <Button
               type="button"
               className="bg-green-600 hover:bg-green-700 text-white"
