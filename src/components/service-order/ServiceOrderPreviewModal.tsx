@@ -74,14 +74,14 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
                 <Table className="table-fixed">
                   <TableHeader>
                     <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto">
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center text-xs align-middle">Fecha</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center text-xs align-middle">Hora</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left text-xs align-middle">Servicio</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center text-xs align-middle">Vuelo</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center text-xs align-middle">Guía</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center text-xs align-middle">Bus</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center text-xs align-middle">Chofer</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 h-auto text-left text-xs align-middle">Observaciones</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle">Fecha</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle">Hora</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle">Servicio</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle">Vuelo</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle">Guía</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle">Bus</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center align-middle">Chofer</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 h-auto text-left align-middle">Observaciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -151,7 +151,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
         <div className="flex-grow overflow-y-auto p-4 flex justify-center">
             <PrintableView />
         </div>
-        <DialogFooter className="flex-shrink-0 sticky bottom-0 z-10 flex justify-end gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2">
+        <DialogFooter className="flex-shrink-0 sticky bottom-0 z-10 flex justify-start gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2">
             <Button
               type="button"
               className="bg-green-600 hover:bg-green-700 text-white"
@@ -255,14 +255,14 @@ export function ServiceOrderPrintPage() {
                  <Table className="table-fixed">
                   <TableHeader>
                     <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto">
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center text-xs align-middle">Fecha</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center text-xs align-middle">Hora</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left text-xs align-middle">Servicio</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center text-xs align-middle">Vuelo</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center text-xs align-middle">Guía</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center text-xs align-middle">Bus</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center text-xs align-middle">Chofer</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 h-auto text-left text-xs align-middle">Observaciones</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle">Fecha</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle">Hora</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle">Servicio</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle">Vuelo</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle">Guía</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle">Bus</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center align-middle">Chofer</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 h-auto text-left align-middle">Observaciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
