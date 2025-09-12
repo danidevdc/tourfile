@@ -52,7 +52,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
   const PrintableView = () => (
      <div ref={captureRef} className={cn(
-        "bg-white text-zinc-900 p-4 ui-sans-serif uppercase",
+        "bg-white text-zinc-900 ui-sans-serif uppercase w-[800px]",
       )}>
         <div className="relative">
            <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
@@ -62,7 +62,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
         <div className="border-2 border-gray-400 rounded-lg mt-1 p-4">
             <div className="space-y-1.5">
-              <MetaItem label="Guía:" value={(data.guia || '').split(' ')[0]} />
+              <MetaItem label="Guía:" value={data.guia} />
               <MetaItem label="File:" value={data.file} />
               <MetaItem label="Ref:" value={data.ref} />
               <MetaItem label="Nº Pax:" value={data.nPax} />
@@ -245,7 +245,7 @@ export function ServiceOrderPrintPage() {
 
         <div className="border-2 border-gray-400 rounded-lg mt-1 p-4">
              <div className="space-y-1.5">
-              <MetaItem label="Guía:" value={(order.data.guia || '').split(' ')[0]} />
+              <MetaItem label="Guía:" value={order.data.guia} />
               <MetaItem label="File:" value={order.data.file} />
               <MetaItem label="Ref:" value={order.data.ref} />
               <MetaItem label="Nº Pax:" value={order.data.nPax} />
