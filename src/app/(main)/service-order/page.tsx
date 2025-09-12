@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -25,9 +25,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Loader2, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -76,6 +75,7 @@ export default function ServiceOrderListPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedFamilies, setExpandedFamilies] = useState<Set<string>>(new Set());
   
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isAutomatedMode, setIsAutomatedMode] = useState(false);
@@ -159,7 +159,6 @@ export default function ServiceOrderListPage() {
       const famId = getFamilyId(o);
       const parent = o.splitFrom ? byId.get(o.splitFrom)! : o;
 
-      // This can happen if the parent order is filtered out (e.g. different status)
       if (!parent) continue;
 
       const parentKey = parent.id;
@@ -381,6 +380,18 @@ export default function ServiceOrderListPage() {
       });
   };
   
+  const toggleFamilyExpansion = (familyId: string) => {
+    setExpandedFamilies(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(familyId)) {
+            newSet.delete(familyId);
+        } else {
+            newSet.add(familyId);
+        }
+        return newSet;
+    });
+  };
+
   const getStatusBadge = (order: StoredServiceOrder) => {
     const status = order.status || 'creado';
     switch (status) {
@@ -504,47 +515,52 @@ export default function ServiceOrderListPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {paginatedFamilies.length ? paginatedFamilies.map(({ parent, children }) => {
-                          const baseName = getBaseName(parent.orderName);
-                          const childCount = children.length;
-                          
-                          return (
-                            <Accordion type="single" collapsible key={parent.id} className="contents">
-                              <AccordionItem value="item" className="contents">
-                                <TableRow>
-                                  {isCurrentUserAdmin && (<TableCell><Checkbox checked={selectedOrderIds.has(parent.id)} onCheckedChange={(c) => handleSelectOne(parent.id, !!c)} aria-label={`Seleccionar ${baseName}`} disabled={parent.status === 'eliminado'} /></TableCell>)}
-                                  <TableCell className="font-semibold"><div className="flex items-center gap-2">
-                                      <AccordionTrigger disabled={childCount === 0} className="px-0 hover:no-underline disabled:cursor-default [&[data-state=open]>svg]:rotate-180"><span className="mr-1">{baseName}</span></AccordionTrigger>
-                                      {childCount > 0 && <Badge variant="secondary">{childCount} hija(s)</Badge>}
-                                      {parent.data.isSplitParent && <Badge className="bg-purple-600 hover:bg-purple-700">Dividida</Badge>}
-                                  </div></TableCell>
-                                  <TableCell>{parent.data.guia}</TableCell>
-                                  {isCurrentUserAdmin && (<><TableCell>{parent.createdBy}</TableCell><TableCell>{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(parent)}</TableCell></>)}
-                                  <TableCell>{renderOrderActions(parent)}</TableCell>
-                                </TableRow>
+                       {paginatedFamilies.length > 0 ? paginatedFamilies.map(({ parent, children }) => {
+                            const baseName = getBaseName(parent.orderName);
+                            const childCount = children.length;
+                            const isExpanded = expandedFamilies.has(parent.id);
+                            
+                            return (
+                                <React.Fragment key={parent.id}>
+                                    <TableRow>
+                                        {isCurrentUserAdmin && (
+                                            <TableCell><Checkbox checked={selectedOrderIds.has(parent.id)} onCheckedChange={(c) => handleSelectOne(parent.id, !!c)} aria-label={`Seleccionar ${baseName}`} disabled={parent.status === 'eliminado'} /></TableCell>
+                                        )}
+                                        <TableCell className="font-semibold">
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => toggleFamilyExpansion(parent.id)}
+                                                    disabled={childCount === 0}
+                                                    className="flex items-center gap-1 text-left hover:underline p-0 bg-transparent border-none disabled:cursor-default disabled:no-underline"
+                                                >
+                                                    <span>{baseName}</span>
+                                                    {childCount > 0 && <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200", isExpanded && "rotate-180")} />}
+                                                </button>
+                                                {childCount > 0 && <Badge variant="secondary">{childCount} hija(s)</Badge>}
+                                                {parent.data.isSplitParent && <Badge className="bg-purple-600 hover:bg-purple-700">Dividida</Badge>}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>{parent.data.guia}</TableCell>
+                                        {isCurrentUserAdmin && (<><TableCell>{parent.createdBy}</TableCell><TableCell>{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(parent)}</TableCell></>)}
+                                        <TableCell>{renderOrderActions(parent)}</TableCell>
+                                    </TableRow>
 
-                                {childCount > 0 && (<AccordionContent asChild>
-                                  <React.Fragment>
-                                    {children.map((child) => {
-                                      const displayName = childNameFrom(baseName, child);
-                                      return (
-                                          <TableRow key={child.id} className="bg-muted/30 hover:bg-muted/50">
-                                              {isCurrentUserAdmin && (<TableCell><Checkbox checked={selectedOrderIds.has(child.id)} onCheckedChange={(c) => handleSelectOne(child.id, !!c)} aria-label={`Seleccionar ${displayName}`} disabled={child.status === 'eliminado'} /></TableCell>)}
-                                              <TableCell className="pl-12"><div className="text-sm">
-                                                  <span className="text-muted-foreground">{baseName} › </span>
-                                                  <span className="font-medium">{displayName.replace(`${baseName} — `, "")}</span>
-                                              </div></TableCell>
-                                              <TableCell>{child.data.guia || shortPerson(child.data.services[0]?.chofer)}</TableCell>
-                                              {isCurrentUserAdmin && (<><TableCell>{child.createdBy}</TableCell><TableCell>{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(child)}</TableCell></>)}
-                                              <TableCell>{renderOrderActions(child)}</TableCell>
-                                          </TableRow>
-                                      );
-                                    })}
-                                  </React.Fragment>
-                                </AccordionContent>)}
-                              </AccordionItem>
-                            </Accordion>
-                          );
+                                    {isExpanded && children.map(child => (
+                                        <TableRow key={child.id} className="bg-muted/30 hover:bg-muted/50">
+                                            {isCurrentUserAdmin && <TableCell><Checkbox checked={selectedOrderIds.has(child.id)} onCheckedChange={(c) => handleSelectOne(child.id, !!c)} disabled={child.status === 'eliminado'} /></TableCell>}
+                                            <TableCell className="pl-12">
+                                                <div className="text-sm">
+                                                    <span className="text-muted-foreground">{baseName} › </span>
+                                                    <span className="font-medium">{childNameFrom(baseName, child).replace(`${baseName} — `, "")}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{child.data.guia || shortPerson(child.data.services[0]?.chofer)}</TableCell>
+                                            {isCurrentUserAdmin && (<><TableCell>{child.createdBy}</TableCell><TableCell>{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(child)}</TableCell></>)}
+                                            <TableCell>{renderOrderActions(child)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </React.Fragment>
+                            )
                         }) : (
                           <TableRow><TableCell colSpan={isCurrentUserAdmin ? 7 : 4} className="text-center h-24 text-muted-foreground">{searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}</TableCell></TableRow>
                         )}
