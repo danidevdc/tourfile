@@ -56,8 +56,8 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
           <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-grow overflow-y-auto overflow-x-auto min-h-0">
-          <div className="flex justify-center p-4">
+        <div className="flex-grow overflow-y-auto min-h-0">
+          <div className="flex justify-center p-4 overflow-x-auto">
               <div ref={captureRef} className={cn(
                   "bg-white text-zinc-900 uppercase w-[1100px]",
                 )}>
@@ -78,12 +78,12 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
 
                       <div className="mt-4">
                         <div className="rounded-lg border border-gray-300 overflow-hidden">
-                          <Table className="table-fixed">
+                          <Table className="table-fixed w-full">
                             <TableHeader>
                               <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto">
                                 <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle">Fecha</TableHead>
                                 <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle">Hora</TableHead>
-                                <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle">Servicio</TableHead>
+                                <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle w-[250px]">Servicio</TableHead>
                                 <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle">Vuelo</TableHead>
                                 <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle">Guía</TableHead>
                                 <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle">Bus</TableHead>
@@ -102,14 +102,14 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                                   const choferFirstName = choferSanitized.split(' ')[0];
 
                                   return (
-                                    <TableRow key={i} className="break-words h-10 bg-white hover:bg-white text-xs" >
+                                    <TableRow key={i} className="h-10 bg-white hover:bg-white text-xs" >
                                        <TableCell className="p-2 border-r border-gray-200 text-center font-semibold align-middle">
                                           {showDate && s.fecha ? s.fecha : ""}
                                        </TableCell>
                                        <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
                                          {s.hora}
                                        </TableCell>
-                                       <TableCell className="p-2 border-r border-gray-200 text-left align-middle">
+                                       <TableCell className="p-2 border-r border-gray-200 text-left align-middle break-words">
                                          {s.servicio}
                                         </TableCell>
                                        <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
@@ -125,7 +125,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                                          {choferFirstName}
                                         </TableCell>
                                        <TableCell className="p-2 text-left align-middle">
-                                         {s.observaciones}
+                                         <div className="max-h-20 overflow-auto">{s.observaciones}</div>
                                         </TableCell>
                                     </TableRow>
                                   );
@@ -253,12 +253,12 @@ export function ServiceOrderPrintPage() {
     
             <div className="mt-4">
               <div className="rounded-lg border border-gray-300 overflow-hidden">
-                 <Table className="table-fixed">
+                 <Table className="table-fixed w-full">
                   <TableHeader>
                     <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto">
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle">Fecha</TableHead>
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle">Hora</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle">Servicio</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle w-[250px]">Servicio</TableHead>
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle">Vuelo</TableHead>
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle">Guía</TableHead>
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle">Bus</TableHead>
@@ -297,14 +297,14 @@ export function ServiceOrderPrintPage() {
                         const choferFirstName = choferSanitized.split(' ')[0];
 
                         return (
-                          <TableRow key={i} className="break-words h-10 bg-white hover:bg-white text-xs">
+                          <TableRow key={i} className="h-10 bg-white hover:bg-white text-xs">
                             <TableCell className="p-2 border-r border-gray-200 text-center font-semibold align-middle">
                               {showDate && s.fecha ? s.fecha : ""}
                             </TableCell>
                              <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
                                {s.hora}
                              </TableCell>
-                             <TableCell className="p-2 border-r border-gray-200 text-left align-middle">
+                             <TableCell className="p-2 border-r border-gray-200 text-left align-middle break-words">
                                {s.servicio}
                               </TableCell>
                              <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
@@ -320,7 +320,7 @@ export function ServiceOrderPrintPage() {
                                {choferFirstName}
                               </TableCell>
                              <TableCell className="p-2 text-left align-middle">
-                               {s.observaciones}
+                                <div className="max-h-20 overflow-auto">{s.observaciones}</div>
                               </TableCell>
                           </TableRow>
                         );
