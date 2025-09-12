@@ -236,7 +236,6 @@ export default function ServiceOrderListPage() {
                 // Mark the original order as a split parent
                 await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, isSplitParent: true }, 'editado');
                 
-                // Use the base name of the parent order for all children
                 const parentBaseName = getBaseName(orderToEdit.orderName);
 
                 for (const [key, services] of serviceMap.entries()) {
@@ -345,7 +344,7 @@ export default function ServiceOrderListPage() {
     }
   };
 
-  const onSheetSave = () => {
+  const onSave = () => {
     setIsSheetOpen(false);
     setIntermediateOrderData(initialOrderDataState);
     fetchOrders(); 
@@ -576,7 +575,7 @@ export default function ServiceOrderListPage() {
 
         <ServiceOrderGeneratorSheet 
             isOpen={isSheetOpen}
-            onClose={onClose}
+            onClose={onSheetClose}
             onSave={onSave}
             orderData={intermediateOrderData}
             setOrderData={setIntermediateOrderData}
