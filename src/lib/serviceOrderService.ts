@@ -15,6 +15,7 @@ import {
   increment,
   query,
   where,
+  setDoc,
 } from 'firebase/firestore';
 // import { getFlightFromFirestore } from './flightSyncService'; // This file was removed.
 import { format, parse } from 'date-fns';
@@ -49,6 +50,11 @@ export interface PredefinedFlight {
   flightNumber: string;
   time: string;
   observations: string;
+}
+
+export interface Bus {
+    id: string;
+    name: string;
 }
 
 export interface ServiceOrderGuide extends Guide {
@@ -142,6 +148,17 @@ export async function getFlightsFromFirestore(): Promise<PredefinedFlight[]> {
   } as PredefinedFlight)).sort((a, b) => a.flightNumber.localeCompare(b.flightNumber));
 }
 
+export async function getBusesFromFirestore(): Promise<Bus[]> {
+    if (!db) throw new Error("Firestore not initialized.");
+    const busesRef = collection(db, 'buses');
+    const snapshot = await getDocs(busesRef);
+    if (snapshot.empty) return [];
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        name: (doc.data().name as string).toUpperCase()
+    } as Bus)).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 
 // --- Functions to Check for Duplicates ---
 
@@ -156,6 +173,8 @@ export const checkIfHotelExists = (name: string) => checkExists('hotels', 'name'
 export const checkIfActivityExists = (name: string) => checkExists('activities', 'name', name);
 export const checkIfDriverExists = (name: string) => checkExists('drivers', 'name', name);
 export const checkIfFlightExists = (flightNumber: string) => checkExists('flights', 'flightNumber', flightNumber);
+export const checkIfBusExists = (name: string) => checkExists('buses', 'name', name);
+
 export async function checkIfGuideExists(firstName: string, lastName: string): Promise<boolean> {
     if (!db) return false;
     const q = query(collection(db, 'guides'), 
@@ -174,6 +193,15 @@ export const createHotel = (name: string) => addDoc(collection(db!, 'hotels'), {
 export const createActivity = (name: string) => addDoc(collection(db!, 'activities'), { name });
 export const createDriver = (name: string) => addDoc(collection(db!, 'drivers'), { name });
 export const createFlight = (flight: Omit<PredefinedFlight, 'id'>) => addDoc(collection(db!, 'flights'), flight);
+export const createBus = (name: string) => addDoc(collection(db!, 'buses'), { name });
+
+// --- Data Update Functions ---
+export const updateGuide = (id: string, data: {firstName: string, lastName: string}) => setDoc(doc(db!, 'guides', id), data);
+export const updateHotel = (id: string, name: string) => setDoc(doc(db!, 'hotels', id), { name });
+export const updateActivity = (id: string, name: string) => setDoc(doc(db!, 'activities', id), { name });
+export const updateDriver = (id: string, name: string) => setDoc(doc(db!, 'drivers', id), { name });
+export const updateFlight = (id: string, data: Omit<PredefinedFlight, 'id'>) => setDoc(doc(db!, 'flights', id), data);
+export const updateBus = (id: string, name: string) => setDoc(doc(db!, 'buses', id), { name });
 
 // --- Data Creation Functions (Bulk) ---
 const createBulk = async (collectionName: string, records: { [key: string]: any }[]) => {
@@ -201,6 +229,7 @@ export const deleteHotel = (id: string) => deleteDoc(doc(db!, 'hotels', id));
 export const deleteActivity = (id: string) => deleteDoc(doc(db!, 'activities', id));
 export const deleteDriver = (id: string) => deleteDoc(doc(db!, 'drivers', id));
 export const deleteFlight = (id: string) => deleteDoc(doc(db!, 'flights', id));
+export const deleteBus = (id: string) => deleteDoc(doc(db!, 'buses', id));
 
 // --- Bulk Deletion Functions ---
 const deleteBulk = async (collectionName: string, ids: string[]) => {
@@ -340,3 +369,5 @@ export async function getFlightServiceDetails(
   }
 }
 */
+
+    
