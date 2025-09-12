@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useEffect, useState, useRef } from "react";
@@ -148,9 +147,11 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
         <DialogHeader className="p-4 border-b flex-shrink-0">
           <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto p-4 flex justify-center">
-          <PrintableView />
+        
+        <div className="flex-grow overflow-y-auto p-4 flex justify-center min-h-0">
+            <PrintableView />
         </div>
+
         <DialogFooter className="flex-shrink-0 flex justify-start gap-2 border-t p-2">
           <Button
             type="button"
