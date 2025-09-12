@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
@@ -12,7 +13,7 @@ import {
   createFlight, getFlightsFromFirestore, updateFlight,
   createBus, getBusesFromFirestore, updateBus, deleteBus,
   checkIfGuideExists, checkIfHotelExists, checkIfDriverExists, checkIfActivityExists, checkIfFlightExists, checkIfBusExists,
-  deleteGuide, deleteHotel, deleteDriver, deleteActivity, deleteFlight,
+  deleteGuide, deleteHotel, deleteDriver, deleteActivity, deleteFlight, initializeDefaultBuses,
   type Hotel, type Driver, type Activity, type ServiceOrderGuide, type PredefinedFlight, type Bus
 } from '@/lib/serviceOrderService';
 
@@ -81,6 +82,7 @@ export default function ContributeDataPage() {
     if (isAuthenticated) {
       setIsLoading(true);
       try {
+        await initializeDefaultBuses();
         const [fetchedHotels, fetchedDrivers, fetchedActivities, fetchedGuides, fetchedFlights, fetchedBuses] = await Promise.all([
           getHotelsFromFirestore(),
           getDriversFromFirestore(),
