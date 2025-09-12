@@ -150,7 +150,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
         <DialogHeader className="p-4">
            <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto p-4">
+        <div className="flex flex-grow items-center justify-center overflow-y-auto p-4">
           <PrintableView />
         </div>
         <DialogFooter className="sticky bottom-0 z-10 flex justify-end gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2 mt-auto">
