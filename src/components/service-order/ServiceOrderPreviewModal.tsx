@@ -109,7 +109,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                                        <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
                                          {s.hora}
                                        </TableCell>
-                                       <TableCell className="p-2 border-r border-gray-200 text-left align-middle break-words">
+                                       <TableCell className="p-2 border-r border-gray-200 text-left align-middle">
                                          {s.servicio}
                                         </TableCell>
                                        <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
@@ -125,7 +125,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                                          {choferFirstName}
                                         </TableCell>
                                        <TableCell className="p-2 text-left align-middle">
-                                         <div className="max-h-20 overflow-auto">{s.observaciones}</div>
+                                         {s.observaciones}
                                         </TableCell>
                                     </TableRow>
                                   );
@@ -304,7 +304,7 @@ export function ServiceOrderPrintPage() {
                              <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
                                {s.hora}
                              </TableCell>
-                             <TableCell className="p-2 border-r border-gray-200 text-left align-middle break-words">
+                             <TableCell className="p-2 border-r border-gray-200 text-left align-middle">
                                {s.servicio}
                               </TableCell>
                              <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
@@ -320,7 +320,7 @@ export function ServiceOrderPrintPage() {
                                {choferFirstName}
                               </TableCell>
                              <TableCell className="p-2 text-left align-middle">
-                                <div className="max-h-20 overflow-auto">{s.observaciones}</div>
+                                {s.observaciones}
                               </TableCell>
                           </TableRow>
                         );
