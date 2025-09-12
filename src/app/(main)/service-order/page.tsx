@@ -320,9 +320,9 @@ export default function ServiceOrderListPage() {
       link.href = url;
       
       const fileName = order.orderName
-          .replace(/ — /g, '_')
-          .replace(/:/g, '')
-          .replace(/[\s/]/g, '_');
+        .replace(/\s*—\s*/g, '_') // Replaces " — " with "_"
+        .replace(/:/g, '_')        // Replaces ":" with "_"
+        .replace(/[\s/]/g, '_');   // Replaces other whitespace and slashes with "_"
 
       link.download = `${fileName}.xlsx`;
       
