@@ -79,33 +79,22 @@ const defaultBuses = ['Bus 8', 'Bus 9', 'Bus 10'];
 // --- Initialization Functions ---
 export async function initializeDefaultBuses(): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
-    
     const busesRef = collection(db, 'buses');
-    
+    console.log("Attempting to initialize default buses...");
+
     try {
-        // First, get all existing buses to prevent duplicates.
-        const existingBusesSnapshot = await getDocs(busesRef);
-        const existingBusNames = new Set(existingBusesSnapshot.docs.map(doc => doc.data().name.toUpperCase()));
-
-        // Determine which default buses are missing.
-        const busesToCreate = defaultBuses.filter(
-            busName => !existingBusNames.has(busName.toUpperCase())
-        );
-
-        if (busesToCreate.length > 0) {
-            console.log(`Initializing missing default buses: ${busesToCreate.join(', ')}`);
-            const batch = writeBatch(db);
-            busesToCreate.forEach(busName => {
-                const docRef = doc(busesRef); // Create a new doc reference for each
-                batch.set(docRef, { name: busName.toUpperCase() });
-            });
-            await batch.commit();
-            console.log('Default buses have been initialized successfully.');
-        }
-
+        const batch = writeBatch(db);
+        defaultBuses.forEach(busName => {
+            // Use the bus name as the document ID to enforce uniqueness
+            const docRef = doc(busesRef, busName.toUpperCase());
+            // Use set with merge:true. This will create the doc if it doesn't exist,
+            // or do nothing if it does. It will not overwrite existing data.
+            batch.set(docRef, { name: busName.toUpperCase() }, { merge: true });
+        });
+        await batch.commit();
+        console.log('Default buses initialization check complete.');
     } catch (error) {
         console.error("Error during default bus initialization:", error);
-        // We don't throw here to avoid breaking the app if Firestore has an issue.
     }
 }
 
@@ -211,7 +200,14 @@ export const checkIfHotelExists = (name: string) => checkExists('hotels', 'name'
 export const checkIfActivityExists = (name: string) => checkExists('activities', 'name', name);
 export const checkIfDriverExists = (name: string) => checkExists('drivers', 'name', name);
 export const checkIfFlightExists = (flightNumber: string) => checkExists('flights', 'flightNumber', flightNumber);
-export const checkIfBusExists = (name: string) => checkExists('buses', 'name', name);
+
+export async function checkIfBusExists(name: string): Promise<boolean> {
+    if (!db) return false;
+    const busDocRef = doc(db, 'buses', name.toUpperCase());
+    const docSnap = await getDoc(busDocRef);
+    return docSnap.exists();
+}
+
 
 export async function checkIfGuideExists(firstName: string, lastName: string): Promise<boolean> {
     if (!db) return false;
@@ -231,7 +227,12 @@ export const createHotel = (name: string) => addDoc(collection(db!, 'hotels'), {
 export const createActivity = (name: string) => addDoc(collection(db!, 'activities'), { name });
 export const createDriver = (name: string) => addDoc(collection(db!, 'drivers'), { name });
 export const createFlight = (flight: Omit<PredefinedFlight, 'id'>) => addDoc(collection(db!, 'flights'), flight);
-export const createBus = (name: string) => addDoc(collection(db!, 'buses'), { name });
+export const createBus = (name: string) => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const docRef = doc(db, 'buses', name.toUpperCase());
+    return setDoc(docRef, { name: name.toUpperCase() });
+};
+
 
 // --- Data Update Functions ---
 export const updateGuide = (id: string, data: {firstName: string, lastName: string}) => setDoc(doc(db!, 'guides', id), data);
@@ -239,7 +240,15 @@ export const updateHotel = (id: string, name: string) => setDoc(doc(db!, 'hotels
 export const updateActivity = (id: string, name: string) => setDoc(doc(db!, 'activities', id), { name });
 export const updateDriver = (id: string, name: string) => setDoc(doc(db!, 'drivers', id), { name });
 export const updateFlight = (id: string, data: Omit<PredefinedFlight, 'id'>) => setDoc(doc(db!, 'flights', id), data);
-export const updateBus = (id: string, name: string) => setDoc(doc(db!, 'buses', id), { name });
+export const updateBus = (id: string, name: string) => {
+    if (!db) throw new Error("Firestore not initialized.");
+    // This is more complex if the ID is the name. If the name changes, the ID must change.
+    // This implies deleting the old doc and creating a new one.
+    // For simplicity, let's assume the name (the ID) is NOT editable, only other fields if they existed.
+    // If name IS the only field, an "update" is essentially just ensuring it exists.
+    const docRef = doc(db, 'buses', id); // Here, id is the old name
+    return setDoc(docRef, { name: name.toUpperCase() });
+};
 
 // --- Data Creation Functions (Bulk) ---
 const createBulk = async (collectionName: string, records: { [key: string]: any }[]) => {
@@ -407,5 +416,3 @@ export async function getFlightServiceDetails(
   }
 }
 */
-
-    
