@@ -509,7 +509,7 @@ export default function ServiceOrderListPage() {
                           const childCount = children.length;
                           
                           return (
-                            <Accordion type="single" collapsible key={parent.id} className="border-b contents">
+                            <Accordion type="single" collapsible key={parent.id} className="contents">
                               <AccordionItem value="item" className="contents">
                                 <TableRow>
                                   {isCurrentUserAdmin && (<TableCell><Checkbox checked={selectedOrderIds.has(parent.id)} onCheckedChange={(c) => handleSelectOne(parent.id, !!c)} aria-label={`Seleccionar ${baseName}`} disabled={parent.status === 'eliminado'} /></TableCell>)}
@@ -524,7 +524,7 @@ export default function ServiceOrderListPage() {
                                 </TableRow>
 
                                 {childCount > 0 && (<AccordionContent asChild>
-                                  <>
+                                  <React.Fragment>
                                     {children.map((child) => {
                                       const displayName = childNameFrom(baseName, child);
                                       return (
@@ -540,7 +540,7 @@ export default function ServiceOrderListPage() {
                                           </TableRow>
                                       );
                                     })}
-                                  </>
+                                  </React.Fragment>
                                 </AccordionContent>)}
                               </AccordionItem>
                             </Accordion>
