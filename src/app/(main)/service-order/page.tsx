@@ -41,7 +41,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOrderGeneratorSheet";
 import { ServiceOrderEditModal } from "@/components/service-order/ServiceOrderEditModal";
 import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPreviewModal";
-import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity, type PredefinedFlight } from "@/lib/serviceOrderService";
+import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, getBusesFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity, type PredefinedFlight, type Bus } from "@/lib/serviceOrderService";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ServiceOrderDeletionFilter, type FilterState } from "@/components/service-order/ServiceOrderDeletionFilter";
 
@@ -67,6 +67,7 @@ export default function ServiceOrderListPage() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [flights, setFlights] = useState<PredefinedFlight[]>([]);
+  const [buses, setBuses] = useState<Bus[]>([]);
   
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [filterState, setFilterState] = useState<FilterState>('active');
@@ -94,13 +95,14 @@ export default function ServiceOrderListPage() {
   const fetchOrders = async () => {
     setIsLoading(true);
     try {
-      const [fetchedOrders, fetchedGuides, fetchedDrivers, fetchedHotels, fetchedActivities, fetchedFlights] = await Promise.all([
+      const [fetchedOrders, fetchedGuides, fetchedDrivers, fetchedHotels, fetchedActivities, fetchedFlights, fetchedBuses] = await Promise.all([
         getAllServiceOrders(),
         getGuidesFromFirestore(),
         getDriversFromFirestore(),
         getHotelsFromFirestore(),
         getActivitiesFromFirestore(),
         getFlightsFromFirestore(),
+        getBusesFromFirestore(),
       ]);
       setOrders(fetchedOrders);
       setGuides(fetchedGuides);
@@ -108,6 +110,7 @@ export default function ServiceOrderListPage() {
       setHotels(fetchedHotels);
       setActivities(fetchedActivities);
       setFlights(fetchedFlights);
+      setBuses(fetchedBuses);
     } catch (error) {
       toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
     } finally {
@@ -622,7 +625,7 @@ export default function ServiceOrderListPage() {
 
         {isEditModalOpen && orderToEdit && (
           <ServiceOrderEditModal
-            order={orderToEdit} guides={guides} activities={activities} drivers={drivers} flights={flights} hotels={hotels}
+            order={orderToEdit} guides={guides} activities={activities} drivers={drivers} flights={flights} hotels={hotels} buses={buses}
             onSave={handleSaveFromEditModal}
             onClose={() => { setIsEditModalOpen(false); setOrderToEdit(null); }}
           />
@@ -640,10 +643,14 @@ export default function ServiceOrderListPage() {
             setOrderData={setIntermediateOrderData}
             onClearAndNew={onClearAndNew}
             isAutomatedMode={isAutomatedMode}
+            guides={guides}
+            activities={activities}
+            drivers={drivers}
+            flights={flights}
+            hotels={hotels}
+            buses={buses}
         />
     </div>
     </TooltipProvider>
   );
 }
-
-    

@@ -9,9 +9,9 @@ import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import {
-  getGuidesFromFirestore, getHotelsFromFirestore, getDriversFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore,
+  getGuidesFromFirestore, getHotelsFromFirestore, getDriversFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, getBusesFromFirestore,
   recordActivityTimeUsage, getSuggestedTimeForActivity,
-  type ServiceOrderGuide, type Hotel, type Driver, type Activity, type ServiceItem, type PredefinedFlight,
+  type ServiceOrderGuide, type Hotel, type Driver, type Activity, type ServiceItem, type PredefinedFlight, type Bus,
 } from '@/lib/serviceOrderService';
 import { getServiceOrderRules, type ServiceOrderRule } from '@/lib/serviceOrderRuleService';
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
@@ -50,22 +50,26 @@ interface ServiceOrderGeneratorSheetProps {
     setOrderData: (data: ServiceOrderData) => void;
     onClearAndNew: () => void;
     isAutomatedMode: boolean;
+    guides: ServiceOrderGuide[];
+    hotels: Hotel[];
+    drivers: Driver[];
+    activities: Activity[];
+    flights: PredefinedFlight[];
+    buses: Bus[];
 }
 
-export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData, setOrderData, onClearAndNew, isAutomatedMode }: ServiceOrderGeneratorSheetProps) {
+export function ServiceOrderGeneratorSheet({ 
+    isOpen, onClose, onSave, orderData, setOrderData, onClearAndNew, isAutomatedMode,
+    guides, hotels, drivers, activities, flights, buses 
+}: ServiceOrderGeneratorSheetProps) {
     const { currentUser } = useAuth();
     const { toast } = useToast();
 
     const [isSaving, setIsSaving] = useState(false);
-    const [isLoadingData, setIsLoadingData] = useState(true);
+    const [isLoadingData, setIsLoadingData] = useState(false);
 
-    const [guides, setGuides] = useState<ServiceOrderGuide[]>([]);
-    const [hotels, setHotels] = useState<Hotel[]>([]);
-    const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
     const [ownDrivers, setOwnDrivers] = useState<Driver[]>([]);
     const [externalDrivers, setExternalDrivers] = useState<Driver[]>([]);
-    const [activities, setActivities] = useState<Activity[]>([]);
-    const [flights, setFlights] = useState<PredefinedFlight[]>([]);
     const [serviceOrderRules, setServiceOrderRules] = useState<ServiceOrderRule[]>([]);
     
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -136,29 +140,27 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
     }, []);
 
     useEffect(() => {
-        async function loadInitialData() {
+        async function loadRules() {
             if (!isOpen) return;
             setIsLoadingData(true);
             try {
-                const [fetchedGuides, fetchedHotels, fetchedDrivers, fetchedActivities, fetchedFlights, fetchedRules] = await Promise.all([
-                    getGuidesFromFirestore(), getHotelsFromFirestore(), getDriversFromFirestore(), getActivitiesFromFirestore(), getFlightsFromFirestore(), getServiceOrderRules()
-                ]);
-                setGuides(fetchedGuides);
-                setHotels(fetchedHotels);
-                setAllDrivers(fetchedDrivers);
-                setOwnDrivers(fetchedDrivers.filter(d => !d.name.startsWith('CONT ')));
-                setExternalDrivers(fetchedDrivers.filter(d => d.name.startsWith('CONT ')));
-                setActivities(fetchedActivities);
-                setFlights(fetchedFlights);
+                const fetchedRules = await getServiceOrderRules();
                 setServiceOrderRules(fetchedRules);
             } catch (error) {
-                toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
+                toast({ title: "Error", description: "No se pudieron cargar las reglas de servicio.", variant: "destructive" });
             } finally {
                 setIsLoadingData(false);
             }
         }
-        loadInitialData();
+        loadRules();
     }, [isOpen, toast]);
+    
+     useEffect(() => {
+        if (drivers.length > 0) {
+            setOwnDrivers(drivers.filter(d => !d.name.startsWith('CONT ')));
+            setExternalDrivers(drivers.filter(d => d.name.startsWith('CONT ')));
+        }
+    }, [drivers]);
     
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -440,6 +442,9 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         return flights.map(createOption);
     }, [newService.servicio, flights]);
     
+    const busOptions = buses.map(b => ({ value: b.name.toUpperCase(), label: b.name }));
+    const finalBusOptions = [...busOptions, { value: 'CONT.', label: 'Contratado' }];
+
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
@@ -515,7 +520,7 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
                                         <SelectTrigger className={cn("mt-1 bg-card", busTypeSelection && "border-green-500 font-medium")}>
                                             <SelectValue placeholder="Seleccionar..." />
                                         </SelectTrigger>
-                                        <SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                                        <SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                                     </Select>
                                 </div>
                                 <div className="col-span-3">
@@ -731,5 +736,3 @@ export function ServiceOrderGeneratorSheet({ isOpen, onClose, onSave, orderData,
         </Sheet>
     );
 }
-
-    

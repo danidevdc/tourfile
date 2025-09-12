@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, ChangeEvent } from "react";
 import { parse, format } from "date-fns";
 import { StoredServiceOrder } from "@/lib/serviceOrderStorage";
-import { ServiceOrderData, ServiceItem, ServiceOrderGuide, Activity, Driver, PredefinedFlight, Hotel, recordActivityTimeUsage, getSuggestedTimeForActivity } from "@/lib/serviceOrderService";
+import { ServiceOrderData, ServiceItem, ServiceOrderGuide, Activity, Driver, PredefinedFlight, Hotel, Bus, recordActivityTimeUsage, getSuggestedTimeForActivity } from "@/lib/serviceOrderService";
 import { cn } from "@/lib/utils";
 
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -34,7 +35,8 @@ interface ServiceOrderEditModalProps {
   drivers: Driver[];
   flights: PredefinedFlight[];
   hotels: Hotel[];
-  onSave: (updatedOrderData: ServiceOrderData, splitBy: 'guide' | 'driver' | null) => void;
+  buses: Bus[];
+  onSave: (updatedOrderData: ServiceOrderData) => void;
   onClose: () => void;
 }
 
@@ -43,7 +45,7 @@ const initialNewServiceState: ServiceItem = {
 };
 
 
-export function ServiceOrderEditModal({ order, guides, activities, drivers, flights, hotels, onSave, onClose }: ServiceOrderEditModalProps) {
+export function ServiceOrderEditModal({ order, guides, activities, drivers, flights, hotels, buses, onSave, onClose }: ServiceOrderEditModalProps) {
   const [editableOrderData, setEditableOrderData] = useState<ServiceOrderData>(JSON.parse(JSON.stringify(order.data)));
   const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
   const [isSplitConfirmOpen, setIsSplitConfirmOpen] = useState(false);
@@ -121,30 +123,8 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
  };
 
   const handleSaveClick = () => {
-      const assignedGuides = new Set(editableOrderData.services.map(s => s.guia || editableOrderData.guia));
-      const assignedDrivers = new Set(editableOrderData.services.map(s => s.chofer || ''));
-
-      if (assignedGuides.size > 1) {
-          setPotentialSplit({ by: 'guide', count: assignedGuides.size });
-          setIsSplitConfirmOpen(true);
-      } else if (assignedDrivers.size > 1) {
-          setPotentialSplit({ by: 'driver', count: assignedDrivers.size });
-          setIsSplitConfirmOpen(true);
-      } else {
-          onSave(editableOrderData, null); // No split needed
-      }
+    onSave(editableOrderData);
   };
-
-  const handleConfirmSplit = (shouldSplit: boolean) => {
-      if (shouldSplit && potentialSplit) {
-          onSave(editableOrderData, potentialSplit.by);
-      } else {
-          onSave(editableOrderData, null);
-      }
-      setIsSplitConfirmOpen(false);
-      setPotentialSplit(null);
-  };
-
 
   const handleTimeChange = (index: number, rawValue: string) => {
       const numbersOnly = rawValue.replace(/[^0-9]/g, '');
@@ -224,6 +204,10 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
   }, [newService.servicio, flights]);
   
   const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim();
+  
+  const busOptions = buses.map(b => ({ value: b.name.toUpperCase(), label: b.name }));
+  const finalBusOptions = [...busOptions, { value: 'CONT.', label: 'Contratado' }];
+
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -386,7 +370,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                          <Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)}>
                             <SelectTrigger className="h-8 text-xs bg-card/80"><SelectValue placeholder="..." /></SelectTrigger>
-                            <SelectContent>{[{ value: '8', label: 'Bus 8' }, { value: '9', label: 'Bus 9' }, { value: '10', label: 'Bus 10' }, { value: 'CONT.', label: 'Contratado' }].map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent>
+                            <SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent>
                         </Select>
                       </TableCell>
                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
@@ -430,31 +414,6 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
           <Button variant="outline" onClick={onClose}><X className="mr-2 h-4 w-4"/>Cerrar</Button>
           <Button onClick={handleSaveClick}><Save className="mr-2 h-4 w-4"/>Guardar Cambios</Button>
         </DialogFooter>
-
-        {isSplitConfirmOpen && potentialSplit && (
-             <AlertDialog open onOpenChange={setIsSplitConfirmOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle className="flex items-center gap-2"><Split className="text-primary"/>¿Dividir Orden de Servicio?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Hemos detectado que has asignado {potentialSplit.count} diferentes {potentialSplit.by === 'guide' ? 'guías' : 'choferes'} a los servicios.
-                            ¿Quieres dividir esta orden en {potentialSplit.count} órdenes separadas, una para cada {potentialSplit.by === 'guide' ? 'guía' : 'chofer'}?
-                            <br/><br/>
-                            - <span className="font-semibold">Sí, dividir:</span> Se crearán nuevas órdenes y la original se marcará como "madre".
-                            <br/>
-                            - <span className="font-semibold">No, solo guardar:</span> Todos los cambios se guardarán en esta única orden.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => handleConfirmSplit(false)}>No, solo guardar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleConfirmSplit(true)}>
-                            Sí, dividir
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-             </AlertDialog>
-        )}
-
       </DialogContent>
     </Dialog>
   );
