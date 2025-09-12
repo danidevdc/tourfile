@@ -33,7 +33,7 @@ import {
 import { cn } from '@/lib/utils';
 
 type DataType = 'guides' | 'hotels' | 'drivers' | 'activities' | 'flights' | 'buses';
-const VALID_TABS: DataType[] = ['guides', 'hotels', 'drivers', 'activities', 'flights', 'buses'];
+const VALID_TABS: DataType[] = ['guides', 'hotels', 'drivers', 'buses', 'activities', 'flights'];
 type ItemToDelete = (Hotel | Driver | Activity | ServiceOrderGuide | PredefinedFlight | Bus) & { type: DataType; name?: string; fullName?: string; flightNumber?: string; };
 
 export default function ContributeDataPage() {
@@ -425,19 +425,21 @@ export default function ContributeDataPage() {
               <TabsTrigger value="guides"><UserSquare className="mr-2 h-4 w-4" />Guías</TabsTrigger>
               <TabsTrigger value="hotels"><HotelIcon className="mr-2 h-4 w-4" />Hoteles</TabsTrigger>
               <TabsTrigger value="drivers"><Car className="mr-2 h-4 w-4" />Choferes</TabsTrigger>
+              <TabsTrigger value="buses"><BusIcon className="mr-2 h-4 w-4" />Buses</TabsTrigger>
               <TabsTrigger value="activities"><ListChecks className="mr-2 h-4 w-4" />Actividades</TabsTrigger>
               <TabsTrigger value="flights"><Plane className="mr-2 h-4 w-4" />Vuelos</TabsTrigger>
-              <TabsTrigger value="buses"><BusIcon className="mr-2 h-4 w-4" />Buses</TabsTrigger>
             </TabsList>
             <TabsContent value="guides">{renderAddForm('guides')}{renderTable(filteredData(guides, 'guides'), 'guides')}</TabsContent>
             <TabsContent value="hotels">{renderAddForm('hotels')}{renderTable(filteredData(hotels, 'hotels'), 'hotels')}</TabsContent>
             <TabsContent value="drivers">{renderAddForm('drivers')}{renderTable(filteredData(drivers, 'drivers'), 'drivers')}</TabsContent>
+            <TabsContent value="buses">{renderAddForm('buses')}{renderTable(filteredData(buses, 'buses'), 'buses')}</TabsContent>
             <TabsContent value="activities">{renderAddForm('activities')}{renderTable(filteredData(activities, 'activities'), 'activities')}</TabsContent>
             <TabsContent value="flights">{renderAddForm('flights')}{renderTable(filteredData(flights, 'flights'), 'flights')}</TabsContent>
-            <TabsContent value="buses">{renderAddForm('buses')}{renderTable(filteredData(buses, 'buses'), 'buses')}</TabsContent>
           </Tabs>
         </CardContent>
       </Card>
     </div>
   );
 }
+
+    
