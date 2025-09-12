@@ -52,7 +52,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
   const PrintableView = () => (
      <div ref={captureRef} className={cn(
-        "bg-white text-zinc-900 p-4 ui-sans-serif uppercase w-[800px]",
+        "bg-white text-zinc-900 uppercase w-full",
       )}>
         <div className="relative">
            <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
@@ -342,6 +342,3 @@ export function ServiceOrderPrintPage() {
       </div>
     );
 }
-
-
-    
