@@ -33,7 +33,7 @@ import {
 import { cn } from '@/lib/utils';
 
 type DataType = 'guides' | 'hotels' | 'drivers' | 'activities' | 'flights' | 'buses';
-const VALID_TABS: DataType[] = ['guides', 'hotels', 'drivers', 'buses', 'activities', 'flights'];
+const VALID_TABS: DataType[] = ['guides', 'hotels', 'drivers', 'activities', 'flights', 'buses'];
 type ItemToDelete = (Hotel | Driver | Activity | ServiceOrderGuide | PredefinedFlight | Bus) & { type: DataType; name?: string; fullName?: string; flightNumber?: string; };
 
 export default function ContributeDataPage() {
@@ -117,7 +117,6 @@ export default function ContributeDataPage() {
     setIsSubmitting(true);
     try {
       if (type === 'flights') {
-        // ... (flight logic remains the same)
         if (!newFlightNumber.trim() || !newFlightTime.trim()) {
           toast({ title: "Datos Requeridos", description: "El número de vuelo y la hora son obligatorios.", variant: "destructive" }); return;
         }
@@ -335,19 +334,42 @@ export default function ContributeDataPage() {
                 const id = item.uid || item.id;
                 return (
                 <TableRow key={id} className={cn(isEditing(item) && "bg-muted/50")}>
-                  {type === 'guides' ? (
-                      <>
-                        <TableCell><Input value={isEditing(item) ? editingValues[id].firstName : item.firstName} disabled={!isEditing(item)} onChange={(e) => handleEditingChange(id, 'firstName', e.target.value.toUpperCase())} /></TableCell>
-                        <TableCell><Input value={isEditing(item) ? editingValues[id].lastName : item.lastName} disabled={!isEditing(item)} onChange={(e) => handleEditingChange(id, 'lastName', e.target.value.toUpperCase())} /></TableCell>
-                      </>
-                  ) : type === 'flights' ? (
-                      <>
-                        <TableCell><Input value={isEditing(item) ? editingValues[id].flightNumber : item.flightNumber} disabled={!isEditing(item)} onChange={(e) => handleEditingChange(id, 'flightNumber', e.target.value.toUpperCase())}/></TableCell>
-                        <TableCell><Input value={isEditing(item) ? editingValues[id].time : item.time} disabled={!isEditing(item)} onChange={(e) => handleEditingChange(id, 'time', e.target.value)}/></TableCell>
-                        <TableCell><Input value={isEditing(item) ? editingValues[id].observations : item.observations} disabled={!isEditing(item)} onChange={(e) => handleEditingChange(id, 'observations', e.target.value)}/></TableCell>
-                      </>
+                   {isEditing(item) ? (
+                    <>
+                      {type === 'guides' ? (
+                        <>
+                          <TableCell><Input value={editingValues[id].firstName} onChange={(e) => handleEditingChange(id, 'firstName', e.target.value.toUpperCase())} /></TableCell>
+                          <TableCell><Input value={editingValues[id].lastName} onChange={(e) => handleEditingChange(id, 'lastName', e.target.value.toUpperCase())} /></TableCell>
+                        </>
+                      ) : type === 'flights' ? (
+                        <>
+                          <TableCell><Input value={editingValues[id].flightNumber} onChange={(e) => handleEditingChange(id, 'flightNumber', e.target.value.toUpperCase())}/></TableCell>
+                          <TableCell><Input value={editingValues[id].time} onChange={(e) => handleEditingChange(id, 'time', e.target.value)}/></TableCell>
+                          <TableCell><Input value={editingValues[id].observations} onChange={(e) => handleEditingChange(id, 'observations', e.target.value)}/></TableCell>
+                        </>
+                      ) : (
+                        <TableCell colSpan={type === 'guides' || type === 'flights' ? 3 : 1}>
+                            <Input value={editingValues[id].name} onChange={(e) => handleEditingChange(id, 'name', e.target.value.toUpperCase())} />
+                        </TableCell>
+                      )}
+                    </>
                   ) : (
-                     <TableCell><Input value={isEditing(item) ? editingValues[id].name : item.name} disabled={!isEditing(item)} onChange={(e) => handleEditingChange(id, 'name', e.target.value.toUpperCase())} /></TableCell>
+                    <>
+                      {type === 'guides' ? (
+                        <>
+                          <TableCell>{item.firstName}</TableCell>
+                          <TableCell>{item.lastName}</TableCell>
+                        </>
+                      ) : type === 'flights' ? (
+                        <>
+                          <TableCell>{item.flightNumber}</TableCell>
+                          <TableCell>{item.time}</TableCell>
+                          <TableCell>{item.observations}</TableCell>
+                        </>
+                      ) : (
+                        <TableCell>{item.name}</TableCell>
+                      )}
+                    </>
                   )}
                   <TableCell className="text-right space-x-1">
                     {isEditing(item) ? (
