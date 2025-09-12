@@ -11,12 +11,11 @@ import { cn } from "@/lib/utils";
 
 import { 
     getAllServiceOrders, 
-    deleteServiceOrder, 
+    deleteBulkServiceOrders,
     updateServiceOrder, 
     type StoredServiceOrder, 
     saveServiceOrder, 
     type OrderStatus,
-    deleteBulkServiceOrders
 } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { getBaseName, getFamilyId, childNameFrom, shortPerson } from "@/lib/serviceOrderFamily";
@@ -214,7 +213,7 @@ export default function ServiceOrderListPage() {
     setIsPreviewModalOpen(true);
   }
   
- const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData, splitBy: 'guide' | 'driver' | null) => {
+ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     if (!orderToEdit || !currentUser?.email) return;
 
     const uniqueGuides = new Set(updatedOrderData.services.map(s => s.guia || updatedOrderData.guia).filter(Boolean));
@@ -244,8 +243,9 @@ export default function ServiceOrderListPage() {
                 for (const [key, services] of serviceMap.entries()) {
                     const newSplitOrderData: ServiceOrderData = { ...updatedOrderData, services, isSplitParent: false };
                     
-                    if(splitDimension === 'guide') newSplitOrderData.guia = key;
-                    if(splitDimension === 'driver') newSplitOrderData.guia = '';
+                    if(splitDimension === 'guide') {
+                      newSplitOrderData.guia = key;
+                    }
                     
                     const childOrderName = childNameFrom(parentBaseName, { ...orderToEdit, data: newSplitOrderData });
                     await saveServiceOrder(newSplitOrderData, currentUser.email, childOrderName, orderToEdit.id);
@@ -278,14 +278,24 @@ export default function ServiceOrderListPage() {
 
   const handleDeleteOrder = async () => {
     if(!orderToDelete || !orderToDelete.id || !currentUser?.email) return;
+
+    // Find the family to get all IDs to delete
+    const family = families.find(f => f.parent.id === orderToDelete.id || f.children.some(c => c.id === orderToDelete.id));
+    let idsToDelete: string[] = [orderToDelete.id];
+
+    // If deleting a parent, include all its children
+    if (family && family.parent.id === orderToDelete.id) {
+        idsToDelete = [orderToDelete.id, ...family.children.map(c => c.id)];
+    }
+    
     try {
-      await deleteServiceOrder(orderToDelete.id, currentUser.email);
-      toast({ title: "Éxito", description: "Orden de servicio marcada como eliminada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
-      fetchOrders();
+        await deleteBulkServiceOrders(idsToDelete, currentUser.email);
+        toast({ title: "Éxito", description: `${idsToDelete.length} orden(es) marcada(s) como eliminada(s).`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+        fetchOrders();
     } catch (error) {
-      toast({ title: "Error", description: "No se pudo eliminar la orden.", variant: "destructive"});
+        toast({ title: "Error", description: "No se pudieron eliminar las órdenes.", variant: "destructive"});
     } finally {
-      setOrderToDelete(null);
+        setOrderToDelete(null);
     }
   }
 
@@ -419,6 +429,19 @@ export default function ServiceOrderListPage() {
             return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Creado</Badge>;
     }
   };
+  
+  const getDeletionAlertDescription = () => {
+    if (!orderToDelete) return "";
+    const family = families.find(f => f.parent.id === orderToDelete.id);
+    const childCount = family ? family.children.length : 0;
+    
+    let baseMessage = `La orden "${getBaseName(orderToDelete.orderName)}" será marcada como eliminada.`;
+    if (childCount > 0) {
+      baseMessage += ` Sus ${childCount} órdenes hijas también serán eliminadas.`;
+    }
+    baseMessage += " Los administradores podrán verla y recuperarla.";
+    return baseMessage;
+  };
 
   const numSelected = selectedOrderIds.size;
   const numInPage = paginatedFamilies.reduce((acc, {parent, children}) => {
@@ -440,7 +463,7 @@ export default function ServiceOrderListPage() {
             {!isDeleted && (<AlertDialog>
                 <Tooltip><TooltipTrigger asChild><AlertDialogTrigger asChild><Button variant="destructive" size="sm" disabled={!canModify} onClick={() => setOrderToDelete(order)} className="h-8 w-8 p-0"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger></TooltipTrigger><TooltipContent><p>Eliminar Orden</p></TooltipContent></Tooltip>
                 {orderToDelete && orderToDelete.id === order.id && (<AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de eliminar esta orden?</AlertDialogTitle><AlertDialogDescription>La orden "{getBaseName(orderToDelete.orderName)}" será marcada como eliminada. Los administradores podrán verla y recuperarla.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de eliminar esta orden?</AlertDialogTitle><AlertDialogDescription>{getDeletionAlertDescription()}</AlertDialogDescription></AlertDialogHeader>
                     <AlertDialogFooter><AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cerrar</AlertDialogCancel><AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">Sí, eliminar</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>)}
             </AlertDialog>)}
@@ -533,9 +556,9 @@ export default function ServiceOrderListPage() {
                             const isExpanded = expandedFamilies.has(parent.id);
                             
                             let displayedGuide = parent.data.guia;
-                            if(childCount > 0) {
+                            if (childCount > 0) {
                                 const childGuides = [...new Set(children.map(c => c.data.guia || ''))].filter(Boolean);
-                                if(childGuides.length > 0) {
+                                if (childGuides.length > 0) {
                                     displayedGuide = childGuides.join(', ');
                                 }
                             }
