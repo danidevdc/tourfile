@@ -52,7 +52,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
   const PrintableView = () => (
      <div ref={captureRef} className={cn(
-        "bg-white text-zinc-900 uppercase w-[1152px]",
+        "bg-white text-zinc-900 uppercase w-[1100px]",
       )}>
         <div className="relative">
            <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
@@ -144,11 +144,11 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
   return (
     <Dialog open onOpenChange={onClose}>
-       <DialogContent className="max-w-6xl w-full p-0 overflow-y-auto flex flex-col max-h-[95vh]">
+       <DialogContent className="max-w-6xl w-full p-0 flex flex-col max-h-[95vh]">
         <DialogHeader className="p-4 flex-shrink-0">
            <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
-        <div className="flex-grow flex justify-center py-4">
+        <div className="flex-grow overflow-y-auto flex justify-center py-4">
             <PrintableView />
         </div>
         <DialogFooter className="flex-shrink-0 sticky bottom-0 z-10 flex justify-end gap-2 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2 mt-auto">
