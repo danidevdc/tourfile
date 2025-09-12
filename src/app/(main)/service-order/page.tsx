@@ -156,6 +156,8 @@ export default function ServiceOrderListPage() {
     const groups = new Map<string, { parent: StoredServiceOrder, children: StoredServiceOrder[] }>();
   
     for (const o of filteredOrders) {
+      if (o.data.isSplitParent) continue; // Skip split parents from being top-level items
+      
       const famId = getFamilyId(o);
       const parent = o.splitFrom ? byId.get(o.splitFrom)! : o;
 
@@ -215,41 +217,40 @@ export default function ServiceOrderListPage() {
  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData, splitBy: 'guide' | 'driver' | null) => {
     if (!orderToEdit || !currentUser?.email) return;
 
-    if (splitBy) {
-        const serviceMap = new Map<string, ServiceOrderData['services']>();
-        const keyField = splitBy === 'guide' ? 'guia' : 'chofer';
-        const mainAssignee = splitBy === 'guide' ? updatedOrderData.guia : (updatedOrderData.services[0]?.chofer || 'N/A');
+    // Check for potential splits first
+    const uniqueGuides = new Set(updatedOrderData.services.map(s => s.guia || updatedOrderData.guia).filter(Boolean));
+    const uniqueDrivers = new Set(updatedOrderData.services.map(s => s.chofer).filter(Boolean));
 
+    const needsGuideSplit = uniqueGuides.size > 1;
+    const needsDriverSplit = uniqueDrivers.size > 1;
+    
+    if (needsGuideSplit || needsDriverSplit) {
+        const splitDimension = needsGuideSplit ? 'guide' : 'driver';
+        const serviceMap = new Map<string, ServiceOrderData['services']>();
+        
         updatedOrderData.services.forEach(service => {
-            const assignee = service[keyField] || mainAssignee;
-            if (!assignee) return;
-            if (!serviceMap.has(assignee)) {
-                serviceMap.set(assignee, []);
+            const key = splitDimension === 'guide' ? (service.guia || updatedOrderData.guia) : service.chofer!;
+            if (!serviceMap.has(key)) {
+                serviceMap.set(key, []);
             }
-            serviceMap.get(assignee)!.push(service);
+            serviceMap.get(key)!.push(service);
         });
 
-        const assignedKeys = Array.from(serviceMap.keys());
-        if (assignedKeys.length > 1) {
+        if (serviceMap.size > 1) {
             try {
                 // The original order becomes a "split parent" but we should also clear its services
-                // as they are now distributed among the children. Or we can leave them as a record.
-                // For now, let's mark it and it will be filtered out from the main view of "parents".
                 await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, isSplitParent: true }, 'editado');
                 
                 const parentBaseName = getBaseName(orderToEdit.orderName);
 
                 for (const [key, services] of serviceMap.entries()) {
-                    const newSplitOrderData: ServiceOrderData = { ...updatedOrderData, isSplitParent: false };
+                    const newSplitOrderData: ServiceOrderData = { ...updatedOrderData, services, isSplitParent: false };
                     
-                    if(splitBy === 'guide') {
+                    if(splitDimension === 'guide') {
                       newSplitOrderData.guia = key;
-                      // Ensure services reflect the correct guide for this split
-                      newSplitOrderData.services = services.map(s => ({...s, guia: key}));
-                    } else { // split by driver
-                      newSplitOrderData.services = services.map(s => ({...s, chofer: key}));
                     }
                     
+                    // Create child name and save
                     const childOrderName = childNameFrom(parentBaseName, { ...orderToEdit, data: newSplitOrderData });
                     await saveServiceOrder(newSplitOrderData, currentUser.email, childOrderName, orderToEdit.id);
                 }
@@ -317,7 +318,14 @@ export default function ServiceOrderListPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${getBaseName(order.orderName).replace(/[\s/]/g, '_')}.xlsx`;
+      
+      const fileName = order.orderName
+          .replace(/ — /g, '_')
+          .replace(/:/g, '')
+          .replace(/[\s/]/g, '_');
+
+      link.download = `${fileName}.xlsx`;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -611,3 +619,6 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
+
+
+    
