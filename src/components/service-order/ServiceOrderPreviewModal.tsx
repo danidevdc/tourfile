@@ -25,6 +25,7 @@ interface ServiceOrderPreviewModalProps {
 function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose: () => void }) {
   const captureRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { data } = order;
 
   const services = useMemo(() => {
     return [...data.services].sort((a, b) => {
@@ -48,11 +49,10 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
     await copiarVistaPreviaAlClipboard(captureRef, toast);
   };
   
-  const { data } = order;
 
   return (
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-       <DialogContent className="max-w-[1250px] w-full flex flex-col max-h-[95vh] p-0">
+       <DialogContent className="max-w-[1250px] w-full flex flex-col max-h-[95vh]">
         <DialogHeader className="p-4 border-b flex-shrink-0">
           <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
