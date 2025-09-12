@@ -59,7 +59,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
         
          <div className="flex-grow overflow-auto min-h-0 p-4">
             <div ref={captureRef} className={cn(
-                "bg-white text-zinc-900 uppercase w-[1120px] mx-auto",
+                "bg-white text-zinc-900 uppercase w-[1120px] mx-auto p-2.5",
               )}>
                 <div className="relative">
                    <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
@@ -80,7 +80,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                       <div className="rounded-lg border border-gray-300 overflow-hidden">
                         <Table className="table-fixed w-full">
                           <TableHeader>
-                            <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto">
+                            <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto whitespace-nowrap">
                               <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle">Fecha</TableHead>
                               <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle">Hora</TableHead>
                               <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle w-[250px]">Servicio</TableHead>
@@ -168,6 +168,18 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
 }
 
 export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreviewModalProps) {
+    if (!order?.data) {
+        // Render a loading state or nothing if order data is not yet available
+        return (
+            <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
+                <DialogContent>
+                    <div className="flex justify-center items-center h-48">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
+    }
     return <PrintableView order={order} onClose={onClose} />;
 }
 
@@ -254,7 +266,7 @@ export function ServiceOrderPrintPage() {
               <div className="rounded-lg border border-gray-300 overflow-hidden">
                  <Table className="table-fixed w-full">
                   <TableHeader>
-                    <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto">
+                    <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto whitespace-nowrap">
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle">Fecha</TableHead>
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle">Hora</TableHead>
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle w-[250px]">Servicio</TableHead>
