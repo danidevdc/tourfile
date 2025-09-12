@@ -29,7 +29,10 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
   const captureRef = useRef<HTMLDivElement>(null);
 
   const services = useMemo(() => {
-    return [...data.services].sort((a, b) => {
+    let combinedServices = [...data.services];
+    // This logic is now handled in the parent component that calls this modal.
+    // However, keeping the sort is important for display consistency.
+    return combinedServices.sort((a, b) => {
       try {
         const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
         const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
@@ -146,7 +149,7 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
+      <DialogContent className="max-w-4xl w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
         <DialogHeader className="p-4">
            <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
