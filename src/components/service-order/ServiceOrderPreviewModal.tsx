@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useMemo, useEffect, useState, useRef, Suspense } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { parse } from "date-fns";
 import { FaWhatsapp } from "react-icons/fa";
@@ -111,7 +110,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                               <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle text-[11px]">Fecha</TableHead>
                               <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle text-[11px]">Hora</TableHead>
                               <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle w-[250px] text-[11px]">Servicio</TableHead>
-                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-[11px]">Vuelo</TableHead>
+                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[75px] text-center align-middle text-[11px]">Vuelo</TableHead>
                               <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle text-[11px]">Guía</TableHead>
                               <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-[11px]">Bus</TableHead>
                               <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center align-middle text-[11px]">Chofer</TableHead>
@@ -284,7 +283,7 @@ export function ServiceOrderPrintPage() {
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle text-[11px]">Fecha</TableHead>
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle text-[11px]">Hora</TableHead>
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle w-[250px] text-[11px]">Servicio</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-[11px]">Vuelo</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[75px] text-center align-middle text-[11px]">Vuelo</TableHead>
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle text-[11px]">Guía</TableHead>
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-[11px]">Bus</TableHead>
                       <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center align-middle text-[11px]">Chofer</TableHead>
@@ -387,5 +386,3 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
     // So, we don't need a separate loader here.
     return <PrintableView order={order} onClose={onClose} />;
 }
-
-    
