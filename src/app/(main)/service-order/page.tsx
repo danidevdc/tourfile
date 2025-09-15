@@ -41,7 +41,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOrderGeneratorSheet";
 import { ServiceOrderEditModal } from "@/components/service-order/ServiceOrderEditModal";
 import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPreviewModal";
-import PDFViewerModal from "@/components/service-order/PDFViewerModal";
 import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, getBusesFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity, type PredefinedFlight, type Bus } from "@/lib/serviceOrderService";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ServiceOrderDeletionFilter, type FilterState } from "@/components/service-order/ServiceOrderDeletionFilter";
@@ -91,12 +90,6 @@ export default function ServiceOrderListPage() {
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
   const [isPrintingPdfId, setIsPrintingPdfId] = useState<string | null>(null);
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
-
-  // State for the PDF Viewer Modal
-  const [isPdfViewerOpen, setIsPdfViewerOpen] = useState(false);
-  const [orderForPdf, setOrderForPdf] = useState<StoredServiceOrder | null>(null);
-  const [pdfViewerTitle, setPdfViewerTitle] = useState('');
-
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -229,9 +222,20 @@ export default function ServiceOrderListPage() {
   };
 
   const handleGenerateAndShowPdf = async (order: StoredServiceOrder) => {
-    setOrderForPdf(order);
-    setPdfViewerTitle(`PDF: ${order.orderName}`);
-    setIsPdfViewerOpen(true);
+      try {
+          const orderDataString = encodeURIComponent(JSON.stringify(order));
+          // Adding a 'copy' parameter to the URL
+          const url = `/service-order-print?order=${orderDataString}&copy=true`;
+          window.open(url, '_blank', 'popup=yes,width=1200,height=850');
+      } catch (err) {
+          const errorMessage = (err as Error).message;
+          console.error("PDF Generation Error:", errorMessage);
+          toast({
+              title: "Error de Generación",
+              description: `No se pudo generar el PDF. Detalles: ${errorMessage}`,
+              variant: "destructive"
+          });
+      }
   };
   
  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
@@ -653,16 +657,6 @@ export default function ServiceOrderListPage() {
         {isPreviewModalOpen && orderToPreview && (
           <ServiceOrderPreviewModal order={orderToPreview} onClose={() => { setIsPreviewModalOpen(false); setOrderToPreview(null); }} />
         )}
-        
-        {isPdfViewerOpen && orderForPdf && (
-          <PDFViewerModal
-            order={orderForPdf}
-            isOpen={isPdfViewerOpen}
-            onClose={() => setIsPdfViewerOpen(false)}
-            title={pdfViewerTitle}
-          />
-        )}
-
 
         <ServiceOrderGeneratorSheet 
             isOpen={isSheetOpen}
@@ -683,3 +677,5 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
+
+    

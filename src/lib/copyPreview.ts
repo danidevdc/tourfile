@@ -26,7 +26,7 @@ export async function copiarVistaPreviaAlClipboard(
     const canvas = await html2canvas(node, {
       scale: 2,
       useCORS: true,
-      backgroundColor: "#fff",
+      backgroundColor: "#ffffff", // Explicitly set a white background
       logging: false,
       width: node.scrollWidth,
       height: node.scrollHeight,
@@ -38,12 +38,13 @@ export async function copiarVistaPreviaAlClipboard(
       canvas.toBlob(b => (b ? resolve(b) : reject(new Error("No se pudo generar PNG"))), "image/png", 0.95)
     );
 
+    // Modern browsers support ClipboardItem.
+    // The type casting is a workaround for older TS definitions.
     const ClipboardItemAny = (window as any).ClipboardItem || (window as any).webkitClipboardItem;
     if (!ClipboardItemAny || !navigator.clipboard?.write) {
         throw new Error("La API del portapapeles no es compatible o no está permitida en este navegador.");
     }
     
-    // Check for focus before writing to clipboard
     if (!document.hasFocus()) {
        throw new Error("La ventana no está enfocada. Por favor, haz clic en la página e intenta de nuevo.");
     }
@@ -53,7 +54,7 @@ export async function copiarVistaPreviaAlClipboard(
 
     toast({
         title: "✅ Imagen Copiada",
-        description: "Abre WhatsApp Web/PC y pega con Ctrl+V.",
+        description: "La vista previa ha sido copiada como imagen. Pégala con Ctrl+V.",
         className: "bg-green-100 dark:bg-green-900 border-green-500",
         duration: 5000,
     });
@@ -68,3 +69,5 @@ export async function copiarVistaPreviaAlClipboard(
     });
   }
 }
+
+    
