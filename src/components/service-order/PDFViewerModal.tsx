@@ -2,7 +2,8 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import { Document, Page, pdfjs, BlobProvider } from 'react-pdf';
+import { Document, Page, pdfjs } from 'react-pdf';
+import { BlobProvider } from '@react-pdf/renderer';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
