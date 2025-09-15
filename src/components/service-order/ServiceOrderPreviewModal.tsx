@@ -5,6 +5,8 @@ import { useMemo, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { parse } from "date-fns";
 import { FaWhatsapp } from "react-icons/fa";
+import domtoimage from 'dom-to-image-more';
+
 
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
@@ -13,7 +15,7 @@ import { copiarVistaPreviaAlClipboard } from "@/lib/copyPreview";
 import { Dialog, DialogContent, DialogFooter, DialogClose, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import { Loader2, Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -26,6 +28,9 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
   const { data } = order;
   const captureRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const [isCopying, setIsCopying] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
 
   const services = useMemo(() => {
     if (!data.services) return [];
@@ -47,6 +52,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
   }, [data.services]);
   
   const handleCopy = async () => {
+    setIsCopying(true);
     if (document.hasFocus()) {
         await copiarVistaPreviaAlClipboard(captureRef, toast);
     } else {
@@ -56,6 +62,64 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
             variant: "destructive",
             duration: 5000,
         });
+    }
+    setIsCopying(false);
+  };
+  
+  const handleCopyImage = async () => {
+    setIsDownloading(true);
+    let imageBlob: Blob | null = null;
+    try {
+        const apiUrl = `/api/generate-image?order=${encodeURIComponent(JSON.stringify(order))}`;
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.details || `Server responded with ${response.status}`);
+        }
+        
+        imageBlob = await response.blob();
+
+        const clipboardItem = new ClipboardItem({ 'image/png': imageBlob });
+        await navigator.clipboard.write([clipboardItem]);
+
+        toast({
+            title: "✅ Imagen Copiada",
+            description: "La imagen de la orden ha sido copiada. Pégala con Ctrl+V.",
+            className: "bg-green-100 dark:bg-green-900 border-green-500",
+            duration: 5000,
+        });
+
+    } catch (err) {
+        const errorMessage = (err as Error).message;
+        console.error("Clipboard Error:", errorMessage);
+
+        // Fallback to download if clipboard fails
+        if (imageBlob) {
+            const url = window.URL.createObjectURL(imageBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `orden_${order.data.file || 'servicio'}.png`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            toast({
+                title: "Copia Fallida, Imagen Descargada",
+                description: "No se pudo copiar al portapapeles. La imagen se ha descargado en su lugar.",
+                variant: "destructive",
+                duration: 7000,
+            });
+        } else {
+            toast({
+                title: "Error Crítico",
+                description: "No se pudo generar ni copiar la imagen. Revisa la consola para más detalles.",
+                variant: "destructive",
+                duration: 7000,
+            });
+        }
+    } finally {
+        setIsDownloading(false);
     }
   };
   
@@ -180,9 +244,20 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
             className="bg-green-600 hover:bg-green-700 text-white"
             size="sm"
             onClick={handleCopy}
+            disabled={isCopying}
           >
-            <FaWhatsapp className="mr-2 h-4 w-4" />
-            Copiar imagen (Ctrl+V en WhatsApp)
+            {isCopying ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FaWhatsapp className="mr-2 h-4 w-4" />}
+            Copiar (WhatsApp)
+          </Button>
+           <Button
+            type="button"
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+            size="sm"
+            onClick={handleCopyImage}
+            disabled={isDownloading}
+          >
+            {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Camera className="mr-2 h-4 w-4" />}
+            Copiar Imagen (Beta)
           </Button>
           <DialogClose asChild>
             <Button type="button" variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={onClose}>Cerrar</Button>
@@ -201,6 +276,7 @@ function InfoBlock({ title, text }: { title: string; text?: string; }) {
     </div>
   );
 }
+
 export function ServiceOrderPrintPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
