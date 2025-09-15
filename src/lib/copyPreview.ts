@@ -16,33 +16,22 @@ export async function copiarVistaPreviaAlClipboard(
     return;
   }
 
-  // --- NUEVO ENFOQUE: CLONACIÓN ---
-  // 1. Clonar el nodo para evitar problemas con el CSS del modal.
-  const clone = node.cloneNode(true) as HTMLDivElement;
-  
-  // 2. Aplicar estilos para posicionarlo fuera de la pantalla pero con dimensiones reales.
-  clone.style.position = 'absolute';
-  clone.style.left = '-9999px';
-  clone.style.top = '0px';
-  clone.style.width = `${node.offsetWidth}px`; // Usar el ancho del nodo original
-  clone.style.height = 'auto'; // Permitir que la altura se expanda al contenido
-
-  document.body.appendChild(clone);
-  // --- FIN DEL NUEVO ENFOQUE ---
-
   try {
     const html2canvas = (await import("html2canvas")).default;
 
-    // Asegurarse que las fuentes estén listas
+    // Ensure fonts are ready before capture for better rendering.
     await document.fonts?.ready?.catch(() => {});
 
-    // 3. Capturar el CLON, no el nodo original
-    const canvas = await html2canvas(clone, {
+    // Capture the original node directly.
+    const canvas = await html2canvas(node, {
       scale: 2,
       useCORS: true,
       backgroundColor: "#fff",
       logging: false,
-      // Ya no necesitamos 'height' y 'windowHeight' porque el clon ya tiene la altura completa.
+      width: node.scrollWidth,
+      height: node.scrollHeight,
+      windowWidth: node.scrollWidth,
+      windowHeight: node.scrollHeight,
     });
 
     const blob: Blob = await new Promise((resolve, reject) =>
@@ -52,6 +41,11 @@ export async function copiarVistaPreviaAlClipboard(
     const ClipboardItemAny = (window as any).ClipboardItem || (window as any).webkitClipboardItem;
     if (!ClipboardItemAny || !navigator.clipboard?.write) {
         throw new Error("La API del portapapeles no es compatible o no está permitida en este navegador.");
+    }
+    
+    // Check for focus before writing to clipboard
+    if (!document.hasFocus()) {
+       throw new Error("La ventana no está enfocada. Por favor, haz clic en la página e intenta de nuevo.");
     }
 
     const item = new ClipboardItemAny({ "image/png": blob });
@@ -72,8 +66,5 @@ export async function copiarVistaPreviaAlClipboard(
         variant: "destructive",
         duration: 5000,
     });
-  } finally {
-      // 4. Limpieza: siempre eliminar el clon después de la operación.
-      document.body.removeChild(clone);
   }
 }
