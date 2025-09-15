@@ -59,7 +59,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
         
          <div className="flex-grow overflow-auto min-h-0 p-4">
             <div ref={captureRef} className={cn(
-                "bg-white text-zinc-900 uppercase w-[1120px] mx-auto p-2.5",
+                "bg-white text-zinc-900 uppercase w-[1120px] mx-auto p-[10px]",
               )}>
                 <div className="relative">
                    <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
@@ -68,27 +68,44 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                 </div>
 
                 <div className="border-2 border-gray-400 rounded-lg mt-1 p-4">
-                    <div className="space-y-1.5">
-                      <MetaItem label="Guía:" value={data.guia} />
-                      <MetaItem label="File:" value={data.file} />
-                      <MetaItem label="Ref:" value={data.ref} />
-                      <MetaItem label="Nº Pax:" value={data.nPax} />
-                      <MetaItem label="Hotel:" value={data.hotel} />
-                    </div>
+                    <Table className="mb-4">
+                        <TableBody>
+                            <TableRow className="hover:bg-white border-none">
+                                <TableCell className="font-bold text-black text-xs p-1 h-auto w-24">Guía:</TableCell>
+                                <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.guia || "—"}</TableCell>
+                            </TableRow>
+                            <TableRow className="hover:bg-white border-none">
+                                <TableCell className="font-bold text-black text-xs p-1 h-auto">File:</TableCell>
+                                <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.file || "—"}</TableCell>
+                            </TableRow>
+                            <TableRow className="hover:bg-white border-none">
+                                <TableCell className="font-bold text-black text-xs p-1 h-auto">Ref:</TableCell>
+                                <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.ref || "—"}</TableCell>
+                            </TableRow>
+                            <TableRow className="hover:bg-white border-none">
+                                <TableCell className="font-bold text-black text-xs p-1 h-auto">Nº Pax:</TableCell>
+                                <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.nPax || "—"}</TableCell>
+                            </TableRow>
+                             <TableRow className="hover:bg-white border-none">
+                                <TableCell className="font-bold text-black text-xs p-1 h-auto">Hotel:</TableCell>
+                                <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.hotel || "—"}</TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
 
                     <div className="mt-4">
                       <div className="rounded-lg border border-gray-300 overflow-hidden">
                         <Table className="table-fixed w-full">
                           <TableHeader>
                             <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto whitespace-nowrap">
-                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle">Fecha</TableHead>
-                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle">Hora</TableHead>
-                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle w-[250px]">Servicio</TableHead>
-                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle">Vuelo</TableHead>
-                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle">Guía</TableHead>
-                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle">Bus</TableHead>
-                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center align-middle">Chofer</TableHead>
-                              <TableHead className="text-black font-bold py-1 px-2 h-auto text-left align-middle">Observaciones</TableHead>
+                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle text-[11px]">Fecha</TableHead>
+                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle text-[11px]">Hora</TableHead>
+                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle w-[250px] text-[11px]">Servicio</TableHead>
+                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-[11px]">Vuelo</TableHead>
+                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle text-[11px]">Guía</TableHead>
+                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-[11px]">Bus</TableHead>
+                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center align-middle text-[11px]">Chofer</TableHead>
+                              <TableHead className="text-black font-bold py-1 px-2 h-auto text-left align-middle text-[11px]">Observaciones</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -103,28 +120,28 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
 
                                 return (
                                   <TableRow key={i} className="h-10 bg-white hover:bg-white text-xs whitespace-nowrap">
-                                     <TableCell className="p-2 border-r border-gray-200 text-center font-semibold align-middle">
+                                     <TableCell className="p-2 border-r border-gray-200 text-center font-semibold align-middle text-xs">
                                         {showDate && s.fecha ? s.fecha : ""}
                                      </TableCell>
-                                     <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
+                                     <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
                                        {s.hora}
                                      </TableCell>
-                                     <TableCell className="p-2 border-r border-gray-200 text-left align-middle">
+                                     <TableCell className="p-2 border-r border-gray-200 text-left align-middle text-xs">
                                        {s.servicio}
                                       </TableCell>
-                                     <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
+                                     <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
                                        {s.vuelo || "—"}
                                      </TableCell>
-                                     <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
+                                     <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
                                        {guiaFirstName}
                                       </TableCell>
-                                     <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
+                                     <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
                                        {s.bus}
                                       </TableCell>
-                                     <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
+                                     <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
                                        {choferFirstName}
                                       </TableCell>
-                                     <TableCell className="p-2 text-left align-middle">
+                                     <TableCell className="p-2 text-left align-middle text-xs">
                                        {s.observaciones}
                                       </TableCell>
                                   </TableRow>
@@ -169,7 +186,6 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
 
 export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreviewModalProps) {
     if (!order?.data) {
-        // Render a loading state or nothing if order data is not yet available
         return (
             <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
                 <DialogContent>
@@ -183,15 +199,6 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
     return <PrintableView order={order} onClose={onClose} />;
 }
 
-function MetaItem({ label, value }: { label: string; value?: string | number; }) {
-  return (
-    <div className="border border-gray-300 rounded-md px-1.5 py-0.5 bg-gray-50 text-xs">
-      <p className="font-bold text-black inline-block w-20 flex-shrink-0">{label}</p>
-      <p className="font-normal inline-block">{value || "—"}</p>
-    </div>
-  );
-}
-
 function InfoBlock({ title, text }: { title: string; text?: string; }) {
   return (
     <div className="border border-gray-300 rounded-md p-2 bg-gray-50">
@@ -201,7 +208,6 @@ function InfoBlock({ title, text }: { title: string; text?: string; }) {
   );
 }
 
-// New component to handle the standalone print page logic
 export function ServiceOrderPrintPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -212,7 +218,6 @@ export function ServiceOrderPrintPage() {
         if (orderDataString) {
             try {
                 const parsedOrder: StoredServiceOrder = JSON.parse(decodeURIComponent(orderDataString));
-                // Convert string dates back to Date objects
                 parsedOrder.createdAt = new Date(parsedOrder.createdAt);
                 if (parsedOrder.updatedAt) {
                     parsedOrder.updatedAt = new Date(parsedOrder.updatedAt);
@@ -227,10 +232,9 @@ export function ServiceOrderPrintPage() {
 
     useEffect(() => {
         if (order) {
-            // Wait for the content to render, then trigger print
             const timeoutId = setTimeout(() => {
                 window.print();
-            }, 500); // 500ms delay to allow for rendering
+            }, 500);
             return () => clearTimeout(timeoutId);
         }
     }, [order]);
@@ -244,7 +248,6 @@ export function ServiceOrderPrintPage() {
         );
     }
     
-    // Use a simplified version of the preview modal's content for printing
     return (
       <div className="bg-white text-zinc-900 p-4 uppercase w-[1120px] mx-auto">
           <div className="relative">
@@ -254,27 +257,44 @@ export function ServiceOrderPrintPage() {
           </div>
 
         <div className="border-2 border-gray-400 rounded-lg mt-1 p-4">
-             <div className="space-y-1.5">
-              <MetaItem label="Guía:" value={order.data.guia} />
-              <MetaItem label="File:" value={order.data.file} />
-              <MetaItem label="Ref:" value={order.data.ref} />
-              <MetaItem label="Nº Pax:" value={order.data.nPax} />
-              <MetaItem label="Hotel:" value={order.data.hotel} />
-            </div>
+             <Table className="mb-4">
+                <TableBody>
+                    <TableRow className="hover:bg-white border-none">
+                        <TableCell className="font-bold text-black text-xs p-1 h-auto w-24">Guía:</TableCell>
+                        <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.guia || "—"}</TableCell>
+                    </TableRow>
+                    <TableRow className="hover:bg-white border-none">
+                        <TableCell className="font-bold text-black text-xs p-1 h-auto">File:</TableCell>
+                        <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.file || "—"}</TableCell>
+                    </TableRow>
+                    <TableRow className="hover:bg-white border-none">
+                        <TableCell className="font-bold text-black text-xs p-1 h-auto">Ref:</TableCell>
+                        <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.ref || "—"}</TableCell>
+                    </TableRow>
+                    <TableRow className="hover:bg-white border-none">
+                        <TableCell className="font-bold text-black text-xs p-1 h-auto">Nº Pax:</TableCell>
+                        <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.nPax || "—"}</TableCell>
+                    </TableRow>
+                        <TableRow className="hover:bg-white border-none">
+                        <TableCell className="font-bold text-black text-xs p-1 h-auto">Hotel:</TableCell>
+                        <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.hotel || "—"}</TableCell>
+                    </TableRow>
+                </TableBody>
+            </Table>
     
             <div className="mt-4">
               <div className="rounded-lg border border-gray-300 overflow-hidden">
                  <Table className="table-fixed w-full">
                   <TableHeader>
                     <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto whitespace-nowrap">
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle">Fecha</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle">Hora</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle w-[250px]">Servicio</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle">Vuelo</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle">Guía</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle">Bus</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center align-middle">Chofer</TableHead>
-                      <TableHead className="text-black font-bold py-1 px-2 h-auto text-left align-middle">Observaciones</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle text-[11px]">Fecha</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[56px] text-center align-middle text-[11px]">Hora</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto text-left align-middle w-[250px] text-[11px]">Servicio</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-[11px]">Vuelo</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle text-[11px]">Guía</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-[11px]">Bus</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center align-middle text-[11px]">Chofer</TableHead>
+                      <TableHead className="text-black font-bold py-1 px-2 h-auto text-left align-middle text-[11px]">Observaciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -309,28 +329,28 @@ export function ServiceOrderPrintPage() {
 
                         return (
                           <TableRow key={i} className="h-10 bg-white hover:bg-white text-xs whitespace-nowrap">
-                            <TableCell className="p-2 border-r border-gray-200 text-center font-semibold align-middle">
+                            <TableCell className="p-2 border-r border-gray-200 text-center font-semibold align-middle text-xs">
                               {showDate && s.fecha ? s.fecha : ""}
                             </TableCell>
-                             <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
+                             <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
                                {s.hora}
                              </TableCell>
-                             <TableCell className="p-2 border-r border-gray-200 text-left align-middle">
+                             <TableCell className="p-2 border-r border-gray-200 text-left align-middle text-xs">
                                {s.servicio}
                               </TableCell>
-                             <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
+                             <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
                                {s.vuelo || "—"}
                              </TableCell>
-                             <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
+                             <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
                                {guiaFirstName}
                               </TableCell>
-                             <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
+                             <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
                                {s.bus}
                               </TableCell>
-                             <TableCell className="p-2 border-r border-gray-200 text-center align-middle">
+                             <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
                                {choferFirstName}
                               </TableCell>
-                             <TableCell className="p-2 text-left align-middle">
+                             <TableCell className="p-2 text-left align-middle text-xs">
                                 {s.observaciones}
                               </TableCell>
                           </TableRow>
