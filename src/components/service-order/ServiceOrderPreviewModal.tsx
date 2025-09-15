@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, useEffect, useState, useRef } from "react";
+import { useMemo, useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { parse } from "date-fns";
 import { FaWhatsapp } from "react-icons/fa";
@@ -81,24 +81,24 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                     <Table className="mb-4">
                         <TableBody>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto w-24 flex items-center">Guía:</TableCell>
-                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 flex items-center">{data.guia || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto w-24 align-middle">Guía:</TableCell>
+                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{data.guia || "—"}</TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto flex items-center">File:</TableCell>
-                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 flex items-center">{data.file || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto align-middle">File:</TableCell>
+                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{data.file || "—"}</TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto flex items-center">Ref:</TableCell>
-                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 flex items-center">{data.ref || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto align-middle">Ref:</TableCell>
+                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{data.ref || "—"}</TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto flex items-center">Nº Pax:</TableCell>
-                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 flex items-center">{data.nPax || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto align-middle">Nº Pax:</TableCell>
+                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{data.nPax || "—"}</TableCell>
                             </TableRow>
                              <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto flex items-center">Hotel:</TableCell>
-                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 flex items-center">{data.hotel || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto align-middle">Hotel:</TableCell>
+                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{data.hotel || "—"}</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -254,24 +254,24 @@ export function ServiceOrderPrintPage() {
              <Table className="mb-4">
                 <TableBody>
                     <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto w-24 flex items-center">Guía:</TableCell>
-                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 flex items-center">{order.data.guia || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto w-24 align-middle">Guía:</TableCell>
+                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{order.data.guia || "—"}</TableCell>
                     </TableRow>
                     <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto flex items-center">File:</TableCell>
-                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 flex items-center">{order.data.file || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto align-middle">File:</TableCell>
+                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{order.data.file || "—"}</TableCell>
                     </TableRow>
                     <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto flex items-center">Ref:</TableCell>
-                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 flex items-center">{order.data.ref || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto align-middle">Ref:</TableCell>
+                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{order.data.ref || "—"}</TableCell>
                     </TableRow>
                     <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto flex items-center">Nº Pax:</TableCell>
-                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 flex items-center">{order.data.nPax || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto align-middle">Nº Pax:</TableCell>
+                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{order.data.nPax || "—"}</TableCell>
                     </TableRow>
                         <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto flex items-center">Hotel:</TableCell>
-                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 flex items-center">{order.data.hotel || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto align-middle">Hotel:</TableCell>
+                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{order.data.hotel || "—"}</TableCell>
                     </TableRow>
                 </TableBody>
             </Table>
@@ -381,5 +381,11 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
             </Dialog>
         );
     }
+    
+    // The Suspense wrapper around the main component in `service-order-print/page.tsx`
+    // allows us to use `useSearchParams` inside a client component without issue.
+    // So, we don't need a separate loader here.
     return <PrintableView order={order} onClose={onClose} />;
 }
+
+    
