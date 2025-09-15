@@ -13,9 +13,8 @@ import { copiarVistaPreviaAlClipboard } from "@/lib/copyPreview";
 import { Dialog, DialogContent, DialogFooter, DialogClose, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Camera, FileText } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import PDFViewerModal from "./PDFViewerModal";
 
 
 interface ServiceOrderPreviewModalProps {
@@ -28,10 +27,6 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
   const captureRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [isCopying, setIsCopying] = useState(false);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [showPdfViewer, setShowPdfViewer] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState<string>('');
-
 
   const services = useMemo(() => {
     if (!data.services) return [];
@@ -67,47 +62,6 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
     setIsCopying(false);
   };
   
-  const handleGenerateAndShowPdf = async () => {
-    setIsGeneratingPdf(true);
-    try {
-        const response = await fetch(`/api/generate-image`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(order)
-        });
-        
-        if (!response.ok) {
-          let errorMessage = `Server responded with ${response.status}`;
-          try {
-              const errorData = await response.json();
-              errorMessage = errorData.details || errorData.error || errorMessage;
-          } catch {
-             // If parsing JSON fails, the body might be plain text or HTML
-             errorMessage = await response.text();
-          }
-          throw new Error(errorMessage);
-        }
-        
-        const pdfBlob = await response.blob();
-        const url = URL.createObjectURL(pdfBlob);
-        setPdfUrl(url);
-        setShowPdfViewer(true);
-
-    } catch (err) {
-        const errorMessage = (err as Error).message;
-        console.error("PDF Generation Error:", errorMessage);
-        toast({
-            title: "Error de Generación",
-            description: `No se pudo generar el PDF. Detalles: ${errorMessage}`,
-            variant: "destructive",
-            duration: 7000,
-        });
-    } finally {
-        setIsGeneratingPdf(false);
-    }
-  };
-  
-
   return (
     <>
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -234,29 +188,12 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
             {isCopying ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FaWhatsapp className="mr-2 h-4 w-4" />}
             Copiar (WhatsApp)
           </Button>
-           <Button
-            type="button"
-            className="bg-purple-600 hover:bg-purple-700 text-white"
-            size="sm"
-            onClick={handleGenerateAndShowPdf}
-            disabled={isGeneratingPdf}
-          >
-            {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileText className="mr-2 h-4 w-4" />}
-            Ver PDF (Beta)
-          </Button>
           <DialogClose asChild>
             <Button type="button" variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={onClose}>Cerrar</Button>
           </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-    
-    <PDFViewerModal 
-        isOpen={showPdfViewer}
-        onClose={() => setShowPdfViewer(false)}
-        pdfUrl={pdfUrl}
-        title={`PDF: ${order.orderName}`}
-    />
     </>
   );
 }
