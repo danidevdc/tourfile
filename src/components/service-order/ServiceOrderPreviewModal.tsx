@@ -201,7 +201,7 @@ function InfoBlock({ title, text }: { title: string; text?: string; }) {
     </div>
   );
 }
-function ServiceOrderPrintPage() {
+export function ServiceOrderPrintPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const [order, setOrder] = useState<StoredServiceOrder | null>(null);
