@@ -82,6 +82,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
               const errorData = await response.json();
               errorMessage = errorData.details || errorData.error || errorMessage;
           } catch {
+             // If parsing JSON fails, the body might be plain text or HTML
              errorMessage = await response.text();
           }
           throw new Error(errorMessage);
