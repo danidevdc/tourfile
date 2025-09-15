@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useMemo, useEffect, useState, useRef } from "react";
@@ -60,7 +61,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
         
          <div className="overflow-auto min-h-0">
             <div ref={captureRef} className={cn(
-                "bg-white text-zinc-900 uppercase w-[1120px] mx-auto pt-[3px] pb-[5px] px-2",
+                "bg-white text-zinc-900 uppercase w-[1120px] mx-auto pt-[3px] pb-[5px] px-[10px]",
               )}>
                 <div className="relative">
                    <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
@@ -72,24 +73,24 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                     <Table className="mb-4">
                         <TableBody>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-1 h-auto w-24">Guía:</TableCell>
-                                <TableCell className="text-xs pt-[5px] pb-[8px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.guia || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto w-24">Guía:</TableCell>
+                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50">{data.guia || "—"}</TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-1 h-auto">File:</TableCell>
-                                <TableCell className="text-xs pt-[5px] pb-[8px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.file || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto">File:</TableCell>
+                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50">{data.file || "—"}</TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-1 h-auto">Ref:</TableCell>
-                                <TableCell className="text-xs pt-[5px] pb-[8px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.ref || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto">Ref:</TableCell>
+                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50">{data.ref || "—"}</TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-1 h-auto">Nº Pax:</TableCell>
-                                <TableCell className="text-xs pt-[5px] pb-[8px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.nPax || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto">Nº Pax:</TableCell>
+                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50">{data.nPax || "—"}</TableCell>
                             </TableRow>
                              <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-1 h-auto">Hotel:</TableCell>
-                                <TableCell className="text-xs pt-[5px] pb-[8px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.hotel || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto">Hotel:</TableCell>
+                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50">{data.hotel || "—"}</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -208,8 +209,6 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
     return <PrintableView order={order} onClose={onClose} />;
 }
 
-
-
 export function ServiceOrderPrintPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -251,7 +250,7 @@ export function ServiceOrderPrintPage() {
     }
     
     return (
-      <div className="bg-white text-zinc-900 uppercase w-[1120px] mx-auto pt-[3px] pb-[5px] px-2">
+      <div className="bg-white text-zinc-900 uppercase w-[1120px] mx-auto pt-[3px] pb-[5px] px-[10px]">
           <div className="relative">
              <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
                ORDEN DE SERVICIO
@@ -262,24 +261,24 @@ export function ServiceOrderPrintPage() {
              <Table className="mb-4">
                 <TableBody>
                     <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-1 h-auto w-24">Guía:</TableCell>
-                        <TableCell className="text-xs pt-[5px] pb-[8px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.guia || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto w-24">Guía:</TableCell>
+                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.guia || "—"}</TableCell>
                     </TableRow>
                     <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-1 h-auto">File:</TableCell>
-                        <TableCell className="text-xs pt-[5px] pb-[8px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.file || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto">File:</TableCell>
+                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.file || "—"}</TableCell>
                     </TableRow>
                     <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-1 h-auto">Ref:</TableCell>
-                        <TableCell className="text-xs pt-[5px] pb-[8px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.ref || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto">Ref:</TableCell>
+                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.ref || "—"}</TableCell>
                     </TableRow>
                     <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-1 h-auto">Nº Pax:</TableCell>
-                        <TableCell className="text-xs pt-[5px] pb-[8px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.nPax || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto">Nº Pax:</TableCell>
+                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.nPax || "—"}</TableCell>
                     </TableRow>
                         <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-1 h-auto">Hotel:</TableCell>
-                        <TableCell className="text-xs pt-[5px] pb-[8px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.hotel || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto">Hotel:</TableCell>
+                        <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.hotel || "—"}</TableCell>
                     </TableRow>
                 </TableBody>
             </Table>
