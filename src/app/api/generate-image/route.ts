@@ -8,7 +8,7 @@ import { parse } from 'date-fns';
 // Helper function to get a browser instance
 async function getBrowser() {
     return puppeteer.launch({
-        args: chromium.args,
+        args: [...chromium.args, '--font-render-hinting=none'],
         defaultViewport: chromium.defaultViewport,
         executablePath: await chromium.executablePath(),
         headless: chromium.headless,
@@ -165,24 +165,27 @@ export async function POST(req: NextRequest) {
         browser = await getBrowser();
         const page = await browser.newPage();
 
-        await page.setViewport({ width: 1120, height: 794, deviceScaleFactor: 2 });
+        // Set a standard viewport that represents a typical A4 page aspect ratio
+        await page.setViewport({ width: 1120, height: 1584, deviceScaleFactor: 2 });
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
         
-        const bodyElement = await page.$('body');
-        if (!bodyElement) {
-          throw new Error("No se pudo encontrar el elemento <body> en la página.");
-        }
-
-        const imageBuffer = await bodyElement.screenshot({
-          type: 'png'
+        const pdfBuffer = await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: {
+            top: '20px',
+            right: '20px',
+            bottom: '20px',
+            left: '20px'
+          }
         });
 
         await browser.close();
 
-        return new NextResponse(imageBuffer, {
+        return new NextResponse(pdfBuffer, {
             status: 200,
             headers: {
-                'Content-Type': 'image/png',
+                'Content-Type': 'application/pdf',
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
             },
         });
@@ -191,9 +194,9 @@ export async function POST(req: NextRequest) {
         if (browser) {
             await browser.close();
         }
-        console.error('Error generando la imagen:', error);
+        console.error('Error generando el PDF:', error);
         return NextResponse.json(
-            { error: "Fallo al generar la imagen de la orden.", details: error.message },
+            { error: "Fallo al generar el PDF de la orden.", details: error.message },
             { status: 500 }
         );
     }

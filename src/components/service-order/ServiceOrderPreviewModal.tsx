@@ -13,8 +13,9 @@ import { copiarVistaPreviaAlClipboard } from "@/lib/copyPreview";
 import { Dialog, DialogContent, DialogFooter, DialogClose, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Camera } from "lucide-react";
+import { Loader2, Camera, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import PDFViewerModal from "./PDFViewerModal";
 
 
 interface ServiceOrderPreviewModalProps {
@@ -27,7 +28,9 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
   const captureRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [isCopying, setIsCopying] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [showPdfViewer, setShowPdfViewer] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string>('');
 
 
   const services = useMemo(() => {
@@ -64,75 +67,48 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
     setIsCopying(false);
   };
   
-  const handleCopyImage = async () => {
-    setIsDownloading(true);
-    let imageBlob: Blob | null = null;
+  const handleGenerateAndShowPdf = async () => {
+    setIsGeneratingPdf(true);
     try {
         const response = await fetch(`/api/generate-image`, {
-            method: 'POST', // Corrected: Use POST to send data
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(order)
         });
         
         if (!response.ok) {
           let errorMessage = `Server responded with ${response.status}`;
-          const contentType = response.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
+          try {
               const errorData = await response.json();
               errorMessage = errorData.details || errorData.error || errorMessage;
-          } else {
-              errorMessage = await response.text();
+          } catch {
+             errorMessage = await response.text();
           }
           throw new Error(errorMessage);
         }
         
-        imageBlob = await response.blob();
-
-        const clipboardItem = new ClipboardItem({ 'image/png': imageBlob });
-        await navigator.clipboard.write([clipboardItem]);
-
-        toast({
-            title: "✅ Imagen Copiada",
-            description: "La imagen de la orden ha sido copiada. Pégala con Ctrl+V.",
-            className: "bg-green-100 dark:bg-green-900 border-green-500",
-            duration: 5000,
-        });
+        const pdfBlob = await response.blob();
+        const url = URL.createObjectURL(pdfBlob);
+        setPdfUrl(url);
+        setShowPdfViewer(true);
 
     } catch (err) {
         const errorMessage = (err as Error).message;
-        console.error("Clipboard Error:", errorMessage);
-
-        // Fallback to download if clipboard fails
-        if (imageBlob) {
-            const url = window.URL.createObjectURL(imageBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `orden_${order.data.file || 'servicio'}.png`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
-            toast({
-                title: "Copia Fallida, Imagen Descargada",
-                description: "No se pudo copiar al portapapeles. La imagen se ha descargado en su lugar.",
-                variant: "destructive",
-                duration: 7000,
-            });
-        } else {
-            toast({
-                title: "Error Crítico",
-                description: `No se pudo generar ni copiar la imagen. Detalles: ${errorMessage}`,
-                variant: "destructive",
-                duration: 7000,
-            });
-        }
+        console.error("PDF Generation Error:", errorMessage);
+        toast({
+            title: "Error de Generación",
+            description: `No se pudo generar el PDF. Detalles: ${errorMessage}`,
+            variant: "destructive",
+            duration: 7000,
+        });
     } finally {
-        setIsDownloading(false);
+        setIsGeneratingPdf(false);
     }
   };
   
 
   return (
+    <>
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
        <DialogContent className="max-w-[1250px] w-full flex flex-col max-h-[95vh]">
         <DialogHeader className="p-4 border-b flex-shrink-0">
@@ -261,11 +237,11 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
             type="button"
             className="bg-purple-600 hover:bg-purple-700 text-white"
             size="sm"
-            onClick={handleCopyImage}
-            disabled={isDownloading}
+            onClick={handleGenerateAndShowPdf}
+            disabled={isGeneratingPdf}
           >
-            {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Camera className="mr-2 h-4 w-4" />}
-            Copiar Imagen (Beta)
+            {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileText className="mr-2 h-4 w-4" />}
+            Ver PDF (Beta)
           </Button>
           <DialogClose asChild>
             <Button type="button" variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={onClose}>Cerrar</Button>
@@ -273,6 +249,14 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    
+    <PDFViewerModal 
+        isOpen={showPdfViewer}
+        onClose={() => setShowPdfViewer(false)}
+        pdfUrl={pdfUrl}
+        title={`PDF: ${order.orderName}`}
+    />
+    </>
   );
 }
 

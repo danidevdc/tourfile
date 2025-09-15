@@ -3,5 +3,10 @@ run: npm run start
 env:
   - variable: BROWSER_ARGS
     value: '--no-sandbox'
+build:
+  require-buildpacks:
+    - google.nodejs.npm
+    - google.nodejs.run-build-utils
+    - google.nodejs.chrome
 scaling:
   maxInstances: 10
