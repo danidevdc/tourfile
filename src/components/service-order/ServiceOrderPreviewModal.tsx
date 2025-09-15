@@ -23,11 +23,12 @@ interface ServiceOrderPreviewModalProps {
 }
 
 function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose: () => void }) {
+  const { data } = order;
   const captureRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const { data } = order;
 
   const services = useMemo(() => {
+    if (!data.services) return [];
     return [...data.services].sort((a, b) => {
       try {
         const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
@@ -57,9 +58,9 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
           <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
         
-         <div className="flex-grow overflow-auto min-h-0 p-4">
+         <div className="overflow-auto min-h-0">
             <div ref={captureRef} className={cn(
-                "bg-white text-zinc-900 uppercase w-[1120px] mx-auto p-[10px]",
+                "bg-white text-zinc-900 uppercase w-[1120px] mx-auto pt-[3px] pb-[5px] px-1",
               )}>
                 <div className="relative">
                    <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
@@ -71,24 +72,24 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                     <Table className="mb-4">
                         <TableBody>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs p-1 h-auto w-24">Guía:</TableCell>
-                                <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.guia || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[3px] pb-[5px] px-1 h-auto w-24">Guía:</TableCell>
+                                <TableCell className="text-xs pt-[3px] pb-[5px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.guia || "—"}</TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs p-1 h-auto">File:</TableCell>
-                                <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.file || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[3px] pb-[5px] px-1 h-auto">File:</TableCell>
+                                <TableCell className="text-xs pt-[3px] pb-[5px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.file || "—"}</TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs p-1 h-auto">Ref:</TableCell>
-                                <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.ref || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[3px] pb-[5px] px-1 h-auto">Ref:</TableCell>
+                                <TableCell className="text-xs pt-[3px] pb-[5px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.ref || "—"}</TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs p-1 h-auto">Nº Pax:</TableCell>
-                                <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.nPax || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[3px] pb-[5px] px-1 h-auto">Nº Pax:</TableCell>
+                                <TableCell className="text-xs pt-[3px] pb-[5px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.nPax || "—"}</TableCell>
                             </TableRow>
                              <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs p-1 h-auto">Hotel:</TableCell>
-                                <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.hotel || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[3px] pb-[5px] px-1 h-auto">Hotel:</TableCell>
+                                <TableCell className="text-xs pt-[3px] pb-[5px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{data.hotel || "—"}</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -163,8 +164,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
                     </div>
                 </div>
             </div>
-        </div>
-
+          </div>
         <DialogFooter className="flex-shrink-0 flex justify-start gap-2 border-t bg-background p-4">
           <Button
             type="button"
@@ -249,7 +249,7 @@ export function ServiceOrderPrintPage() {
     }
     
     return (
-      <div className="bg-white text-zinc-900 p-4 uppercase w-[1120px] mx-auto">
+      <div className="bg-white text-zinc-900 uppercase w-[1120px] mx-auto pt-[3px] pb-[5px] px-1">
           <div className="relative">
              <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
                ORDEN DE SERVICIO
@@ -260,24 +260,24 @@ export function ServiceOrderPrintPage() {
              <Table className="mb-4">
                 <TableBody>
                     <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs p-1 h-auto w-24">Guía:</TableCell>
-                        <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.guia || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[3px] pb-[5px] px-1 h-auto w-24">Guía:</TableCell>
+                        <TableCell className="text-xs pt-[3px] pb-[5px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.guia || "—"}</TableCell>
                     </TableRow>
                     <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs p-1 h-auto">File:</TableCell>
-                        <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.file || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[3px] pb-[5px] px-1 h-auto">File:</TableCell>
+                        <TableCell className="text-xs pt-[3px] pb-[5px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.file || "—"}</TableCell>
                     </TableRow>
                     <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs p-1 h-auto">Ref:</TableCell>
-                        <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.ref || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[3px] pb-[5px] px-1 h-auto">Ref:</TableCell>
+                        <TableCell className="text-xs pt-[3px] pb-[5px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.ref || "—"}</TableCell>
                     </TableRow>
                     <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs p-1 h-auto">Nº Pax:</TableCell>
-                        <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.nPax || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[3px] pb-[5px] px-1 h-auto">Nº Pax:</TableCell>
+                        <TableCell className="text-xs pt-[3px] pb-[5px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.nPax || "—"}</TableCell>
                     </TableRow>
                         <TableRow className="hover:bg-white border-none">
-                        <TableCell className="font-bold text-black text-xs p-1 h-auto">Hotel:</TableCell>
-                        <TableCell className="text-xs p-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.hotel || "—"}</TableCell>
+                        <TableCell className="font-bold text-black text-xs pt-[3px] pb-[5px] px-1 h-auto">Hotel:</TableCell>
+                        <TableCell className="text-xs pt-[3px] pb-[5px] px-1 h-auto border border-gray-300 rounded-md bg-gray-50">{order.data.hotel || "—"}</TableCell>
                     </TableRow>
                 </TableBody>
             </Table>
