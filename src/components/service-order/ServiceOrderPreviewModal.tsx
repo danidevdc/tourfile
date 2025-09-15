@@ -5,8 +5,6 @@ import { useMemo, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { parse } from "date-fns";
 import { FaWhatsapp } from "react-icons/fa";
-import domtoimage from 'dom-to-image-more';
-
 
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
@@ -70,12 +68,22 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
     setIsDownloading(true);
     let imageBlob: Blob | null = null;
     try {
-        const apiUrl = `/api/generate-image?order=${encodeURIComponent(JSON.stringify(order))}`;
-        const response = await fetch(apiUrl);
+        const response = await fetch(`/api/generate-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(order)
+        });
         
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.details || `Server responded with ${response.status}`);
+          let errorMessage = `Server responded with ${response.status}`;
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+              const errorData = await response.json();
+              errorMessage = errorData.details || errorData.error || errorMessage;
+          } else {
+              errorMessage = await response.text();
+          }
+          throw new Error(errorMessage);
         }
         
         imageBlob = await response.blob();
@@ -94,7 +102,6 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
         const errorMessage = (err as Error).message;
         console.error("Clipboard Error:", errorMessage);
 
-        // Fallback to download if clipboard fails
         if (imageBlob) {
             const url = window.URL.createObjectURL(imageBlob);
             const a = document.createElement('a');
@@ -457,8 +464,5 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
         );
     }
     
-    // The Suspense wrapper around the main component in `service-order-print/page.tsx`
-    // allows us to use `useSearchParams` inside a client component without issue.
-    // So, we don't need a separate loader here.
     return <PrintableView order={order} onClose={onClose} />;
 }

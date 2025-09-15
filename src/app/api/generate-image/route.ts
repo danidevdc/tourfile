@@ -154,14 +154,12 @@ function generateHtml(order: StoredServiceOrder): string {
 export async function POST(req: NextRequest) {
     let browser = null;
     try {
-        const url = new URL(req.url);
-        const orderDataString = url.searchParams.get('order');
+        const order: StoredServiceOrder = await req.json();
 
-        if (!orderDataString) {
+        if (!order || !order.data) {
             return NextResponse.json({ error: "Datos de la orden no proporcionados." }, { status: 400 });
         }
 
-        const order: StoredServiceOrder = JSON.parse(decodeURIComponent(orderDataString));
         const htmlContent = generateHtml(order);
         
         browser = await getBrowser();
