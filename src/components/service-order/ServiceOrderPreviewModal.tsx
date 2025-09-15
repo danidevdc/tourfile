@@ -69,7 +69,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
     let imageBlob: Blob | null = null;
     try {
         const response = await fetch(`/api/generate-image`, {
-            method: 'POST',
+            method: 'POST', // Corrected: Use POST to send data
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(order)
         });
@@ -102,6 +102,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
         const errorMessage = (err as Error).message;
         console.error("Clipboard Error:", errorMessage);
 
+        // Fallback to download if clipboard fails
         if (imageBlob) {
             const url = window.URL.createObjectURL(imageBlob);
             const a = document.createElement('a');
@@ -120,7 +121,7 @@ function PrintableView({ order, onClose }: { order: StoredServiceOrder, onClose:
         } else {
             toast({
                 title: "Error Crítico",
-                description: "No se pudo generar ni copiar la imagen. Revisa la consola para más detalles.",
+                description: `No se pudo generar ni copiar la imagen. Detalles: ${errorMessage}`,
                 variant: "destructive",
                 duration: 7000,
             });
