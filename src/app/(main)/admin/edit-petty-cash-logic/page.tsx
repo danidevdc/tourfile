@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentsui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Loader2, ArrowLeft, Trash2, PlusCircle, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -260,3 +260,5 @@ export default function EditPettyCashLogicPage() {
     </div>
   );
 }
+
+    
