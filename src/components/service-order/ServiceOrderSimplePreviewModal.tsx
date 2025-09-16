@@ -16,7 +16,6 @@ interface ServiceOrderSimplePreviewModalProps {
   onClose: () => void;
 }
 
-// This function generates a pure HTML string, just like the user's example.
 const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
     const { guia, file, ref, nPax, hotel, services, observations, nota } = orderData;
 
@@ -106,7 +105,6 @@ export default function ServiceOrderSimplePreviewModal({ order, onClose }: Servi
   const { toast } = useToast();
   const [isCopying, setIsCopying] = useState(false);
 
-  // Generate the pure HTML string from the order data
   const orderHtmlString = useMemo(() => generateOrderHtml(order.data), [order.data]);
   
   const handleCopy = async () => {
@@ -126,9 +124,7 @@ export default function ServiceOrderSimplePreviewModal({ order, onClose }: Servi
         </DialogHeader>
 
         <div className="flex-1 overflow-auto p-6 bg-gray-100 dark:bg-gray-800">
-          {/* This div is the target for html2canvas */}
           <div ref={captureRef}>
-            {/* We inject the pure HTML string here */}
             <div
                 className="orden-preview-wrapper bg-white text-black p-8 w-[1120px] mx-auto shadow-lg rounded-lg"
                 dangerouslySetInnerHTML={{ __html: orderHtmlString }}
@@ -150,7 +146,6 @@ export default function ServiceOrderSimplePreviewModal({ order, onClose }: Servi
           </DialogClose>
         </DialogFooter>
 
-        {/* Hidden styles for the injected HTML */}
         <style jsx global>{`
             .orden-preview-wrapper {
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -177,7 +172,7 @@ export default function ServiceOrderSimplePreviewModal({ order, onClose }: Servi
                 table-layout: fixed;
             }
             .orden-table th, .orden-table td {
-                padding: 8px 10px;
+                padding: 12px 10px;
                 border: 1px solid #bdc3c7;
                 text-align: left;
                 vertical-align: middle;
@@ -211,23 +206,27 @@ export default function ServiceOrderSimplePreviewModal({ order, onClose }: Servi
                 letter-spacing: 0.5px;
                 border-color: #2c3e50;
                 font-size: 11px;
-                padding: 10px;
+                padding: 12px 10px;
                 text-align: center;
+                vertical-align: middle;
             }
             .service-row:nth-child(even) {
                 background: #ecf0f1;
+            }
+             .service-row td {
+                vertical-align: middle;
             }
             .service-row .date-cell, .service-row .time-cell, .service-row .flight-cell, .service-row .guide-cell, .service-row .bus-cell, .service-row .driver-cell {
                 text-align: center;
             }
             .date-cell-header, .date-cell { width: 90px; }
             .time-cell-header, .time-cell { width: 60px; }
-            .service-cell-header, .service-cell { width: 280px; text-align: left !important; }
+            .service-cell-header, .service-cell { width: 280px; text-align: left; }
             .flight-cell-header, .flight-cell { width: 80px; }
             .guide-cell-header, .guide-cell { width: 100px; }
             .bus-cell-header, .bus-cell { width: 80px; }
             .driver-cell-header, .driver-cell { width: 100px; }
-            .obs-cell-header, .obs-cell { text-align: left !important; }
+            .obs-cell-header, .obs-cell { text-align: left; }
 
             .notes-section {
                 margin-top: 20px;
