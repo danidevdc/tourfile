@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useMemo, useRef, useState } from "react";
@@ -100,160 +101,153 @@ const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
     `;
 };
 
+// This function creates a non-React modal and injects pure HTML.
+export function showSimplePreviewModal(order: StoredServiceOrder) {
+    const existingModal = document.getElementById('simple-preview-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
 
-export default function ServiceOrderSimplePreviewModal({ order, onClose }: ServiceOrderSimplePreviewModalProps) {
-  const captureRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
-  const [isCopying, setIsCopying] = useState(false);
+    const modal = document.createElement('div');
+    modal.id = 'simple-preview-modal';
+    modal.style.position = 'fixed';
+    modal.style.zIndex = '50';
+    modal.style.left = '0';
+    modal.style.top = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.overflow = 'auto';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.8)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
 
-  const orderHtmlString = useMemo(() => generateOrderHtml(order.data), [order.data]);
-  
-  const handleCopy = async () => {
-    setIsCopying(true);
-    await copiarVistaPreviaAlClipboard(captureRef, toast);
-    setIsCopying(false);
-  };
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    content.style.background = '#f0f2f5'; // A light gray background for the modal window
+    content.style.padding = '0';
+    content.style.border = '1px solid #888';
+    content.style.width = '1200px'; // Fixed width for the modal window
+    content.style.maxWidth = '95vw';
+    content.style.display = 'flex';
+    content.style.flexDirection = 'column';
+    content.style.maxHeight = '95vh';
+    content.style.borderRadius = '8px';
+    content.style.boxShadow = '0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19)';
 
-  return (
-    <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-6xl w-full flex flex-col max-h-[95vh] p-0 shadow-2xl">
-        <DialogHeader className="p-4 border-b bg-slate-100 dark:bg-slate-900 text-black dark:text-white rounded-t-lg">
-          <DialogTitle className="flex items-center gap-2">
-            <FileText />
-            Vista Previa de Orden de Servicio
-          </DialogTitle>
-        </DialogHeader>
+    const header = document.createElement('div');
+    header.style.padding = '1rem';
+    header.style.borderBottom = '1px solid #ddd';
+    header.style.backgroundColor = '#f8f9fa';
+    header.innerHTML = '<h2 style="margin:0; font-size: 1.25rem; display: flex; align-items: center; gap: 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>Vista Previa de Orden de Servicio</h2>';
 
-        <div className="flex-1 overflow-auto p-6 bg-gray-200 dark:bg-gray-800">
-          <div ref={captureRef}>
-            <div
-                className="orden-preview-wrapper bg-white text-black p-8 w-[1120px] mx-auto shadow-lg rounded-lg"
-                dangerouslySetInnerHTML={{ __html: orderHtmlString }}
-            />
-          </div>
-        </div>
+    const body = document.createElement('div');
+    body.style.overflowY = 'auto';
+    body.style.flexGrow = '1';
+    body.style.padding = '1.5rem';
+    body.style.backgroundColor = '#e9ecef'; // A slightly darker gray for the scroll area
 
-        <DialogFooter className="p-4 border-t bg-slate-50 dark:bg-slate-800 rounded-b-lg">
-          <Button
-            className="bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg transition-all"
-            onClick={handleCopy}
-            disabled={isCopying}
-          >
-            {isCopying ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4" />}
-            Copiar Imagen
-          </Button>
-          <DialogClose asChild>
-            <Button variant="outline" onClick={onClose}>Cerrar</Button>
-          </DialogClose>
-        </DialogFooter>
+    const previewWrapper = document.createElement('div');
+    previewWrapper.id = 'capture-this-div'; // ID for the capture function
+    
+    // Inject the generated HTML and styles
+    previewWrapper.innerHTML = `
+      <style>
+        .orden-preview-wrapper {
+            width: 1120px; /* Fixed width for the content itself */
+            margin: 0 auto; /* Center the content */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.4;
+            text-transform: uppercase;
+            background: white;
+            color: black;
+            padding: 2rem;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 4px;
+        }
+        .orden-title { text-align: center; font-size: 1.8rem; font-weight: bold; margin-bottom: 25px; letter-spacing: 2px; border-bottom: 3px solid #000; padding-bottom: 10px; }
+        .orden-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
+        .info-table { font-size: 14px; }
+        .services-table { table-layout: fixed; }
+        .orden-table th, .orden-table td { padding: 12px 10px; text-align: left; vertical-align: middle; word-wrap: break-word; border: 1px dotted #ccc; }
+        .info-table td { border: 1px solid #ddd; }
+        .services-table thead th { background-color: #f0f0f0; font-weight: bold; letter-spacing: 0.5px; border: 1px solid #ccc; font-size: 11px; padding: 12px 10px; text-align: center; vertical-align: middle; }
+        .orden-table td.label-col { font-weight: bold; background: #f8f8f8; width: 100px; }
+        .orden-table td.value-col { font-weight: 500; }
+        .service-row td { background-color: #ffffff; }
+        .service-row:nth-child(even) td { background-color: #f9f9f9; }
+        .service-row .date-cell, .service-row .time-cell, .service-row .flight-cell, .service-row .guide-cell, .service-row .bus-cell, .service-row .driver-cell { text-align: center; }
+        .date-cell-header, .date-cell { width: 90px; }
+        .time-cell-header, .time-cell { width: 60px; }
+        .service-cell-header, .service-cell { width: 280px; text-align: left; }
+        .flight-cell-header, .flight-cell { width: 80px; }
+        .guide-cell-header, .guide-cell { width: 100px; }
+        .bus-cell-header, .bus-cell { width: 80px; }
+        .driver-cell-header, .driver-cell { width: 100px; }
+        .obs-cell-header, .obs-cell { text-align: left; }
+        .notes-section { margin-top: 20px; display: grid; grid-template-columns: 1fr; gap: 15px; font-size: 11px; }
+        .notes-block { border: 1px solid #ccc; border-radius: 6px; padding: 10px; background: #f8f9fa; min-height: 50px; }
+        .notes-title { font-weight: bold; margin-bottom: 5px; }
+        .notes-content { white-space: pre-wrap; }
+      </style>
+    ` + generateOrderHtml(order.data);
+    
+    body.appendChild(previewWrapper);
 
-        <style jsx global>{`
-            .orden-preview-wrapper {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                line-height: 1.4;
-                text-transform: uppercase;
-            }
-            .orden-title {
-                text-align: center;
-                font-size: 1.8rem;
-                font-weight: bold;
-                color: #000000;
-                margin-bottom: 25px;
-                letter-spacing: 2px;
-                border-bottom: 3px solid #000000;
-                padding-bottom: 10px;
-            }
-            .orden-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 20px;
-                font-size: 12px;
-            }
-            .info-table {
-                font-size: 14px;
-            }
-            .services-table {
-                table-layout: fixed;
-            }
-            .orden-table th, .orden-table td {
-                padding: 12px 10px;
-                text-align: left;
-                vertical-align: middle;
-                word-wrap: break-word;
-                border: 1px dotted #ccc;
-            }
-            .info-table td {
-                 border: 1px solid #ddd;
-            }
-            .services-table thead th {
-                background-color: #f0f0f0;
-                color: #000000;
-                font-weight: bold;
-                letter-spacing: 0.5px;
-                border: 1px solid #ccc;
-                font-size: 11px;
-                padding: 12px 10px;
-                text-align: center;
-                vertical-align: middle;
-            }
-            .orden-table td.label-col {
-                font-weight: bold;
-                color: #000000;
-                background: #f8f8f8;
-                width: 100px;
-            }
-            .orden-table td.value-col {
-                color: #333333;
-                font-weight: 500;
-            }
-             .service-row td {
-                vertical-align: middle;
-                background-color: #ffffff;
-                color: #000000;
-            }
-            .service-row:nth-child(even) td {
-                background-color: #f9f9f9;
-            }
-            .service-row .date-cell, .service-row .time-cell, .service-row .flight-cell, .service-row .guide-cell, .service-row .bus-cell, .service-row .driver-cell {
-                text-align: center;
-            }
-            .date-cell-header, .date-cell { width: 90px; }
-            .time-cell-header, .time-cell { width: 60px; }
-            .service-cell-header, .service-cell { width: 280px; text-align: left; }
-            .flight-cell-header, .flight-cell { width: 80px; }
-            .guide-cell-header, .guide-cell { width: 100px; }
-            .bus-cell-header, .bus-cell { width: 80px; }
-            .driver-cell-header, .driver-cell { width: 100px; }
-            .obs-cell-header, .obs-cell { text-align: left; }
+    const footer = document.createElement('div');
+    footer.style.padding = '1rem';
+    footer.style.borderTop = '1px solid #ddd';
+    footer.style.backgroundColor = '#f8f9fa';
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'flex-end';
+    footer.style.gap = '8px';
 
-            .notes-section {
-                margin-top: 20px;
-                display: grid;
-                grid-template-columns: 1fr;
-                gap: 15px;
-                font-size: 11px;
-                color: #000000;
-            }
-            .notes-block {
-                border: 1px solid #ccc;
-                border-radius: 6px;
-                padding: 10px;
-                background: #f8f9fa;
-                min-height: 50px;
-            }
-            .notes-title {
-                font-weight: bold;
-                color: #000000;
-                margin-bottom: 5px;
-            }
-            .notes-content {
-                white-space: pre-wrap;
-                color: #000000;
-            }
-        `}</style>
-      </DialogContent>
-    </Dialog>
-  );
+    const copyButton = document.createElement('button');
+    copyButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>Copiar Imagen</span>';
+    copyButton.onclick = () => copiarVistaPreviaAlClipboard(previewWrapper);
+    
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Cerrar';
+    closeButton.onclick = () => modal.remove();
+
+    // Basic button styling
+    [copyButton, closeButton].forEach(btn => {
+        btn.style.display = 'inline-flex';
+        btn.style.alignItems = 'center';
+        btn.style.gap = '8px';
+        btn.style.padding = '10px 16px';
+        btn.style.border = '1px solid transparent';
+        btn.style.borderRadius = '6px';
+        btn.style.fontWeight = '500';
+        btn.style.cursor = 'pointer';
+        btn.style.transition = 'background-color 0.2s';
+    });
+    copyButton.style.backgroundColor = '#16a34a';
+    copyButton.style.color = 'white';
+    closeButton.style.backgroundColor = '#e2e8f0';
+    closeButton.style.color = '#1f2937';
+
+    footer.appendChild(copyButton);
+    footer.appendChild(closeButton);
+
+    content.appendChild(header);
+    content.appendChild(body);
+    content.appendChild(footer);
+    modal.appendChild(content);
+
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    };
+    
+    document.body.appendChild(modal);
 }
 
-    
+// This is the exported React component which is now just a controller.
+// It doesn't render anything itself, but is called to trigger the modal.
+export default function ServiceOrderSimplePreviewModal({ order, onClose }: ServiceOrderSimplePreviewModalProps) {
+    // Since this is a React component file, we need to return something, even if null.
+    // The actual logic is now fully contained in `showSimplePreviewModal`.
+    return null;
+}
