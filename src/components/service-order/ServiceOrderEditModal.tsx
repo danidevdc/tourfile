@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Save, X, Split, XCircle, PlusCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "../ui/textarea";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
 interface ServiceOrderEditModalProps {
@@ -414,28 +415,32 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
             </Table>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 pt-4">
-              <div>
-                  <Label htmlFor="observations-edit">Observaciones Generales</Label>
-                  <Textarea
+            <Accordion type="multiple" className="w-full pt-4">
+              <AccordionItem value="item-1">
+                <AccordionTrigger>Observaciones Generales</AccordionTrigger>
+                <AccordionContent>
+                   <Textarea
                       id="observations-edit"
                       value={editableOrderData.observations || ""}
                       onChange={(e) => handleTextAreaChange('observations', e.target.value)}
                       className="mt-1 bg-card/80"
                       rows={4}
                   />
-              </div>
-              <div>
-                  <Label htmlFor="nota-edit">Nota (Pie de página)</Label>
-                  <Textarea
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="item-2">
+                <AccordionTrigger>Nota (Pie de página)</AccordionTrigger>
+                <AccordionContent>
+                   <Textarea
                       id="nota-edit"
                       value={editableOrderData.nota || ""}
                       onChange={(e) => handleTextAreaChange('nota', e.target.value)}
                       className="mt-1 bg-card/80"
                       rows={4}
                   />
-              </div>
-          </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
 
         </div>
 
