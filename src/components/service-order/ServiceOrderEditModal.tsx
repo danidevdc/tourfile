@@ -26,6 +26,7 @@ import { Combobox, ComboboxOption } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, X, Split, XCircle, PlusCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "../ui/textarea";
 
 
 interface ServiceOrderEditModalProps {
@@ -58,6 +59,10 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
   const handleDataChange = (field: keyof ServiceOrderData, value: string) => {
     setEditableOrderData(prev => ({...prev, [field]: value.toUpperCase() }));
   }
+  
+  const handleTextAreaChange = (field: 'observations' | 'nota', value: string) => {
+    setEditableOrderData(prev => ({...prev, [field]: value }));
+  };
 
   const handleServiceChange = (index: number, field: keyof ServiceItem, value: string) => {
     const updatedServices = [...editableOrderData.services];
@@ -408,6 +413,30 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
               </TableBody>
             </Table>
           </div>
+
+          <div className="grid grid-cols-2 gap-4 pt-4">
+              <div>
+                  <Label htmlFor="observations-edit">Observaciones Generales</Label>
+                  <Textarea
+                      id="observations-edit"
+                      value={editableOrderData.observations || ""}
+                      onChange={(e) => handleTextAreaChange('observations', e.target.value)}
+                      className="mt-1 bg-card/80"
+                      rows={4}
+                  />
+              </div>
+              <div>
+                  <Label htmlFor="nota-edit">Nota (Pie de página)</Label>
+                  <Textarea
+                      id="nota-edit"
+                      value={editableOrderData.nota || ""}
+                      onChange={(e) => handleTextAreaChange('nota', e.target.value)}
+                      className="mt-1 bg-card/80"
+                      rows={4}
+                  />
+              </div>
+          </div>
+
         </div>
 
         <DialogFooter className="p-4 border-t bg-background">
