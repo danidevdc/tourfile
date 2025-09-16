@@ -298,122 +298,124 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
             </div>
 
            <div className="rounded-lg border overflow-hidden">
-            <Table className="table-fixed">
-              <TableHeader>
-                <TableRow className="bg-primary/10 hover:bg-primary/10 h-auto">
-                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[86px] text-center align-middle" style={{fontSize: '11px'}}>Fecha</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px'}}>Servicio</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[120px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[90px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[120px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
-                  <TableHead className="text-primary font-bold py-1 px-2 h-auto w-[40px] text-center align-middle" style={{fontSize: '11px'}}></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedServices.map((s, index) => {
-                  const showDate = index === 0 || sortedServices[index - 1].fecha !== s.fecha;
-                  const colorGroup = dateColorGroupMap.get(s.fecha) || 0;
-                  const rowBgClass = colorGroup % 2 === 0 ? "bg-white dark:bg-zinc-900/50" : "bg-zinc-100 dark:bg-zinc-800/50";
-                  const originalIndex = editableOrderData.services.findIndex(os => os === s);
-                  const currentDriverOptions = driverOptionsForBusType(s.bus);
-                  
-                  const canDelete = editableOrderData.services.length > 1;
-                  const isTransfer = s.servicio?.toUpperCase().includes('TRF');
-
-                  return (
-                    <TableRow key={originalIndex} className={cn("break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
-                      <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
-                        {showDate && s.fecha ? (
-                          <span className="inline-flex items-center justify-center rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-bold text-primary">
-                            {s.fecha}
-                          </span>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
-                         <Input
-                          value={s.hora || ''}
-                          onChange={(e) => handleTimeChange(originalIndex, e.target.value)}
-                          onBlur={(e) => handleTimeBlur(originalIndex, e.target.value)}
-                          maxLength={5}
-                          placeholder="HH:mm"
-                          className="h-8 text-xs bg-card/80 text-center"
-                        />
-                      </TableCell>
-                      <TableCell className="p-1 align-middle border-r border-primary/10 text-left">
-                        <Combobox
-                          options={activityOptions}
-                          value={s.servicio || ''}
-                          onSelect={(value) => handleServiceChange(originalIndex, 'servicio', value)}
-                          placeholder="Actividad..."
-                          className="h-8 text-xs"
-                          triggerClassName="bg-card/80"
-                        />
-                      </TableCell>
-                       <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
-                        <Combobox
-                            options={flights.map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})`}))}
-                            value={s.vuelo || ''}
-                            onSelect={(value) => handleServiceChange(originalIndex, 'vuelo', value)}
-                            placeholder="Vuelo..."
-                            className="h-8 text-xs"
-                            triggerClassName="bg-card/80"
-                            disabled={!isTransfer}
-                        />
-                      </TableCell>
-                      <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium">
-                        <Combobox
-                            options={globalGuideOptions}
-                            value={s.guia || editableOrderData.guia}
-                            onSelect={(value) => handleServiceChange(originalIndex, 'guia', value)}
-                            placeholder="Asignar guía..."
-                            className="h-8 text-xs"
-                            triggerClassName="bg-card/80"
-                        />
-                      </TableCell>
-                      <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
-                         <Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)}>
-                            <SelectTrigger className="h-8 text-xs bg-card/80"><SelectValue placeholder="..." /></SelectTrigger>
-                            <SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
-                        <Combobox
-                          options={currentDriverOptions}
-                          value={s.chofer || ''}
-                          onSelect={(value) => handleServiceChange(originalIndex, 'chofer', value)}
-                          placeholder="Chofer..."
-                          className="h-8 text-xs"
-                          triggerClassName="bg-card/80">
-                        </Combobox>
-                      </TableCell>
-                      <TableCell className="p-1 align-middle border-r border-primary/10 text-left">
-                        <Input
-                          value={s.observaciones || ''}
-                          onChange={(e) => handleServiceChange(originalIndex, 'observaciones', e.target.value)}
-                          className="h-8 text-xs bg-card/80"
-                        />
-                      </TableCell>
-                      <TableCell className="p-1 align-middle text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed"
-                          onClick={() => handleRemoveService(originalIndex)}
-                          disabled={!canDelete}
-                          title={canDelete ? "Eliminar servicio" : "No se puede eliminar el último servicio"}
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
+            <div className="overflow-x-auto">
+                <Table className="table-fixed min-w-[1200px]">
+                  <TableHeader>
+                    <TableRow className="bg-primary/10 hover:bg-primary/10 h-auto">
+                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Fecha</TableHead>
+                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[90px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
+                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[250px] text-left align-middle" style={{fontSize: '11px'}}>Servicio</TableHead>
+                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
+                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[180px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
+                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[110px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
+                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
+                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[250px] text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
+                      <TableHead className="text-primary font-bold py-1 px-2 h-auto w-[50px] text-center align-middle" style={{fontSize: '11px'}}></TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedServices.map((s, index) => {
+                      const showDate = index === 0 || sortedServices[index - 1].fecha !== s.fecha;
+                      const colorGroup = dateColorGroupMap.get(s.fecha) || 0;
+                      const rowBgClass = colorGroup % 2 === 0 ? "bg-white dark:bg-zinc-900/50" : "bg-zinc-100 dark:bg-zinc-800/50";
+                      const originalIndex = editableOrderData.services.findIndex(os => os === s);
+                      const currentDriverOptions = driverOptionsForBusType(s.bus);
+                      
+                      const canDelete = editableOrderData.services.length > 1;
+                      const isTransfer = s.servicio?.toUpperCase().includes('TRF');
+
+                      return (
+                        <TableRow key={originalIndex} className={cn("break-words align-middle h-8", rowBgClass)} style={{fontSize: '11px'}}>
+                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
+                            {showDate && s.fecha ? (
+                              <span className="inline-flex items-center justify-center rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-bold text-primary">
+                                {s.fecha}
+                              </span>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
+                             <Input
+                              value={s.hora || ''}
+                              onChange={(e) => handleTimeChange(originalIndex, e.target.value)}
+                              onBlur={(e) => handleTimeBlur(originalIndex, e.target.value)}
+                              maxLength={5}
+                              placeholder="HH:mm"
+                              className="h-8 text-xs bg-card/80 text-center"
+                            />
+                          </TableCell>
+                          <TableCell className="p-1 align-middle border-r border-primary/10 text-left">
+                            <Combobox
+                              options={activityOptions}
+                              value={s.servicio || ''}
+                              onSelect={(value) => handleServiceChange(originalIndex, 'servicio', value)}
+                              placeholder="Actividad..."
+                              className="h-8 text-xs"
+                              triggerClassName="bg-card/80"
+                            />
+                          </TableCell>
+                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
+                            <Combobox
+                                options={flights.map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})`}))}
+                                value={s.vuelo || ''}
+                                onSelect={(value) => handleServiceChange(originalIndex, 'vuelo', value)}
+                                placeholder="Vuelo..."
+                                className="h-8 text-xs"
+                                triggerClassName="bg-card/80"
+                                disabled={!isTransfer}
+                            />
+                          </TableCell>
+                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium">
+                            <Combobox
+                                options={globalGuideOptions}
+                                value={s.guia || editableOrderData.guia}
+                                onSelect={(value) => handleServiceChange(originalIndex, 'guia', value)}
+                                placeholder="Asignar guía..."
+                                className="h-8 text-xs"
+                                triggerClassName="bg-card/80"
+                            />
+                          </TableCell>
+                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
+                             <Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)}>
+                                <SelectTrigger className="h-8 text-xs bg-card/80"><SelectValue placeholder="..." /></SelectTrigger>
+                                <SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
+                            <Combobox
+                              options={currentDriverOptions}
+                              value={s.chofer || ''}
+                              onSelect={(value) => handleServiceChange(originalIndex, 'chofer', value)}
+                              placeholder="Chofer..."
+                              className="h-8 text-xs"
+                              triggerClassName="bg-card/80">
+                            </Combobox>
+                          </TableCell>
+                          <TableCell className="p-1 align-middle border-r border-primary/10 text-left">
+                            <Input
+                              value={s.observaciones || ''}
+                              onChange={(e) => handleServiceChange(originalIndex, 'observaciones', e.target.value)}
+                              className="h-8 text-xs bg-card/80"
+                            />
+                          </TableCell>
+                          <TableCell className="p-1 align-middle text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed"
+                              onClick={() => handleRemoveService(originalIndex)}
+                              disabled={!canDelete}
+                              title={canDelete ? "Eliminar servicio" : "No se puede eliminar el último servicio"}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
 
             <Accordion type="multiple" className="w-full pt-4">
               <AccordionItem value="item-1">
