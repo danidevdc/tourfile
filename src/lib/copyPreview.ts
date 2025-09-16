@@ -3,7 +3,7 @@ import React from 'react';
 import type { Toast } from '@/hooks/use-toast';
 
 export async function copiarVistaPreviaAlClipboard(
-    captureNode: HTMLElement,
+    captureNode: HTMLElement | null, // Accept HTMLElement or null
     toast?: (props: Parameters<typeof Toast>[0]) => void
 ): Promise<boolean> {
   console.log("[copyPreview] Starting copy process. Node:", captureNode);

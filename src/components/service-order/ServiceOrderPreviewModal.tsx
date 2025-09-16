@@ -47,8 +47,16 @@ function PrintableView({ order, onClose, showCopyButton }: { order: StoredServic
   }, [data.services]);
   
   const handleCopy = async () => {
+    if (!captureRef.current) {
+        toast({
+            title: "Error de Captura",
+            description: "No se pudo encontrar el elemento a copiar.",
+            variant: "destructive"
+        });
+        return;
+    }
     setIsCopying(true);
-    await copiarVistaPreviaAlClipboard(captureRef, toast);
+    await copiarVistaPreviaAlClipboard(captureRef.current, toast);
     setIsCopying(false);
   };
   
@@ -177,7 +185,7 @@ function PrintableView({ order, onClose, showCopyButton }: { order: StoredServic
               disabled={isCopying}
             >
               {isCopying ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FaWhatsapp className="mr-2 h-4 w-4" />}
-              Copiar Imagen
+              Copiar imagen a WhatsApp
             </Button>
           )}
           <DialogClose asChild>
