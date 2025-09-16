@@ -1,0 +1,190 @@
+
+"use client";
+
+import type { StoredServiceOrder } from "./serviceOrderStorage";
+import { copiarVistaPreviaAlClipboard } from "./copyPreview";
+
+const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
+    const { guia, file, ref, nPax, hotel, services, observations, nota } = orderData;
+
+    const infoRows = `
+        <tr><td class="info-label">Guía:</td><td class="info-value">${guia || '—'}</td></tr>
+        <tr><td class="info-label">File:</td><td class="info-value">${file || '—'}</td></tr>
+        <tr><td class="info-label">Ref:</td><td class="info-value">${ref || '—'}</td></tr>
+        <tr><td class="info-label">Nº Pax:</td><td class="info-value">${nPax || '—'}</td></tr>
+        <tr><td class="info-label">Hotel:</td><td class="info-value">${hotel || '—'}</td></tr>
+    `;
+
+    const serviceRows = (services || []).map((s) => {
+        const guiaCompleto = s.guia || guia;
+        const guiaFirstName = (guiaCompleto || '').split(' ')[0];
+        const choferCompleto = s.chofer || '';
+        const choferSanitized = choferCompleto.replace(/^CONT\s/i, '');
+        const choferFirstName = choferSanitized.split(' ')[0];
+        
+        return `
+            <tr class="service-row">
+                <td class="date-cell">${s.fecha || ""}</td>
+                <td class="time-cell">${s.hora || ''}</td>
+                <td class="service-cell">${s.servicio || ''}</td>
+                <td class="flight-cell">${s.vuelo || "—"}</td>
+                <td class="guide-cell">${guiaFirstName}</td>
+                <td class="bus-cell">${s.bus || ''}</td>
+                <td class="driver-cell">${choferFirstName}</td>
+                <td class="obs-cell">${s.observaciones || ''}</td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <div class="orden-title">ORDEN DE SERVICIO</div>
+        <table class="orden-table info-table"><tbody>${infoRows}</tbody></table>
+        <table class="orden-table services-table">
+            <thead>
+                <tr>
+                    <th class="date-cell-header">Fecha</th>
+                    <th class="time-cell-header">Hora</th>
+                    <th class="service-cell-header">Servicio</th>
+                    <th class="flight-cell-header">Vuelo</th>
+                    <th class="guide-cell-header">Guía</th>
+                    <th class="bus-cell-header">Bus</th>
+                    <th class="driver-cell-header">Chofer</th>
+                    <th class="obs-cell-header">Observaciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${serviceRows || '<tr><td colspan="8" style="text-align:center; padding: 20px;">No hay servicios.</td></tr>'}
+            </tbody>
+        </table>
+        <div class="notes-section">
+            <div class="notes-block">
+                <div class="notes-title">OBSERVACIONES:</div>
+                <div class="notes-content">${observations || '—'}</div>
+            </div>
+            <div class="notes-block">
+                <div class="notes-title">NOTA:</div>
+                <div class="notes-content">${nota || '—'}</div>
+            </div>
+        </div>
+    `;
+};
+
+export function showSimplePreviewModal(order: StoredServiceOrder) {
+    console.log("[showSimplePreviewModal] Received order data:", order);
+    const existingModal = document.getElementById('simple-preview-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'simple-preview-modal';
+    modal.className = 'modal-overlay';
+
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+
+    const header = document.createElement('div');
+    header.className = 'modal-header';
+    header.innerHTML = '<h2><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>Vista Previa (Beta)</h2>';
+
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+
+    const previewWrapper = document.createElement('div');
+    previewWrapper.id = 'capture-this-div';
+    previewWrapper.className = 'orden-preview-wrapper';
+    
+    previewWrapper.innerHTML = `
+      <style>
+        .modal-overlay { position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: #f0f2f5; padding: 0; border: 1px solid #888; width: auto; max-width: 95vw; display: flex; flex-direction: column; max-height: 95vh; border-radius: 8px; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19); }
+        .modal-header { padding: 1rem; border-bottom: 1px solid #ddd; background-color: #f8f9fa; }
+        .modal-header h2 { margin:0; font-size: 1.25rem; display: flex; align-items: center; gap: 8px; }
+        .modal-body { overflow-y: auto; flex-grow: 1; padding: 1.5rem; background-color: #e9ecef; }
+        .modal-footer { padding: 1rem; border-top: 1px solid #ddd; background-color: #f8f9fa; display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
+        .modal-footer button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid transparent; border-radius: 6px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
+        .copy-button { background-color: #16a34a; color: white; }
+        .close-button { background-color: #e2e8f0; color: #1f2937; }
+        
+        .status-indicator { display: inline-block; width: 20px; text-align: center; }
+        .spinner { border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; width: 14px; height: 14px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .check { color: green; font-weight: bold; }
+        .cross { color: red; font-weight: bold; }
+
+        .orden-preview-wrapper { width: 1120px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.4; text-transform: uppercase; background: white; color: black; padding: 2rem; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 4px; }
+        .orden-title { text-align: center; font-size: 1.8rem; font-weight: bold; margin-bottom: 25px; letter-spacing: 2px; padding-bottom: 10px; }
+        .orden-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .info-table { font-size: 11px; }
+        .services-table { table-layout: fixed; font-size: 11px; }
+        .orden-table th, .orden-table td { padding: 5px 8px; vertical-align: middle; word-wrap: break-word; }
+        .info-table, .info-table tr, .info-table td { border: 1px solid #ccc; }
+        .services-table thead th { background-color: #f0f0f0; font-weight: bold; letter-spacing: 0.5px; border: 1px solid #ccc; text-align: center; }
+        .services-table tbody td { border: 1px dotted #ccc; }
+        .orden-table td.info-label { font-weight: bold; background: #f8f8f8; width: 100px; }
+        .orden-table td.info-value { font-weight: 500; background: #ffffff;}
+        .service-row .date-cell, .service-row .time-cell, .service-row .flight-cell, .service-row .guide-cell, .service-row .bus-cell, .service-row .driver-cell { text-align: center; }
+        .service-row .service-cell, .service-row .obs-cell { text-align: left; }
+        .date-cell-header, .date-cell { width: 80px; }
+        .time-cell-header, .time-cell { width: 60px; }
+        .service-cell-header, .service-cell { width: 280px; }
+        .flight-cell-header, .flight-cell { width: 80px; }
+        .guide-cell-header, .guide-cell { width: 100px; }
+        .bus-cell-header, .bus-cell { width: 80px; }
+        .driver-cell-header, .driver-cell { width: 100px; }
+        .obs-cell-header, .obs-cell { }
+        .notes-section { margin-top: 20px; display: grid; grid-template-columns: 1fr; gap: 15px; font-size: 11px; }
+        .notes-block { border: 1px solid #ccc; border-radius: 6px; padding: 10px; background: #f8f9fa; min-height: 50px; }
+        .notes-title { font-weight: bold; margin-bottom: 5px; }
+        .notes-content { white-space: pre-wrap; }
+      </style>
+    ` + generateOrderHtml(order.data);
+    
+    body.appendChild(previewWrapper);
+
+    const footer = document.createElement('div');
+    footer.className = 'modal-footer';
+
+    const copyButton = document.createElement('button');
+    copyButton.className = 'copy-button';
+    copyButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>Copiar Imagen</span>';
+    
+    const statusIndicator = document.createElement('span');
+    statusIndicator.className = 'status-indicator';
+
+    copyButton.onclick = async () => {
+        statusIndicator.innerHTML = '<div class="spinner"></div>'; // Show spinner
+        const success = await copiarVistaPreviaAlClipboard(previewWrapper);
+        if (success) {
+            statusIndicator.innerHTML = '<span class="check">✓</span>';
+        } else {
+            statusIndicator.innerHTML = '<span class="cross">✗</span>';
+        }
+        // Clear indicator after a few seconds
+        setTimeout(() => {
+            statusIndicator.innerHTML = '';
+        }, 3000);
+    };
+    
+    const closeButton = document.createElement('button');
+    closeButton.className = 'close-button';
+    closeButton.textContent = 'Cerrar';
+    closeButton.onclick = () => modal.remove();
+
+    footer.appendChild(copyButton);
+    footer.appendChild(statusIndicator);
+    footer.appendChild(closeButton);
+
+    content.appendChild(header);
+    content.appendChild(body);
+    content.appendChild(footer);
+    modal.appendChild(content);
+
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    };
+    
+    document.body.appendChild(modal);
+}
