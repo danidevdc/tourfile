@@ -3,13 +3,11 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import { parse } from "date-fns";
-import { FaWhatsapp } from "react-icons/fa";
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
 import { copiarVistaPreviaAlClipboard } from "@/lib/copyPreview";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, FileText, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,28 +16,98 @@ interface ServiceOrderSimplePreviewModalProps {
   onClose: () => void;
 }
 
+// This function generates a pure HTML string, just like the user's example.
+const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
+    const { guia, file, ref, nPax, hotel, services, observations, nota } = orderData;
+
+    const sortedServices = [...(services || [])].sort((a, b) => {
+        try {
+            const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
+            const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
+            if (dateA !== dateB) return dateA - dateB;
+        } catch {}
+        const hasTimeA = a.hora && a.hora.trim() !== '';
+        const hasTimeB = b.hora && b.hora.trim() !== '';
+        if (hasTimeA && hasTimeB) return a.hora.localeCompare(b.hora);
+        if (hasTimeA) return -1;
+        if (hasTimeB) return 1;
+        return 0;
+    });
+
+    const infoRows = `
+        <tr><td class="label-col">Guía:</td><td class="value-col">${guia || '—'}</td></tr>
+        <tr><td class="label-col">File:</td><td class="value-col">${file || '—'}</td></tr>
+        <tr><td class="label-col">Ref:</td><td class="value-col">${ref || '—'}</td></tr>
+        <tr><td class="label-col">Nº Pax:</td><td class="value-col">${nPax || '—'}</td></tr>
+        <tr><td class="label-col">Hotel:</td><td class="value-col">${hotel || '—'}</td></tr>
+    `;
+
+    const serviceRows = sortedServices.map((s, i) => {
+        const showDate = i === 0 || sortedServices[i - 1].fecha !== s.fecha;
+        const guiaCompleto = s.guia || guia;
+        const guiaFirstName = (guiaCompleto || '').split(' ')[0];
+        const choferCompleto = s.chofer || '';
+        const choferSanitized = choferCompleto.replace(/^CONT\s/i, '');
+        const choferFirstName = choferSanitized.split(' ')[0];
+        
+        return `
+            <tr class="service-row">
+                <td class="date-cell">${showDate ? s.fecha : ""}</td>
+                <td class="time-cell">${s.hora || ''}</td>
+                <td class="service-cell">${s.servicio || ''}</td>
+                <td class="flight-cell">${s.vuelo || "—"}</td>
+                <td class="guide-cell">${guiaFirstName}</td>
+                <td class="bus-cell">${s.bus || ''}</td>
+                <td class="driver-cell">${choferFirstName}</td>
+                <td class="obs-cell">${s.observaciones || ''}</td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <div class="orden-title">ORDEN DE SERVICIO</div>
+        <table class="orden-table">
+            <tr><th colspan="2" class="section-header">INFORMACIÓN GENERAL</th></tr>
+            ${infoRows}
+        </table>
+        <table class="orden-table services-table">
+            <thead>
+                <tr>
+                    <th class="date-cell-header">Fecha</th>
+                    <th class="time-cell-header">Hora</th>
+                    <th class="service-cell-header">Servicio</th>
+                    <th class="flight-cell-header">Vuelo</th>
+                    <th class="guide-cell-header">Guía</th>
+                    <th class="bus-cell-header">Bus</th>
+                    <th class="driver-cell-header">Chofer</th>
+                    <th class="obs-cell-header">Observaciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${serviceRows || '<tr><td colspan="8" style="text-align:center; padding: 20px;">No hay servicios.</td></tr>'}
+            </tbody>
+        </table>
+        <div class="notes-section">
+            <div class="notes-block">
+                <div class="notes-title">OBSERVACIONES:</div>
+                <div class="notes-content">${observations || '—'}</div>
+            </div>
+            <div class="notes-block">
+                <div class="notes-title">NOTA:</div>
+                <div class="notes-content">${nota || '—'}</div>
+            </div>
+        </div>
+    `;
+};
+
+
 export function ServiceOrderSimplePreviewModal({ order, onClose }: ServiceOrderSimplePreviewModalProps) {
-  const { data } = order;
   const captureRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [isCopying, setIsCopying] = useState(false);
 
-  const services = useMemo(() => {
-    if (!data.services) return [];
-    return [...data.services].sort((a, b) => {
-      try {
-        const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
-        const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
-        if (dateA !== dateB) return dateA - dateB;
-      } catch {}
-      const hasTimeA = a.hora && a.hora.trim() !== '';
-      const hasTimeB = b.hora && b.hora.trim() !== '';
-      if (hasTimeA && hasTimeB) return a.hora.localeCompare(b.hora);
-      if (hasTimeA) return -1;
-      if (hasTimeB) return 1;
-      return 0;
-    });
-  }, [data.services]);
+  // Generate the pure HTML string from the order data
+  const orderHtmlString = useMemo(() => generateOrderHtml(order.data), [order.data]);
   
   const handleCopy = async () => {
     setIsCopying(true);
@@ -47,99 +115,24 @@ export function ServiceOrderSimplePreviewModal({ order, onClose }: ServiceOrderS
     setIsCopying(false);
   };
 
-  const InfoRow = ({ label, value }: { label: string, value: string }) => (
-    <div className="flex">
-        <div className="w-24 font-bold text-gray-600">{label}:</div>
-        <div className="flex-1 text-gray-800">{value || '—'}</div>
-    </div>
-  );
-
   return (
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-6xl w-full flex flex-col max-h-[95vh] p-0 shadow-2xl">
         <DialogHeader className="p-4 border-b bg-slate-900 text-white rounded-t-lg">
           <DialogTitle className="flex items-center gap-2">
             <FileText />
-            Vista Previa de Orden de Servicio
+            Vista Previa de Orden de Servicio (Beta)
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-auto p-6 bg-gray-100 dark:bg-gray-800">
-          <div ref={captureRef} className="bg-white text-black p-8 w-[1120px] mx-auto shadow-lg rounded-lg">
-            
-            <div className="text-center mb-6 pb-4 border-b-4 border-slate-800">
-                <h1 className="font-bold text-4xl text-slate-800 uppercase tracking-wider">
-                    Orden de Servicio
-                </h1>
-            </div>
-            
-            {/* General Info */}
-            <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                 <h2 className="text-lg font-bold text-slate-700 mb-3 pb-2 border-b-2 border-slate-200">Información General</h2>
-                 <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                    <InfoRow label="Guía" value={data.guia} />
-                    <InfoRow label="File" value={data.file} />
-                    <InfoRow label="Ref" value={data.ref} />
-                    <InfoRow label="Nº Pax" value={data.nPax} />
-                    <InfoRow label="Hotel" value={data.hotel} />
-                 </div>
-            </div>
-
-              {/* Services Table */}
-            <div>
-                <h2 className="text-lg font-bold text-slate-700 mb-3 pb-2 border-b-2 border-slate-200">Itinerario de Servicios</h2>
-                <div className="border border-gray-300 rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-slate-800 hover:bg-slate-800 text-white uppercase text-xs">
-                          <TableHead className="w-[90px] h-auto p-2 text-white font-bold text-center border-r border-slate-700">Fecha</TableHead>
-                          <TableHead className="w-[60px] h-auto p-2 text-white font-bold text-center border-r border-slate-700">Hora</TableHead>
-                          <TableHead className="w-[280px] h-auto p-2 text-white font-bold border-r border-slate-700">Servicio</TableHead>
-                          <TableHead className="w-[80px] h-auto p-2 text-white font-bold text-center border-r border-slate-700">Vuelo</TableHead>
-                          <TableHead className="w-[100px] h-auto p-2 text-white font-bold text-center border-r border-slate-700">Guía</TableHead>
-                          <TableHead className="w-[80px] h-auto p-2 text-white font-bold text-center border-r border-slate-700">Bus</TableHead>
-                          <TableHead className="w-[100px] h-auto p-2 text-white font-bold text-center border-r border-slate-700">Chofer</TableHead>
-                          <TableHead className="h-auto p-2 text-white font-bold">Observaciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {services.map((s, i) => {
-                           const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
-                           const guiaCompleto = s.guia || data.guia;
-                           const guiaFirstName = (guiaCompleto || '').split(' ')[0];
-                           const choferCompleto = s.chofer || '';
-                           const choferSanitized = choferCompleto.replace(/^CONT\s/i, '');
-                           const choferFirstName = choferSanitized.split(' ')[0];
-                           const rowClass = i % 2 === 0 ? 'bg-white' : 'bg-slate-50';
-                           return(
-                            <TableRow key={i} className={cn("border-b-0 hover:bg-slate-100", rowClass)}>
-                              <TableCell className="p-2 text-center text-xs font-bold text-slate-600 border-r border-gray-200">{showDate ? s.fecha : ""}</TableCell>
-                              <TableCell className="p-2 text-center text-xs border-r border-gray-200">{s.hora}</TableCell>
-                              <TableCell className="p-2 text-xs font-medium border-r border-gray-200">{s.servicio}</TableCell>
-                              <TableCell className="p-2 text-center text-xs border-r border-gray-200">{s.vuelo || "—"}</TableCell>
-                              <TableCell className="p-2 text-center text-xs border-r border-gray-200">{guiaFirstName}</TableCell>
-                              <TableCell className="p-2 text-center text-xs border-r border-gray-200">{s.bus}</TableCell>
-                              <TableCell className="p-2 text-center text-xs border-r border-gray-200">{choferFirstName}</TableCell>
-                              <TableCell className="p-2 text-xs">{s.observaciones}</TableCell>
-                            </TableRow>
-                           )
-                        })}
-                      </TableBody>
-                    </Table>
-                </div>
-            </div>
-
-            {/* Notes */}
-            <div className="mt-6 space-y-4 text-xs">
-                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 min-h-[60px]">
-                  <p className="font-bold text-slate-700 mb-1 uppercase">Observaciones:</p>
-                  <p className="whitespace-pre-wrap text-slate-800">{data.observations || "—"}</p>
-                </div>
-                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 min-h-[60px]">
-                  <p className="font-bold text-slate-700 mb-1 uppercase">Nota:</p>
-                  <p className="whitespace-pre-wrap text-slate-800">{data.nota || "—"}</p>
-                </div>
-              </div>
+          {/* This div is the target for html2canvas */}
+          <div ref={captureRef}>
+            {/* We inject the pure HTML string here */}
+            <div
+                className="orden-preview-wrapper bg-white text-black p-8 w-[1120px] mx-auto shadow-lg rounded-lg"
+                dangerouslySetInnerHTML={{ __html: orderHtmlString }}
+            />
           </div>
         </div>
 
@@ -156,6 +149,104 @@ export function ServiceOrderSimplePreviewModal({ order, onClose }: ServiceOrderS
             <Button variant="outline" onClick={onClose}>Cerrar</Button>
           </DialogClose>
         </DialogFooter>
+
+        {/* Hidden styles for the injected HTML */}
+        <style jsx global>{`
+            .orden-preview-wrapper {
+                font-family: Arial, sans-serif;
+                line-height: 1.4;
+            }
+            .orden-title {
+                text-align: center;
+                font-size: 1.8rem;
+                font-weight: bold;
+                color: #2c3e50;
+                margin-bottom: 25px;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                border-bottom: 3px solid #2c3e50;
+                padding-bottom: 10px;
+            }
+            .orden-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 20px;
+                font-size: 12px;
+            }
+            .orden-table th, .orden-table td {
+                padding: 8px 10px;
+                border: 1px solid #bdc3c7;
+                text-align: left;
+                vertical-align: middle;
+            }
+            .orden-table th.section-header {
+                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+                color: white;
+                text-align: center;
+                font-size: 14px;
+                font-weight: bold;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+            .orden-table td.label-col {
+                font-weight: bold;
+                color: #2c3e50;
+                background: #e8eaf0;
+                width: 80px;
+                text-transform: uppercase;
+            }
+            .orden-table td.value-col {
+                color: #34495e;
+                font-weight: 500;
+            }
+            .services-table thead th {
+                background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+                color: white;
+                font-weight: bold;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                border-color: #2c3e50;
+                font-size: 11px;
+                padding: 10px;
+                text-align: center;
+            }
+            .service-row:nth-child(even) {
+                background: #ecf0f1;
+            }
+            .service-row .date-cell, .service-row .time-cell, .service-row .flight-cell, .service-row .guide-cell, .service-row .bus-cell, .service-row .driver-cell {
+                text-align: center;
+            }
+            .date-cell-header { width: 90px; }
+            .time-cell-header { width: 60px; }
+            .service-cell-header { width: 280px; text-align: left !important; }
+            .flight-cell-header { width: 80px; }
+            .guide-cell-header { width: 100px; }
+            .bus-cell-header { width: 80px; }
+            .driver-cell-header { width: 100px; }
+            .obs-cell-header { text-align: left !important; }
+            .notes-section {
+                margin-top: 20px;
+                space-y: 10px;
+                font-size: 11px;
+            }
+            .notes-block {
+                border: 1px solid #dee2e6;
+                border-radius: 6px;
+                padding: 10px;
+                background: #f8f9fa;
+                min-height: 50px;
+            }
+            .notes-title {
+                font-weight: bold;
+                color: #2c3e50;
+                text-transform: uppercase;
+                margin-bottom: 5px;
+            }
+            .notes-content {
+                white-space: pre-wrap;
+                color: #34495e;
+            }
+        `}</style>
       </DialogContent>
     </Dialog>
   );
