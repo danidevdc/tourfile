@@ -302,13 +302,13 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                 <Table className="table-fixed min-w-[1200px]">
                   <TableHeader>
                     <TableRow className="bg-primary/10 hover:bg-primary/10 h-auto">
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Fecha</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[90px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
+                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[120px] text-center align-middle" style={{fontSize: '11px'}}>Fecha</TableHead>
+                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[70px] text-center align-middle" style={{fontSize: '11px'}}>Hora</TableHead>
                       <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[250px] text-left align-middle" style={{fontSize: '11px'}}>Servicio</TableHead>
                       <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Vuelo</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[180px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
+                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[210px] text-center align-middle" style={{fontSize: '11px'}}>Guía</TableHead>
                       <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[110px] text-center align-middle" style={{fontSize: '11px'}}>Bus</TableHead>
-                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[150px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
+                      <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[170px] text-center align-middle" style={{fontSize: '11px'}}>Chofer</TableHead>
                       <TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto w-[250px] text-left align-middle" style={{fontSize: '11px'}}>Observaciones</TableHead>
                       <TableHead className="text-primary font-bold py-1 px-2 h-auto w-[50px] text-center align-middle" style={{fontSize: '11px'}}></TableHead>
                     </TableRow>
