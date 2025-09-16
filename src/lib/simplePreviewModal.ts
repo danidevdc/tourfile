@@ -1,6 +1,7 @@
 
 "use client";
 
+import { parse } from "date-fns";
 import type { StoredServiceOrder } from "./serviceOrderStorage";
 import { copiarVistaPreviaAlClipboard } from "./copyPreview";
 
@@ -15,7 +16,24 @@ const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
         <tr><td class="info-label">Hotel:</td><td class="info-value">${hotel || '—'}</td></tr>
     `;
 
-    const serviceRows = (services || []).map((s) => {
+    // **FIX:** Re-implement sorting logic
+    const sortedServices = [...(services || [])].sort((a, b) => {
+        try {
+            const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
+            const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
+            if (dateA !== dateB) return dateA - dateB;
+        } catch {}
+        const hasTimeA = a.hora && a.hora.trim() !== '';
+        const hasTimeB = b.hora && b.hora.trim() !== '';
+        if (hasTimeA && hasTimeB) return a.hora.localeCompare(b.hora);
+        if (hasTimeA) return -1;
+        if (hasTimeB) return 1;
+        return 0;
+    });
+
+    // **FIX:** Use sorted services and re-implement unique date logic
+    const serviceRows = sortedServices.map((s, i) => {
+        const showDate = i === 0 || sortedServices[i - 1].fecha !== s.fecha;
         const guiaCompleto = s.guia || guia;
         const guiaFirstName = (guiaCompleto || '').split(' ')[0];
         const choferCompleto = s.chofer || '';
@@ -24,7 +42,7 @@ const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
         
         return `
             <tr class="service-row">
-                <td class="date-cell">${s.fecha || ""}</td>
+                <td class="date-cell">${showDate ? (s.fecha || "") : ""}</td>
                 <td class="time-cell">${s.hora || ''}</td>
                 <td class="service-cell">${s.servicio || ''}</td>
                 <td class="flight-cell">${s.vuelo || "—"}</td>
@@ -113,15 +131,15 @@ export function showSimplePreviewModal(order: StoredServiceOrder) {
         .cross { color: red; font-weight: bold; }
 
         .orden-preview-wrapper { width: 1120px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.4; text-transform: uppercase; background: white; color: black; padding: 2rem; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 4px; }
-        .orden-title { text-align: center; font-size: 1.5rem; font-weight: bold; margin-bottom: 25px; letter-spacing: 1.5px; }
+        .orden-title { text-align: center; font-size: 1.25rem; font-weight: bold; margin-bottom: 25px; letter-spacing: 1.5px; }
         .orden-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .info-table { font-size: 11px; }
-        .services-table { table-layout: fixed; font-size: 11px; }
-        .orden-table th, .orden-table td { padding: 8px 8px; vertical-align: middle; word-wrap: break-word; }
-        .info-table tr td { border: none; }
+        .info-table { font-size: 10px; border-spacing: 0; }
+        .services-table { table-layout: fixed; font-size: 10px; }
+        .orden-table th, .orden-table td { padding: 4px 8px; vertical-align: middle; word-wrap: break-word; }
+        .info-table tr td { border: 1px solid #ccc; }
         .info-table td.info-label { font-weight: bold; background: #f0f0f0; width: 90px; }
         .info-table td.info-value { font-weight: 500; background: #ffffff;}
-        .services-table thead th { background-color: #f0f0f0; font-weight: bold; letter-spacing: 0.5px; border: 1px solid #ccc; text-align: center; }
+        .services-table thead th { background-color: #f0f0f0; font-weight: bold; letter-spacing: 0.5px; border: 1px solid #ccc; text-align: center; padding: 6px 8px; }
         .services-table tbody td { border: 1px dotted #ccc; }
         .service-row .date-cell, .service-row .time-cell, .service-row .flight-cell, .service-row .guide-cell, .service-row .bus-cell, .service-row .driver-cell { text-align: center; }
         .service-row .service-cell, .service-row .obs-cell { text-align: left; }
@@ -153,14 +171,13 @@ export function showSimplePreviewModal(order: StoredServiceOrder) {
     statusIndicator.className = 'status-indicator';
 
     copyButton.onclick = async () => {
-        statusIndicator.innerHTML = '<div class="spinner"></div>'; // Show spinner
+        statusIndicator.innerHTML = '<div class="spinner"></div>';
         const success = await copiarVistaPreviaAlClipboard(previewWrapper);
         if (success) {
             statusIndicator.innerHTML = '<span class="check">✓</span>';
         } else {
             statusIndicator.innerHTML = '<span class="cross">✗</span>';
         }
-        // Clear indicator after a few seconds
         setTimeout(() => {
             statusIndicator.innerHTML = '';
         }, 3000);
