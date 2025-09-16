@@ -113,16 +113,16 @@ export function showSimplePreviewModal(order: StoredServiceOrder) {
         .cross { color: red; font-weight: bold; }
 
         .orden-preview-wrapper { width: 1120px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.4; text-transform: uppercase; background: white; color: black; padding: 2rem; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 4px; }
-        .orden-title { text-align: center; font-size: 1.8rem; font-weight: bold; margin-bottom: 25px; letter-spacing: 2px; padding-bottom: 10px; }
+        .orden-title { text-align: center; font-size: 1.5rem; font-weight: bold; margin-bottom: 25px; letter-spacing: 1.5px; }
         .orden-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         .info-table { font-size: 11px; }
         .services-table { table-layout: fixed; font-size: 11px; }
-        .orden-table th, .orden-table td { padding: 5px 8px; vertical-align: middle; word-wrap: break-word; }
-        .info-table, .info-table tr, .info-table td { border: 1px solid #ccc; }
+        .orden-table th, .orden-table td { padding: 8px 8px; vertical-align: middle; word-wrap: break-word; }
+        .info-table tr td { border: none; }
+        .info-table td.info-label { font-weight: bold; background: #f0f0f0; width: 90px; }
+        .info-table td.info-value { font-weight: 500; background: #ffffff;}
         .services-table thead th { background-color: #f0f0f0; font-weight: bold; letter-spacing: 0.5px; border: 1px solid #ccc; text-align: center; }
         .services-table tbody td { border: 1px dotted #ccc; }
-        .orden-table td.info-label { font-weight: bold; background: #f8f8f8; width: 100px; }
-        .orden-table td.info-value { font-weight: 500; background: #ffffff;}
         .service-row .date-cell, .service-row .time-cell, .service-row .flight-cell, .service-row .guide-cell, .service-row .bus-cell, .service-row .driver-cell { text-align: center; }
         .service-row .service-cell, .service-row .obs-cell { text-align: left; }
         .date-cell-header, .date-cell { width: 80px; }
