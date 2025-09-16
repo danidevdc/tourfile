@@ -111,34 +111,37 @@ export function showSimplePreviewModal(order: StoredServiceOrder) {
     previewWrapper.id = 'capture-this-div';
     previewWrapper.className = 'orden-preview-wrapper';
     
+    // Detect dark mode from the <html> element
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    
     previewWrapper.innerHTML = `
       <style>
         .modal-overlay { position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; }
-        .modal-content { background: #f0f2f5; padding: 0; border: 1px solid #888; width: auto; max-width: 95vw; display: flex; flex-direction: column; max-height: 95vh; border-radius: 8px; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19); }
-        .modal-header { padding: 1rem; border-bottom: 1px solid #ddd; background-color: #f8f9fa; }
-        .modal-header h2 { margin:0; font-size: 1.25rem; display: flex; align-items: center; gap: 8px; }
-        .modal-body { overflow-y: auto; flex-grow: 1; padding: 1.5rem; background-color: #e9ecef; }
-        .modal-footer { padding: 1rem; border-top: 1px solid #ddd; background-color: #f8f9fa; display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
+        .modal-content { background: ${isDarkMode ? '#1a202c' : '#f0f2f5'}; color: ${isDarkMode ? '#e2e8f0' : '#1f2937'}; padding: 0; border: 1px solid ${isDarkMode ? '#2d3748' : '#888'}; width: auto; max-width: 95vw; display: flex; flex-direction: column; max-height: 95vh; border-radius: 8px; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19); }
+        .modal-header { padding: 1rem; border-bottom: 1px solid ${isDarkMode ? '#2d3748' : '#ddd'}; background-color: ${isDarkMode ? '#2d3748' : '#f8f9fa'}; }
+        .modal-header h2 { margin:0; font-size: 1.25rem; display: flex; align-items: center; gap: 8px; color: ${isDarkMode ? '#a0aec0' : '#4a5568'}; }
+        .modal-body { overflow-y: auto; flex-grow: 1; padding: 1.5rem; background-color: ${isDarkMode ? '#2d3748' : '#e9ecef'}; }
+        .modal-footer { padding: 1rem; border-top: 1px solid ${isDarkMode ? '#2d3748' : '#ddd'}; background-color: ${isDarkMode ? '#2d3748' : '#f8f9fa'}; display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
         .modal-footer button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid transparent; border-radius: 6px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
         .copy-button { background-color: #16a34a; color: white; }
         .close-button { background-color: #e2e8f0; color: #1f2937; }
         
         .status-indicator { display: inline-block; width: 20px; text-align: center; }
-        .spinner { border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; width: 14px; height: 14px; animation: spin 1s linear infinite; }
+        .spinner { border: 2px solid #4a5568; border-top: 2px solid #3498db; border-radius: 50%; width: 14px; height: 14px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .check { color: green; font-weight: bold; }
-        .cross { color: red; font-weight: bold; }
+        .check { color: #34d399; font-weight: bold; }
+        .cross { color: #ef4444; font-weight: bold; }
 
-        .orden-preview-wrapper { width: 1120px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.4; text-transform: uppercase; background: white; color: black; padding: 2rem; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 4px; }
+        .orden-preview-wrapper { width: 1120px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.4; text-transform: uppercase; background: ${isDarkMode ? '#111827' : 'white'}; color: ${isDarkMode ? '#d1d5db' : 'black'}; padding: 2rem; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 4px; }
         .orden-title { text-align: center; font-size: 1rem; font-weight: bold; margin-bottom: 15px; letter-spacing: 1.5px; }
         .orden-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         .info-table { font-size: 10px; border-collapse: collapse; border-spacing: 0; }
         .services-table { table-layout: fixed; font-size: 10px; }
         .orden-table th, .orden-table td { padding: 8px 8px; vertical-align: middle; word-wrap: break-word; }
-        .info-table td.info-label { font-weight: bold; background: #f0f0f0; width: 80px; border: 1px solid #ccc; }
-        .info-table td.info-value { font-weight: 500; background: #ffffff; border: 1px solid #ccc; border-left: none; }
-        .services-table thead th { background-color: #f0f0f0; font-weight: bold; letter-spacing: 0.5px; border: 1px solid #ccc; text-align: center; }
-        .services-table tbody td { border: 1px dotted #ccc; }
+        .info-table td.info-label { font-weight: bold; background: ${isDarkMode ? '#1f2937' : '#f0f0f0'}; width: 80px; border: 1px solid ${isDarkMode ? '#4b5563' : '#ccc'}; }
+        .info-table td.info-value { font-weight: 500; background: ${isDarkMode ? '#111827' : '#ffffff'}; border: 1px solid ${isDarkMode ? '#4b5563' : '#ccc'}; border-left: none; }
+        .services-table thead th { background-color: ${isDarkMode ? '#1f2937' : '#f0f0f0'}; font-weight: bold; letter-spacing: 0.5px; border: 1px solid ${isDarkMode ? '#4b5563' : '#ccc'}; text-align: center; }
+        .services-table tbody td { border: 1px dotted ${isDarkMode ? '#4b5563' : '#ccc'}; }
         .service-row .date-cell, .service-row .time-cell, .service-row .flight-cell, .service-row .guide-cell, .service-row .bus-cell, .service-row .driver-cell { text-align: center; }
         .service-row .service-cell, .service-row .obs-cell { text-align: left; }
         .date-cell-header, .date-cell { width: 80px; }
@@ -150,7 +153,7 @@ export function showSimplePreviewModal(order: StoredServiceOrder) {
         .driver-cell-header, .driver-cell { width: 100px; }
         .obs-cell-header, .obs-cell { }
         .notes-section { margin-top: 20px; display: grid; grid-template-columns: 1fr; gap: 15px; font-size: 11px; }
-        .notes-block { border: 1px solid #ccc; border-radius: 6px; padding: 10px; background: #f8f9fa; min-height: 50px; }
+        .notes-block { border: 1px solid ${isDarkMode ? '#4b5563' : '#ccc'}; border-radius: 6px; padding: 10px; background: ${isDarkMode ? '#1f2937' : '#f8f9fa'}; min-height: 50px; }
         .notes-title { font-weight: bold; margin-bottom: 5px; }
         .notes-content { white-space: pre-wrap; }
       </style>

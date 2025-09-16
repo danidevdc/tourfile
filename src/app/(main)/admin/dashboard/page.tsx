@@ -173,7 +173,7 @@ export default function AdminDashboardPage() {
         toast({
             title: "Éxito",
             description: "El permiso de rol intermedio ha sido actualizado.",
-            className: "bg-green-100 dark:bg-green-900 border-green-500",
+            className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
         });
     } catch (error) {
         toast({ title: "Error", description: "No se pudo guardar el permiso.", variant: "destructive" });

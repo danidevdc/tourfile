@@ -227,15 +227,15 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                 <div className="flex items-end gap-2">
                     <div className="flex-none" style={{width: '150px'}}>
                         <Label htmlFor="file-edit">File</Label>
-                        <Input id="file-edit" value={editableOrderData.file} onChange={(e) => handleDataChange('file', e.target.value)} className="h-9 mt-1 bg-card/80"/>
+                        <Input id="file-edit" value={editableOrderData.file} onChange={(e) => handleDataChange('file', e.target.value)} className="h-9 mt-1 bg-background"/>
                     </div>
                      <div className="flex-grow">
                         <Label htmlFor="ref-edit">Ref (Grupo)</Label>
-                        <Input id="ref-edit" value={editableOrderData.ref} onChange={(e) => handleDataChange('ref', e.target.value)} className="h-9 mt-1 bg-card/80"/>
+                        <Input id="ref-edit" value={editableOrderData.ref} onChange={(e) => handleDataChange('ref', e.target.value)} className="h-9 mt-1 bg-background"/>
                     </div>
                     <div style={{width: '80px'}}>
                         <Label htmlFor="pax-edit">Nº Pax</Label>
-                        <Input id="pax-edit" value={editableOrderData.nPax} onChange={(e) => handleDataChange('nPax', e.target.value)} className="h-9 mt-1 bg-card/80"/>
+                        <Input id="pax-edit" value={editableOrderData.nPax} onChange={(e) => handleDataChange('nPax', e.target.value)} className="h-9 mt-1 bg-background"/>
                     </div>
                      <div className="flex-1" style={{minWidth: '250px'}}>
                         <Label>Hotel</Label>
@@ -245,7 +245,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                             onSelect={(value) => handleDataChange('hotel', value)}
                             placeholder="Buscar hotel..."
                             className="h-9 mt-1"
-                            triggerClassName="bg-card/80"
+                            triggerClassName="bg-background"
                         />
                     </div>
                 </div>
@@ -258,7 +258,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                         onSelect={(value) => handleDataChange('guia', value)}
                         placeholder="Seleccionar guía principal..."
                         className="h-9 mt-1"
-                        triggerClassName="bg-card/80"
+                        triggerClassName="bg-background"
                     />
                 </div>
                  {/* --- Add New Service Form --- */}
@@ -266,11 +266,11 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                    <div className="flex items-end gap-2">
                         <div style={{ width: '150px' }}>
                             <Label className="text-xs font-semibold">Fecha</Label>
-                            <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 h-8 text-xs"/>
+                            <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 h-8 text-xs bg-background"/>
                         </div>
                         <div className="flex-grow" style={{maxWidth: '600px'}}>
                             <Label className="text-xs font-semibold">Actividad</Label>
-                            <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 h-8 text-xs" triggerClassName="bg-card/80" />
+                            <Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 h-8 text-xs" triggerClassName="bg-background" />
                         </div>
                         <div className="flex-grow">
                             <Label className="text-xs font-semibold">Vuelo</Label>
@@ -280,13 +280,13 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                                 onSelect={handleFlightSelect} 
                                 placeholder="Seleccionar vuelo..." 
                                 className="mt-1 h-8 text-xs" 
-                                triggerClassName="bg-card/80" 
+                                triggerClassName="bg-background" 
                                 disabled={!newService.servicio?.toUpperCase().includes('TRF')}
                             />
                         </div>
                         <div style={{ width: '90px' }}>
                             <Label className="text-xs font-semibold">Hora</Label>
-                            <Input value={newService.hora} onChange={handleNewServiceTimeChange} onBlur={(e) => handleTimeBlur(-1, e.target.value)} placeholder="HH:mm" maxLength={5} className="mt-1 h-8 text-xs"/>
+                            <Input value={newService.hora} onChange={handleNewServiceTimeChange} onBlur={(e) => handleTimeBlur(-1, e.target.value)} placeholder="HH:mm" maxLength={5} className="mt-1 h-8 text-xs bg-background"/>
                         </div>
                         <div>
                             <Button onClick={addNewServiceRow} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isAddServiceDisabled}>
@@ -340,7 +340,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                               onBlur={(e) => handleTimeBlur(originalIndex, e.target.value)}
                               maxLength={5}
                               placeholder="HH:mm"
-                              className="h-8 text-xs bg-card/80 text-center"
+                              className="h-8 text-xs bg-background text-center"
                             />
                           </TableCell>
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-left">
@@ -350,7 +350,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                               onSelect={(value) => handleServiceChange(originalIndex, 'servicio', value)}
                               placeholder="Actividad..."
                               className="h-8 text-xs"
-                              triggerClassName="bg-card/80"
+                              triggerClassName="bg-background"
                             />
                           </TableCell>
                            <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
@@ -360,7 +360,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                                 onSelect={(value) => handleServiceChange(originalIndex, 'vuelo', value)}
                                 placeholder="Vuelo..."
                                 className="h-8 text-xs"
-                                triggerClassName="bg-card/80"
+                                triggerClassName="bg-background"
                                 disabled={!isTransfer}
                             />
                           </TableCell>
@@ -371,12 +371,12 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                                 onSelect={(value) => handleServiceChange(originalIndex, 'guia', value)}
                                 placeholder="Asignar guía..."
                                 className="h-8 text-xs"
-                                triggerClassName="bg-card/80"
+                                triggerClassName="bg-background"
                             />
                           </TableCell>
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
                              <Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)}>
-                                <SelectTrigger className="h-8 text-xs bg-card/80"><SelectValue placeholder="..." /></SelectTrigger>
+                                <SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="..." /></SelectTrigger>
                                 <SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent>
                             </Select>
                           </TableCell>
@@ -387,14 +387,14 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                               onSelect={(value) => handleServiceChange(originalIndex, 'chofer', value)}
                               placeholder="Chofer..."
                               className="h-8 text-xs"
-                              triggerClassName="bg-card/80">
+                              triggerClassName="bg-background">
                             </Combobox>
                           </TableCell>
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-left">
                             <Input
                               value={s.observaciones || ''}
                               onChange={(e) => handleServiceChange(originalIndex, 'observaciones', e.target.value)}
-                              className="h-8 text-xs bg-card/80"
+                              className="h-8 text-xs bg-background"
                             />
                           </TableCell>
                           <TableCell className="p-1 align-middle text-center">
@@ -425,7 +425,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                       id="observations-edit"
                       value={editableOrderData.observations || ""}
                       onChange={(e) => handleTextAreaChange('observations', e.target.value)}
-                      className="mt-1 bg-card/80"
+                      className="mt-1 bg-background"
                       rows={4}
                   />
                 </AccordionContent>
@@ -437,7 +437,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                       id="nota-edit"
                       value={editableOrderData.nota || ""}
                       onChange={(e) => handleTextAreaChange('nota', e.target.value)}
-                      className="mt-1 bg-card/80"
+                      className="mt-1 bg-background"
                       rows={4}
                   />
                 </AccordionContent>

@@ -129,7 +129,7 @@ export default function ContributeDataPage() {
             time: newFlightTime.trim(),
             observations: newFlightObs.trim()
         });
-        toast({ title: "¡Gracias!", description: `Vuelo añadido correctamente.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+        toast({ title: "¡Gracias!", description: `Vuelo añadido correctamente.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
         setNewFlightNumber(''); setNewFlightTime(''); setNewFlightObs('');
       } else {
         const name = newItemName.trim().toUpperCase();
@@ -165,7 +165,7 @@ export default function ContributeDataPage() {
         else if (type === 'buses') await createBus(name);
         else if (type === 'drivers') await createDriver(finalNameToSave);
 
-        toast({ title: "¡Gracias!", description: `Tu contribución ha sido añadida.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+        toast({ title: "¡Gracias!", description: `Tu contribución ha sido añadida.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
         setNewItemName(''); setNewItemLastName('');
       }
       await fetchData();
@@ -191,7 +191,7 @@ export default function ContributeDataPage() {
       else if (itemToDelete.type === 'buses') await deleteBus(id);
 
 
-      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
       await fetchData();
     } catch (error) {
        toast({ title: "Error", description: `No se pudo eliminar el registro.`, variant: "destructive" });
@@ -228,7 +228,7 @@ export default function ContributeDataPage() {
         else if (type === 'flights') await updateFlight(id, { flightNumber: newValues.flightNumber, time: newValues.time, observations: newValues.observations });
         else if (type === 'buses') await updateBus(id, newValues.name);
 
-        toast({ title: "Guardado", description: "El registro ha sido actualizado.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+        toast({ title: "Guardado", description: "El registro ha sido actualizado.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
         await fetchData();
     } catch (error) {
         toast({ title: "Error", description: `No se pudo guardar el registro.`, variant: "destructive" });
@@ -463,5 +463,3 @@ export default function ContributeDataPage() {
     </div>
   );
 }
-
-    

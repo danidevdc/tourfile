@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -103,7 +104,7 @@ function FlightSearchCard() {
               toast({
                   title: "Vuelo Guardado",
                   description: `${ident} ha sido añadido a tu lista de vuelos.`,
-                  className: "bg-green-100 dark:bg-green-900 border-green-500",
+                  className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
               });
           } else {
               throw new Error("Los datos del vuelo encontrado son insuficientes para guardarlo.");

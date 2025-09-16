@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -116,7 +117,7 @@ export default function GeneratorPage() {
         toast({
           title: "Archivo Seleccionado",
           description: file.name,
-          className: "bg-green-100 dark:bg-green-900 border-green-500",
+          className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
         });
 
         const reader = new FileReader();
@@ -179,7 +180,7 @@ export default function GeneratorPage() {
     toast({
       title: "Lista Limpiada",
       description: "Todos los reportes generados han sido eliminados de la lista.",
-      className: "bg-green-100 dark:bg-green-900 border-green-500",
+      className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
     });
   };
 
@@ -298,7 +299,7 @@ export default function GeneratorPage() {
             toast({
               title: "Búsqueda Exitosa",
               description: `Nombre de file: ${groupName}`,
-              className: "bg-green-100 dark:bg-green-900 border-green-500",
+              className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
             });
         } else {
              setCurrentPaxCount("N/A");
@@ -399,7 +400,7 @@ export default function GeneratorPage() {
     toast({
       title: "Reporte Añadido",
       description: `Se añadió el reporte para el file ${newReport.fileNumber} a la lista.`,
-      className: "bg-green-100 dark:bg-green-900 border-green-500",
+      className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
     });
     setIsProcessingGeneration(false);
   }
@@ -414,7 +415,7 @@ export default function GeneratorPage() {
     toast({
       title: "Reporte Eliminado",
       description: "El reporte ha sido eliminado de la lista.",
-      className: "bg-green-100 dark:bg-green-900 border-green-500",
+      className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
     });
   };
 
@@ -469,7 +470,7 @@ export default function GeneratorPage() {
       toast({
         title: 'Descarga Exitosa',
         description: `Se descargó el reporte para el file ${report.fileNumber}.`,
-        className: 'bg-green-100 dark:bg-green-900 border-green-500',
+        className: 'bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700',
       });
       
       if (currentUser?.uid) {
@@ -571,7 +572,7 @@ export default function GeneratorPage() {
         toast({
             title: "Descarga Completa",
             description: `El archivo .zip con ${files.length} reportes ha sido descargado.`,
-            className: "bg-green-100 dark:bg-green-900 border-green-500",
+            className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
         });
 
         if (currentUser?.uid && successfulDownloads > 0) {

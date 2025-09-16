@@ -91,7 +91,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       }
       router.push('/login');
       if (!isSilent) {
-        toast({ title: "Sesión Cerrada", description: "Has cerrado sesión exitosamente.", className: "bg-green-100" });
+        toast({ title: "Sesión Cerrada", description: "Has cerrado sesión exitosamente.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
       } else {
         toast({ title: "Sesión Expirada", description: message || "Tu sesión ha expirado.", duration: 5000 });
       }
@@ -210,7 +210,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       await updateDoc(userProfileDocRef, { activeSessionId: newSessionId, lastSignInTime: serverTimestamp() });
       const profile = await fetchUserProfile(firebaseUser.uid);
       setCurrentUser({ ...firebaseUser, profile });
-      toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${profile?.email || "Usuario"}!`, className: "bg-green-100" });
+      toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${profile?.email || "Usuario"}!`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
       router.push('/');
     } catch (error: any) {
       let message = "Correo electrónico o contraseña incorrectos.";
@@ -241,7 +241,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
         generatedReportsCount: 0,
         activeSessionId: '',
       });
-      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}. Por favor, inicia sesión.`, className: "bg-green-100" });
+      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}. Por favor, inicia sesión.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
       if (auth.currentUser) await signOut(auth);
       router.push('/login');
     } catch (error: any) {
@@ -258,7 +258,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       await fbSendPasswordResetEmail(auth, emailForReset.trim());
-      toast({ title: "Correo de Recuperación Enviado", description: `Si una cuenta existe para ${emailForReset}, se ha enviado un correo.`, duration: 7000, className: "bg-green-100" });
+      toast({ title: "Correo de Recuperación Enviado", description: `Si una cuenta existe para ${emailForReset}, se ha enviado un correo.`, duration: 7000, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
     } catch (error: any) {
       toast({ title: "Error", description: "No se pudo enviar el correo de recuperación.", variant: "destructive" });
     } finally {
@@ -299,7 +299,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       throw new Error("Cannot delete own user profile.");
     }
     await deleteDoc(doc(db, 'userProfiles', uidToDelete));
-    toast({ title: 'Perfil Eliminado', className: "bg-green-100" });
+    toast({ title: 'Perfil Eliminado', className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
   };
   
   const value: AuthContextType = {
@@ -335,5 +335,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-
-    
