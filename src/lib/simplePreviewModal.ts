@@ -132,11 +132,11 @@ export function showSimplePreviewModal(order: StoredServiceOrder) {
         .orden-preview-wrapper { width: 1120px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.4; text-transform: uppercase; background: white; color: black; padding: 2rem; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 4px; }
         .orden-title { text-align: center; font-size: 1.1rem; font-weight: bold; margin-bottom: 25px; letter-spacing: 1.5px; }
         .orden-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .info-table { font-size: 10px; }
+        .info-table { font-size: 10px; border-collapse: separate; border-spacing: 0; }
         .services-table { table-layout: fixed; font-size: 10px; }
         .orden-table th, .orden-table td { padding: 8px 8px; vertical-align: middle; word-wrap: break-word; }
         .info-table td.info-label { font-weight: bold; background: #f0f0f0; width: 80px; border: 1px solid #ccc; }
-        .info-table td.info-value { font-weight: 500; background: #ffffff; border: 1px solid #ccc; }
+        .info-table td.info-value { font-weight: 500; background: #ffffff; border: 1px solid #ccc; border-left: none; }
         .services-table thead th { background-color: #f0f0f0; font-weight: bold; letter-spacing: 0.5px; border: 1px solid #ccc; text-align: center; }
         .services-table tbody td { border: 1px dotted #ccc; }
         .service-row .date-cell, .service-row .time-cell, .service-row .flight-cell, .service-row .guide-cell, .service-row .bus-cell, .service-row .driver-cell { text-align: center; }
@@ -163,7 +163,7 @@ export function showSimplePreviewModal(order: StoredServiceOrder) {
 
     const copyButton = document.createElement('button');
     copyButton.className = 'copy-button';
-    copyButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>Copiar Imagen</span>';
+    copyButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>Copiar imagen a WhatsApp</span>';
     
     const statusIndicator = document.createElement('span');
     statusIndicator.className = 'status-indicator';
