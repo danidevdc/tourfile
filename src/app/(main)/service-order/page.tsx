@@ -19,6 +19,7 @@ import {
 } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { getBaseName, getFamilyId, childNameFrom, shortPerson } from "@/lib/serviceOrderFamily";
+import { showSimplePreviewModal } from '@/lib/simplePreviewModal';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,7 +42,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOrderGeneratorSheet";
 import { ServiceOrderEditModal } from "@/components/service-order/ServiceOrderEditModal";
 import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPreviewModal";
-import ServiceOrderSimplePreviewModal from "@/components/service-order/ServiceOrderSimplePreviewModal";
 import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, getBusesFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity, type PredefinedFlight, type Bus } from "@/lib/serviceOrderService";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ServiceOrderDeletionFilter, type FilterState } from "@/components/service-order/ServiceOrderDeletionFilter";
@@ -56,6 +56,15 @@ const initialOrderDataState: ServiceOrderData = {
 };
 
 const ITEMS_PER_PAGE = 10;
+
+// Extend the Window interface to include our global function
+declare global {
+    interface Window {
+        showSimplePreviewModal: (order: StoredServiceOrder) => void;
+        __serviceOrdersMap: Map<string, StoredServiceOrder>;
+    }
+}
+
 
 export default function ServiceOrderListPage() {
   const router = useRouter();
@@ -82,17 +91,35 @@ export default function ServiceOrderListPage() {
   const [isAutomatedMode, setIsAutomatedMode] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
-  const [isSimplePreviewOpen, setIsSimplePreviewOpen] = useState(false);
   
   const [orderToEdit, setOrderToEdit] = useState<StoredServiceOrder | null>(null);
   const [orderToPreview, setOrderToPreview] = useState<StoredServiceOrder | null>(null);
-  const [orderToPreviewSimple, setOrderToPreviewSimple] = useState<StoredServiceOrder | null>(null);
   
   const [intermediateOrderData, setIntermediateOrderData] = useState<ServiceOrderData>(initialOrderDataState);
 
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
   const [isPrintingPdfId, setIsPrintingPdfId] = useState<string | null>(null);
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
+
+  // Expose the modal function and data globally
+  useEffect(() => {
+    window.showSimplePreviewModal = (order) => {
+        // Find the full family to pass to the modal
+        const family = families.find(f => f.parent.id === order.id);
+        if (family && family.children.length > 0) {
+            const allServices = family.children.flatMap(child => child.data.services);
+            showSimplePreviewModal({ ...order, data: { ...order.data, services: allServices } });
+        } else {
+            showSimplePreviewModal(order);
+        }
+    };
+    
+    // Store orders in a map for easy lookup from the global function
+    const ordersMap = new Map<string, StoredServiceOrder>();
+    orders.forEach(order => ordersMap.set(order.id, order));
+    window.__serviceOrdersMap = ordersMap;
+  }, [orders]);
+
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -222,17 +249,6 @@ export default function ServiceOrderListPage() {
         setOrderToPreview(order);
     }
     setIsPreviewModalOpen(true);
-  };
-
-  const handleSimplePreviewClick = (order: StoredServiceOrder) => {
-    const family = families.find(f => f.parent.id === order.id);
-    if (family && family.children.length > 0) {
-        const allServices = family.children.flatMap(child => child.data.services);
-        setOrderToPreviewSimple({ ...order, data: { ...order.data, services: allServices } });
-    } else {
-        setOrderToPreviewSimple(order);
-    }
-    setIsSimplePreviewOpen(true);
   };
   
  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
@@ -476,9 +492,12 @@ export default function ServiceOrderListPage() {
   const renderOrderActions = (order: StoredServiceOrder) => {
     const canModify = isCurrentUserAdmin || currentUser?.email === order.createdBy;
     const isDeleted = order.status === 'eliminado';
+    
+    const simplePreviewButtonHtml = `<button title="Vista Previa (Beta)" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-purple-600/50 bg-background hover:bg-purple-100/80 text-purple-600 hover:text-purple-700 h-8 w-8 p-0" onclick="window.showSimplePreviewModal(window.__serviceOrdersMap.get('${order.id}'))"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>`;
+
     return (
         <div className="text-left space-x-1">
-            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleSimplePreviewClick(order)} className="text-purple-600 border-purple-600/50 hover:bg-purple-100/80 hover:text-purple-700 h-8 w-8 p-0"><Image className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa (Beta)</p></TooltipContent></Tooltip>
+            <span dangerouslySetInnerHTML={{ __html: simplePreviewButtonHtml }} />
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary h-8 w-8 p-0"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa (WhatsApp)</p></TooltipContent></Tooltip>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} disabled={!canModify || isDeleted} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleDownloadExcel(order)} disabled={isDownloadingId === order.id || isDeleted} className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0">{isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="h-4 w-4"/>}</Button></TooltipTrigger><TooltipContent><p>Descargar Excel</p></TooltipContent></Tooltip>
@@ -653,10 +672,6 @@ export default function ServiceOrderListPage() {
         
         {isPreviewModalOpen && orderToPreview && (
           <ServiceOrderPreviewModal order={orderToPreview} onClose={() => { setIsPreviewModalOpen(false); setOrderToPreview(null); }} />
-        )}
-
-        {isSimplePreviewOpen && orderToPreviewSimple && (
-          <ServiceOrderSimplePreviewModal order={orderToPreviewSimple} onClose={() => { setIsSimplePreviewOpen(false); setOrderToPreviewSimple(null); }} />
         )}
 
         <ServiceOrderGeneratorSheet 
