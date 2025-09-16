@@ -52,7 +52,9 @@ export function Combobox({ options, value, onSelect, placeholder, notFoundMessag
           aria-expanded={open}
           className={cn("w-full justify-between font-normal", !value && "text-muted-foreground", className, triggerClassName)}
         >
-          {value ? selectedLabel : placeholder || "Select option..."}
+          <span className="truncate">
+            {value ? selectedLabel : placeholder || "Select option..."}
+          </span>
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
