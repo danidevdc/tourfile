@@ -222,20 +222,9 @@ export default function ServiceOrderListPage() {
   };
 
   const handleGenerateAndShowPdf = async (order: StoredServiceOrder) => {
-      try {
-          const orderDataString = encodeURIComponent(JSON.stringify(order));
-          // Adding a 'copy' parameter to the URL
-          const url = `/service-order-print?order=${orderDataString}&copy=true`;
-          window.open(url, '_blank', 'popup=yes,width=1200,height=850');
-      } catch (err) {
-          const errorMessage = (err as Error).message;
-          console.error("PDF Generation Error:", errorMessage);
-          toast({
-              title: "Error de Generación",
-              description: `No se pudo generar el PDF. Detalles: ${errorMessage}`,
-              variant: "destructive"
-          });
-      }
+      const orderDataString = encodeURIComponent(JSON.stringify(order));
+      const url = `/service-order-print?order=${orderDataString}&copy=true`;
+      window.open(url, '_blank');
   };
   
  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
@@ -382,7 +371,7 @@ export default function ServiceOrderListPage() {
       }
       const orderDataString = encodeURIComponent(JSON.stringify(order));
       const url = `/service-order-print?order=${orderDataString}`;
-      window.open(url, '_blank', 'popup=yes,width=1123,height=794');
+      window.open(url, '_blank');
     } catch (error) {
         toast({ title: "Error", description: "No se pudo generar el PDF.", variant: "destructive" });
     } finally {
@@ -481,7 +470,7 @@ export default function ServiceOrderListPage() {
     const isDeleted = order.status === 'eliminado';
     return (
         <div className="text-left space-x-1">
-            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleGenerateAndShowPdf(order)} className="text-purple-600 border-purple-600/50 hover:bg-purple-100/80 hover:text-purple-700 h-8 w-8 p-0"><Image className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa PDF (Beta)</p></TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleGenerateAndShowPdf(order)} className="text-purple-600 border-purple-600/50 hover:bg-purple-100/80 hover:text-purple-700 h-8 w-8 p-0"><Image className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa (Beta)</p></TooltipContent></Tooltip>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary h-8 w-8 p-0"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa (WhatsApp)</p></TooltipContent></Tooltip>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} disabled={!canModify || isDeleted} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"><FilePenLine className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleDownloadExcel(order)} disabled={isDownloadingId === order.id || isDeleted} className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0">{isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="h-4 w-4"/>}</Button></TooltipTrigger><TooltipContent><p>Descargar Excel</p></TooltipContent></Tooltip>
@@ -677,5 +666,3 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
-
-    

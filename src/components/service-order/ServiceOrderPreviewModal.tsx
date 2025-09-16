@@ -215,7 +215,7 @@ export function ServiceOrderPrintPage() {
                     parsedOrder.updatedAt = new Date(parsedOrder.updatedAt);
                 }
                 setOrder(parsedOrder);
-                // Check if the copy parameter is present
+                
                 if(searchParams.get('copy') === 'true') {
                     setShowCopyButton(true);
                 }
@@ -226,9 +226,9 @@ export function ServiceOrderPrintPage() {
         }
     }, [searchParams, router]);
 
-    // This effect handles the printing for the original print flow
+    
     useEffect(() => {
-        if (order && !showCopyButton) { // Only auto-print if not in "copy" mode
+        if (order && !showCopyButton) { 
             const timeoutId = setTimeout(() => {
                 window.print();
             }, 500);
@@ -245,7 +245,6 @@ export function ServiceOrderPrintPage() {
         );
     }
     
-    // Use the same component as the modal content, but pass a different onClose
     return <PrintableView order={order} onClose={() => window.close()} showCopyButton={showCopyButton} />;
 }
 
@@ -264,5 +263,3 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
     
     return <PrintableView order={order} onClose={onClose} showCopyButton={true} />;
 }
-
-    
