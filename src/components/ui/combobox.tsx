@@ -57,7 +57,7 @@ export function Combobox({ options, value, onSelect, placeholder, notFoundMessag
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[--radix-popover-trigger-width] p-0" 
+        className="w-full min-w-[var(--radix-popover-trigger-width)] p-0" 
         side="bottom" 
         align="start" 
         sideOffset={5}
