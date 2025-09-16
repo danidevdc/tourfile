@@ -101,7 +101,7 @@ const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
 };
 
 
-export function ServiceOrderSimplePreviewModal({ order, onClose }: ServiceOrderSimplePreviewModalProps) {
+export default function ServiceOrderSimplePreviewModal({ order, onClose }: ServiceOrderSimplePreviewModalProps) {
   const captureRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [isCopying, setIsCopying] = useState(false);
@@ -153,7 +153,7 @@ export function ServiceOrderSimplePreviewModal({ order, onClose }: ServiceOrderS
         {/* Hidden styles for the injected HTML */}
         <style jsx global>{`
             .orden-preview-wrapper {
-                font-family: Arial, sans-serif;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 line-height: 1.4;
             }
             .orden-title {
@@ -173,11 +173,15 @@ export function ServiceOrderSimplePreviewModal({ order, onClose }: ServiceOrderS
                 margin-bottom: 20px;
                 font-size: 12px;
             }
+            .services-table {
+                table-layout: fixed;
+            }
             .orden-table th, .orden-table td {
                 padding: 8px 10px;
                 border: 1px solid #bdc3c7;
                 text-align: left;
                 vertical-align: middle;
+                word-wrap: break-word;
             }
             .orden-table th.section-header {
                 background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
@@ -216,17 +220,20 @@ export function ServiceOrderSimplePreviewModal({ order, onClose }: ServiceOrderS
             .service-row .date-cell, .service-row .time-cell, .service-row .flight-cell, .service-row .guide-cell, .service-row .bus-cell, .service-row .driver-cell {
                 text-align: center;
             }
-            .date-cell-header { width: 90px; }
-            .time-cell-header { width: 60px; }
-            .service-cell-header { width: 280px; text-align: left !important; }
-            .flight-cell-header { width: 80px; }
-            .guide-cell-header { width: 100px; }
-            .bus-cell-header { width: 80px; }
-            .driver-cell-header { width: 100px; }
-            .obs-cell-header { text-align: left !important; }
+            .date-cell-header, .date-cell { width: 90px; }
+            .time-cell-header, .time-cell { width: 60px; }
+            .service-cell-header, .service-cell { width: 280px; text-align: left !important; }
+            .flight-cell-header, .flight-cell { width: 80px; }
+            .guide-cell-header, .guide-cell { width: 100px; }
+            .bus-cell-header, .bus-cell { width: 80px; }
+            .driver-cell-header, .driver-cell { width: 100px; }
+            .obs-cell-header, .obs-cell { text-align: left !important; }
+
             .notes-section {
                 margin-top: 20px;
-                space-y: 10px;
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 15px;
                 font-size: 11px;
             }
             .notes-block {

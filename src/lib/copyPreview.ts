@@ -20,7 +20,7 @@ export async function copiarVistaPreviaAlClipboard(
     const html2canvas = (await import("html2canvas")).default;
 
     // Ensure fonts are ready before capture for better rendering.
-    await document.fonts?.ready?.catch(() => {});
+    await (document as any).fonts?.ready;
 
     // Capture the original node directly.
     const canvas = await html2canvas(node, {
