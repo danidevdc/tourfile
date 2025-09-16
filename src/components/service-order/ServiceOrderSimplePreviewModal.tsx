@@ -10,7 +10,7 @@ import { copiarVistaPreviaAlClipboard } from "@/lib/copyPreview";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileText, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ServiceOrderSimplePreviewModalProps {
@@ -47,91 +47,109 @@ export function ServiceOrderSimplePreviewModal({ order, onClose }: ServiceOrderS
     setIsCopying(false);
   };
 
+  const InfoRow = ({ label, value }: { label: string, value: string }) => (
+    <div className="flex">
+        <div className="w-24 font-bold text-gray-600">{label}:</div>
+        <div className="flex-1 text-gray-800">{value || '—'}</div>
+    </div>
+  );
+
   return (
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-[1250px] w-full flex flex-col max-h-[95vh] p-0">
-        <DialogHeader className="p-4 border-b">
-          <DialogTitle>Vista Previa Simplificada: {order.orderName}</DialogTitle>
+      <DialogContent className="max-w-6xl w-full flex flex-col max-h-[95vh] p-0 shadow-2xl">
+        <DialogHeader className="p-4 border-b bg-slate-900 text-white rounded-t-lg">
+          <DialogTitle className="flex items-center gap-2">
+            <FileText />
+            Vista Previa de Orden de Servicio
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-auto p-4 bg-gray-100 dark:bg-gray-800">
-          <div ref={captureRef} className="bg-white text-black p-6 w-[1120px] mx-auto uppercase">
-            <h1 className="text-center font-bold text-2xl mb-4" style={{ fontFamily: 'Arial, sans-serif' }}>
-              ORDEN DE SERVICIO
-            </h1>
+        <div className="flex-1 overflow-auto p-6 bg-gray-100 dark:bg-gray-800">
+          <div ref={captureRef} className="bg-white text-black p-8 w-[1120px] mx-auto shadow-lg rounded-lg">
             
-            <div className="border-2 border-gray-500 rounded-lg p-4">
-              {/* Info General */}
-              <div className="grid grid-cols-[100px_1fr] gap-x-4 gap-y-2 mb-4 text-xs">
-                  <div className="font-bold">GUÍA:</div><div>{data.guia || "—"}</div>
-                  <div className="font-bold">FILE:</div><div>{data.file || "—"}</div>
-                  <div className="font-bold">REF:</div><div>{data.ref || "—"}</div>
-                  <div className="font-bold">Nº PAX:</div><div>{data.nPax || "—"}</div>
-                  <div className="font-bold">HOTEL:</div><div>{data.hotel || "—"}</div>
-              </div>
-
-              {/* Tabla de Servicios */}
-              <div className="border-t-2 border-b-2 border-gray-500">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-200 hover:bg-gray-200">
-                      <TableHead className="w-[86px] h-auto p-1 text-black font-bold text-[11px] text-center border-r border-gray-400">FECHA</TableHead>
-                      <TableHead className="w-[56px] h-auto p-1 text-black font-bold text-[11px] text-center border-r border-gray-400">HORA</TableHead>
-                      <TableHead className="w-[250px] h-auto p-1 text-black font-bold text-[11px] border-r border-gray-400">SERVICIO</TableHead>
-                      <TableHead className="w-[78px] h-auto p-1 text-black font-bold text-[11px] text-center border-r border-gray-400">VUELO</TableHead>
-                      <TableHead className="w-[90px] h-auto p-1 text-black font-bold text-[11px] text-center border-r border-gray-400">GUÍA</TableHead>
-                      <TableHead className="w-[70px] h-auto p-1 text-black font-bold text-[11px] text-center border-r border-gray-400">BUS</TableHead>
-                      <TableHead className="w-[85px] h-auto p-1 text-black font-bold text-[11px] text-center border-r border-gray-400">CHOFER</TableHead>
-                      <TableHead className="h-auto p-1 text-black font-bold text-[11px]">OBSERVACIONES</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {services.map((s, i) => {
-                       const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
-                       const guiaCompleto = s.guia || data.guia;
-                       const guiaFirstName = (guiaCompleto || '').split(' ')[0];
-                       const choferCompleto = s.chofer || '';
-                       const choferSanitized = choferCompleto.replace(/^CONT\s/i, '');
-                       const choferFirstName = choferSanitized.split(' ')[0];
-                       return(
-                        <TableRow key={i} className="border-gray-300 hover:bg-white">
-                          <TableCell className={cn("p-1 text-center text-xs font-bold border-r border-gray-300", showDate && "border-t-2 border-t-gray-400")}>{showDate ? s.fecha : ""}</TableCell>
-                          <TableCell className={cn("p-1 text-center text-xs border-r border-gray-300", showDate && "border-t-2 border-t-gray-400")}>{s.hora}</TableCell>
-                          <TableCell className={cn("p-1 text-xs border-r border-gray-300", showDate && "border-t-2 border-t-gray-400")}>{s.servicio}</TableCell>
-                          <TableCell className={cn("p-1 text-center text-xs border-r border-gray-300", showDate && "border-t-2 border-t-gray-400")}>{s.vuelo || "—"}</TableCell>
-                          <TableCell className={cn("p-1 text-center text-xs border-r border-gray-300", showDate && "border-t-2 border-t-gray-400")}>{guiaFirstName}</TableCell>
-                          <TableCell className={cn("p-1 text-center text-xs border-r border-gray-300", showDate && "border-t-2 border-t-gray-400")}>{s.bus}</TableCell>
-                          <TableCell className={cn("p-1 text-center text-xs border-r border-gray-300", showDate && "border-t-2 border-t-gray-400")}>{choferFirstName}</TableCell>
-                          <TableCell className={cn("p-1 text-xs", showDate && "border-t-2 border-t-gray-400")}>{s.observaciones}</TableCell>
-                        </TableRow>
-                       )
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Observaciones y Nota */}
-              <div className="mt-4 space-y-2 text-xs">
-                <div className="border border-gray-400 rounded p-2">
-                  <p className="font-bold mb-1">OBSERVACIONES:</p>
-                  <p className="whitespace-pre-wrap">{data.observations || "—"}</p>
-                </div>
-                <div className="border border-gray-400 rounded p-2">
-                  <p className="font-bold mb-1">NOTA:</p>
-                  <p className="whitespace-pre-wrap">{data.nota || "—"}</p>
-                </div>
-              </div>
+            <div className="text-center mb-6 pb-4 border-b-4 border-slate-800">
+                <h1 className="font-bold text-4xl text-slate-800 uppercase tracking-wider">
+                    Orden de Servicio
+                </h1>
             </div>
+            
+            {/* General Info */}
+            <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                 <h2 className="text-lg font-bold text-slate-700 mb-3 pb-2 border-b-2 border-slate-200">Información General</h2>
+                 <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                    <InfoRow label="Guía" value={data.guia} />
+                    <InfoRow label="File" value={data.file} />
+                    <InfoRow label="Ref" value={data.ref} />
+                    <InfoRow label="Nº Pax" value={data.nPax} />
+                    <InfoRow label="Hotel" value={data.hotel} />
+                 </div>
+            </div>
+
+              {/* Services Table */}
+            <div>
+                <h2 className="text-lg font-bold text-slate-700 mb-3 pb-2 border-b-2 border-slate-200">Itinerario de Servicios</h2>
+                <div className="border border-gray-300 rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-800 hover:bg-slate-800 text-white uppercase text-xs">
+                          <TableHead className="w-[90px] h-auto p-2 text-white font-bold text-center border-r border-slate-700">Fecha</TableHead>
+                          <TableHead className="w-[60px] h-auto p-2 text-white font-bold text-center border-r border-slate-700">Hora</TableHead>
+                          <TableHead className="w-[280px] h-auto p-2 text-white font-bold border-r border-slate-700">Servicio</TableHead>
+                          <TableHead className="w-[80px] h-auto p-2 text-white font-bold text-center border-r border-slate-700">Vuelo</TableHead>
+                          <TableHead className="w-[100px] h-auto p-2 text-white font-bold text-center border-r border-slate-700">Guía</TableHead>
+                          <TableHead className="w-[80px] h-auto p-2 text-white font-bold text-center border-r border-slate-700">Bus</TableHead>
+                          <TableHead className="w-[100px] h-auto p-2 text-white font-bold text-center border-r border-slate-700">Chofer</TableHead>
+                          <TableHead className="h-auto p-2 text-white font-bold">Observaciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {services.map((s, i) => {
+                           const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
+                           const guiaCompleto = s.guia || data.guia;
+                           const guiaFirstName = (guiaCompleto || '').split(' ')[0];
+                           const choferCompleto = s.chofer || '';
+                           const choferSanitized = choferCompleto.replace(/^CONT\s/i, '');
+                           const choferFirstName = choferSanitized.split(' ')[0];
+                           const rowClass = i % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+                           return(
+                            <TableRow key={i} className={cn("border-b-0 hover:bg-slate-100", rowClass)}>
+                              <TableCell className="p-2 text-center text-xs font-bold text-slate-600 border-r border-gray-200">{showDate ? s.fecha : ""}</TableCell>
+                              <TableCell className="p-2 text-center text-xs border-r border-gray-200">{s.hora}</TableCell>
+                              <TableCell className="p-2 text-xs font-medium border-r border-gray-200">{s.servicio}</TableCell>
+                              <TableCell className="p-2 text-center text-xs border-r border-gray-200">{s.vuelo || "—"}</TableCell>
+                              <TableCell className="p-2 text-center text-xs border-r border-gray-200">{guiaFirstName}</TableCell>
+                              <TableCell className="p-2 text-center text-xs border-r border-gray-200">{s.bus}</TableCell>
+                              <TableCell className="p-2 text-center text-xs border-r border-gray-200">{choferFirstName}</TableCell>
+                              <TableCell className="p-2 text-xs">{s.observaciones}</TableCell>
+                            </TableRow>
+                           )
+                        })}
+                      </TableBody>
+                    </Table>
+                </div>
+            </div>
+
+            {/* Notes */}
+            <div className="mt-6 space-y-4 text-xs">
+                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 min-h-[60px]">
+                  <p className="font-bold text-slate-700 mb-1 uppercase">Observaciones:</p>
+                  <p className="whitespace-pre-wrap text-slate-800">{data.observations || "—"}</p>
+                </div>
+                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 min-h-[60px]">
+                  <p className="font-bold text-slate-700 mb-1 uppercase">Nota:</p>
+                  <p className="whitespace-pre-wrap text-slate-800">{data.nota || "—"}</p>
+                </div>
+              </div>
           </div>
         </div>
 
-        <DialogFooter className="p-4 border-t bg-background">
+        <DialogFooter className="p-4 border-t bg-slate-50 rounded-b-lg">
           <Button
-            className="bg-green-600 hover:bg-green-700 text-white"
+            className="bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg transition-all"
             onClick={handleCopy}
             disabled={isCopying}
           >
-            {isCopying ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FaWhatsapp className="mr-2 h-4 w-4" />}
+            {isCopying ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4" />}
             Copiar Imagen
           </Button>
           <DialogClose asChild>
