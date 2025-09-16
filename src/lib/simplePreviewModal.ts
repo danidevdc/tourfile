@@ -130,9 +130,9 @@ export function showSimplePreviewModal(order: StoredServiceOrder) {
         .cross { color: red; font-weight: bold; }
 
         .orden-preview-wrapper { width: 1120px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.4; text-transform: uppercase; background: white; color: black; padding: 2rem; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 4px; }
-        .orden-title { text-align: center; font-size: 1.1rem; font-weight: bold; margin-bottom: 25px; letter-spacing: 1.5px; }
+        .orden-title { text-align: center; font-size: 1rem; font-weight: bold; margin-bottom: 15px; letter-spacing: 1.5px; }
         .orden-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .info-table { font-size: 10px; border-collapse: separate; border-spacing: 0; }
+        .info-table { font-size: 10px; border-collapse: collapse; border-spacing: 0; }
         .services-table { table-layout: fixed; font-size: 10px; }
         .orden-table th, .orden-table td { padding: 8px 8px; vertical-align: middle; word-wrap: break-word; }
         .info-table td.info-label { font-weight: bold; background: #f0f0f0; width: 80px; border: 1px solid #ccc; }
@@ -186,8 +186,8 @@ export function showSimplePreviewModal(order: StoredServiceOrder) {
     closeButton.textContent = 'Cerrar';
     closeButton.onclick = () => modal.remove();
 
-    footer.appendChild(copyButton);
     footer.appendChild(statusIndicator);
+    footer.appendChild(copyButton);
     footer.appendChild(closeButton);
 
     content.appendChild(header);
