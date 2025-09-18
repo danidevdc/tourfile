@@ -314,9 +314,8 @@ export default function ServiceOrderListPage() {
                 ? { guia: key.substring(2), chofer: services[0]?.chofer || '' }
                 : { guia: mainGuide, chofer: key.substring(2) };
             
-            const childData = { ...updatedOrderData, services };
-            const newData = { ...orderToEdit.data, services, responsible };
-            const childName = childNameFrom(getBaseName(orderToEdit.orderName), { data: newData } as StoredServiceOrder, dimension);
+            const childData = { ...updatedOrderData, services, guia: responsible.guia };
+            const childName = childNameFrom(getBaseName(orderToEdit.orderName), { data: { ...orderToEdit.data, responsible } } as StoredServiceOrder, dimension);
             
             const existingChild = existingChildren.find(c => c.data.splitKey === key);
 
@@ -630,16 +629,17 @@ export default function ServiceOrderListPage() {
                             const childCount = children.length;
                             const isExpanded = expandedFamilies.has(parent.id);
                             
-                            const parentResponsible = parent.data.responsible || { guia: parent.data.guia, chofer: ''};
-                            let displayedGuide = shortPerson(parentResponsible.guia);
-                            let displayedChofer = shortPerson(parentResponsible.chofer);
+                            let displayedGuide = shortPerson(parent.data.guia);
+                            let displayedChofer = ''; // Chofer principal no es relevante si hay hijos
 
                             if (childCount > 0) {
-                                const childGuides = [...new Set(children.map(c => shortPerson(c.data.responsible?.guia || c.data.guia)))].filter(Boolean);
+                                // Para padres divididos, mostrar una lista de todos los involucrados
+                                const childGuides = [...new Set(children.map(c => shortPerson(c.data.responsible?.guia)))].filter(Boolean);
                                 const childChoferes = [...new Set(children.map(c => shortPerson(c.data.responsible?.chofer)))].filter(Boolean);
-                                displayedGuide = childGuides.join(', ');
+                                displayedGuide = childGuides.length > 1 ? childGuides.join(', ') : childGuides[0] || shortPerson(parent.data.guia);
                                 displayedChofer = childChoferes.join(', ');
                             }
+
 
                             return (
                                 <React.Fragment key={parent.id}>
