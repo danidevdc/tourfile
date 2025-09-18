@@ -325,7 +325,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
         // Step 5: Commit all changes
         await batch.commit();
         
-        toast({ title: "Órdenes Regeneradas", description: "Las órdenes hijas han sido actualizadas con los nuevos cambios.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
+        toast({ title: "Éxito", description: "La orden ha sido dividida exitosamente.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
     } catch (error: any) {
         console.error("Error re-splitting/saving order:", error);
         toast({ title: "Error al Guardar", description: error.message || "No se pudo guardar la orden.", variant: "destructive" });
@@ -489,7 +489,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     }
     
     if (order.data.isSplitParent) {
-        return <div className="flex items-center gap-1">{baseBadge}<Badge className="bg-purple-600 hover:bg-purple-700"><Split className="h-3 w-3"/>Dividida</Badge></div>;
+        return <div className="flex items-center gap-1">{baseBadge}<Badge className="bg-purple-600 hover:bg-purple-700"><Split className="h-3 w-3 mr-1"/>Dividida</Badge></div>;
     }
     return baseBadge;
   };
@@ -623,14 +623,18 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                             const childCount = children.length;
                             const isExpanded = expandedFamilies.has(parent.id);
                             
-                            // For parent row, collect all unique guides and drivers from the parent's data services
-                            const allGuidesInFamily = new Set<string>([parent.data.guia].filter(Boolean));
+                            const allGuidesInFamily = new Set<string>();
                             const allDriversInFamily = new Set<string>();
 
-                            parent.data.services.forEach(service => {
-                                if (service.guia) allGuidesInFamily.add(service.guia);
-                                if (service.chofer) allDriversInFamily.add(service.chofer);
-                            });
+                            if (parent.data.services) {
+                                parent.data.services.forEach(service => {
+                                    if (service.guia) allGuidesInFamily.add(service.guia);
+                                    else if(parent.data.guia) allGuidesInFamily.add(parent.data.guia);
+
+                                    if (service.chofer) allDriversInFamily.add(service.chofer);
+                                });
+                            }
+                            if(parent.data.guia) allGuidesInFamily.add(parent.data.guia);
 
                             const displayedGuides = Array.from(allGuidesInFamily);
                             const displayedDrivers = Array.from(allDriversInFamily);
@@ -742,4 +746,5 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
 
     
     
+
 
