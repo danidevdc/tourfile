@@ -142,28 +142,29 @@ export default function ServiceOrderListPage() {
 
   const families = useMemo(() => {
     const byId = new Map(orders.map(o => [o.id, o]));
-    const groups = new Map<string, { parent: StoredServiceOrder; children: StoredServiceOrder[] }>();
+    const familyGroups = new Map<string, { parent: StoredServiceOrder; children: StoredServiceOrder[] }>();
 
-    // First pass: group all orders into families by their parent ID
+    // First, group all orders into families
     for (const order of orders) {
       if (!order.data) continue;
       const familyId = getFamilyId(order);
-      const parentOrder = byId.get(familyId);
-      if (!parentOrder) continue;
-
-      if (!groups.has(familyId)) {
-        groups.set(familyId, { parent: parentOrder, children: [] });
+      
+      if (!familyGroups.has(familyId)) {
+        const parentOrder = byId.get(familyId);
+        if (parentOrder) {
+          familyGroups.set(familyId, { parent: parentOrder, children: [] });
+        }
       }
-      if (order.id !== familyId) {
-        groups.get(familyId)!.children.push(order);
+      
+      const group = familyGroups.get(familyId);
+      if (group && order.id !== familyId) {
+        group.children.push(order);
       }
     }
 
-    // Second pass: filter the assembled families
-    const allFamilies = Array.from(groups.values());
+    const allFamilies = Array.from(familyGroups.values());
 
     const filteredAndSortedFamilies = allFamilies.filter(({ parent, children }) => {
-      // Filter logic
       const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
       const orderIsVisible = (order: StoredServiceOrder) => {
         if (currentFilterState === 'all') return true;
@@ -173,20 +174,18 @@ export default function ServiceOrderListPage() {
 
       if (!orderIsVisible(parent)) return false;
 
-      // Search logic
       if (searchTerm) {
         const lowercasedFilter = searchTerm.toLowerCase();
         const checkOrder = (order: StoredServiceOrder) => {
           if (!order.data) return false;
           const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
-          const responsible = order.data.responsible || {};
-          const guideName = responsible.guia || order.data.guia || '';
-          const driverName = responsible.chofer || '';
+          const responsibleGuide = order.data.responsible?.guia || order.data.guia || '';
+          const responsibleDriver = order.data.responsible?.chofer || '';
 
           return (
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
-            guideName.toLowerCase().includes(lowercasedFilter) ||
-            driverName.toLowerCase().includes(lowercasedFilter) ||
+            responsibleGuide.toLowerCase().includes(lowercasedFilter) ||
+            responsibleDriver.toLowerCase().includes(lowercasedFilter) ||
             (isCurrentUserAdmin && order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
             (isCurrentUserAdmin && date.toLowerCase().includes(lowercasedFilter))
           );
@@ -256,8 +255,7 @@ export default function ServiceOrderListPage() {
     
     if (family && family.parent.data.isSplitParent) {
         // It's a split parent, consolidate children for preview
-        const allServices = family.children.flatMap(child => child.data.services);
-        setOrderToPreview({ ...family.parent, data: { ...family.parent.data, services: allServices } });
+        setOrderToPreview({ ...family.parent });
     } else {
         // It's a normal order or a child order
         setOrderToPreview(order);
@@ -265,82 +263,91 @@ export default function ServiceOrderListPage() {
     setIsPreviewModalOpen(true);
   };
   
- const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
+const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     if (!orderToEdit || !currentUser?.email) return;
 
     const mainGuide = updatedOrderData.guia;
-    const uniqueGuides = new Set(updatedOrderData.services.map(s => s.guia || mainGuide).filter(Boolean));
-    const uniqueChoferes = new Set(updatedOrderData.services.map(s => s.chofer || '').filter(Boolean));
+    const servicesByResponsible = new Map<string, any[]>();
+    
+    // Group services by the unique combination of guide and driver
+    updatedOrderData.services.forEach(s => {
+        const guide = s.guia || mainGuide;
+        const driver = s.chofer || '';
+        const key = `${guide}::${driver}`;
+        if (!servicesByResponsible.has(key)) {
+            servicesByResponsible.set(key, []);
+        }
+        servicesByResponsible.get(key)!.push(s);
+    });
 
-    const shouldSplitByGuide = uniqueGuides.size > 1;
-    const shouldSplitByDriver = !shouldSplitByGuide && uniqueChoferes.size > 1;
+    const hasSplit = servicesByResponsible.size > 1;
 
-    const dimension = shouldSplitByGuide ? 'guide' : (shouldSplitByDriver ? 'driver' : null);
-
-    if (dimension) {
+    try {
         const batch = writeBatch(db);
-        const existingChildren = await getChildrenByParentId(orderToEdit.id);
-        const activeChildKeys = new Set<string>();
+        const parentId = orderToEdit.id;
+        const existingChildren = await getChildrenByParentId(parentId);
 
-        // Mark old children that are no longer needed as 'cancelado'
-        existingChildren.forEach(child => {
-            if (child.status !== 'cancelado' && child.data.splitKey) {
-                activeChildKeys.add(child.data.splitKey);
-            }
-        });
-        
-        // Update parent order - it keeps all services now
-        const parentUpdateData: any = { data: { ...updatedOrderData, isSplitParent: true }, status: 'editado', updatedAt: serverTimestamp() };
-        batch.update(doc(db, 'serviceOrders', orderToEdit.id), parentUpdateData);
-
-        const servicesByResponsible = new Map<string, any[]>();
-        updatedOrderData.services.forEach(s => {
-            const key = dimension === 'guide' ? `G-${s.guia || mainGuide}` : `C-${s.chofer || 'N/A'}`;
-            if (!servicesByResponsible.has(key)) servicesByResponsible.set(key, []);
-            servicesByResponsible.get(key)!.push(s);
-        });
+        // Update parent order: it now always contains ALL services.
+        const parentUpdateData: any = { data: updatedOrderData, isSplitParent: hasSplit, status: 'editado', updatedAt: serverTimestamp() };
+        batch.update(doc(db, 'serviceOrders', parentId), parentUpdateData);
 
         const newChildKeys = new Set(servicesByResponsible.keys());
 
-        // Cancel children whose keys are no longer in the new split
+        // Cancel (soft delete) children that are no longer needed
         for (const child of existingChildren) {
             if (child.data.splitKey && !newChildKeys.has(child.data.splitKey)) {
-                batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado' });
+                batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
             }
         }
-        
-        for (const [key, services] of servicesByResponsible.entries()) {
-            const responsible = dimension === 'guide'
-                ? { guia: key.substring(2), chofer: services[0]?.chofer || '' }
-                : { guia: mainGuide, chofer: key.substring(2) };
-            
-            const childData = { ...updatedOrderData, services, guia: responsible.guia };
-            const childName = childNameFrom(getBaseName(orderToEdit.orderName), { data: { ...orderToEdit.data, responsible } } as StoredServiceOrder, dimension);
-            
-            const existingChild = existingChildren.find(c => c.data.splitKey === key);
 
-            if (existingChild) {
-                // Reactivate and update existing child
-                batch.update(doc(db, 'serviceOrders', existingChild.id), { data: childData, orderName: childName, responsible, updatedAt: serverTimestamp(), status: 'editado' });
-            } else {
-                // Create new child
-                const newDocRef = doc(collection(db, 'serviceOrders'));
-                batch.set(newDocRef, { data: childData, orderName: childName, splitFrom: orderToEdit.id, splitKey: key, responsible, createdBy: currentUser.email, createdAt: serverTimestamp(), status: 'creado' });
+        if (hasSplit) {
+            // Create or update child orders
+            for (const [key, services] of servicesByResponsible.entries()) {
+                const [guide, driver] = key.split('::');
+                const responsible = { guia: guide, chofer: driver };
+                
+                const childData = { ...updatedOrderData, services, guia: responsible.guia };
+                const childName = childNameFrom(getBaseName(orderToEdit.orderName), { data: { responsible } } as StoredServiceOrder);
+
+                const existingChild = existingChildren.find(c => c.data.splitKey === key);
+
+                if (existingChild) {
+                    // Reactivate and update existing child
+                    batch.update(doc(db, 'serviceOrders', existingChild.id), { data: childData, orderName: childName, responsible, updatedAt: serverTimestamp(), status: 'editado' });
+                } else {
+                    // Create new child
+                    const newDocRef = doc(collection(db, 'serviceOrders'));
+                    batch.set(newDocRef, { 
+                        data: childData, 
+                        orderName: childName, 
+                        splitFrom: parentId, 
+                        splitKey: key, 
+                        responsible, 
+                        createdBy: currentUser.email, 
+                        createdAt: orderToEdit.createdAt, // Inherit parent's creation date for sorting
+                        status: 'creado',
+                        updatedAt: serverTimestamp()
+                    });
+                }
+            }
+        } else {
+            // If there's no split anymore, cancel all existing children
+            for (const child of existingChildren) {
+                batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
             }
         }
-        
+
         await batch.commit();
-        toast({ title: "Orden Dividida", description: `La orden se ha dividido en ${servicesByResponsible.size} sub-órdenes por ${dimension}.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
-    } else {
-        // No split needed, just update the main order
-        await updateServiceOrder(orderToEdit.id, updatedOrderData, 'editado');
-        toast({ title: "Éxito", description: "Orden actualizada correctamente.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
+        toast({ title: hasSplit ? "Orden Dividida/Actualizada" : "Orden Actualizada", description: `La orden ha sido guardada correctamente.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
+    } catch (error: any) {
+        console.error("Error saving/splitting order:", error);
+        toast({ title: "Error al Guardar", description: error.message || "No se pudo guardar la orden.", variant: "destructive" });
     }
 
     fetchOrders();
     setIsEditModalOpen(false);
     setOrderToEdit(null);
-  };
+};
 
 
   const handleDeleteOrder = async () => {
@@ -630,16 +637,14 @@ export default function ServiceOrderListPage() {
                             const isExpanded = expandedFamilies.has(parent.id);
                             
                             let displayedGuide = shortPerson(parent.data.guia);
-                            let displayedChofer = ''; // Chofer principal no es relevante si hay hijos
+                            let displayedChofer = '';
 
-                            if (childCount > 0) {
-                                // Para padres divididos, mostrar una lista de todos los involucrados
-                                const childGuides = [...new Set(children.map(c => shortPerson(c.data.responsible?.guia)))].filter(Boolean);
-                                const childChoferes = [...new Set(children.map(c => shortPerson(c.data.responsible?.chofer)))].filter(Boolean);
-                                displayedGuide = childGuides.length > 1 ? childGuides.join(', ') : childGuides[0] || shortPerson(parent.data.guia);
-                                displayedChofer = childChoferes.join(', ');
+                            if (parent.data.isSplitParent && children.length > 0) {
+                                const allGuides = new Set(children.map(c => shortPerson(c.data.responsible?.guia)));
+                                const allDrivers = new Set(children.map(c => shortPerson(c.data.responsible?.chofer)));
+                                displayedGuide = Array.from(allGuides).filter(Boolean).join(', ');
+                                displayedChofer = Array.from(allDrivers).filter(Boolean).join(', ');
                             }
-
 
                             return (
                                 <React.Fragment key={parent.id}>
