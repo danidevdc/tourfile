@@ -15,12 +15,13 @@ import {
   query,
   orderBy,
   writeBatch,
+  where,
 } from 'firebase/firestore';
 import { type ServiceOrderData } from './serviceOrderGenerator';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export type OrderStatus = 'creado' | 'editado' | 'enviado' | 'eliminado' | 'excel';
+export type OrderStatus = 'creado' | 'editado' | 'enviado' | 'eliminado' | 'excel' | 'cancelado';
 
 export interface StoredServiceOrder {
   id: string;
@@ -28,7 +29,7 @@ export interface StoredServiceOrder {
   createdBy: string;
   createdAt: Date;
   updatedAt?: Date;
-  data: ServiceOrderData & { isSplitParent?: boolean }; 
+  data: ServiceOrderData & { isSplitParent?: boolean; responsible?: { guia?: string; chofer?: string }; splitKey?: string; };
   status: OrderStatus; 
   deletedBy?: string; 
   splitFrom?: string; 
@@ -136,6 +137,28 @@ export async function getServiceOrderById(orderId: string): Promise<StoredServic
     } as StoredServiceOrder;
 }
 
+
+export async function getChildrenByParentId(parentId: string): Promise<StoredServiceOrder[]> {
+    if (!db) throw new Error("Firestore not initialized.");
+    
+    const ordersRef = collection(db, 'serviceOrders');
+    const q = query(ordersRef, where('splitFrom', '==', parentId));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) return [];
+
+    return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data,
+            createdAt: (data.createdAt as Timestamp).toDate(),
+            updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate() : undefined,
+        } as StoredServiceOrder;
+    });
+}
+
+
 export async function deleteServiceOrder(orderId: string, deletedByEmail: string): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
     const orderRef = doc(db, 'serviceOrders', orderId);
@@ -159,6 +182,17 @@ export async function deleteBulkServiceOrders(orderIds: string[], deletedByEmail
     });
     await batch.commit();
 }
+
+
+export async function softCancelServiceOrder(orderId: string): Promise<void> {
+    if (!db) throw new Error("Firestore not initialized.");
+    const orderRef = doc(db, 'serviceOrders', orderId);
+    await updateDoc(orderRef, {
+        status: 'cancelado',
+        updatedAt: serverTimestamp()
+    });
+}
+
 
 export async function recoverServiceOrder(orderId: string): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
