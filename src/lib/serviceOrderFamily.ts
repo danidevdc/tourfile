@@ -2,6 +2,9 @@
 "use client";
 
 import type { StoredServiceOrder } from "./serviceOrderStorage";
+import type { SplitKind as InferredSplitKind } from "./serviceOrderFamily"; // Import the type if it's defined elsewhere
+
+export type SplitKind = "guide" | "driver" | null;
 
 export const getFamilyId = (o: StoredServiceOrder) => o.splitFrom ?? o.id;
 
@@ -14,8 +17,6 @@ export const shortPerson = (full?: string) => {
   if (!full) return "N/A";
   return full.replace(/^CONT\.\s*/i, "").trim().split(/\s+/)[0].toUpperCase();
 };
-
-export type SplitKind = "guide" | "driver" | null;
 
 // Deduces the type of split looking at the services
 export const inferSplitKind = (o: StoredServiceOrder): SplitKind => {
@@ -35,23 +36,14 @@ export const inferSplitKind = (o: StoredServiceOrder): SplitKind => {
 };
 
 // Consistent name for child orders
-export const childNameFrom = (parentBase: string, o: StoredServiceOrder) => {
-  // Use a more specific assignee for the name.
-  // If a service has its own guide, use that. Otherwise, use the main guide.
-  const serviceSpecificGuide = o.data.services?.[0]?.guia;
-  const mainGuide = o.data.guia;
-  const guideToUse = serviceSpecificGuide || mainGuide;
-  
-  const choferToUse = o.data.services?.[0]?.chofer;
-
-  // If the guide is present and differs from the parent's main guide, prioritize it for naming.
-  if (guideToUse) {
-      return `${parentBase} — G:${shortPerson(guideToUse)}`;
-  }
-  // Otherwise, use the driver.
-  if (choferToUse) {
-       return `${parentBase} — C:${shortPerson(choferToUse)}`;
-  }
-  // Fallback if neither is defined in the child data.
-  return `${parentBase} — ${shortPerson(guideToUse || choferToUse)}`;
+export const childNameFrom = (parentBase: string, o: StoredServiceOrder, dimension: SplitKind): string => {
+    if (dimension === 'guide') {
+        const guideToUse = o.data.responsible?.guia || o.data.guia;
+        return `${parentBase} — G-${shortPerson(guideToUse)}`;
+    }
+    if (dimension === 'driver') {
+        const choferToUse = o.data.responsible?.chofer || '';
+        return `${parentBase} — C-${shortPerson(choferToUse)}`;
+    }
+    return parentBase; // Fallback
 };

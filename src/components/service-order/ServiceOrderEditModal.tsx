@@ -53,6 +53,8 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
   const [isSplitConfirmOpen, setIsSplitConfirmOpen] = useState(false);
   const [potentialSplit, setPotentialSplit] = useState<{ by: 'guide' | 'driver'; count: number } | null>(null);
 
+  const isChildOrder = !!order.splitFrom;
+
   useEffect(() => {
     setEditableOrderData(JSON.parse(JSON.stringify(order.data)));
   }, [order]);
@@ -259,6 +261,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                         placeholder="Seleccionar guía principal..."
                         className="h-9 mt-1"
                         triggerClassName="bg-background"
+                        disabled={isChildOrder}
                     />
                 </div>
                  {/* --- Add New Service Form --- */}
@@ -372,10 +375,11 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                                 placeholder="Asignar guía..."
                                 className="h-8 text-xs"
                                 triggerClassName="bg-background"
+                                disabled={isChildOrder}
                             />
                           </TableCell>
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
-                             <Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)}>
+                             <Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)} disabled={isChildOrder}>
                                 <SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="..." /></SelectTrigger>
                                 <SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent>
                             </Select>
@@ -387,7 +391,8 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                               onSelect={(value) => handleServiceChange(originalIndex, 'chofer', value)}
                               placeholder="Chofer..."
                               className="h-8 text-xs"
-                              triggerClassName="bg-background">
+                              triggerClassName="bg-background"
+                              disabled={isChildOrder}>
                             </Combobox>
                           </TableCell>
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-left">

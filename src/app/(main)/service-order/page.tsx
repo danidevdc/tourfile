@@ -227,7 +227,7 @@ export default function ServiceOrderListPage() {
   
   const paginatedFamilies = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return families.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    return families.slice(startIndex, startIndex, ITEMS_PER_PAGE);
   }, [families, currentPage]);
 
   const totalPages = Math.ceil(families.length / ITEMS_PER_PAGE);
@@ -276,17 +276,9 @@ export default function ServiceOrderListPage() {
         return;
     }
 
-    // --- Logic for Parent/Normal Orders ---
-    const getSplitKey = (s: any, mainGuide: string, dimension: 'guide' | 'driver'): string => {
-        if (dimension === 'guide') {
-            return `G:${s.guia || mainGuide}`;
-        }
-        return `D:${s.chofer || 'N/A'}`;
-    };
-
     const mainGuide = updatedOrderData.guia;
-    const uniqueGuides = new Set(updatedOrderData.services.map(s => s.guia || mainGuide));
-    const uniqueChoferes = new Set(updatedOrderData.services.map(s => s.chofer || ''));
+    const uniqueGuides = new Set(updatedOrderData.services.map(s => s.guia || mainGuide).filter(Boolean));
+    const uniqueChoferes = new Set(updatedOrderData.services.map(s => s.chofer || '').filter(Boolean));
 
     const shouldSplitByGuide = uniqueGuides.size > 1;
     const shouldSplitByDriver = !shouldSplitByGuide && uniqueChoferes.size > 1;
@@ -296,24 +288,34 @@ export default function ServiceOrderListPage() {
     if (dimension) {
         const batch = writeBatch(db);
         const existingChildren = await getChildrenByParentId(orderToEdit.id);
+        const activeChildKeys = new Set<string>();
 
-        // Mark old children as 'cancelado'
+        // Mark old children that are no longer needed as 'cancelado'
         existingChildren.forEach(child => {
-            if (child.status !== 'cancelado') {
-                batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado' });
+            if (child.status !== 'cancelado' && child.data.splitKey) {
+                activeChildKeys.add(child.data.splitKey);
             }
         });
         
-        // Update parent order
-        const parentUpdateData: any = { data: { ...orderToEdit.data, services: [], isSplitParent: true }, status: 'editado' };
+        // Update parent order - it keeps all services now
+        const parentUpdateData: any = { data: { ...updatedOrderData, isSplitParent: true }, status: 'editado', updatedAt: serverTimestamp() };
         batch.update(doc(db, 'serviceOrders', orderToEdit.id), parentUpdateData);
 
         const servicesByResponsible = new Map<string, any[]>();
         updatedOrderData.services.forEach(s => {
-            const key = getSplitKey(s, mainGuide, dimension);
+            const key = dimension === 'guide' ? `G-${s.guia || mainGuide}` : `C-${s.chofer || 'N/A'}`;
             if (!servicesByResponsible.has(key)) servicesByResponsible.set(key, []);
             servicesByResponsible.get(key)!.push(s);
         });
+
+        const newChildKeys = new Set(servicesByResponsible.keys());
+
+        // Cancel children whose keys are no longer in the new split
+        for (const child of existingChildren) {
+            if (child.data.splitKey && !newChildKeys.has(child.data.splitKey)) {
+                batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado' });
+            }
+        }
         
         for (const [key, services] of servicesByResponsible.entries()) {
             const responsible = dimension === 'guide'
@@ -324,9 +326,12 @@ export default function ServiceOrderListPage() {
             const childName = childNameFrom(getBaseName(orderToEdit.orderName), { data: newData } as StoredServiceOrder, dimension);
             
             const existingChild = existingChildren.find(c => c.data.splitKey === key);
+
             if (existingChild) {
+                // Reactivate and update existing child
                 batch.update(doc(db, 'serviceOrders', existingChild.id), { data: newData, orderName: childName, responsible, updatedAt: serverTimestamp(), status: 'editado' });
             } else {
+                // Create new child
                 const newDocRef = doc(collection(db, 'serviceOrders'));
                 batch.set(newDocRef, { data: newData, orderName: childName, splitFrom: orderToEdit.id, splitKey: key, responsible, createdBy: currentUser.email, createdAt: serverTimestamp(), status: 'creado' });
             }
