@@ -27,9 +27,14 @@ function PrintableView({ order, onClose, showCopyButton }: { order: StoredServic
   const { toast } = useToast();
   const [isCopying, setIsCopying] = useState(false);
 
-  const services = useMemo(() => {
-    if (!data.services) return [];
-    return [...data.services].sort((a, b) => {
+  const processedData = useMemo(() => {
+    const allGuides = new Set<string>();
+    if (data.guia) allGuides.add(data.guia);
+    data.services?.forEach(s => { if (s.guia) allGuides.add(s.guia) });
+
+    const displayGuide = Array.from(allGuides).join(', ');
+
+    const sortedServices = [...(data.services || [])].sort((a, b) => {
       try {
         const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
         const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
@@ -44,8 +49,10 @@ function PrintableView({ order, onClose, showCopyButton }: { order: StoredServic
       if (hasTimeB) return 1;
       return 0;
     });
-  }, [data.services]);
-  
+
+    return { displayGuide, sortedServices };
+  }, [data]);
+
   const handleCopy = async () => {
     if (!captureRef.current) {
         toast({
@@ -83,7 +90,7 @@ function PrintableView({ order, onClose, showCopyButton }: { order: StoredServic
                         <TableBody>
                             <TableRow className="hover:bg-white border-none">
                                 <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto w-24 align-middle">Guía:</TableCell>
-                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{data.guia || "—"}</TableCell>
+                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{processedData.displayGuide || "—"}</TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-white border-none">
                                 <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto align-middle">File:</TableCell>
@@ -94,7 +101,7 @@ function PrintableView({ order, onClose, showCopyButton }: { order: StoredServic
                                 <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{data.ref || "—"}</TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto align-middle">Nº Pax:</TableCell>
+                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-['7px'] h-auto align-middle">Nº Pax:</TableCell>
                                 <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{data.nPax || "—"}</TableCell>
                             </TableRow>
                              <TableRow className="hover:bg-white border-none">
@@ -120,9 +127,9 @@ function PrintableView({ order, onClose, showCopyButton }: { order: StoredServic
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {services.length > 0 ? (
-                              services.map((s, i) => {
-                                const showDate = i === 0 || services[i - 1].fecha !== s.fecha;
+                            {processedData.sortedServices.length > 0 ? (
+                              processedData.sortedServices.map((s, i) => {
+                                const showDate = i === 0 || processedData.sortedServices[i - 1].fecha !== s.fecha;
                                 const guiaCompleto = s.guia || data.guia;
                                 const guiaFirstName = (guiaCompleto || '').split(' ')[0];
                                 const choferCompleto = s.chofer || '';
