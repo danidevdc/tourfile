@@ -270,11 +270,11 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
 
     const mainGuide = updatedOrderData.guia;
     const servicesByResponsible = new Map<string, any[]>();
-    
+
+    // Group services by their unique responsible guide/driver combination
     updatedOrderData.services.forEach(s => {
         const guide = s.guia || mainGuide;
         const driver = s.chofer || '';
-        // Standardize the key to ensure consistency
         const key = `${guide.trim().toUpperCase()}::${driver.trim().toUpperCase()}`;
         if (!servicesByResponsible.has(key)) {
             servicesByResponsible.set(key, []);
@@ -287,62 +287,50 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     try {
         const batch = writeBatch(db);
         const parentId = orderToEdit.id;
-        const existingChildren = await getChildrenByParentId(parentId);
 
+        // 1. Invalidate all existing children by setting their status to 'cancelado'
+        const existingChildren = await getChildrenByParentId(parentId);
+        existingChildren.forEach(child => {
+            batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
+        });
+
+        // 2. Update the parent order
         const parentUpdateData: any = { data: updatedOrderData, isSplitParent: hasSplit, status: 'editado', updatedAt: serverTimestamp() };
         batch.update(doc(db, 'serviceOrders', parentId), parentUpdateData);
 
-        const newChildKeys = new Set(servicesByResponsible.keys());
-
-        for (const child of existingChildren) {
-            const childSplitKey = child.data.splitKey?.trim().toUpperCase();
-            if (childSplitKey && !newChildKeys.has(childSplitKey)) {
-                batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
-            }
-        }
-
+        // 3. Create a fresh set of children if there's a split
         if (hasSplit) {
             for (const [key, services] of servicesByResponsible.entries()) {
                 const [guide, driver] = key.split('::');
                 const responsible = { guia: guide, chofer: driver };
                 
                 // The main guide for the child's data payload should be the one from the split key
-                const childDataPayload = { ...updatedOrderData, services, guia: guide };
+                const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: guide };
                 const childName = childNameFrom(getBaseName(orderToEdit.orderName), { data: { responsible } } as StoredServiceOrder);
                 
-                const existingChild = existingChildren.find(c => c.data.splitKey?.trim().toUpperCase() === key);
-
-                if (existingChild) {
-                    batch.update(doc(db, 'serviceOrders', existingChild.id), { data: childDataPayload, orderName: childName, responsible, updatedAt: serverTimestamp(), status: 'editado' });
-                } else {
-                    const newDocRef = doc(collection(db, 'serviceOrders'));
-                    batch.set(newDocRef, { 
-                        data: childDataPayload, 
-                        orderName: childName, 
-                        splitFrom: parentId, 
-                        splitKey: key, 
-                        responsible, 
-                        createdBy: currentUser.email, 
-                        createdAt: orderToEdit.createdAt, 
-                        status: 'creado',
-                        updatedAt: serverTimestamp()
-                    });
-                }
-            }
-        } else {
-            for (const child of existingChildren) {
-                batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
+                const newDocRef = doc(collection(db, 'serviceOrders'));
+                batch.set(newDocRef, { 
+                    data: childDataPayload, 
+                    orderName: childName, 
+                    splitFrom: parentId, 
+                    splitKey: key, 
+                    responsible, 
+                    createdBy: orderToEdit.createdBy, // Keep original creator
+                    createdAt: orderToEdit.createdAt, // Keep original creation date
+                    status: 'creado',
+                    updatedAt: serverTimestamp()
+                });
             }
         }
 
         await batch.commit();
-        toast({ title: hasSplit ? "Orden Dividida/Actualizada" : "Orden Actualizada", description: `La orden ha sido guardada correctamente.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
+        toast({ title: hasSplit ? "Orden Re-dividida" : "Orden Actualizada", description: `La orden ha sido guardada y regenerada.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
     } catch (error: any) {
-        console.error("Error saving/splitting order:", error);
+        console.error("Error re-splitting/saving order:", error);
         toast({ title: "Error al Guardar", description: error.message || "No se pudo guardar la orden.", variant: "destructive" });
     }
 
-    fetchOrders();
+    fetchOrders(); // Refresh the list to show the new state
     setIsEditModalOpen(false);
     setOrderToEdit(null);
 };
