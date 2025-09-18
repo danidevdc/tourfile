@@ -169,6 +169,8 @@ export default function ServiceOrderListPage() {
         return currentFilterState === 'deleted' ? isDeleted : !isDeleted;
       };
 
+      if (currentFilterState === 'active' && parent.status === 'cancelado') return false;
+
       if (!orderIsVisible(parent)) return false;
 
       if (searchTerm) {
@@ -613,7 +615,9 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                             {isCurrentUserAdmin && <TableHead className="w-12"><Checkbox checked={isAllSelected} onCheckedChange={(checked) => handleSelectAll(!!checked)} aria-label="Seleccionar todas" disabled={filterState === 'deleted'} /></TableHead>}
                             <TableHead>Nombre de la Orden</TableHead>
                             <TableHead>Responsable(s)</TableHead>
-                            {isCurrentUserAdmin && (<><TableHead>Creado Por</TableHead><TableHead className="w-[120px]">Fecha</TableHead><TableHead>Estado</TableHead></>)}
+                            {isCurrentUserAdmin && <TableHead>Creado Por</TableHead>}
+                            {isCurrentUserAdmin && <TableHead className="w-[120px]">Fecha</TableHead>}
+                            <TableHead>Estado</TableHead>
                             <TableHead className="text-left">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -623,19 +627,24 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                             const childCount = children.length;
                             const isExpanded = expandedFamilies.has(parent.id);
                             
-                            const allGuidesInFamily = new Set<string>();
+                            const allGuidsInFamily = new Set<string>([parent.data.guia || '']);
                             const allDriversInFamily = new Set<string>();
 
-                            if (parent.data.guia) {
-                                allGuidesInFamily.add(parent.data.guia);
-                            }
                             parent.data.services?.forEach(service => {
-                                if (service.guia) allGuidesInFamily.add(service.guia);
+                                if (service.guia) allGuidsInFamily.add(service.guia);
                                 if (service.chofer) allDriversInFamily.add(service.chofer);
                             });
+                            
+                            children.forEach(child => {
+                                if (child.data.guia) allGuidsInFamily.add(child.data.guia);
+                                child.data.services?.forEach(service => {
+                                    if(service.guia) allGuidsInFamily.add(service.guia);
+                                    if(service.chofer) allDriversInFamily.add(service.chofer);
+                                });
+                            });
 
-                            const displayedGuides = Array.from(allGuidesInFamily);
-                            const displayedDrivers = Array.from(allDriversInFamily);
+                            const displayedGuides = Array.from(allGuidsInFamily).filter(Boolean);
+                            const displayedDrivers = Array.from(allDriversInFamily).filter(Boolean);
 
                             return (
                                 <React.Fragment key={parent.id}>
@@ -661,7 +670,9 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                                                 {displayedDrivers.map(d => <Badge key={d} className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 hover:bg-green-100"><Car size={12} className="mr-1"/>{shortPerson(d)}</Badge>)}
                                             </div>
                                         </TableCell>
-                                        {isCurrentUserAdmin && (<><TableCell>{parent.createdBy}</TableCell><TableCell>{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(parent)}</TableCell></>)}
+                                        {isCurrentUserAdmin && <TableCell>{parent.createdBy}</TableCell>}
+                                        {isCurrentUserAdmin && <TableCell>{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>}
+                                        <TableCell>{getStatusBadge(parent)}</TableCell>
                                         <TableCell>{renderOrderActions(parent)}</TableCell>
                                     </TableRow>
 
@@ -684,7 +695,9 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                                                         )}
                                                     </div>
                                                 </TableCell>
-                                                {isCurrentUserAdmin && (<><TableCell>{child.createdBy}</TableCell><TableCell>{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(child)}</TableCell></>)}
+                                                {isCurrentUserAdmin && <TableCell>{child.createdBy}</TableCell>}
+                                                {isCurrentUserAdmin && <TableCell>{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>}
+                                                <TableCell>{getStatusBadge(child)}</TableCell>
                                                 <TableCell>{renderOrderActions(child)}</TableCell>
                                             </TableRow>
                                         );
@@ -738,14 +751,3 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     </TooltipProvider>
   );
 }
-
-
-
-
-    
-    
-
-
-
-
-    
