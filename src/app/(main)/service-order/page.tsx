@@ -164,12 +164,11 @@ export default function ServiceOrderListPage() {
     const filteredAndSortedFamilies = allFamilies.filter(({ parent, children }) => {
       const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
       const orderIsVisible = (order: StoredServiceOrder) => {
+        const isInactive = order.status === 'eliminado' || order.status === 'cancelado';
         if (currentFilterState === 'all') return true;
-        const isDeleted = order.status === 'eliminado' || order.status === 'cancelado';
-        return currentFilterState === 'deleted' ? isDeleted : !isDeleted;
+        if (currentFilterState === 'deleted') return isInactive;
+        return !isInactive;
       };
-
-      if (currentFilterState === 'active' && parent.status === 'cancelado') return false;
 
       if (!orderIsVisible(parent)) return false;
 
@@ -178,13 +177,14 @@ export default function ServiceOrderListPage() {
         const checkOrder = (order: StoredServiceOrder) => {
           if (!order.data) return false;
           const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
-          const allGuides = new Set<string>([order.data.guia || '']);
-          const allDrivers = new Set<string>();
-          order.data.services?.forEach(s => {
-              if (s.guia) allGuides.add(s.guia);
-              if (s.chofer) allDrivers.add(s.chofer);
+          const allGuidsInFamily = new Set<string>([parent.data.guia || '']);
+          const allDriversInFamily = new Set<string>();
+
+          parent.data.services?.forEach(service => {
+              if (service.guia) allGuidsInFamily.add(service.guia);
+              if (service.chofer) allDriversInFamily.add(service.chofer);
           });
-          const responsibleText = [...allGuides, ...allDrivers].filter(Boolean).join(' ').toLowerCase();
+          const responsibleText = [...allGuidsInFamily, ...allDriversInFamily].filter(Boolean).join(' ').toLowerCase();
 
           return (
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
@@ -635,14 +635,6 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                                 if (service.chofer) allDriversInFamily.add(service.chofer);
                             });
                             
-                            children.forEach(child => {
-                                if (child.data.guia) allGuidsInFamily.add(child.data.guia);
-                                child.data.services?.forEach(service => {
-                                    if(service.guia) allGuidsInFamily.add(service.guia);
-                                    if(service.chofer) allDriversInFamily.add(service.chofer);
-                                });
-                            });
-
                             const displayedGuides = Array.from(allGuidsInFamily).filter(Boolean);
                             const displayedDrivers = Array.from(allDriversInFamily).filter(Boolean);
 
@@ -705,7 +697,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                                 </React.Fragment>
                             )
                         }) : (
-                          <TableRow><TableCell colSpan={isCurrentUserAdmin ? 7 : 4} className="text-center h-24 text-muted-foreground">{searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={isCurrentUserAdmin ? 7 : 5} className="text-center h-24 text-muted-foreground">{searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}</TableCell></TableRow>
                         )}
                     </TableBody>
                 </Table>
@@ -751,3 +743,4 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     </TooltipProvider>
   );
 }
+
