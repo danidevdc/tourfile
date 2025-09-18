@@ -141,13 +141,13 @@ export default function ServiceOrderListPage() {
   }, [authLoading]);
 
   const families = useMemo(() => {
-    const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
-    
+    const currentFilter = isCurrentUserAdmin ? filterState : 'active';
+
     const orderIsVisible = (order: StoredServiceOrder) => {
-      if (currentFilterState === 'all') return true;
-      const isInactive = order.status === 'eliminado' || order.status === 'cancelado';
-      if (currentFilterState === 'deleted') return order.status === 'eliminado';
-      return !isInactive; // 'active' filter
+        if (currentFilter === 'all') return true;
+        const isInactive = order.status === 'eliminado' || order.status === 'cancelado';
+        if (currentFilter === 'deleted') return order.status === 'eliminado';
+        return !isInactive; // 'active' filter
     };
     
     const visibleOrders = orders.filter(orderIsVisible);
@@ -180,7 +180,11 @@ export default function ServiceOrderListPage() {
                 familyGroups.set(familyId, { parent: parentOrder, children: [] });
             }
             if (order.id !== familyId) {
-                familyGroups.get(familyId)!.children.push(order);
+                const existingChildren = familyGroups.get(familyId)!.children;
+                // Only add child if it's visible according to the filter
+                if (orderIsVisible(order)) {
+                    existingChildren.push(order);
+                }
             }
         }
     }
@@ -460,7 +464,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     });
   };
 
-  const getStatusBadge = (order: StoredServiceOrder) => {
+  const getStatusBadge = (order: StoredServiceOrder, isParent = false, childCount = 0) => {
     const status = order.status || 'creado';
     let baseBadge: React.ReactNode;
 
@@ -473,7 +477,8 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
         default: baseBadge = <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Creado</Badge>;
     }
     
-    if (order.data.isSplitParent) {
+    // A parent order is considered "split" if it has children.
+    if (isParent && childCount > 0) {
         return <div className="flex items-center gap-1">{baseBadge}<Badge className="bg-purple-600 hover:bg-purple-700"><Split className="h-3 w-3 mr-1"/>Dividida</Badge></div>;
     }
     return baseBadge;
@@ -656,7 +661,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                                         </TableCell>
                                         {isCurrentUserAdmin && <TableCell>{parent.createdBy}</TableCell>}
                                         {isCurrentUserAdmin && <TableCell>{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>}
-                                        <TableCell>{getStatusBadge(parent)}</TableCell>
+                                        <TableCell>{getStatusBadge(parent, true, childCount)}</TableCell>
                                         <TableCell>{renderOrderActions(parent)}</TableCell>
                                     </TableRow>
 
@@ -735,6 +740,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     </TooltipProvider>
   );
 }
+
 
 
 
