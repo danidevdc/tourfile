@@ -8,9 +8,15 @@ import { copiarVistaPreviaAlClipboard } from "./copyPreview";
 
 const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
     const { guia, file, ref, nPax, hotel, services, observations, nota } = orderData;
+    
+    const allGuides = new Set<string>();
+    if (guia) allGuides.add(guia);
+    services?.forEach(s => { if (s.guia) allGuides.add(s.guia) });
+    const displayGuide = Array.from(allGuides).join(', ');
+
 
     const infoRows = `
-        <tr><td class="info-label">Guía:</td><td class="info-value">${guia || '—'}</td></tr>
+        <tr><td class="info-label">Guía:</td><td class="info-value">${displayGuide || '—'}</td></tr>
         <tr><td class="info-label">File:</td><td class="info-value">${file || '—'}</td></tr>
         <tr><td class="info-label">Ref:</td><td class="info-value">${ref || '—'}</td></tr>
         <tr><td class="info-label">Nº Pax:</td><td class="info-value">${nPax || '—'}</td></tr>
