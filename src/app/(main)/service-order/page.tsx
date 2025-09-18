@@ -623,25 +623,16 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                             const childCount = children.length;
                             const isExpanded = expandedFamilies.has(parent.id);
                             
-                            // For parent row, collect all unique guides and drivers from all children
+                            // For parent row, collect all unique guides and drivers from the parent's data.services
                             const allGuidesInFamily = new Set<string>();
+                            if (parent.data.guia) allGuidesInFamily.add(parent.data.guia);
+
                             const allDriversInFamily = new Set<string>();
-                            if (parent.data.isSplitParent) {
-                                // For a split parent, gather all unique responsibles from its children
-                                children.forEach(child => {
-                                    if (child.data.guia) allGuidesInFamily.add(child.data.guia);
-                                    child.data.services?.forEach(s => {
-                                        if (s.guia) allGuidesInFamily.add(s.guia);
-                                        if (s.chofer) allDriversInFamily.add(s.chofer);
-                                    });
-                                });
-                            } else {
-                                // For a non-split parent, just show its own responsibles
-                                if (parent.data.guia) allGuidesInFamily.add(parent.data.guia);
-                                parent.data.services?.forEach(s => {
-                                    if (s.chofer) allDriversInFamily.add(s.chofer);
-                                });
-                            }
+                            parent.data.services.forEach(service => {
+                                if (service.guia) allGuidesInFamily.add(service.guia);
+                                if (service.chofer) allDriversInFamily.add(service.chofer);
+                            });
+
                             const displayedGuides = Array.from(allGuidesInFamily);
                             const displayedDrivers = Array.from(allDriversInFamily);
 
