@@ -48,7 +48,7 @@ import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPre
 import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, getBusesFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity, type PredefinedFlight, type Bus } from "@/lib/serviceOrderService";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ServiceOrderDeletionFilter, type FilterState } from "@/components/service-order/ServiceOrderDeletionFilter";
-import { doc, writeBatch, serverTimestamp, collection } from "firebase/firestore";
+import { doc, writeBatch, serverTimestamp, collection, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 
@@ -273,37 +273,45 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
             }
         });
 
+        // Perspective 1: Group by Guide
         const guideServiceMap = new Map<string, any[]>();
-        updatedOrderData.services.forEach(s => {
-            const guideKey = s.guia || updatedOrderData.guia;
+        updatedOrderData.services.forEach(service => {
+            const guideKey = service.guia || updatedOrderData.guia || 'SIN GUIA';
             if (!guideServiceMap.has(guideKey)) guideServiceMap.set(guideKey, []);
-            guideServiceMap.get(guideKey)!.push(s);
+            guideServiceMap.get(guideKey)!.push(service);
         });
 
+        // Perspective 2: Group by Driver
         const driverServiceMap = new Map<string, any[]>();
-        updatedOrderData.services.forEach(s => {
-            if (s.chofer) {
-                if (!driverServiceMap.has(s.chofer)) driverServiceMap.set(s.chofer, []);
-                driverServiceMap.get(s.chofer)!.push(s);
+        updatedOrderData.services.forEach(service => {
+            if (service.chofer) {
+                if (!driverServiceMap.has(service.chofer)) driverServiceMap.set(service.chofer, []);
+                driverServiceMap.get(service.chofer)!.push(service);
             }
         });
 
         const isSplit = guideServiceMap.size > 1 || driverServiceMap.size > 0;
-
+        
         if (isSplit) {
+            // Create/update orders from the guides' perspective
             for (const [guide, services] of guideServiceMap.entries()) {
                 const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: guide };
                 const childName = childNameFrom(parentBaseName, guide, null);
-                batch.set(doc(collection(db, 'serviceOrders')), { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
+                const newDocRef = doc(collection(db, 'serviceOrders'));
+                batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
             }
-
+            
+            // Create/update orders from the drivers' perspective
             for (const [driver, services] of driverServiceMap.entries()) {
-                if (guideServiceMap.size === 1 && services.every(s => (s.guia || updatedOrderData.guia) === guideServiceMap.keys().next().value)) {
-                    continue; 
+                // Avoid creating a duplicate if a guide already covers all of a driver's services
+                const guidesForThisDriver = new Set(services.map(s => s.guia || updatedOrderData.guia));
+                if (guidesForThisDriver.size === 1 && guideServiceMap.has(guidesForThisDriver.values().next().value) && guideServiceMap.get(guidesForThisDriver.values().next().value)!.length === services.length) {
+                    continue;
                 }
-                const childDataPayload: ServiceOrderData = { ...updatedOrderData, services };
-                const childName = childNameFrom(parentBaseName, null, driver);
-                batch.set(doc(collection(db, 'serviceOrders')), { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
+                 const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: '' };
+                 const childName = childNameFrom(parentBaseName, null, driver);
+                 const newDocRef = doc(collection(db, 'serviceOrders'));
+                 batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
             }
         }
         
@@ -311,7 +319,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
         batch.update(doc(db, 'serviceOrders', parentId), parentUpdateData);
 
         await batch.commit();
-        toast({ title: "Orden Re-dividida y Actualizada", description: "Las órdenes han sido regeneradas con los nuevos cambios.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
+        toast({ title: "Órdenes Regeneradas", description: "Las órdenes hijas han sido actualizadas con los nuevos cambios.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
     } catch (error: any) {
         console.error("Error re-splitting/saving order:", error);
         toast({ title: "Error al Guardar", description: error.message || "No se pudo guardar la orden.", variant: "destructive" });
@@ -618,7 +626,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                                 const allDrivers = new Set(children.flatMap(c => c.data.services?.map(s => s.chofer)).filter(Boolean) as string[]);
                                 
                                 displayedGuides = Array.from(allGuides).map(g => shortPerson(g));
-                                displayedDrivers = Array.from(allDrivers).map(d => shortPerson(d).replace(/^CONT\s*/i, ''));
+                                displayedDrivers = Array.from(allDrivers).map(d => shortPerson(d));
 
                             } else if(parent.data.guia) {
                                 displayedGuides = [shortPerson(parent.data.guia)];
@@ -654,6 +662,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
 
                                     {isExpanded && children.map(child => {
                                         const isDriverPerspective = child.orderName.includes(" — C-");
+                                        const isGuidePerspective = child.orderName.includes(" — G-");
                                         return (
                                             <TableRow key={child.id} className="bg-muted/30 hover:bg-muted/50">
                                                 {isCurrentUserAdmin && <TableCell><Checkbox checked={selectedOrderIds.has(child.id)} onCheckedChange={(c) => handleSelectOne(child.id, !!c)} disabled={child.status === 'eliminado' || child.status === 'cancelado'} /></TableCell>}
@@ -664,14 +673,10 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-1 flex-wrap">
-                                                        {!isDriverPerspective && child.data.guia && <Badge className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 hover:bg-blue-100"><User size={12} className="mr-1"/>{shortPerson(child.data.guia)}</Badge>}
-                                                        {Array.from(new Set(child.data.services.map(s => s.chofer).filter(Boolean))).map(c => {
-                                                          const isCombinedPerspective = child.orderName.includes(" — G-") && child.orderName.includes(" — C-");
-                                                          if (isDriverPerspective || isCombinedPerspective) {
-                                                            return <Badge key={c} className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 hover:bg-green-100"><Car size={12} className="mr-1"/>{shortPerson(c as string).replace(/^CONT\s*/i, '')}</Badge>
-                                                          }
-                                                          return null;
-                                                        })}
+                                                        {isGuidePerspective && child.data.guia && <Badge className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 hover:bg-blue-100"><User size={12} className="mr-1"/>{shortPerson(child.data.guia)}</Badge>}
+                                                        {isDriverPerspective && Array.from(new Set(child.data.services?.map(s => s.chofer).filter(Boolean))).map(c => 
+                                                          <Badge key={c} className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 hover:bg-green-100"><Car size={12} className="mr-1"/>{shortPerson(c as string)}</Badge>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                                 {isCurrentUserAdmin && (<><TableCell>{child.createdBy}</TableCell><TableCell>{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(child)}</TableCell></>)}
