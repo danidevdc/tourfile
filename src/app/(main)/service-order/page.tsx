@@ -273,19 +273,17 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
             }
         });
 
-        // Perspective 1: Group services by each unique guide
         const guideServiceMap = new Map<string, any[]>();
         updatedOrderData.services.forEach(service => {
             const guideKey = service.guia || updatedOrderData.guia || 'SIN GUIA';
             if (!guideServiceMap.has(guideKey)) guideServiceMap.set(guideKey, []);
             guideServiceMap.get(guideKey)!.push(service);
         });
-
-        // Perspective 2: Group services by each unique driver
+        
         const driverServiceMap = new Map<string, any[]>();
         updatedOrderData.services.forEach(service => {
             if (service.chofer) {
-                if (!driverServiceMap.has(service.chofer)) driverServiceMap.set(service.chofer, []);
+              if (!driverServiceMap.has(service.chofer)) driverServiceMap.set(driverServiceMap.get(service.chofer)!, []);
                 driverServiceMap.get(service.chofer)!.push(service);
             }
         });
@@ -293,7 +291,6 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
         const isSplit = guideServiceMap.size > 1 || driverServiceMap.size > 0;
 
         if (isSplit) {
-            // Create orders from the guides' perspective
             for (const [guide, services] of guideServiceMap.entries()) {
                 if (guide === 'SIN GUIA') continue;
                 const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: guide };
@@ -301,11 +298,9 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                 const newDocRef = doc(collection(db, 'serviceOrders'));
                 batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
             }
-            
-            // Create orders from the drivers' perspective
+
             for (const [driver, services] of driverServiceMap.entries()) {
                 const guidesForThisDriver = new Set(services.map(s => s.guia || updatedOrderData.guia));
-                // Avoid creating a duplicate if a single guide already covers all of this driver's services
                 if (guidesForThisDriver.size === 1 && guideServiceMap.has(guidesForThisDriver.values().next().value) && guideServiceMap.get(guidesForThisDriver.values().next().value)!.length === services.length) {
                     continue; 
                 }
@@ -620,17 +615,14 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                             let displayedGuides: string[] = [];
                             let displayedDrivers: string[] = [];
                             
-                            if (parent.data.isSplitParent && childCount > 0) {
-                                const allGuides = new Set(children.map(c => c.data.guia).filter(Boolean) as string[]);
-                                if (parent.data.guia && parent.data.guia !== 'SIN GUIA') allGuides.add(parent.data.guia);
-                                const allDrivers = new Set<string>();
-                                children.forEach(c => {
-                                  c.data.services?.forEach(s => {
-                                    if (s.chofer) allDrivers.add(s.chofer);
-                                  });
-                                });
-
+                            if (parent.data.isSplitParent) {
+                                const allGuides = new Set<string>();
+                                parent.data.services?.forEach(s => { if(s.guia) allGuides.add(s.guia) });
+                                if (parent.data.guia) allGuides.add(parent.data.guia);
                                 displayedGuides = Array.from(allGuides).map(g => shortPerson(g));
+
+                                const allDrivers = new Set<string>();
+                                parent.data.services?.forEach(s => { if (s.chofer) allDrivers.add(s.chofer) });
                                 displayedDrivers = Array.from(allDrivers).map(d => shortPerson(d));
                             } else {
                                 if (parent.data.guia) displayedGuides = [shortPerson(parent.data.guia)];
@@ -739,4 +731,5 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     </TooltipProvider>
   );
 }
+
 
