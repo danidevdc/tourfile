@@ -16,6 +16,8 @@ import {
     type StoredServiceOrder, 
     saveServiceOrder, 
     type OrderStatus,
+    getChildrenByParentId,
+    softCancelServiceOrder,
 } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { getBaseName, getFamilyId, childNameFrom, shortPerson } from "@/lib/serviceOrderFamily";
@@ -25,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Loader2, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown, Image } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown, Image, Split } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -45,6 +47,8 @@ import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPre
 import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, getBusesFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity, type PredefinedFlight, type Bus } from "@/lib/serviceOrderService";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ServiceOrderDeletionFilter, type FilterState } from "@/components/service-order/ServiceOrderDeletionFilter";
+import { doc, writeBatch, serverTimestamp, collection } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 
 const defaultObsText = '';
@@ -101,25 +105,6 @@ export default function ServiceOrderListPage() {
   const [isPrintingPdfId, setIsPrintingPdfId] = useState<string | null>(null);
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
 
-  // Expose the modal function and data globally
-  useEffect(() => {
-    window.showSimplePreviewModal = (order) => {
-        // Find the full family to pass to the modal
-        const family = families.find(f => f.parent.id === order.id);
-        if (family && family.children.length > 0) {
-            const allServices = family.children.flatMap(child => child.data.services);
-            showSimplePreviewModal({ ...order, data: { ...order.data, services: allServices } });
-        } else {
-            showSimplePreviewModal(order);
-        }
-    };
-    
-    // Store orders in a map for easy lookup from the global function
-    const ordersMap = new Map<string, StoredServiceOrder>();
-    orders.forEach(order => ordersMap.set(order.id, order));
-    window.__serviceOrdersMap = ordersMap;
-  }, [orders]);
-
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -154,31 +139,40 @@ export default function ServiceOrderListPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
-  const filteredOrders = useMemo(() => {
-    let statusFilteredOrders = orders;
-    
-    const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
-    if (currentFilterState === 'active') {
-        statusFilteredOrders = orders.filter(order => order.status !== 'eliminado');
-    } else if (currentFilterState === 'deleted') {
-        statusFilteredOrders = orders.filter(order => order.status === 'eliminado');
-    }
-
+  const searchedOrders = useMemo(() => {
     if (!searchTerm) {
-        return statusFilteredOrders;
+        return orders;
     }
-
     const lowercasedFilter = searchTerm.toLowerCase();
-    return statusFilteredOrders.filter(order => {
+    return orders.filter(order => {
         const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
+        const responsible = order.data.responsible || {};
+        const guideName = responsible.guia || order.data.guia || '';
+        const driverName = responsible.chofer || '';
+
         return (
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
-            order.data.guia.toLowerCase().includes(lowercasedFilter) ||
+            guideName.toLowerCase().includes(lowercasedFilter) ||
+            driverName.toLowerCase().includes(lowercasedFilter) ||
             (isCurrentUserAdmin && order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
             (isCurrentUserAdmin && date.toLowerCase().includes(lowercasedFilter))
         );
     });
-  }, [searchTerm, orders, isCurrentUserAdmin, filterState]);
+  }, [searchTerm, orders, isCurrentUserAdmin]);
+
+  const filteredOrders = useMemo(() => {
+    const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
+    if (currentFilterState === 'all') {
+        return searchedOrders;
+    }
+    if (currentFilterState === 'active') {
+        return searchedOrders.filter(order => order.status !== 'eliminado' && order.status !== 'cancelado');
+    }
+    if (currentFilterState === 'deleted') {
+        return searchedOrders.filter(order => order.status === 'eliminado' || order.status === 'cancelado');
+    }
+    return searchedOrders;
+  }, [searchedOrders, isCurrentUserAdmin, filterState]);
 
   const families = useMemo(() => {
     const byId = new Map<string, StoredServiceOrder>();
@@ -187,7 +181,7 @@ export default function ServiceOrderListPage() {
     const groups = new Map<string, { parent: StoredServiceOrder, children: StoredServiceOrder[] }>();
   
     for (const o of filteredOrders) {
-      if (o.data.isSplitParent) continue;
+      if (!o.data || o.data.isSplitParent) continue;
       
       const famId = getFamilyId(o);
       const parent = o.splitFrom ? byId.get(o.splitFrom) : o;
@@ -211,6 +205,25 @@ export default function ServiceOrderListPage() {
         children: g.children.sort((x, y) => x.orderName.localeCompare(y.orderName)) 
       }));
   }, [filteredOrders, orders]);
+
+  // Expose the modal function and data globally
+  useEffect(() => {
+    window.showSimplePreviewModal = (order) => {
+        // Find the full family to pass to the modal
+        const family = families.find(f => f.parent.id === order.id);
+        if (family && family.children.length > 0) {
+            const allServices = family.children.flatMap(child => child.data.services);
+            showSimplePreviewModal({ ...order, data: { ...order.data, services: allServices } });
+        } else {
+            showSimplePreviewModal(order);
+        }
+    };
+    
+    // Store orders in a map for easy lookup from the global function
+    const ordersMap = new Map<string, StoredServiceOrder>();
+    orders.forEach(order => ordersMap.set(order.id, order));
+    window.__serviceOrdersMap = ordersMap;
+  }, [orders, families]);
   
   const paginatedFamilies = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -241,11 +254,14 @@ export default function ServiceOrderListPage() {
   };
 
   const handlePreviewOrderClick = (order: StoredServiceOrder) => {
-    const family = families.find(f => f.parent.id === order.id);
-    if (family && family.children.length > 0) {
+    const family = families.find(f => f.parent.id === getFamilyId(order));
+    
+    if (family && family.parent.data.isSplitParent) {
+        // It's a split parent, consolidate children for preview
         const allServices = family.children.flatMap(child => child.data.services);
-        setOrderToPreview({ ...order, data: { ...order.data, services: allServices } });
+        setOrderToPreview({ ...family.parent, data: { ...family.parent.data, services: allServices } });
     } else {
+        // It's a normal order or a child order
         setOrderToPreview(order);
     }
     setIsPreviewModalOpen(true);
@@ -254,63 +270,79 @@ export default function ServiceOrderListPage() {
  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     if (!orderToEdit || !currentUser?.email) return;
 
-    const uniqueGuides = new Set(updatedOrderData.services.map(s => s.guia || updatedOrderData.guia).filter(Boolean));
-    const uniqueDrivers = new Set(updatedOrderData.services.map(s => s.chofer).filter(Boolean));
+    // --- Logic for Child Orders ---
+    if (orderToEdit.splitFrom) {
+        toast({ title: "Edición no permitida", description: "Las órdenes divididas solo se pueden modificar desde la orden madre.", variant: "destructive" });
+        return;
+    }
 
-    const needsGuideSplit = uniqueGuides.size > 1;
-    const needsDriverSplit = !needsGuideSplit && uniqueDrivers.size > 1;
-    
-    if (needsGuideSplit || needsDriverSplit) {
-        const splitDimension = needsGuideSplit ? 'guide' : 'driver';
-        const serviceMap = new Map<string, ServiceOrderData['services']>();
-        
-        updatedOrderData.services.forEach(service => {
-            const key = splitDimension === 'guide' ? (service.guia || updatedOrderData.guia) : service.chofer!;
-            if (!serviceMap.has(key)) {
-                serviceMap.set(key, []);
-            }
-            serviceMap.get(key)!.push(service);
-        });
-
-        if (serviceMap.size > 1) {
-            try {
-                await updateServiceOrder(orderToEdit.id, { ...updatedOrderData, services: updatedOrderData.services, isSplitParent: true }, 'editado');
-                
-                const parentBaseName = getBaseName(orderToEdit.orderName);
-
-                for (const [key, services] of serviceMap.entries()) {
-                    const newSplitOrderData: ServiceOrderData = { ...updatedOrderData, services, isSplitParent: false };
-                    
-                    if(splitDimension === 'guide') {
-                      newSplitOrderData.guia = key;
-                    }
-                    
-                    const childOrderName = childNameFrom(parentBaseName, { ...orderToEdit, data: newSplitOrderData });
-                    await saveServiceOrder(newSplitOrderData, currentUser.email, childOrderName, orderToEdit.id);
-                }
-                
-                toast({ title: "Éxito", description: `La orden ha sido dividida en ${serviceMap.size} nuevas órdenes.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
-                fetchOrders();
-            } catch (e) {
-                 toast({ title: "Error al Dividir", description: "No se pudo dividir la orden.", variant: "destructive" });
-            } finally {
-                setIsEditModalOpen(false);
-                setOrderToEdit(null);
-            }
-            return;
+    // --- Logic for Parent/Normal Orders ---
+    const getSplitKey = (s: any, mainGuide: string, dimension: 'guide' | 'driver'): string => {
+        if (dimension === 'guide') {
+            return `G:${s.guia || mainGuide}`;
         }
+        return `D:${s.chofer || 'N/A'}`;
+    };
+
+    const mainGuide = updatedOrderData.guia;
+    const uniqueGuides = new Set(updatedOrderData.services.map(s => s.guia || mainGuide));
+    const uniqueChoferes = new Set(updatedOrderData.services.map(s => s.chofer || ''));
+
+    const shouldSplitByGuide = uniqueGuides.size > 1;
+    const shouldSplitByDriver = !shouldSplitByGuide && uniqueChoferes.size > 1;
+
+    const dimension = shouldSplitByGuide ? 'guide' : (shouldSplitByDriver ? 'driver' : null);
+
+    if (dimension) {
+        const batch = writeBatch(db);
+        const existingChildren = await getChildrenByParentId(orderToEdit.id);
+
+        // Mark old children as 'cancelado'
+        existingChildren.forEach(child => {
+            if (child.status !== 'cancelado') {
+                batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado' });
+            }
+        });
+        
+        // Update parent order
+        const parentUpdateData: any = { data: { ...orderToEdit.data, services: [], isSplitParent: true }, status: 'editado' };
+        batch.update(doc(db, 'serviceOrders', orderToEdit.id), parentUpdateData);
+
+        const servicesByResponsible = new Map<string, any[]>();
+        updatedOrderData.services.forEach(s => {
+            const key = getSplitKey(s, mainGuide, dimension);
+            if (!servicesByResponsible.has(key)) servicesByResponsible.set(key, []);
+            servicesByResponsible.get(key)!.push(s);
+        });
+        
+        for (const [key, services] of servicesByResponsible.entries()) {
+            const responsible = dimension === 'guide'
+                ? { guia: key.substring(2), chofer: services[0]?.chofer || '' }
+                : { guia: mainGuide, chofer: key.substring(2) };
+            
+            const newData = { ...updatedOrderData, services, responsible };
+            const childName = childNameFrom(getBaseName(orderToEdit.orderName), { data: newData } as StoredServiceOrder, dimension);
+            
+            const existingChild = existingChildren.find(c => c.data.splitKey === key);
+            if (existingChild) {
+                batch.update(doc(db, 'serviceOrders', existingChild.id), { data: newData, orderName: childName, responsible, updatedAt: serverTimestamp(), status: 'editado' });
+            } else {
+                const newDocRef = doc(collection(db, 'serviceOrders'));
+                batch.set(newDocRef, { data: newData, orderName: childName, splitFrom: orderToEdit.id, splitKey: key, responsible, createdBy: currentUser.email, createdAt: serverTimestamp(), status: 'creado' });
+            }
+        }
+        
+        await batch.commit();
+        toast({ title: "Orden Dividida", description: `La orden se ha dividido en ${servicesByResponsible.size} sub-órdenes por ${dimension}.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
+    } else {
+        // No split needed, just update the main order
+        await updateServiceOrder(orderToEdit.id, updatedOrderData, 'editado');
+        toast({ title: "Éxito", description: "Orden actualizada correctamente.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
     }
-    
-    try {
-      await updateServiceOrder(orderToEdit.id, updatedOrderData, 'editado');
-      toast({ title: "Éxito", description: "Orden actualizada correctamente.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
-      fetchOrders(); 
-    } catch(e) {
-      toast({ title: "Error", description: "No se pudo actualizar la orden.", variant: "destructive" });
-    } finally {
-      setIsEditModalOpen(false);
-      setOrderToEdit(null);
-    }
+
+    fetchOrders();
+    setIsEditModalOpen(false);
+    setOrderToEdit(null);
   };
 
 
@@ -374,7 +406,7 @@ export default function ServiceOrderListPage() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      if (order.status !== 'excel' && order.status !== 'eliminado') {
+      if (order.status !== 'excel' && order.status !== 'eliminado' && order.status !== 'cancelado') {
         await updateServiceOrder(order.id, order.data, 'excel');
         fetchOrders();
       }
@@ -389,7 +421,7 @@ export default function ServiceOrderListPage() {
   const handlePrintToPdf = async (order: StoredServiceOrder) => {
     setIsPrintingPdfId(order.id);
     try {
-      if (order.status !== 'enviado' && order.status !== 'eliminado') {
+      if (order.status !== 'enviado' && order.status !== 'eliminado' && order.status !== 'cancelado') {
         await updateServiceOrder(order.id, order.data, 'enviado');
         fetchOrders();
       }
@@ -422,9 +454,9 @@ export default function ServiceOrderListPage() {
     const newSelectedIds = new Set<string>();
     if (checked) {
         paginatedFamilies.forEach(({parent, children}) => {
-            if(parent.status !== 'eliminado') newSelectedIds.add(parent.id)
+            if(parent.status !== 'eliminado' && parent.status !== 'cancelado') newSelectedIds.add(parent.id)
             children.forEach(child => {
-                if(child.status !== 'eliminado') newSelectedIds.add(child.id)
+                if(child.status !== 'eliminado' && child.status !== 'cancelado') newSelectedIds.add(child.id)
             })
         });
     }
@@ -454,18 +486,21 @@ export default function ServiceOrderListPage() {
 
   const getStatusBadge = (order: StoredServiceOrder) => {
     const status = order.status || 'creado';
+    let baseBadge: React.ReactNode;
+
     switch (status) {
-        case 'eliminado':
-            return <Badge variant="destructive" className="flex items-center gap-1"><ShieldAlert className="h-3 w-3"/>Eliminado</Badge>;
-        case 'enviado':
-            return <Badge variant="default" className="bg-red-500 hover:bg-red-600">PDF</Badge>;
-        case 'excel':
-            return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Excel</Badge>;
-        case 'editado':
-            return <Badge variant="secondary" className="bg-orange-500 text-white hover:bg-orange-600">Editado</Badge>;
-        default: // creado
-            return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Creado</Badge>;
+        case 'eliminado': baseBadge = <Badge variant="destructive" className="flex items-center gap-1"><ShieldAlert className="h-3 w-3"/>Eliminado</Badge>; break;
+        case 'cancelado': baseBadge = <Badge variant="destructive" className="bg-yellow-600 hover:bg-yellow-700">Cancelado</Badge>; break;
+        case 'enviado': baseBadge = <Badge variant="default" className="bg-red-500 hover:bg-red-600">PDF</Badge>; break;
+        case 'excel': baseBadge = <Badge variant="default" className="bg-green-600 hover:bg-green-700">Excel</Badge>; break;
+        case 'editado': baseBadge = <Badge variant="secondary" className="bg-orange-500 text-white hover:bg-orange-600">Editado</Badge>; break;
+        default: baseBadge = <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Creado</Badge>;
     }
+    
+    if (order.data.isSplitParent) {
+        return <div className="flex items-center gap-1">{baseBadge}<Badge className="bg-purple-600 hover:bg-purple-700"><Split className="h-3 w-3"/>Dividida</Badge></div>;
+    }
+    return baseBadge;
   };
   
   const getDeletionAlertDescription = () => {
@@ -483,15 +518,15 @@ export default function ServiceOrderListPage() {
 
   const numSelected = selectedOrderIds.size;
   const numInPage = paginatedFamilies.reduce((acc, {parent, children}) => {
-      let count = parent.status !== 'eliminado' ? 1 : 0;
-      count += children.filter(c => c.status !== 'eliminado').length;
+      let count = (parent.status !== 'eliminado' && parent.status !== 'cancelado') ? 1 : 0;
+      count += children.filter(c => c.status !== 'eliminado' && c.status !== 'cancelado').length;
       return acc + count;
   }, 0);
   const isAllSelected = numInPage > 0 && numSelected === numInPage;
 
   const renderOrderActions = (order: StoredServiceOrder) => {
     const canModify = isCurrentUserAdmin || currentUser?.email === order.createdBy;
-    const isDeleted = order.status === 'eliminado';
+    const isDeleted = order.status === 'eliminado' || order.status === 'cancelado';
     
     const simplePreviewButtonHtml = `<button title="Vista Previa (Beta)" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-purple-600/50 bg-background hover:bg-purple-100/80 text-purple-600 hover:text-purple-700 dark:hover:bg-purple-900/20 dark:text-purple-400 dark:border-purple-600/70 h-8 w-8 p-0" onclick="window.showSimplePreviewModal(window.__serviceOrdersMap.get('${order.id}'))"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>`;
 
@@ -586,7 +621,7 @@ export default function ServiceOrderListPage() {
                         <TableRow>
                             {isCurrentUserAdmin && <TableHead className="w-12"><Checkbox checked={isAllSelected} onCheckedChange={(checked) => handleSelectAll(!!checked)} aria-label="Seleccionar todas" disabled={filterState === 'deleted'} /></TableHead>}
                             <TableHead>Nombre de la Orden</TableHead>
-                            <TableHead>Guía Asignado</TableHead>
+                            <TableHead>Responsable(s)</TableHead>
                             {isCurrentUserAdmin && (<><TableHead>Creado Por</TableHead><TableHead className="w-[120px]">Fecha</TableHead><TableHead>Estado</TableHead></>)}
                             <TableHead className="text-left">Acciones</TableHead>
                         </TableRow>
@@ -597,19 +632,22 @@ export default function ServiceOrderListPage() {
                             const childCount = children.length;
                             const isExpanded = expandedFamilies.has(parent.id);
                             
-                            let displayedGuide = parent.data.guia;
+                            const parentResponsible = parent.data.responsible || { guia: parent.data.guia, chofer: ''};
+                            let displayedGuide = shortPerson(parentResponsible.guia);
+                            let displayedChofer = shortPerson(parentResponsible.chofer);
+
                             if (childCount > 0) {
-                                const childGuides = [...new Set(children.map(c => c.data.guia || ''))].filter(Boolean);
-                                if (childGuides.length > 0) {
-                                    displayedGuide = childGuides.join(', ');
-                                }
+                                const childGuides = [...new Set(children.map(c => shortPerson(c.data.responsible?.guia || c.data.guia)))].filter(Boolean);
+                                const childChoferes = [...new Set(children.map(c => shortPerson(c.data.responsible?.chofer)))].filter(Boolean);
+                                displayedGuide = childGuides.join(', ');
+                                displayedChofer = childChoferes.join(', ');
                             }
 
                             return (
                                 <React.Fragment key={parent.id}>
                                     <TableRow>
                                         {isCurrentUserAdmin && (
-                                            <TableCell><Checkbox checked={selectedOrderIds.has(parent.id)} onCheckedChange={(c) => handleSelectOne(parent.id, !!c)} aria-label={`Seleccionar ${baseName}`} disabled={parent.status === 'eliminado'} /></TableCell>
+                                            <TableCell><Checkbox checked={selectedOrderIds.has(parent.id)} onCheckedChange={(c) => handleSelectOne(parent.id, !!c)} aria-label={`Seleccionar ${baseName}`} disabled={parent.status === 'eliminado' || parent.status === 'cancelado'} /></TableCell>
                                         )}
                                         <TableCell className="font-semibold">
                                             <div className="flex items-center gap-2">
@@ -621,25 +659,28 @@ export default function ServiceOrderListPage() {
                                                     <span>{baseName}</span>
                                                     {childCount > 0 && <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200", isExpanded && "rotate-180")} />}
                                                 </button>
-                                                {childCount > 0 && <Badge variant="secondary">{childCount}</Badge>}
-                                                {parent.data.isSplitParent && <Badge className="bg-purple-600 hover:bg-purple-700">Dividida</Badge>}
                                             </div>
                                         </TableCell>
-                                        <TableCell>{displayedGuide}</TableCell>
+                                        <TableCell>
+                                            <p className="font-medium text-primary">{displayedGuide}</p>
+                                            <p className="text-sm text-muted-foreground">{displayedChofer}</p>
+                                        </TableCell>
                                         {isCurrentUserAdmin && (<><TableCell>{parent.createdBy}</TableCell><TableCell>{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(parent)}</TableCell></>)}
                                         <TableCell>{renderOrderActions(parent)}</TableCell>
                                     </TableRow>
 
                                     {isExpanded && children.map(child => (
                                         <TableRow key={child.id} className="bg-muted/30 hover:bg-muted/50">
-                                            {isCurrentUserAdmin && <TableCell><Checkbox checked={selectedOrderIds.has(child.id)} onCheckedChange={(c) => handleSelectOne(child.id, !!c)} disabled={child.status === 'eliminado'} /></TableCell>}
+                                            {isCurrentUserAdmin && <TableCell><Checkbox checked={selectedOrderIds.has(child.id)} onCheckedChange={(c) => handleSelectOne(child.id, !!c)} disabled={child.status === 'eliminado' || child.status === 'cancelado'} /></TableCell>}
                                             <TableCell className="pl-12">
                                                 <div className="text-sm">
-                                                    <span className="text-muted-foreground">{baseName} › </span>
-                                                    <span className="font-medium">{childNameFrom(baseName, child).replace(`${baseName} — `, "")}</span>
+                                                    <span className="font-medium">{child.orderName}</span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{child.data.guia || shortPerson(child.data.services[0]?.chofer)}</TableCell>
+                                            <TableCell>
+                                                <p className="font-medium text-primary">{shortPerson(child.data.responsible?.guia)}</p>
+                                                <p className="text-sm text-muted-foreground">{shortPerson(child.data.responsible?.chofer)}</p>
+                                            </TableCell>
                                             {isCurrentUserAdmin && (<><TableCell>{child.createdBy}</TableCell><TableCell>{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(child)}</TableCell></>)}
                                             <TableCell>{renderOrderActions(child)}</TableCell>
                                         </TableRow>
