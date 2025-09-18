@@ -140,7 +140,7 @@ export default function ServiceOrderListPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
-  const families = useMemo(() => {
+ const families = useMemo(() => {
     const byId = new Map(orders.map(o => [o.id, o]));
     const familyGroups = new Map<string, { parent: StoredServiceOrder; children: StoredServiceOrder[] }>();
 
@@ -163,10 +163,11 @@ export default function ServiceOrderListPage() {
 
     const filteredAndSortedFamilies = allFamilies.filter(({ parent, children }) => {
       const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
+
       const orderIsVisible = (order: StoredServiceOrder) => {
         const isInactive = order.status === 'eliminado' || order.status === 'cancelado';
         if (currentFilterState === 'all') return true;
-        if (currentFilterState === 'deleted') return isInactive;
+        if (currentFilterState === 'deleted') return order.status === 'eliminado';
         return !isInactive;
       };
 
@@ -174,17 +175,19 @@ export default function ServiceOrderListPage() {
 
       if (searchTerm) {
         const lowercasedFilter = searchTerm.toLowerCase();
+        const allGuidsInFamily = new Set<string>();
+        const allDriversInFamily = new Set<string>();
+        
+        if (parent.data.guia) allGuidsInFamily.add(parent.data.guia);
+        parent.data.services?.forEach(service => {
+            if (service.guia) allGuidsInFamily.add(service.guia);
+            if (service.chofer) allDriversInFamily.add(service.chofer);
+        });
+
         const checkOrder = (order: StoredServiceOrder) => {
           if (!order.data) return false;
           const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
-          const allGuidsInFamily = new Set<string>([parent.data.guia || '']);
-          const allDriversInFamily = new Set<string>();
-
-          parent.data.services?.forEach(service => {
-              if (service.guia) allGuidsInFamily.add(service.guia);
-              if (service.chofer) allDriversInFamily.add(service.chofer);
-          });
-          const responsibleText = [...allGuidsInFamily, ...allDriversInFamily].filter(Boolean).join(' ').toLowerCase();
+          const responsibleText = [...allGuidsInFamily, ...allDriversInFamily].filter(Boolean).map(p => shortPerson(p)).join(' ').toLowerCase();
 
           return (
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
@@ -268,17 +271,13 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     const batch = writeBatch(db);
 
     try {
-        // Step 1: Find all existing children and mark them as 'cancelado'
         const existingChildren = await getChildrenByParentId(parentId);
         existingChildren.forEach(child => {
-            if (child.id !== parentId) { // Do not cancel the parent itself if it's in the list
+            if (child.id !== parentId) {
                 batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
             }
         });
 
-        // Step 2: Create new children from the updated data based on two perspectives
-        
-        // --- PERSPECTIVA GUIA ---
         const guideServiceMap = new Map<string, any[]>();
         updatedOrderData.services.forEach(service => {
             const guideKey = service.guia || updatedOrderData.guia;
@@ -288,7 +287,6 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
             }
         });
 
-        // --- PERSPECTIVA CHOFER ---
         const driverServiceMap = new Map<string, any[]>();
         updatedOrderData.services.forEach(service => {
             if (service.chofer) {
@@ -297,34 +295,30 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
             }
         });
         
-        // Step 3: Write new child orders to the batch
-        for (const [guide, services] of guideServiceMap.entries()) {
-            const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: guide };
-            const childName = childNameFrom(parentBaseName, guide, null);
-            const newDocRef = doc(collection(db, 'serviceOrders'));
-            batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
-        }
-        
-        for (const [driver, services] of driverServiceMap.entries()) {
-            // Check if a guide-only order for this exact set of services already exists to avoid pure duplicates
-            const driverHasSingleGuide = new Set(services.map(s => s.guia || updatedOrderData.guia)).size === 1;
-            if (guideServiceMap.size === 1 && driverHasSingleGuide) {
-                // This scenario is fully covered by the guide's perspective order, so skip creating a duplicate driver order.
-                continue;
+        const isSplit = guideServiceMap.size > 1 || driverServiceMap.size > 0 || (guideServiceMap.size === 1 && Array.from(guideServiceMap.keys())[0] !== updatedOrderData.guia);
+
+        if (isSplit) {
+            for (const [guide, services] of guideServiceMap.entries()) {
+                const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: guide };
+                const childName = childNameFrom(parentBaseName, guide, null);
+                const newDocRef = doc(collection(db, 'serviceOrders'));
+                batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
             }
-            const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: '' }; // Guia is blank as it's driver's perspective
-            const childName = childNameFrom(parentBaseName, null, driver);
-            const newDocRef = doc(collection(db, 'serviceOrders'));
-            batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
+            
+            for (const [driver, services] of driverServiceMap.entries()) {
+                const driverHasSingleGuide = new Set(services.map(s => s.guia || updatedOrderData.guia)).size === 1;
+                if (guideServiceMap.size === 1 && driverHasSingleGuide) continue;
+                
+                const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: '' };
+                const childName = childNameFrom(parentBaseName, null, driver);
+                const newDocRef = doc(collection(db, 'serviceOrders'));
+                batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
+            }
         }
         
-        const isSplit = guideServiceMap.size > 0 || driverServiceMap.size > 0;
-        
-        // Step 4: Update the parent order
         const parentUpdateData: any = { data: updatedOrderData, isSplitParent: isSplit, status: 'editado', updatedAt: serverTimestamp() };
         batch.update(doc(db, 'serviceOrders', parentId), parentUpdateData);
 
-        // Step 5: Commit all changes
         await batch.commit();
         
         toast({ title: "Éxito", description: "La orden ha sido dividida exitosamente.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
@@ -333,7 +327,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
         toast({ title: "Error al Guardar", description: error.message || "No se pudo guardar la orden.", variant: "destructive" });
     }
 
-    fetchOrders(); // Refresh the list to show the new state
+    fetchOrders(); 
     setIsEditModalOpen(false);
     setOrderToEdit(null);
 };
@@ -627,7 +621,8 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                             const childCount = children.length;
                             const isExpanded = expandedFamilies.has(parent.id);
                             
-                            const allGuidsInFamily = new Set<string>([parent.data.guia || '']);
+                            const allGuidsInFamily = new Set<string>();
+                            if (parent.data.guia) allGuidsInFamily.add(parent.data.guia);
                             const allDriversInFamily = new Set<string>();
 
                             parent.data.services?.forEach(service => {
@@ -743,4 +738,5 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     </TooltipProvider>
   );
 }
+
 
