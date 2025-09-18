@@ -141,25 +141,22 @@ export default function ServiceOrderListPage() {
   }, [authLoading]);
 
   const families = useMemo(() => {
-    // 1. Determine the active filter state. Non-admins can only see 'active' orders.
     const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
-
-    // 2. Pre-filter all orders based on the current filter state.
-    const visibleOrders = orders.filter(order => {
-        const isInactive = order.status === 'eliminado' || order.status === 'cancelado';
-        if (currentFilterState === 'all') return true;
-        if (currentFilterState === 'deleted') return order.status === 'eliminado';
-        return !isInactive; // 'active' filter
-    });
-
-    // 3. Apply search term filter on the pre-filtered list.
+    
+    const orderIsVisible = (order: StoredServiceOrder) => {
+      if (currentFilterState === 'all') return true;
+      const isInactive = order.status === 'eliminado' || order.status === 'cancelado';
+      if (currentFilterState === 'deleted') return order.status === 'eliminado';
+      return !isInactive; // 'active' filter
+    };
+    
+    const visibleOrders = orders.filter(orderIsVisible);
+    
     const searchedOrders = searchTerm
       ? visibleOrders.filter(order => {
           const lowercasedFilter = searchTerm.toLowerCase();
           const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
           
-          // To search by responsible, we need to check the family later.
-          // For now, check other fields.
           const checkOrder = 
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
             (order.data.guia && shortPerson(order.data.guia).toLowerCase().includes(lowercasedFilter)) ||
@@ -170,7 +167,6 @@ export default function ServiceOrderListPage() {
         })
       : visibleOrders;
 
-    // 4. Group the remaining orders into families.
     const byId = new Map(searchedOrders.map(o => [o.id, o]));
     const familyGroups = new Map<string, { parent: StoredServiceOrder; children: StoredServiceOrder[] }>();
 
@@ -189,7 +185,6 @@ export default function ServiceOrderListPage() {
         }
     }
     
-    // 5. Final processing and sorting.
     const allFamilies = Array.from(familyGroups.values());
 
     return allFamilies
@@ -619,18 +614,12 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                             const allDriversInFamily = new Set<string>();
 
                             if (parent.data.isSplitParent) {
-                                // For split parents, gather from all children services
-                                children.forEach(childOrder => {
-                                    childOrder.data.services?.forEach(service => {
-                                        if (service.guia) allGuidsInFamily.add(service.guia);
-                                        if (service.chofer) allDriversInFamily.add(service.chofer);
-                                    });
-                                    if(childOrder.data.guia) allGuidsInFamily.add(childOrder.data.guia);
+                                parent.data.services?.forEach(service => {
+                                    if(service.guia) allGuidsInFamily.add(service.guia);
+                                    if(service.chofer) allDriversInFamily.add(service.chofer);
                                 });
-                                // Also add the main guide from the parent itself
                                 if (parent.data.guia) allGuidsInFamily.add(parent.data.guia);
                             } else {
-                                // For non-split parents, just use its own data
                                 if (parent.data.guia) allGuidsInFamily.add(parent.data.guia);
                                 parent.data.services?.forEach(service => {
                                     if (service.guia) allGuidsInFamily.add(service.guia);
@@ -746,6 +735,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     </TooltipProvider>
   );
 }
+
 
 
 
