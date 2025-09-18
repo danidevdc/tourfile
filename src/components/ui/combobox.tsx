@@ -35,17 +35,17 @@ interface ComboboxProps {
     notFoundMessage?: string;
     className?: string;
     triggerClassName?: string;
-    disabled?: boolean; // Added disabled prop
+    disabled?: boolean;
 }
 
 
 export function Combobox({ options, value, onSelect, placeholder, notFoundMessage, className, triggerClassName, disabled = false }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
-  const selectedLabel = options.find((option) => option.value === value)?.label;
+  const selectedLabel = options.find((option) => option.value.toUpperCase() === value.toUpperCase())?.label;
 
   return (
-    <Popover open={open} onOpenChange={(newState) => !disabled && setOpen(newState)} modal={false}>
+    <Popover open={open} onOpenChange={(newState) => !disabled && setOpen(newState)} modal={true}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -80,14 +80,14 @@ export function Combobox({ options, value, onSelect, placeholder, notFoundMessag
                     key={option.key || option.value}
                     value={option.value}
                     onSelect={(currentValue) => {
-                      onSelect(currentValue === value ? "" : currentValue)
+                      onSelect(currentValue.toUpperCase() === value.toUpperCase() ? "" : currentValue.toUpperCase())
                       setOpen(false)
                     }}
                   >
                     <Check
                       className={cn(
                         "mr-2 h-4 w-4",
-                        value === option.value ? "opacity-100" : "opacity-0"
+                        value.toUpperCase() === option.value.toUpperCase() ? "opacity-100" : "opacity-0"
                       )}
                     />
                     {option.label}
