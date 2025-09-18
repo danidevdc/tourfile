@@ -268,18 +268,20 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     try {
         const existingChildren = await getChildrenByParentId(parentId);
         existingChildren.forEach(child => {
-            if (child.id !== parentId) { // No cancelar a la madre
+            if (child.id !== parentId) { 
                 batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
             }
         });
-
+        
+        // --- Create Guide Perspective ---
         const guideServiceMap = new Map<string, any[]>();
         updatedOrderData.services.forEach(service => {
             const guideKey = service.guia || updatedOrderData.guia || 'SIN GUIA';
             if (!guideServiceMap.has(guideKey)) guideServiceMap.set(guideKey, []);
             guideServiceMap.get(guideKey)!.push(service);
         });
-        
+
+        // --- Create Driver Perspective ---
         const driverServiceMap = new Map<string, any[]>();
         updatedOrderData.services.forEach(service => {
             if (service.chofer) {
@@ -291,7 +293,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
         const isSplit = guideServiceMap.size > 1 || driverServiceMap.size > 0;
 
         for (const [guide, services] of guideServiceMap.entries()) {
-            if (guide === 'SIN GUIA') continue;
+            if (guide === 'SIN GUIA' || guide === '') continue; // Skip if no guide is assigned
             const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: guide };
             const childName = childNameFrom(parentBaseName, guide, null);
             const newDocRef = doc(collection(db, 'serviceOrders'));
@@ -299,7 +301,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
         }
         
         for (const [driver, services] of driverServiceMap.entries()) {
-            const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: '' };
+             const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: '' };
             const childName = childNameFrom(parentBaseName, null, driver);
             const newDocRef = doc(collection(db, 'serviceOrders'));
             batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
@@ -612,17 +614,17 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                             if (parent.data.isSplitParent) {
                                 const allGuides = new Set<string>();
                                 if (parent.data.guia) allGuides.add(parent.data.guia);
-                                // Include guides from children as well for a complete overview
+                                
+                                const allDrivers = new Set<string>();
+                                
                                 children.forEach(child => {
                                     if(child.data.guia) allGuides.add(child.data.guia);
-                                    child.data.services?.forEach(s => { if(s.guia) allGuides.add(s.guia) });
+                                    child.data.services?.forEach(s => { 
+                                        if(s.guia) allGuides.add(s.guia);
+                                        if (s.chofer) allDrivers.add(s.chofer);
+                                    });
                                 });
                                 displayedGuides = Array.from(allGuides);
-
-                                const allDrivers = new Set<string>();
-                                children.forEach(child => {
-                                    child.data.services?.forEach(s => { if (s.chofer) allDrivers.add(s.chofer) });
-                                });
                                 displayedDrivers = Array.from(allDrivers);
                             } else {
                                 if (parent.data.guia) displayedGuides = [parent.data.guia];
