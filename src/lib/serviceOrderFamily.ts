@@ -14,8 +14,8 @@ export const getBaseName = (name: string) => {
   return parts[0].replace(/_/g, " ").trim();
 };
 
-export const shortPerson = (full?: string) => {
-  if (!full) return "N/A";
+export const shortPerson = (full?: string): string => {
+  if (!full || full.trim() === '') return '';
   return full.replace(/^CONT\.\s*/i, "").trim().split(/\s+/)[0].toUpperCase();
 };
 
