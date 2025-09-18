@@ -623,11 +623,10 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                             const childCount = children.length;
                             const isExpanded = expandedFamilies.has(parent.id);
                             
-                            // For parent row, collect all unique guides and drivers from the parent's data.services
-                            const allGuidesInFamily = new Set<string>();
-                            if (parent.data.guia) allGuidesInFamily.add(parent.data.guia);
-
+                            // For parent row, collect all unique guides and drivers from the parent's data services
+                            const allGuidesInFamily = new Set<string>([parent.data.guia].filter(Boolean));
                             const allDriversInFamily = new Set<string>();
+
                             parent.data.services.forEach(service => {
                                 if (service.guia) allGuidesInFamily.add(service.guia);
                                 if (service.chofer) allDriversInFamily.add(service.chofer);
@@ -743,3 +742,4 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
 
     
     
+
