@@ -140,15 +140,45 @@ export default function ServiceOrderListPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
- const families = useMemo(() => {
-    const byId = new Map(orders.map(o => [o.id, o]));
+  const families = useMemo(() => {
+    // 1. Determine the active filter state. Non-admins can only see 'active' orders.
+    const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
+
+    // 2. Pre-filter all orders based on the current filter state.
+    const visibleOrders = orders.filter(order => {
+        const isInactive = order.status === 'eliminado' || order.status === 'cancelado';
+        if (currentFilterState === 'all') return true;
+        if (currentFilterState === 'deleted') return order.status === 'eliminado';
+        return !isInactive; // 'active' filter
+    });
+
+    // 3. Apply search term filter on the pre-filtered list.
+    const searchedOrders = searchTerm
+      ? visibleOrders.filter(order => {
+          const lowercasedFilter = searchTerm.toLowerCase();
+          const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
+          
+          // To search by responsible, we need to check the family later.
+          // For now, check other fields.
+          const checkOrder = 
+            order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
+            (order.data.guia && shortPerson(order.data.guia).toLowerCase().includes(lowercasedFilter)) ||
+            (isCurrentUserAdmin && order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
+            (isCurrentUserAdmin && date.toLowerCase().includes(lowercasedFilter));
+
+          return checkOrder;
+        })
+      : visibleOrders;
+
+    // 4. Group the remaining orders into families.
+    const byId = new Map(searchedOrders.map(o => [o.id, o]));
     const familyGroups = new Map<string, { parent: StoredServiceOrder; children: StoredServiceOrder[] }>();
 
-    for (const order of orders) {
+    for (const order of searchedOrders) {
         if (!order.data) continue;
         const familyId = getFamilyId(order);
-        
         const parentOrder = byId.get(familyId);
+        
         if (parentOrder) {
             if (!familyGroups.has(familyId)) {
                 familyGroups.set(familyId, { parent: parentOrder, children: [] });
@@ -158,55 +188,19 @@ export default function ServiceOrderListPage() {
             }
         }
     }
-
+    
+    // 5. Final processing and sorting.
     const allFamilies = Array.from(familyGroups.values());
 
-    const filteredAndSortedFamilies = allFamilies.filter(({ parent, children }) => {
-      const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
+    return allFamilies
+      .map(group => ({
+        ...group,
+        children: group.children.sort((a, b) => a.orderName.localeCompare(b.orderName))
+      }))
+      .sort((a, b) => b.parent.createdAt.getTime() - a.parent.createdAt.getTime());
 
-      const orderIsVisible = (order: StoredServiceOrder) => {
-        const isInactive = order.status === 'eliminado' || order.status === 'cancelado';
-        if (currentFilterState === 'all') return true;
-        if (currentFilterState === 'deleted') return order.status === 'eliminado';
-        return !isInactive;
-      };
-
-      if (!orderIsVisible(parent)) return false;
-
-      if (searchTerm) {
-        const lowercasedFilter = searchTerm.toLowerCase();
-        const allGuidsInFamily = new Set<string>();
-        const allDriversInFamily = new Set<string>();
-        
-        if (parent.data.guia) allGuidsInFamily.add(parent.data.guia);
-        parent.data.services?.forEach(service => {
-            if (service.guia) allGuidsInFamily.add(service.guia);
-            if (service.chofer) allDriversInFamily.add(service.chofer);
-        });
-
-        const checkOrder = (order: StoredServiceOrder) => {
-          if (!order.data) return false;
-          const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
-          const responsibleText = [...allGuidsInFamily, ...allDriversInFamily].filter(Boolean).map(p => shortPerson(p)).join(' ').toLowerCase();
-
-          return (
-            order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
-            responsibleText.includes(lowercasedFilter) ||
-            (isCurrentUserAdmin && order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
-            (isCurrentUserAdmin && date.toLowerCase().includes(lowercasedFilter))
-          );
-        };
-        return checkOrder(parent) || children.some(checkOrder);
-      }
-      
-      return true;
-    }).map(group => ({
-      ...group,
-      children: group.children.sort((a, b) => a.orderName.localeCompare(b.orderName))
-    })).sort((a, b) => b.parent.createdAt.getTime() - a.parent.createdAt.getTime());
-    
-    return filteredAndSortedFamilies;
-}, [orders, filterState, searchTerm, isCurrentUserAdmin]);
+  }, [orders, filterState, searchTerm, isCurrentUserAdmin]);
+  
   
   // Expose the modal function and data globally
   useEffect(() => {
@@ -291,7 +285,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
         updatedOrderData.services.forEach(service => {
             if (service.chofer) {
               if (!driverServiceMap.has(service.chofer)) driverServiceMap.set(service.chofer, []);
-                driverServiceMap.get(service.chofer)!.push(service);
+              driverServiceMap.get(service.chofer)!.push(service);
             }
         });
         
@@ -622,13 +616,27 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                             const isExpanded = expandedFamilies.has(parent.id);
                             
                             const allGuidsInFamily = new Set<string>();
-                            if (parent.data.guia) allGuidsInFamily.add(parent.data.guia);
                             const allDriversInFamily = new Set<string>();
 
-                            parent.data.services?.forEach(service => {
-                                if (service.guia) allGuidsInFamily.add(service.guia);
-                                if (service.chofer) allDriversInFamily.add(service.chofer);
-                            });
+                            if (parent.data.isSplitParent) {
+                                // For split parents, gather from all children services
+                                children.forEach(childOrder => {
+                                    childOrder.data.services?.forEach(service => {
+                                        if (service.guia) allGuidsInFamily.add(service.guia);
+                                        if (service.chofer) allDriversInFamily.add(service.chofer);
+                                    });
+                                    if(childOrder.data.guia) allGuidsInFamily.add(childOrder.data.guia);
+                                });
+                                // Also add the main guide from the parent itself
+                                if (parent.data.guia) allGuidsInFamily.add(parent.data.guia);
+                            } else {
+                                // For non-split parents, just use its own data
+                                if (parent.data.guia) allGuidsInFamily.add(parent.data.guia);
+                                parent.data.services?.forEach(service => {
+                                    if (service.guia) allGuidsInFamily.add(service.guia);
+                                    if (service.chofer) allDriversInFamily.add(service.chofer);
+                                });
+                            }
                             
                             const displayedGuides = Array.from(allGuidsInFamily).filter(Boolean);
                             const displayedDrivers = Array.from(allDriversInFamily).filter(Boolean);
@@ -738,5 +746,6 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     </TooltipProvider>
   );
 }
+
 
 
