@@ -34,14 +34,20 @@ export const inferSplitKind = (o: StoredServiceOrder): SplitKind => {
   return null;
 };
 
-// Consistent name for child orders
-export const childNameFrom = (parentBase: string, o: StoredServiceOrder): string => {
-    const guideToUse = o.data.responsible?.guia || o.data.guia;
-    const choferToUse = o.data.responsible?.chofer || '';
-
-    // Handle combined names for clarity
-    const guidePart = `G-${shortPerson(guideToUse)}`;
-    const driverPart = `C-${shortPerson(choferToUse)}`;
-
-    return `${parentBase} — ${guidePart}_${driverPart}`;
+/**
+ * Creates a consistent name for a child order based on its responsible person.
+ * @param parentBase The base name of the parent order (e.g., "ODS_FECHA_FILE").
+ * @param guide The full name of the guide responsible for this split.
+ * @param driver The full name of the driver responsible for this split.
+ * @returns A formatted string for the child order name.
+ */
+export const childNameFrom = (parentBase: string, guide: string | null, driver: string | null): string => {
+    if (guide) {
+      return `${parentBase} — G-${shortPerson(guide)}`;
+    }
+    if (driver) {
+      return `${parentBase} — C-${shortPerson(driver)}`;
+    }
+    return parentBase; // Fallback
 };
+
