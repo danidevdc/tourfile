@@ -626,15 +626,13 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                             const allGuidesInFamily = new Set<string>();
                             const allDriversInFamily = new Set<string>();
 
-                            if (parent.data.services) {
-                                parent.data.services.forEach(service => {
-                                    if (service.guia) allGuidesInFamily.add(service.guia);
-                                    else if(parent.data.guia) allGuidesInFamily.add(parent.data.guia);
-
-                                    if (service.chofer) allDriversInFamily.add(service.chofer);
-                                });
+                            if (parent.data.guia) {
+                                allGuidesInFamily.add(parent.data.guia);
                             }
-                            if(parent.data.guia) allGuidesInFamily.add(parent.data.guia);
+                            parent.data.services?.forEach(service => {
+                                if (service.guia) allGuidesInFamily.add(service.guia);
+                                if (service.chofer) allDriversInFamily.add(service.chofer);
+                            });
 
                             const displayedGuides = Array.from(allGuidesInFamily);
                             const displayedDrivers = Array.from(allDriversInFamily);
@@ -748,3 +746,6 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     
 
 
+
+
+    
