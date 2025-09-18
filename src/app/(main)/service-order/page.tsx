@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -139,73 +140,70 @@ export default function ServiceOrderListPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
-  const searchedOrders = useMemo(() => {
-    if (!searchTerm) {
-        return orders;
-    }
-    const lowercasedFilter = searchTerm.toLowerCase();
-    return orders.filter(order => {
-        const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
-        const responsible = order.data.responsible || {};
-        const guideName = responsible.guia || order.data.guia || '';
-        const driverName = responsible.chofer || '';
+  const families = useMemo(() => {
+    const byId = new Map(orders.map(o => [o.id, o]));
+    const groups = new Map<string, { parent: StoredServiceOrder; children: StoredServiceOrder[] }>();
 
-        return (
+    // First pass: group all orders into families by their parent ID
+    for (const order of orders) {
+      if (!order.data) continue;
+      const familyId = getFamilyId(order);
+      const parentOrder = byId.get(familyId);
+      if (!parentOrder) continue;
+
+      if (!groups.has(familyId)) {
+        groups.set(familyId, { parent: parentOrder, children: [] });
+      }
+      if (order.id !== familyId) {
+        groups.get(familyId)!.children.push(order);
+      }
+    }
+
+    // Second pass: filter the assembled families
+    const allFamilies = Array.from(groups.values());
+
+    const filteredAndSortedFamilies = allFamilies.filter(({ parent, children }) => {
+      // Filter logic
+      const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
+      const orderIsVisible = (order: StoredServiceOrder) => {
+        if (currentFilterState === 'all') return true;
+        const isDeleted = order.status === 'eliminado' || order.status === 'cancelado';
+        return currentFilterState === 'deleted' ? isDeleted : !isDeleted;
+      };
+
+      if (!orderIsVisible(parent)) return false;
+
+      // Search logic
+      if (searchTerm) {
+        const lowercasedFilter = searchTerm.toLowerCase();
+        const checkOrder = (order: StoredServiceOrder) => {
+          if (!order.data) return false;
+          const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
+          const responsible = order.data.responsible || {};
+          const guideName = responsible.guia || order.data.guia || '';
+          const driverName = responsible.chofer || '';
+
+          return (
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
             guideName.toLowerCase().includes(lowercasedFilter) ||
             driverName.toLowerCase().includes(lowercasedFilter) ||
             (isCurrentUserAdmin && order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
             (isCurrentUserAdmin && date.toLowerCase().includes(lowercasedFilter))
-        );
-    });
-  }, [searchTerm, orders, isCurrentUserAdmin]);
+          );
+        };
 
-  const filteredOrders = useMemo(() => {
-    const currentFilterState = isCurrentUserAdmin ? filterState : 'active';
-    if (currentFilterState === 'all') {
-        return searchedOrders;
-    }
-    if (currentFilterState === 'active') {
-        return searchedOrders.filter(order => order.status !== 'eliminado' && order.status !== 'cancelado');
-    }
-    if (currentFilterState === 'deleted') {
-        return searchedOrders.filter(order => order.status === 'eliminado' || order.status === 'cancelado');
-    }
-    return searchedOrders;
-  }, [searchedOrders, isCurrentUserAdmin, filterState]);
-
-  const families = useMemo(() => {
-    const byId = new Map<string, StoredServiceOrder>();
-    orders.forEach(o => byId.set(o.id, o));
-  
-    const groups = new Map<string, { parent: StoredServiceOrder, children: StoredServiceOrder[] }>();
-  
-    for (const o of filteredOrders) {
-      if (!o.data) continue;
-      
-      const famId = getFamilyId(o);
-      const parent = o.splitFrom ? byId.get(o.splitFrom) : o;
-
-      if (!parent) continue;
-
-      const parentKey = parent.id;
-  
-      if (!groups.has(parentKey)) {
-        groups.set(parentKey, { parent, children: [] });
+        return checkOrder(parent) || children.some(checkOrder);
       }
-      if (o.id !== parentKey) {
-        groups.get(parentKey)!.children.push(o);
-      }
-    }
-  
-    return Array.from(groups.values())
-      .sort((a, b) => b.parent.createdAt.getTime() - a.parent.createdAt.getTime())
-      .map(g => ({ 
-        ...g, 
-        children: g.children.sort((x, y) => x.orderName.localeCompare(y.orderName)) 
-      }));
-  }, [filteredOrders, orders]);
 
+      return true;
+    }).map(group => ({
+      ...group,
+      children: group.children.sort((a, b) => a.orderName.localeCompare(b.orderName))
+    })).sort((a, b) => b.parent.createdAt.getTime() - a.parent.createdAt.getTime());
+    
+    return filteredAndSortedFamilies;
+  }, [orders, filterState, searchTerm, isCurrentUserAdmin]);
+  
   // Expose the modal function and data globally
   useEffect(() => {
     window.showSimplePreviewModal = (order) => {
@@ -227,7 +225,7 @@ export default function ServiceOrderListPage() {
   
   const paginatedFamilies = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return families.slice(startIndex, startIndex, ITEMS_PER_PAGE);
+    return families.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [families, currentPage]);
 
   const totalPages = Math.ceil(families.length / ITEMS_PER_PAGE);
