@@ -268,52 +268,45 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     try {
         const existingChildren = await getChildrenByParentId(parentId);
         existingChildren.forEach(child => {
-            if (child.id !== parentId) { // Do not cancel the parent itself
+            if (child.id !== parentId) {
                 batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
             }
         });
 
-        const servicesByGuide = new Map<string, any[]>();
-        const servicesByDriver = new Map<string, any[]>();
-
+        const guideServiceMap = new Map<string, any[]>();
         updatedOrderData.services.forEach(s => {
-            const guide = s.guia || updatedOrderData.guia;
-            if (guide) {
-                if (!servicesByGuide.has(guide)) servicesByGuide.set(guide, []);
-                servicesByGuide.get(guide)!.push(s);
-            }
+            const guideKey = s.guia || updatedOrderData.guia;
+            if (!guideServiceMap.has(guideKey)) guideServiceMap.set(guideKey, []);
+            guideServiceMap.get(guideKey)!.push(s);
+        });
+
+        const driverServiceMap = new Map<string, any[]>();
+        updatedOrderData.services.forEach(s => {
             if (s.chofer) {
-                if (!servicesByDriver.has(s.chofer)) servicesByDriver.set(s.chofer, []);
-                servicesByDriver.get(s.chofer)!.push(s);
+                if (!driverServiceMap.has(s.chofer)) driverServiceMap.set(s.chofer, []);
+                driverServiceMap.get(s.chofer)!.push(s);
             }
         });
-        
-        const isSplit = servicesByGuide.size > 1 || servicesByDriver.size > 0;
 
-        // --- Create Children Orders ---
+        const isSplit = guideServiceMap.size > 1 || driverServiceMap.size > 0;
+
         if (isSplit) {
-            // From Guide's Perspective
-            for (const [guide, services] of servicesByGuide.entries()) {
+            for (const [guide, services] of guideServiceMap.entries()) {
                 const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: guide };
                 const childName = childNameFrom(parentBaseName, guide, null);
-                const newDocRef = doc(collection(db, 'serviceOrders'));
-                batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
+                batch.set(doc(collection(db, 'serviceOrders')), { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
             }
-            // From Driver's Perspective
-            for (const [driver, services] of servicesByDriver.entries()) {
-                // Avoid creating a duplicate if a guide-driver pair is the only one
-                const hasSingleGuideOwner = services.every(s => (s.guia || updatedOrderData.guia) === services[0].guia);
-                if (servicesByGuide.size === 1 && hasSingleGuideOwner && servicesByGuide.has(services[0].guia || updatedOrderData.guia)) {
-                   continue;
+
+            for (const [driver, services] of driverServiceMap.entries()) {
+                if (guideServiceMap.size === 1 && services.every(s => (s.guia || updatedOrderData.guia) === guideServiceMap.keys().next().value)) {
+                    continue; 
                 }
-                const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: updatedOrderData.guia };
+                const childDataPayload: ServiceOrderData = { ...updatedOrderData, services };
                 const childName = childNameFrom(parentBaseName, null, driver);
-                const newDocRef = doc(collection(db, 'serviceOrders'));
-                batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
+                batch.set(doc(collection(db, 'serviceOrders')), { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
             }
         }
         
-        // --- Update Parent Order ---
         const parentUpdateData: any = { data: updatedOrderData, isSplitParent: isSplit, status: 'editado', updatedAt: serverTimestamp() };
         batch.update(doc(db, 'serviceOrders', parentId), parentUpdateData);
 
@@ -659,24 +652,33 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                                         <TableCell>{renderOrderActions(parent)}</TableCell>
                                     </TableRow>
 
-                                    {isExpanded && children.map(child => (
-                                        <TableRow key={child.id} className="bg-muted/30 hover:bg-muted/50">
-                                            {isCurrentUserAdmin && <TableCell><Checkbox checked={selectedOrderIds.has(child.id)} onCheckedChange={(c) => handleSelectOne(child.id, !!c)} disabled={child.status === 'eliminado' || child.status === 'cancelado'} /></TableCell>}
-                                            <TableCell className="pl-12">
-                                                <div className="text-sm">
-                                                    <span className="font-medium">{child.orderName}</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                 <div className="flex items-center gap-1 flex-wrap">
-                                                    {child.data.guia && <Badge className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 hover:bg-blue-100"><User size={12} className="mr-1"/>{shortPerson(child.data.guia)}</Badge>}
-                                                    {Array.from(new Set(child.data.services.map(s => s.chofer).filter(Boolean))).map(c => <Badge key={c} className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 hover:bg-green-100"><Car size={12} className="mr-1"/>{shortPerson(c as string).replace(/^CONT\s*/i, '')}</Badge>)}
-                                                 </div>
-                                            </TableCell>
-                                            {isCurrentUserAdmin && (<><TableCell>{child.createdBy}</TableCell><TableCell>{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(child)}</TableCell></>)}
-                                            <TableCell>{renderOrderActions(child)}</TableCell>
-                                        </TableRow>
-                                    ))}
+                                    {isExpanded && children.map(child => {
+                                        const isDriverPerspective = child.orderName.includes(" — C-");
+                                        return (
+                                            <TableRow key={child.id} className="bg-muted/30 hover:bg-muted/50">
+                                                {isCurrentUserAdmin && <TableCell><Checkbox checked={selectedOrderIds.has(child.id)} onCheckedChange={(c) => handleSelectOne(child.id, !!c)} disabled={child.status === 'eliminado' || child.status === 'cancelado'} /></TableCell>}
+                                                <TableCell className="pl-12">
+                                                    <div className="text-sm">
+                                                        <span className="font-medium">{child.orderName}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-1 flex-wrap">
+                                                        {!isDriverPerspective && child.data.guia && <Badge className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 hover:bg-blue-100"><User size={12} className="mr-1"/>{shortPerson(child.data.guia)}</Badge>}
+                                                        {Array.from(new Set(child.data.services.map(s => s.chofer).filter(Boolean))).map(c => {
+                                                          const isCombinedPerspective = child.orderName.includes(" — G-") && child.orderName.includes(" — C-");
+                                                          if (isDriverPerspective || isCombinedPerspective) {
+                                                            return <Badge key={c} className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 hover:bg-green-100"><Car size={12} className="mr-1"/>{shortPerson(c as string).replace(/^CONT\s*/i, '')}</Badge>
+                                                          }
+                                                          return null;
+                                                        })}
+                                                    </div>
+                                                </TableCell>
+                                                {isCurrentUserAdmin && (<><TableCell>{child.createdBy}</TableCell><TableCell>{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell><TableCell>{getStatusBadge(child)}</TableCell></>)}
+                                                <TableCell>{renderOrderActions(child)}</TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
                                 </React.Fragment>
                             )
                         }) : (
