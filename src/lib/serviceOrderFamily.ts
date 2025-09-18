@@ -3,7 +3,6 @@
 "use client";
 
 import type { StoredServiceOrder } from "./serviceOrderStorage";
-import type { SplitKind as InferredSplitKind } from "./serviceOrderFamily"; // Import the type if it's defined elsewhere
 
 export type SplitKind = "guide" | "driver" | "combined" | null;
 
@@ -16,23 +15,10 @@ export const getBaseName = (name: string) => {
 
 export const shortPerson = (full?: string): string => {
   if (!full || full.trim() === '') return '';
-  return full.replace(/^CONT\.\s*/i, "").trim().split(/\s+/)[0].toUpperCase();
+  // Corrected regex to make the dot optional and match "CONT " or "CONT. "
+  return full.replace(/^CONT\.?\s*/i, "").trim().split(/\s+/)[0].toUpperCase();
 };
 
-// Deduces the type of split looking at the services
-export const inferSplitKind = (o: StoredServiceOrder): SplitKind => {
-  const uniqueGuides = new Set(o.data.services?.map(s => s.guia || o.data.guia));
-  const uniqueDrivers = new Set(o.data.services?.map(s => s.chofer || ''));
-
-  const hasMultipleGuides = uniqueGuides.size > 1;
-  const hasMultipleDrivers = uniqueDrivers.size > 1;
-
-  if (hasMultipleGuides && hasMultipleDrivers) return "combined";
-  if (hasMultipleGuides) return "guide";
-  if (hasMultipleDrivers) return "driver";
-  
-  return null;
-};
 
 /**
  * Creates a consistent name for a child order based on its responsible person.
@@ -42,12 +28,17 @@ export const inferSplitKind = (o: StoredServiceOrder): SplitKind => {
  * @returns A formatted string for the child order name.
  */
 export const childNameFrom = (parentBase: string, guide: string | null, driver: string | null): string => {
-    if (guide) {
-      return `${parentBase} — G-${shortPerson(guide)}`;
+    const guidePart = guide ? `G-${shortPerson(guide)}` : '';
+    const driverPart = driver ? `C-${shortPerson(driver)}` : '';
+
+    if (guidePart && driverPart) {
+        return `${parentBase} — ${guidePart}_${driverPart}`;
     }
-    if (driver) {
-      return `${parentBase} — C-${shortPerson(driver)}`;
+    if (guidePart) {
+        return `${parentBase} — ${guidePart}`;
+    }
+    if (driverPart) {
+        return `${parentBase} — ${driverPart}`;
     }
     return parentBase; // Fallback
 };
-
