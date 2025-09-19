@@ -187,13 +187,13 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
   
   const assignedGuides = [editableOrderData.guia, ...additionalGuides].filter(Boolean);
   const serviceGuideOptions = [
-    { value: '', label: 'Ninguno' },
+    { value: 'NONE', label: 'Ninguno' },
     ...assignedGuides.map(g => ({ value: g.toUpperCase(), label: g.toUpperCase() }))
   ];
 
   const assignedDrivers = [...additionalDrivers].filter(Boolean);
   const serviceDriverOptions = [
-    { value: '', label: 'Ninguno' },
+    { value: 'NONE', label: 'Ninguno' },
     ...assignedDrivers.map(d => ({ value: d.toUpperCase(), label: d.toUpperCase() }))
   ];
   
@@ -202,7 +202,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
   
   const busOptions = buses.map(b => ({ value: b.name.toUpperCase(), label: b.name }));
   const finalBusOptions = [
-    { value: '', label: 'Ninguno' }, 
+    { value: 'NONE', label: 'Ninguno' }, 
     { value: 'SIN BUS', label: 'SIN BUS (A PIE)'},
     ...busOptions, 
     { value: 'CONT.', label: 'Contratado' }
@@ -289,9 +289,9 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Input value={s.hora || ''} onChange={(e) => handleServiceChange(originalIndex, 'hora', e.target.value)} onBlur={(e) => handleTimeBlur(originalIndex, e.target.value)} maxLength={5} placeholder="HH:mm" className="h-8 text-xs bg-background text-center"/></TableCell>
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-left"><Combobox options={activityOptions} value={s.servicio || ''} onSelect={(value) => handleServiceChange(originalIndex, 'servicio', value)} placeholder="Actividad..." className="h-8 text-xs" triggerClassName="bg-background"/></TableCell>
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Combobox options={flights.map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})`}))} value={s.vuelo || ''} onSelect={(value) => handleServiceChange(originalIndex, 'vuelo', value)} placeholder="Vuelo..." className="h-8 text-xs" triggerClassName="bg-background" disabled={!isTransfer}/></TableCell>
-                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium"><Select value={s.guia || editableOrderData.guia} onValueChange={(value) => handleServiceChange(originalIndex, 'guia', value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="Guía..." /></SelectTrigger><SelectContent>{serviceGuideOptions.map(g => <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>)}</SelectContent></Select></TableCell>
-                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Select value={s.bus || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="..." /></SelectTrigger><SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent></Select></TableCell>
-                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Select value={s.chofer || ''} onValueChange={(value) => handleServiceChange(originalIndex, 'chofer', value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="Chofer..." /></SelectTrigger><SelectContent>{serviceDriverOptions.map(d => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}</SelectContent></Select></TableCell>
+                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium"><Select value={s.guia || editableOrderData.guia || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'guia', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="Guía..." /></SelectTrigger><SelectContent>{serviceGuideOptions.map(g => <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>)}</SelectContent></Select></TableCell>
+                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Select value={s.bus || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="..." /></SelectTrigger><SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent></Select></TableCell>
+                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Select value={s.chofer || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'chofer', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="Chofer..." /></SelectTrigger><SelectContent>{serviceDriverOptions.map(d => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}</SelectContent></Select></TableCell>
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-left"><Input value={s.observaciones || ''} onChange={(e) => handleServiceChange(originalIndex, 'observaciones', e.target.value)} className="h-8 text-xs bg-background"/></TableCell>
                           <TableCell className="p-1 align-middle text-center"><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed" onClick={() => handleRemoveService(originalIndex)} disabled={!canDelete} title={canDelete ? "Eliminar servicio" : "No se puede eliminar el último servicio"}><XCircle className="h-4 w-4" /></Button></TableCell>
                         </TableRow>
