@@ -157,9 +157,24 @@ export default function ServiceOrderListPage() {
           const lowercasedFilter = searchTerm.toLowerCase();
           const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
           
+          if (!order.data) return false;
+
+          const allGuidsInOrder = new Set<string>();
+          if (order.data.guia) allGuidsInOrder.add(order.data.guia);
+          order.data.services?.forEach(s => {
+              if (s.guia) allGuidsInOrder.add(s.guia);
+          });
+          
+          const allDriversInOrder = new Set<string>();
+           order.data.services?.forEach(s => {
+              if (s.chofer) allDriversInOrder.add(s.chofer);
+          });
+
           const checkOrder = 
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
-            (order.data && order.data.guia && shortPerson(order.data.guia).toLowerCase().includes(lowercasedFilter)) ||
+            order.data.file.toLowerCase().includes(lowercasedFilter) ||
+            Array.from(allGuidsInOrder).some(g => shortPerson(g).toLowerCase().includes(lowercasedFilter)) ||
+            Array.from(allDriversInOrder).some(d => shortPerson(d).toLowerCase().includes(lowercasedFilter)) ||
             (isCurrentUserAdmin && order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
             (isCurrentUserAdmin && date.toLowerCase().includes(lowercasedFilter));
 
@@ -689,6 +704,8 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
+
+    
 
     
 
