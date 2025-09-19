@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -21,7 +20,7 @@ import {
     softCancelServiceOrder,
 } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
-import { getBaseName, getFamilyId, childNameFrom, shortPerson } from "@/lib/serviceOrderFamily";
+import { getFamilyId, childNameFrom, shortPerson, getBaseName } from "@/lib/serviceOrderFamily";
 import { showSimplePreviewModal } from '@/lib/simplePreviewModal';
 
 import { Button } from "@/components/ui/button";
@@ -147,7 +146,8 @@ export default function ServiceOrderListPage() {
         if (currentFilter === 'all') return true;
         const isInactive = order.status === 'eliminado' || order.status === 'cancelado';
         if (currentFilter === 'deleted') return order.status === 'eliminado';
-        return !isInactive; // 'active' filter
+        if (currentFilter === 'active') return !isInactive;
+        return !isInactive;
     };
     
     const visibleOrders = orders.filter(orderIsVisible);
@@ -180,11 +180,9 @@ export default function ServiceOrderListPage() {
                 familyGroups.set(familyId, { parent: parentOrder, children: [] });
             }
             if (order.id !== familyId) {
+                // Now, children are pre-filtered by `visibleOrders`, so no extra check is needed here
                 const existingChildren = familyGroups.get(familyId)!.children;
-                // Only add child if it's visible according to the filter
-                if (orderIsVisible(order)) {
-                    existingChildren.push(order);
-                }
+                existingChildren.push(order);
             }
         }
     }
@@ -299,9 +297,6 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
             }
             
             for (const [driver, services] of driverServiceMap.entries()) {
-                const driverHasSingleGuide = new Set(services.map(s => s.guia || updatedOrderData.guia)).size === 1;
-                if (guideServiceMap.size === 1 && driverHasSingleGuide) continue;
-                
                 const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: '' };
                 const childName = childNameFrom(parentBaseName, null, driver);
                 const newDocRef = doc(collection(db, 'serviceOrders'));
@@ -603,33 +598,27 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                             {isCurrentUserAdmin && <TableHead className="w-12"><Checkbox checked={isAllSelected} onCheckedChange={(checked) => handleSelectAll(!!checked)} aria-label="Seleccionar todas" disabled={filterState === 'deleted'} /></TableHead>}
                             <TableHead>Nombre de la Orden</TableHead>
                             <TableHead>Responsable(s)</TableHead>
+                            <TableHead>Estado</TableHead>
                             {isCurrentUserAdmin && <TableHead>Creado Por</TableHead>}
                             {isCurrentUserAdmin && <TableHead className="w-[120px]">Fecha</TableHead>}
-                            <TableHead>Estado</TableHead>
                             <TableHead className="text-left">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                        {paginatedFamilies.length > 0 ? paginatedFamilies.map(({ parent, children }) => {
-                            const baseName = getBaseName(parent.orderName);
+                            const parentName = parent.data?.ref || getBaseName(parent.orderName);
                             const childCount = children.length;
                             const isExpanded = expandedFamilies.has(parent.id);
                             
                             const allGuidsInFamily = new Set<string>();
                             const allDriversInFamily = new Set<string>();
 
-                            if (parent.data.isSplitParent) {
-                                parent.data.services?.forEach(service => {
+                            if (parent.data && parent.data.services) {
+                                parent.data.services.forEach(service => {
                                     if(service.guia) allGuidsInFamily.add(service.guia);
                                     if(service.chofer) allDriversInFamily.add(service.chofer);
                                 });
                                 if (parent.data.guia) allGuidsInFamily.add(parent.data.guia);
-                            } else {
-                                if (parent.data.guia) allGuidsInFamily.add(parent.data.guia);
-                                parent.data.services?.forEach(service => {
-                                    if (service.guia) allGuidsInFamily.add(service.guia);
-                                    if (service.chofer) allDriversInFamily.add(service.chofer);
-                                });
                             }
                             
                             const displayedGuides = Array.from(allGuidsInFamily).filter(Boolean);
@@ -639,7 +628,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                                 <React.Fragment key={parent.id}>
                                     <TableRow>
                                         {isCurrentUserAdmin && (
-                                            <TableCell><Checkbox checked={selectedOrderIds.has(parent.id)} onCheckedChange={(c) => handleSelectOne(parent.id, !!c)} aria-label={`Seleccionar ${baseName}`} disabled={parent.status === 'eliminado' || parent.status === 'cancelado'} /></TableCell>
+                                            <TableCell><Checkbox checked={selectedOrderIds.has(parent.id)} onCheckedChange={(c) => handleSelectOne(parent.id, !!c)} aria-label={`Seleccionar ${parentName}`} disabled={parent.status === 'eliminado' || parent.status === 'cancelado'} /></TableCell>
                                         )}
                                         <TableCell className="font-semibold">
                                             <div className="flex items-center gap-2">
@@ -648,7 +637,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                                                     disabled={childCount === 0}
                                                     className="flex items-center gap-1 text-left hover:underline p-0 bg-transparent border-none disabled:cursor-default disabled:no-underline"
                                                 >
-                                                    <span>{baseName}</span>
+                                                    <span>{parentName}</span>
                                                     {childCount > 0 && <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200", isExpanded && "rotate-180")} />}
                                                 </button>
                                             </div>
@@ -659,9 +648,9 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                                                 {displayedDrivers.map(d => <Badge key={d} className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 hover:bg-green-100"><Car size={12} className="mr-1"/>{shortPerson(d)}</Badge>)}
                                             </div>
                                         </TableCell>
+                                        <TableCell>{getStatusBadge(parent, true, childCount)}</TableCell>
                                         {isCurrentUserAdmin && <TableCell>{parent.createdBy}</TableCell>}
                                         {isCurrentUserAdmin && <TableCell>{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>}
-                                        <TableCell>{getStatusBadge(parent, true, childCount)}</TableCell>
                                         <TableCell>{renderOrderActions(parent)}</TableCell>
                                     </TableRow>
 
@@ -684,9 +673,9 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                                                         )}
                                                     </div>
                                                 </TableCell>
+                                                <TableCell>{getStatusBadge(child)}</TableCell>
                                                 {isCurrentUserAdmin && <TableCell>{child.createdBy}</TableCell>}
                                                 {isCurrentUserAdmin && <TableCell>{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>}
-                                                <TableCell>{getStatusBadge(child)}</TableCell>
                                                 <TableCell>{renderOrderActions(child)}</TableCell>
                                             </TableRow>
                                         );
@@ -741,7 +730,4 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
   );
 }
 
-
-
-
-
+    
