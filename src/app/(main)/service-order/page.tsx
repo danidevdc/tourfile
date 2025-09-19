@@ -159,7 +159,7 @@ export default function ServiceOrderListPage() {
           
           const checkOrder = 
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
-            (order.data.guia && shortPerson(order.data.guia).toLowerCase().includes(lowercasedFilter)) ||
+            (order.data && order.data.guia && shortPerson(order.data.guia).toLowerCase().includes(lowercasedFilter)) ||
             (isCurrentUserAdmin && order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
             (isCurrentUserAdmin && date.toLowerCase().includes(lowercasedFilter));
 
@@ -689,6 +689,8 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
+
+    
 
     
 
