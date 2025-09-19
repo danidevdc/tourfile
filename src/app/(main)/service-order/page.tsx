@@ -270,8 +270,10 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
         });
 
         const guideServiceMap = new Map<string, any[]>();
+        const mainGuide = updatedOrderData.guia || "SIN GUIA PRINCIPAL";
+        
         updatedOrderData.services.forEach(service => {
-            const guideKey = service.guia || updatedOrderData.guia;
+            const guideKey = service.guia || mainGuide;
             if (guideKey) {
                 if (!guideServiceMap.has(guideKey)) guideServiceMap.set(guideKey, []);
                 guideServiceMap.get(guideKey)!.push(service);
@@ -286,10 +288,15 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
             }
         });
         
-        const isSplit = guideServiceMap.size > 1 || driverServiceMap.size > 0 || (guideServiceMap.size === 1 && Array.from(guideServiceMap.keys())[0] !== updatedOrderData.guia);
+        const isSplit = guideServiceMap.size > 1 || driverServiceMap.size > 0;
 
         if (isSplit) {
             for (const [guide, services] of guideServiceMap.entries()) {
+                // If this guide's services are only with drivers who are getting their own sheet, don't create a sheet for the guide.
+                const hasServicesWithoutDedicatedDriverSheet = services.some(s => !s.chofer || !driverServiceMap.has(s.chofer));
+                if (guideServiceMap.size > 1 && !hasServicesWithoutDedicatedDriverSheet && services.every(s => s.chofer && driverServiceMap.has(s.chofer))) {
+                    continue;
+                }
                 const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: guide };
                 const childName = childNameFrom(parentBaseName, guide, null);
                 const newDocRef = doc(collection(db, 'serviceOrders'));
@@ -472,7 +479,6 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
         default: baseBadge = <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Creado</Badge>;
     }
     
-    // A parent order is considered "split" if it has children.
     if (isParent && childCount > 0) {
         return <div className="flex items-center gap-1">{baseBadge}<Badge className="bg-purple-600 hover:bg-purple-700"><Split className="h-3 w-3 mr-1"/>Dividida</Badge></div>;
     }
@@ -606,7 +612,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
                     </TableHeader>
                     <TableBody>
                        {paginatedFamilies.length > 0 ? paginatedFamilies.map(({ parent, children }) => {
-                            const parentName = parent.data?.ref || getBaseName(parent.orderName);
+                            const parentName = getBaseName(parent.orderName);
                             const childCount = children.length;
                             const isExpanded = expandedFamilies.has(parent.id);
                             
@@ -729,5 +735,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     </TooltipProvider>
   );
 }
+
+    
 
     
