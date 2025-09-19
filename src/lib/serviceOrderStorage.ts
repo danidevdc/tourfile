@@ -107,7 +107,7 @@ export async function saveEditedServiceOrder(
 
     updatedData.services.forEach(service => {
         const guideKey = service.guia || mainGuide;
-        if (guideKey) {
+        if (guideKey && guideKey !== "SIN GUIA PRINCIPAL") {
             if (!guideServiceMap.has(guideKey)) guideServiceMap.set(guideKey, []);
             guideServiceMap.get(guideKey)!.push(service);
         }
@@ -120,7 +120,7 @@ export async function saveEditedServiceOrder(
         }
     });
     
-    const needsSplit = guideServiceMap.size > 1 || driverServiceMap.size > 0;
+    const needsSplit = guideServiceMap.size > 1 || driverServiceMap.size > 1;
 
     // If no split is needed, just update the main order
     if (!needsSplit) {
@@ -295,3 +295,5 @@ export async function recoverServiceOrder(orderId: string): Promise<void> {
         updatedAt: serverTimestamp()
     });
 }
+
+    

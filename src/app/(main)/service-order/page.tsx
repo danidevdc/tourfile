@@ -242,16 +242,29 @@ export default function ServiceOrderListPage() {
     setIsEditModalOpen(true);
   };
 
-  const handlePreviewOrderClick = (order: StoredServiceOrder) => {
+  const handlePreviewOrderClick = async (order: StoredServiceOrder) => {
     const family = families.find(f => f.parent.id === getFamilyId(order));
-    
+    let orderToDisplay = order;
+
     if (family && family.parent.data.isSplitParent) {
-        setOrderToPreview({ ...family.parent });
-    } else {
-        setOrderToPreview(order);
+        orderToDisplay = { ...family.parent };
     }
+    
+    setOrderToPreview(orderToDisplay);
     setIsPreviewModalOpen(true);
-  };
+    
+    // Check if status needs to be updated
+    const isUpdatableStatus = !['excel', 'enviado', 'impreso', 'eliminado', 'cancelado'].includes(orderToDisplay.status);
+    if (isUpdatableStatus) {
+        try {
+            await updateServiceOrder(orderToDisplay.id, 'enviado');
+            fetchOrders(); // Refresh to show new status
+        } catch (error) {
+            console.error("Failed to update order status:", error);
+            toast({ title: "Error", description: "No se pudo actualizar el estado de la orden.", variant: "destructive" });
+        }
+    }
+};
   
   const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     if (!orderToEdit || !currentUser?.email) return;
@@ -406,7 +419,7 @@ export default function ServiceOrderListPage() {
     });
   };
 
-  const getStatusBadge = (order: StoredServiceOrder, isParent = false, childCount = 0) => {
+  const getStatusBadge = (order: StoredServiceOrder, childCount = 0) => {
     const status = order.status || 'creado';
     let baseBadge: React.ReactNode;
 
@@ -420,7 +433,7 @@ export default function ServiceOrderListPage() {
         default: baseBadge = <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Creado</Badge>;
     }
     
-    if (isParent && childCount > 0) {
+    if (childCount > 0) {
         return <div className="flex items-center gap-1">{baseBadge}<Badge className="bg-purple-600 hover:bg-purple-700"><Split className="h-3 w-3 mr-1"/>Dividida</Badge></div>;
     }
     return baseBadge;
@@ -595,7 +608,7 @@ export default function ServiceOrderListPage() {
                                                 {displayedDrivers.map(d => <Badge key={d} className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 hover:bg-green-100"><Car size={12} className="mr-1"/>{shortPerson(d)}</Badge>)}
                                             </div>
                                         </TableCell>
-                                        <TableCell>{getStatusBadge(parent, true, childCount)}</TableCell>
+                                        <TableCell>{getStatusBadge(parent, childCount)}</TableCell>
                                         {isCurrentUserAdmin && <TableCell>{parent.createdBy}</TableCell>}
                                         {isCurrentUserAdmin && <TableCell>{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>}
                                         <TableCell>{renderOrderActions(parent)}</TableCell>
@@ -676,5 +689,7 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
+
+    
 
     
