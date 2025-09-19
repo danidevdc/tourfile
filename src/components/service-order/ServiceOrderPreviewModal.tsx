@@ -101,8 +101,8 @@ function PrintableView({ order, onClose, showCopyButton }: { order: StoredServic
                                 <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{data.ref || "—"}</TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-white border-none">
-                                <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-['7px'] h-auto align-middle">Nº Pax:</TableCell>
-                                <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{data.nPax || "—"}</TableCell>
+                                <TableCell className="font-bold text-black text-xs py-2 px-[7px] h-auto align-middle">Nº Pax:</TableCell>
+                                <TableCell className="text-xs py-2 px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{data.nPax || "—"}</TableCell>
                             </TableRow>
                              <TableRow className="hover:bg-white border-none">
                                 <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto align-middle">Hotel:</TableCell>
@@ -137,7 +137,7 @@ function PrintableView({ order, onClose, showCopyButton }: { order: StoredServic
                                 const choferFirstName = choferSanitized.split(' ')[0];
 
                                 return (
-                                  <TableRow key={i} className="h-10 bg-white hover:bg-white text-xs whitespace-nowrap">
+                                  <TableRow key={i} className="bg-white hover:bg-white text-xs whitespace-nowrap">
                                      <TableCell className="p-2 border-r border-gray-200 text-center font-semibold align-middle text-xs">
                                         {showDate && s.fecha ? s.fecha : ""}
                                      </TableCell>
@@ -159,7 +159,7 @@ function PrintableView({ order, onClose, showCopyButton }: { order: StoredServic
                                      <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
                                        {choferFirstName}
                                       </TableCell>
-                                     <TableCell className="p-2 text-left align-middle text-xs">
+                                     <TableCell className="p-2 text-left align-middle text-xs whitespace-normal">
                                        {s.observaciones}
                                       </TableCell>
                                   </TableRow>
