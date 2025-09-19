@@ -67,7 +67,7 @@ export default function HomePage() {
                 <Link href="/service-order" passHref>
                   <Button
                     variant="outline"
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-primary text-primary"
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-primary text-primary hover:bg-transparent hover:text-primary"
                   >
                     <ClipboardList className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
@@ -82,7 +82,7 @@ export default function HomePage() {
                  <Link href="/admin/contribute" passHref>
                   <Button
                     variant="outline"
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-blue-500/20 text-blue-600 dark:text-blue-400"
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-transparent hover:text-blue-600 dark:hover:text-blue-400"
                   >
                     <Database className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
@@ -103,7 +103,7 @@ export default function HomePage() {
               <Link href="/admin/edit-service-order-logic" passHref>
                   <Button
                     variant="outline"
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-amber-500/20 text-amber-600 dark:text-amber-400"
+                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-transparent hover:text-amber-600 dark:hover:text-amber-400"
                   >
                     <ClipboardEdit className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
