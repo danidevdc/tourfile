@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { db } from '@/lib/firebase';
@@ -20,8 +21,9 @@ import {
 import { type ServiceOrderData } from './serviceOrderGenerator';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { childNameFrom, getBaseName } from './serviceOrderFamily';
 
-export type OrderStatus = 'creado' | 'editado' | 'enviado' | 'eliminado' | 'excel' | 'cancelado';
+export type OrderStatus = 'creado' | 'editado' | 'enviado' | 'eliminado' | 'excel' | 'cancelado' | 'impreso';
 
 export interface StoredServiceOrder {
   id: string;
@@ -86,12 +88,102 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
     return docRef.id;
 }
 
+export async function saveEditedServiceOrder(
+    originalOrder: StoredServiceOrder,
+    updatedData: ServiceOrderData,
+    userEmail: string
+): Promise<void> {
+    if (!db) throw new Error("Firestore not initialized.");
 
-export async function updateServiceOrder(orderId: string, orderData: ServiceOrderData, status: OrderStatus = 'editado'): Promise<void> {
+    const batch = writeBatch(db);
+    const parentId = originalOrder.splitFrom || originalOrder.id;
+    const parentBaseName = getBaseName(originalOrder.orderName);
+    
+    const servicesWithBus = updatedData.services.filter(s => s.bus !== 'SIN BUS');
+    const guideServiceMap = new Map<string, any[]>();
+    const driverServiceMap = new Map<string, any[]>();
+    
+    const mainGuide = updatedData.guia || "SIN GUIA PRINCIPAL";
+
+    updatedData.services.forEach(service => {
+        const guideKey = service.guia || mainGuide;
+        if (guideKey) {
+            if (!guideServiceMap.has(guideKey)) guideServiceMap.set(guideKey, []);
+            guideServiceMap.get(guideKey)!.push(service);
+        }
+    });
+
+    servicesWithBus.forEach(service => {
+        if (service.chofer) {
+            if (!driverServiceMap.has(service.chofer)) driverServiceMap.set(service.chofer, []);
+            driverServiceMap.get(service.chofer)!.push(service);
+        }
+    });
+    
+    const needsSplit = guideServiceMap.size > 1 || driverServiceMap.size > 0;
+
+    // If no split is needed, just update the main order
+    if (!needsSplit) {
+        batch.update(doc(db, 'serviceOrders', parentId), {
+            data: updatedData,
+            isSplitParent: false,
+            status: 'editado',
+            updatedAt: serverTimestamp()
+        });
+        
+        // Cancel any existing children because the order is no longer split
+        const existingChildren = await getChildrenByParentId(parentId);
+        existingChildren.forEach(child => {
+            if (child.id !== parentId) {
+                 batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
+            }
+        });
+
+    } else { // If a split is needed
+        // Mark existing children for cancellation
+        const existingChildren = await getChildrenByParentId(parentId);
+        existingChildren.forEach(child => {
+            if (child.id !== parentId) {
+                batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
+            }
+        });
+
+        // Create new children based on the split logic
+        for (const [guide, services] of guideServiceMap.entries()) {
+            const hasServicesWithoutDedicatedDriverSheet = services.some(s => !s.chofer || !driverServiceMap.has(s.chofer));
+            if (guideServiceMap.size > 1 && !hasServicesWithoutDedicatedDriverSheet && services.every(s => s.chofer && driverServiceMap.has(s.chofer))) {
+                continue;
+            }
+            const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guide };
+            const childName = childNameFrom(parentBaseName, guide, null);
+            const newDocRef = doc(collection(db, 'serviceOrders'));
+            batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: originalOrder.createdBy, createdAt: originalOrder.createdAt, status: 'creado', updatedAt: serverTimestamp() });
+        }
+
+        for (const [driver, services] of driverServiceMap.entries()) {
+             const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: '' };
+             const childName = childNameFrom(parentBaseName, null, driver);
+             const newDocRef = doc(collection(db, 'serviceOrders'));
+             batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: originalOrder.createdBy, createdAt: originalOrder.createdAt, status: 'creado', updatedAt: serverTimestamp() });
+        }
+        
+        // Update the parent order
+        batch.update(doc(db, 'serviceOrders', parentId), {
+            data: updatedData,
+            isSplitParent: true,
+            status: 'editado',
+            updatedAt: serverTimestamp()
+        });
+    }
+
+    await batch.commit();
+}
+
+
+export async function updateServiceOrder(orderId: string, status: OrderStatus): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
     const orderRef = doc(db, 'serviceOrders', orderId);
     await updateDoc(orderRef, {
-        data: orderData,
         status: status,
         updatedAt: serverTimestamp()
     });

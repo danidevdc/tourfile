@@ -186,16 +186,27 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
   const allAvailableDrivers = drivers.map(d => ({ value: d.name.toUpperCase(), label: d.name }));
   
   const assignedGuides = [editableOrderData.guia, ...additionalGuides].filter(Boolean);
-  const serviceGuideOptions = assignedGuides.map(g => ({ value: g.toUpperCase(), label: g.toUpperCase() }));
+  const serviceGuideOptions = [
+    { value: '', label: 'Ninguno' },
+    ...assignedGuides.map(g => ({ value: g.toUpperCase(), label: g.toUpperCase() }))
+  ];
 
   const assignedDrivers = [...additionalDrivers].filter(Boolean);
-  const serviceDriverOptions = assignedDrivers.map(d => ({ value: d.toUpperCase(), label: d.toUpperCase() }));
+  const serviceDriverOptions = [
+    { value: '', label: 'Ninguno' },
+    ...assignedDrivers.map(d => ({ value: d.toUpperCase(), label: d.toUpperCase() }))
+  ];
   
   const hotelOptions: ComboboxOption[] = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
   const activityOptions: ComboboxOption[] = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
   
   const busOptions = buses.map(b => ({ value: b.name.toUpperCase(), label: b.name }));
-  const finalBusOptions = [...busOptions, { value: 'CONT.', label: 'Contratado' }];
+  const finalBusOptions = [
+    { value: '', label: 'Ninguno' }, 
+    { value: 'SIN BUS', label: 'SIN BUS (A PIE)'},
+    ...busOptions, 
+    { value: 'CONT.', label: 'Contratado' }
+  ];
   
   const filteredFlightOptions = useMemo(() => {
       const createOption = (f: PredefinedFlight) => ({ value: f.flightNumber, key: f.id, label: `${f.flightNumber} (${f.time})` });

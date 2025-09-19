@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -18,6 +19,7 @@ import {
     type OrderStatus,
     getChildrenByParentId,
     softCancelServiceOrder,
+    saveEditedServiceOrder,
 } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { getFamilyId, childNameFrom, shortPerson, getBaseName } from "@/lib/serviceOrderFamily";
@@ -47,8 +49,6 @@ import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPre
 import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, getBusesFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity, type PredefinedFlight, type Bus } from "@/lib/serviceOrderService";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ServiceOrderDeletionFilter, type FilterState } from "@/components/service-order/ServiceOrderDeletionFilter";
-import { doc, writeBatch, serverTimestamp, collection, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 
 const defaultObsText = '';
@@ -253,79 +253,21 @@ export default function ServiceOrderListPage() {
     setIsPreviewModalOpen(true);
   };
   
-const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
+  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     if (!orderToEdit || !currentUser?.email) return;
 
-    const parentId = getFamilyId(orderToEdit);
-    const parentBaseName = getBaseName(orderToEdit.orderName);
-    const batch = writeBatch(db);
-
     try {
-        const existingChildren = await getChildrenByParentId(parentId);
-        existingChildren.forEach(child => {
-            if (child.id !== parentId) {
-                batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
-            }
-        });
-
-        const guideServiceMap = new Map<string, any[]>();
-        const mainGuide = updatedOrderData.guia || "SIN GUIA PRINCIPAL";
-        
-        updatedOrderData.services.forEach(service => {
-            const guideKey = service.guia || mainGuide;
-            if (guideKey) {
-                if (!guideServiceMap.has(guideKey)) guideServiceMap.set(guideKey, []);
-                guideServiceMap.get(guideKey)!.push(service);
-            }
-        });
-
-        const driverServiceMap = new Map<string, any[]>();
-        updatedOrderData.services.forEach(service => {
-            if (service.chofer) {
-              if (!driverServiceMap.has(service.chofer)) driverServiceMap.set(service.chofer, []);
-              driverServiceMap.get(service.chofer)!.push(service);
-            }
-        });
-        
-        const isSplit = guideServiceMap.size > 1 || driverServiceMap.size > 0;
-
-        if (isSplit) {
-            for (const [guide, services] of guideServiceMap.entries()) {
-                const hasServicesWithoutDedicatedDriverSheet = services.some(s => !s.chofer || !driverServiceMap.has(s.chofer));
-                if (guideServiceMap.size > 1 && !hasServicesWithoutDedicatedDriverSheet && services.every(s => s.chofer && driverServiceMap.has(s.chofer))) {
-                    continue;
-                }
-                const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: guide };
-                const childName = childNameFrom(parentBaseName, guide, null);
-                const newDocRef = doc(collection(db, 'serviceOrders'));
-                batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
-            }
-            
-            for (const [driver, services] of driverServiceMap.entries()) {
-                const childDataPayload: ServiceOrderData = { ...updatedOrderData, services, guia: '' };
-                const childName = childNameFrom(parentBaseName, null, driver);
-                const newDocRef = doc(collection(db, 'serviceOrders'));
-                batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: orderToEdit.createdBy, createdAt: orderToEdit.createdAt, status: 'creado', updatedAt: serverTimestamp() });
-            }
-        }
-        
-        const parentUpdateData: any = { data: updatedOrderData, isSplitParent: isSplit, status: 'editado', updatedAt: serverTimestamp() };
-        batch.update(doc(db, 'serviceOrders', parentId), parentUpdateData);
-
-        await batch.commit();
-        
-        toast({ title: "Éxito", description: "La orden ha sido dividida exitosamente.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
+        await saveEditedServiceOrder(orderToEdit, updatedOrderData, currentUser.email);
+        toast({ title: "Éxito", description: "La orden ha sido actualizada y/o dividida exitosamente.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
     } catch (error: any) {
-        console.error("Error re-splitting/saving order:", error);
+        console.error("Error saving/splitting order:", error);
         toast({ title: "Error al Guardar", description: error.message || "No se pudo guardar la orden.", variant: "destructive" });
     }
 
     fetchOrders(); 
     setIsEditModalOpen(false);
     setOrderToEdit(null);
-};
-
-
+  };
 
 
   const handleDeleteOrder = async () => {
@@ -387,7 +329,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
       URL.revokeObjectURL(url);
       
       if (order.status !== 'excel' && order.status !== 'eliminado' && order.status !== 'cancelado') {
-        await updateServiceOrder(order.id, order.data, 'excel');
+        await updateServiceOrder(order.id, 'excel');
         fetchOrders();
       }
 
@@ -401,8 +343,8 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
   const handlePrintToPdf = async (order: StoredServiceOrder) => {
     setIsPrintingPdfId(order.id);
     try {
-      if (order.status !== 'enviado' && order.status !== 'eliminado' && order.status !== 'cancelado') {
-        await updateServiceOrder(order.id, order.data, 'enviado');
+      if (order.status !== 'impreso' && order.status !== 'eliminado' && order.status !== 'cancelado' && order.status !== 'enviado' && order.status !== 'excel') {
+        await updateServiceOrder(order.id, 'impreso');
         fetchOrders();
       }
       const orderDataString = encodeURIComponent(JSON.stringify(order));
@@ -471,7 +413,8 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     switch (status) {
         case 'eliminado': baseBadge = <Badge variant="destructive" className="flex items-center gap-1"><ShieldAlert className="h-3 w-3"/>Eliminado</Badge>; break;
         case 'cancelado': baseBadge = <Badge variant="destructive" className="bg-yellow-600 hover:bg-yellow-700">Cancelado</Badge>; break;
-        case 'enviado': baseBadge = <Badge variant="default" className="bg-red-500 hover:bg-red-600">PDF</Badge>; break;
+        case 'enviado': baseBadge = <Badge variant="default" className="bg-lime-600 hover:bg-lime-700">Enviado</Badge>; break;
+        case 'impreso': baseBadge = <Badge variant="default" className="bg-red-500 hover:bg-red-600">PDF</Badge>; break;
         case 'excel': baseBadge = <Badge variant="default" className="bg-green-600 hover:bg-green-700">Excel</Badge>; break;
         case 'editado': baseBadge = <Badge variant="secondary" className="bg-orange-500 text-white hover:bg-orange-600">Editado</Badge>; break;
         default: baseBadge = <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Creado</Badge>;
