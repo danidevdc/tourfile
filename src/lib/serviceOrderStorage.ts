@@ -99,7 +99,6 @@ export async function saveEditedServiceOrder(
     const parentId = originalOrder.splitFrom || originalOrder.id;
     const parentBaseName = getBaseName(originalOrder.orderName);
     
-    const servicesWithBus = updatedData.services.filter(s => s.bus !== 'SIN BUS');
     const guideServiceMap = new Map<string, any[]>();
     const driverServiceMap = new Map<string, any[]>();
     
@@ -111,10 +110,8 @@ export async function saveEditedServiceOrder(
             if (!guideServiceMap.has(guideKey)) guideServiceMap.set(guideKey, []);
             guideServiceMap.get(guideKey)!.push(service);
         }
-    });
-
-    servicesWithBus.forEach(service => {
-        if (service.chofer) {
+        
+        if (service.chofer && service.chofer !== 'NONE' && service.bus?.toUpperCase() !== 'SIN BUS') {
             if (!driverServiceMap.has(service.chofer)) driverServiceMap.set(service.chofer, []);
             driverServiceMap.get(service.chofer)!.push(service);
         }
@@ -140,7 +137,7 @@ export async function saveEditedServiceOrder(
         });
 
     } else { // If a split is needed
-        // Mark existing children for cancellation
+        // Mark existing children for cancellation before creating new ones
         const existingChildren = await getChildrenByParentId(parentId);
         existingChildren.forEach(child => {
             if (child.id !== parentId) {
@@ -150,10 +147,6 @@ export async function saveEditedServiceOrder(
 
         // Create new children based on the split logic
         for (const [guide, services] of guideServiceMap.entries()) {
-            const hasServicesWithoutDedicatedDriverSheet = services.some(s => !s.chofer || !driverServiceMap.has(s.chofer));
-            if (guideServiceMap.size > 1 && !hasServicesWithoutDedicatedDriverSheet && services.every(s => s.chofer && driverServiceMap.has(s.chofer))) {
-                continue;
-            }
             const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guide };
             const childName = childNameFrom(parentBaseName, guide, null);
             const newDocRef = doc(collection(db, 'serviceOrders'));
@@ -295,5 +288,3 @@ export async function recoverServiceOrder(orderId: string): Promise<void> {
         updatedAt: serverTimestamp()
     });
 }
-
-    
