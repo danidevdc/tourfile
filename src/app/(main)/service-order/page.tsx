@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -172,7 +171,7 @@ export default function ServiceOrderListPage() {
 
           const checkOrder = 
             order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
-            order.data.file.toLowerCase().includes(lowercasedFilter) ||
+            (order.data.file && order.data.file.toLowerCase().includes(lowercasedFilter)) ||
             Array.from(allGuidsInOrder).some(g => shortPerson(g).toLowerCase().includes(lowercasedFilter)) ||
             Array.from(allDriversInOrder).some(d => shortPerson(d).toLowerCase().includes(lowercasedFilter)) ||
             (isCurrentUserAdmin && order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
@@ -534,7 +533,7 @@ export default function ServiceOrderListPage() {
                     {isCurrentUserAdmin && <ServiceOrderDeletionFilter value={filterState} onValueChange={setFilterState} />}
                     <div className="relative w-full sm:w-auto flex-grow">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Buscar orden..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+                        <Input placeholder="Buscar orden..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 focus-visible:ring-2 focus-visible:ring-primary" />
                     </div>
                 </div>
             </div>
@@ -704,11 +703,5 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
-
-    
-
-    
-
-    
 
     
