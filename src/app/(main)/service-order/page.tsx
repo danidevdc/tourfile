@@ -147,9 +147,9 @@ export default function ServiceOrderListPage() {
         const isInactive = order.status === 'eliminado' || order.status === 'cancelado';
         if (currentFilter === 'deleted') return order.status === 'eliminado';
         if (currentFilter === 'active') return !isInactive;
-        return !isInactive;
+        return !isInactive; // Default to 'active' behavior
     };
-    
+
     const visibleOrders = orders.filter(orderIsVisible);
     
     const searchedOrders = searchTerm
@@ -180,7 +180,6 @@ export default function ServiceOrderListPage() {
                 familyGroups.set(familyId, { parent: parentOrder, children: [] });
             }
             if (order.id !== familyId) {
-                // Now, children are pre-filtered by `visibleOrders`, so no extra check is needed here
                 const existingChildren = familyGroups.get(familyId)!.children;
                 existingChildren.push(order);
             }
@@ -292,7 +291,6 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
 
         if (isSplit) {
             for (const [guide, services] of guideServiceMap.entries()) {
-                // If this guide's services are only with drivers who are getting their own sheet, don't create a sheet for the guide.
                 const hasServicesWithoutDedicatedDriverSheet = services.some(s => !s.chofer || !driverServiceMap.has(s.chofer));
                 if (guideServiceMap.size > 1 && !hasServicesWithoutDedicatedDriverSheet && services.every(s => s.chofer && driverServiceMap.has(s.chofer))) {
                     continue;
@@ -510,7 +508,7 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     const canModify = isCurrentUserAdmin || currentUser?.email === order.createdBy;
     const isDeleted = order.status === 'eliminado' || order.status === 'cancelado';
     
-    const simplePreviewButtonHtml = `<button title="Vista Previa (Beta)" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-purple-600/50 bg-background hover:bg-purple-100/80 text-purple-600 hover:text-purple-700 dark:hover:bg-purple-900/20 dark:text-purple-400 dark:border-purple-600/70 h-8 w-8 p-0" onclick="window.showSimplePreviewModal(window.__serviceOrdersMap.get('${order.id}'))"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>`;
+    const simplePreviewButtonHtml = `<button title="Vista Previa Rápida" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-purple-600/50 bg-background hover:bg-purple-100/80 text-purple-600 hover:text-purple-700 dark:hover:bg-purple-900/20 dark:text-purple-400 dark:border-purple-600/70 h-8 w-8 p-0" onclick="window.showSimplePreviewModal(window.__serviceOrdersMap.get('${order.id}'))"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>`;
 
     return (
         <div className="text-left space-x-1">
@@ -735,7 +733,5 @@ const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     </TooltipProvider>
   );
 }
-
-    
 
     
