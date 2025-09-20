@@ -21,7 +21,7 @@ import {
     saveEditedServiceOrder,
 } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
-import { getFamilyId, childNameFrom, getBaseName } from "@/lib/serviceOrderFamily";
+import { getFamilyId, childNameFrom, getBaseName, shortPerson } from "@/lib/serviceOrderFamily";
 import { showSimplePreviewModal } from '@/lib/simplePreviewModal';
 
 import { Button } from "@/components/ui/button";
@@ -713,5 +713,6 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
+
 
     
