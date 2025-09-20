@@ -19,9 +19,10 @@ import { useToast } from "@/hooks/use-toast";
 interface ServiceOrderPreviewModalProps {
   order: StoredServiceOrder;
   onClose: () => void;
+  onStatusUpdate?: (orderId: string) => void;
 }
 
-function PrintableView({ order, onClose, showCopyButton }: { order: StoredServiceOrder, onClose: () => void, showCopyButton: boolean }) {
+function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { order: StoredServiceOrder, onClose: () => void, showCopyButton: boolean, onStatusUpdate?: (orderId: string) => void }) {
   const { data } = order;
   const captureRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -63,7 +64,10 @@ function PrintableView({ order, onClose, showCopyButton }: { order: StoredServic
         return;
     }
     setIsCopying(true);
-    await copiarVistaPreviaAlClipboard(captureRef.current, toast);
+    const success = await copiarVistaPreviaAlClipboard(captureRef.current, toast);
+    if (success && onStatusUpdate) {
+        onStatusUpdate(order.id);
+    }
     setIsCopying(false);
   };
   
@@ -263,7 +267,7 @@ export function ServiceOrderPrintPage() {
     return <PrintableView order={order} onClose={() => window.close()} showCopyButton={showCopyButton} />;
 }
 
-export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrderPreviewModalProps) {
+export default function ServiceOrderPreviewModal({ order, onClose, onStatusUpdate }: ServiceOrderPreviewModalProps) {
     if (!order?.data) {
         return (
             <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -276,5 +280,5 @@ export default function ServiceOrderPreviewModal({ order, onClose }: ServiceOrde
         );
     }
     
-    return <PrintableView order={order} onClose={onClose} showCopyButton={true} />;
+    return <PrintableView order={order} onClose={onClose} showCopyButton={true} onStatusUpdate={onStatusUpdate} />;
 }

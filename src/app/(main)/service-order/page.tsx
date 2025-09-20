@@ -21,7 +21,7 @@ import {
     saveEditedServiceOrder,
 } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
-import { getFamilyId, childNameFrom, shortPerson, getBaseName } from "@/lib/serviceOrderFamily";
+import { getFamilyId, childNameFrom, getBaseName } from "@/lib/serviceOrderFamily";
 import { showSimplePreviewModal } from '@/lib/simplePreviewModal';
 
 import { Button } from "@/components/ui/button";
@@ -266,22 +266,26 @@ export default function ServiceOrderListPage() {
     
     setOrderToPreview(orderToDisplay);
     setIsPreviewModalOpen(true);
+  };
+  
+  const handleStatusUpdate = async (orderId: string) => {
+    const orderToUpdate = orders.find(o => o.id === orderId);
+    if (!orderToUpdate) return;
     
-    const isUpdatableStatus = !['excel', 'enviado', 'impreso', 'eliminado', 'cancelado'].includes(orderToDisplay.status);
+    const isUpdatableStatus = !['excel', 'enviado', 'impreso', 'eliminado', 'cancelado'].includes(orderToUpdate.status);
     if (isUpdatableStatus) {
         try {
-            await updateServiceOrder(orderToDisplay.id, 'enviado');
-            // Optimistically update UI instead of full refetch
+            await updateServiceOrder(orderId, 'enviado');
             setOrders(prevOrders => 
-                prevOrders.map(o => o.id === orderToDisplay.id ? { ...o, status: 'enviado' } : o)
+                prevOrders.map(o => o.id === orderId ? { ...o, status: 'enviado' } : o)
             );
         } catch (error) {
             console.error("Failed to update order status:", error);
             toast({ title: "Error", description: "No se pudo actualizar el estado de la orden.", variant: "destructive" });
         }
     }
-};
-  
+  };
+
   const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     if (!orderToEdit || !currentUser?.email) return;
 
@@ -683,7 +687,11 @@ export default function ServiceOrderListPage() {
         )}
         
         {isPreviewModalOpen && orderToPreview && (
-          <ServiceOrderPreviewModal order={orderToPreview} onClose={() => { setIsPreviewModalOpen(false); setOrderToPreview(null); }} />
+          <ServiceOrderPreviewModal
+            order={orderToPreview}
+            onClose={() => { setIsPreviewModalOpen(false); setOrderToPreview(null); }}
+            onStatusUpdate={handleStatusUpdate}
+          />
         )}
 
         <ServiceOrderGeneratorSheet 
