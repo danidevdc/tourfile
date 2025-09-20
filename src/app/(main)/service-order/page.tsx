@@ -267,12 +267,14 @@ export default function ServiceOrderListPage() {
     setOrderToPreview(orderToDisplay);
     setIsPreviewModalOpen(true);
     
-    // Check if status needs to be updated
     const isUpdatableStatus = !['excel', 'enviado', 'impreso', 'eliminado', 'cancelado'].includes(orderToDisplay.status);
     if (isUpdatableStatus) {
         try {
             await updateServiceOrder(orderToDisplay.id, 'enviado');
-            fetchOrders(); // Refresh to show new status
+            // Optimistically update UI instead of full refetch
+            setOrders(prevOrders => 
+                prevOrders.map(o => o.id === orderToDisplay.id ? { ...o, status: 'enviado' } : o)
+            );
         } catch (error) {
             console.error("Failed to update order status:", error);
             toast({ title: "Error", description: "No se pudo actualizar el estado de la orden.", variant: "destructive" });
