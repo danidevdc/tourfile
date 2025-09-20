@@ -92,7 +92,7 @@ const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
     `;
 };
 
-export function showSimplePreviewModal(order: StoredServiceOrder) {
+export function showSimplePreviewModal(order: StoredServiceOrder, onStatusUpdate?: (orderId: string) => void) {
     console.log("[showSimplePreviewModal] Received order data:", order);
     const existingModal = document.getElementById('simple-preview-modal');
     if (existingModal) {
@@ -182,6 +182,9 @@ export function showSimplePreviewModal(order: StoredServiceOrder) {
         const success = await copiarVistaPreviaAlClipboard(previewWrapper);
         if (success) {
             statusIndicator.innerHTML = '<span class="check">✓</span>';
+            if (onStatusUpdate) {
+                onStatusUpdate(order.id);
+            }
         } else {
             statusIndicator.innerHTML = '<span class="cross">✗</span>';
         }

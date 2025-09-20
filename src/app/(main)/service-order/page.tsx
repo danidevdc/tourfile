@@ -63,8 +63,9 @@ const ITEMS_PER_PAGE = 10;
 // Extend the Window interface to include our global function
 declare global {
     interface Window {
-        showSimplePreviewModal: (order: StoredServiceOrder) => void;
+        showSimplePreviewModal: (order: StoredServiceOrder, onStatusUpdate?: (orderId: string) => void) => void;
         __serviceOrdersMap: Map<string, StoredServiceOrder>;
+        __handleStatusUpdate: (orderId: string) => void;
     }
 }
 
@@ -212,17 +213,38 @@ export default function ServiceOrderListPage() {
   }, [orders, filterState, searchTerm, isCurrentUserAdmin]);
   
   
+  const handleStatusUpdate = async (orderId: string) => {
+    const orderToUpdate = orders.find(o => o.id === orderId);
+    if (!orderToUpdate) return;
+    
+    const isUpdatableStatus = !['excel', 'enviado', 'impreso', 'eliminado', 'cancelado'].includes(orderToUpdate.status);
+    if (isUpdatableStatus) {
+        try {
+            await updateServiceOrder(orderId, 'enviado');
+            setOrders(prevOrders => 
+                prevOrders.map(o => o.id === orderId ? { ...o, status: 'enviado' } : o)
+            );
+        } catch (error) {
+            console.error("Failed to update order status:", error);
+            toast({ title: "Error", description: "No se pudo actualizar el estado de la orden.", variant: "destructive" });
+        }
+    }
+  };
+
   // Expose the modal function and data globally
   useEffect(() => {
-    window.showSimplePreviewModal = (order) => {
+    window.showSimplePreviewModal = (order, onStatusUpdate) => {
         const family = families.find(f => f.parent.id === getFamilyId(order));
         if (family && family.parent.data.isSplitParent) {
-            showSimplePreviewModal({ ...family.parent });
+            showSimplePreviewModal({ ...family.parent }, onStatusUpdate);
         } else {
-            showSimplePreviewModal(order);
+            showSimplePreviewModal(order, onStatusUpdate);
         }
     };
     
+    // Make handleStatusUpdate available globally for the raw HTML button to call
+    window.__handleStatusUpdate = handleStatusUpdate;
+
     const ordersMap = new Map<string, StoredServiceOrder>();
     orders.forEach(order => ordersMap.set(order.id, order));
     window.__serviceOrdersMap = ordersMap;
@@ -268,24 +290,6 @@ export default function ServiceOrderListPage() {
     setIsPreviewModalOpen(true);
   };
   
-  const handleStatusUpdate = async (orderId: string) => {
-    const orderToUpdate = orders.find(o => o.id === orderId);
-    if (!orderToUpdate) return;
-    
-    const isUpdatableStatus = !['excel', 'enviado', 'impreso', 'eliminado', 'cancelado'].includes(orderToUpdate.status);
-    if (isUpdatableStatus) {
-        try {
-            await updateServiceOrder(orderId, 'enviado');
-            setOrders(prevOrders => 
-                prevOrders.map(o => o.id === orderId ? { ...o, status: 'enviado' } : o)
-            );
-        } catch (error) {
-            console.error("Failed to update order status:", error);
-            toast({ title: "Error", description: "No se pudo actualizar el estado de la orden.", variant: "destructive" });
-        }
-    }
-  };
-
   const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
     if (!orderToEdit || !currentUser?.email) return;
 
@@ -484,7 +488,7 @@ export default function ServiceOrderListPage() {
     const canModify = isCurrentUserAdmin || currentUser?.email === order.createdBy;
     const isDeleted = order.status === 'eliminado' || order.status === 'cancelado';
     
-    const simplePreviewButtonHtml = `<button title="Vista Previa Rápida" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-purple-600/50 bg-background hover:bg-purple-100/80 text-purple-600 hover:text-purple-700 dark:hover:bg-purple-900/20 dark:text-purple-400 dark:border-purple-600/70 h-8 w-8 p-0" onclick="window.showSimplePreviewModal(window.__serviceOrdersMap.get('${order.id}'))"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>`;
+    const simplePreviewButtonHtml = `<button title="Vista Previa Rápida" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-purple-600/50 bg-background hover:bg-purple-100/80 text-purple-600 hover:text-purple-700 dark:hover:bg-purple-900/20 dark:text-purple-400 dark:border-purple-600/70 h-8 w-8 p-0" onclick="window.showSimplePreviewModal(window.__serviceOrdersMap.get('${order.id}'), window.__handleStatusUpdate)"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>`;
 
     return (
         <div className="text-left space-x-1">
@@ -713,6 +717,3 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
-
-
-    
