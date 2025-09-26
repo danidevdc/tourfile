@@ -35,7 +35,7 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
-      <Card className="w-full max-w-4xl shadow-lg rounded-xl">
+      <Card className="w-full max-w-5xl shadow-lg rounded-xl">
         <CardContent className="p-10">
           <div className="mb-10 text-center">
             <h1 className="text-4xl font-bold text-primary">
@@ -50,7 +50,7 @@ export default function HomePage() {
             <Link href="/city-selection" passHref>
               <Button
                 variant="default"
-                className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
+                className="w-full h-auto py-6 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
               >
                 <FileSpreadsheet className="h-12 w-12 mr-6 text-primary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
                 <div className="text-left flex-grow">
@@ -66,12 +66,15 @@ export default function HomePage() {
                 <Link href="/service-order" passHref>
                   <Button
                     variant="outline"
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-primary text-primary hover:bg-transparent hover:text-primary"
+                    className="w-full h-auto py-6 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-primary text-primary hover:bg-transparent hover:text-primary"
                   >
                     <ClipboardList className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
                       <span className="block text-2xl font-bold">
-                        Generar Órdenes de Servicio
+                        Generar Órdenes
+                      </span>
+                      <span className="block text-sm font-normal text-muted-foreground">
+                        Crear órdenes de servicio manual o automáticamente
                       </span>
                     </div>
                     <ArrowRight className="h-8 w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
@@ -83,7 +86,7 @@ export default function HomePage() {
                  <Link href="/admin/contribute" passHref>
                   <Button
                     variant="outline"
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-transparent hover:text-blue-600 dark:hover:text-blue-400"
+                    className="w-full h-auto py-6 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-transparent hover:text-blue-600 dark:hover:text-blue-400"
                   >
                     <Database className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
@@ -91,7 +94,7 @@ export default function HomePage() {
                         Aportar Datos
                       </span>
                        <span className="block text-sm font-normal text-muted-foreground">
-                        Añade nuevos guías, hoteles, vuelos, etc. a la base de datos
+                        Añade guías, hoteles, vuelos, etc. a la base de datos
                       </span>
                     </div>
                     <ArrowRight className="h-8 w-8 ml-auto text-blue-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
@@ -103,15 +106,15 @@ export default function HomePage() {
               <Link href="/admin/edit-service-order-logic" passHref>
                   <Button
                     variant="outline"
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-transparent hover:text-amber-600 dark:hover:text-amber-400"
+                    className="w-full h-auto py-6 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-transparent hover:text-amber-600 dark:hover:text-amber-400"
                   >
                     <ClipboardEdit className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
                       <span className="block text-2xl font-bold">
-                        Editar Lógica de Órdenes
+                        Editar Lógica
                       </span>
                        <span className="block text-sm font-normal text-muted-foreground">
-                        Modificar las reglas de generación de órdenes de servicio
+                        Modificar reglas de generación de órdenes de servicio
                       </span>
                     </div>
                     <ArrowRight className="h-8 w-8 ml-auto text-amber-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
@@ -124,7 +127,7 @@ export default function HomePage() {
                 <Link href="/flight-search" passHref>
                   <Button
                     variant="default" 
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group bg-primary hover:bg-primary/90 text-primary-foreground"
+                    className="w-full h-auto py-6 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group bg-primary hover:bg-primary/90 text-primary-foreground"
                   >
                     <Plane className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
@@ -142,7 +145,7 @@ export default function HomePage() {
                 <Link href="/admin/dashboard" passHref>
                   <Button
                     variant="secondary" 
-                    className="w-full h-auto py-8 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
+                    className="w-full h-auto py-6 text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-8 group"
                   >
                     <Settings className="h-12 w-12 mr-6 text-secondary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
