@@ -73,9 +73,6 @@ export default function HomePage() {
                       <span className="block text-2xl font-bold">
                         Generar Órdenes
                       </span>
-                      <span className="block text-sm font-normal text-muted-foreground">
-                        Crear órdenes de servicio manual o automáticamente
-                      </span>
                     </div>
                     <ArrowRight className="h-8 w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
                   </Button>
@@ -93,9 +90,6 @@ export default function HomePage() {
                       <span className="block text-2xl font-bold">
                         Aportar Datos
                       </span>
-                       <span className="block text-sm font-normal text-muted-foreground">
-                        Añade guías, hoteles, vuelos, etc. a la base de datos
-                      </span>
                     </div>
                     <ArrowRight className="h-8 w-8 ml-auto text-blue-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
                   </Button>
@@ -112,9 +106,6 @@ export default function HomePage() {
                     <div className="text-left flex-grow">
                       <span className="block text-2xl font-bold">
                         Editar Lógica
-                      </span>
-                       <span className="block text-sm font-normal text-muted-foreground">
-                        Modificar reglas de generación de órdenes de servicio
                       </span>
                     </div>
                     <ArrowRight className="h-8 w-8 ml-auto text-amber-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
@@ -134,9 +125,6 @@ export default function HomePage() {
                       <span className="block text-2xl font-bold">
                         Buscador de Vuelos
                       </span>
-                      <span className="block text-sm font-normal text-primary-foreground/80">
-                        Consulta el estado de vuelos en tiempo real
-                      </span>
                     </div>
                     <ArrowRight className="h-8 w-8 ml-auto text-primary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
                   </Button>
@@ -151,9 +139,6 @@ export default function HomePage() {
                     <div className="text-left flex-grow">
                       <span className="block text-2xl font-bold text-secondary-foreground">
                         Administrar
-                      </span>
-                      <span className="block text-sm font-normal text-secondary-foreground/80">
-                        Gestionar datos, lógica y usuarios
                       </span>
                     </div>
                     <ArrowRight className="h-8 w-8 ml-auto text-secondary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
