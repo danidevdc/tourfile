@@ -35,7 +35,7 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
-      <Card className="w-full max-w-2xl shadow-lg rounded-xl">
+      <Card className="w-full max-w-4xl shadow-lg rounded-xl">
         <CardContent className="p-10">
           <div className="mb-10 text-center">
             <h1 className="text-4xl font-bold text-primary">
@@ -46,7 +46,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Link href="/city-selection" passHref>
               <Button
                 variant="default"
@@ -63,7 +63,6 @@ export default function HomePage() {
             </Link>
 
             {isAuthenticated && (
-              <>
                 <Link href="/service-order" passHref>
                   <Button
                     variant="outline"
@@ -78,7 +77,9 @@ export default function HomePage() {
                     <ArrowRight className="h-8 w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
                   </Button>
                 </Link>
+            )}
 
+            {isAuthenticated && (
                  <Link href="/admin/contribute" passHref>
                   <Button
                     variant="outline"
@@ -96,7 +97,6 @@ export default function HomePage() {
                     <ArrowRight className="h-8 w-8 ml-auto text-blue-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
                   </Button>
                 </Link>
-              </>
             )}
 
             {!authLoading && canSeeIntermediateButton && (
