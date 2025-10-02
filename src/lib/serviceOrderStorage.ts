@@ -150,14 +150,30 @@ export async function saveEditedServiceOrder(
             const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guide };
             const childName = childNameFrom(parentBaseName, guide, null);
             const newDocRef = doc(collection(db, 'serviceOrders'));
-            batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: originalOrder.createdBy, createdAt: originalOrder.createdAt, status: 'creado', updatedAt: serverTimestamp() });
+            batch.set(newDocRef, { 
+                data: childDataPayload, 
+                orderName: childName, 
+                splitFrom: parentId, 
+                createdBy: originalOrder.createdBy, 
+                createdAt: originalOrder.createdAt, 
+                status: 'creado', 
+                updatedAt: serverTimestamp() 
+            });
         }
 
         for (const [driver, services] of driverServiceMap.entries()) {
              const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: '' };
              const childName = childNameFrom(parentBaseName, null, driver);
              const newDocRef = doc(collection(db, 'serviceOrders'));
-             batch.set(newDocRef, { data: childDataPayload, orderName: childName, splitFrom: parentId, createdBy: originalOrder.createdBy, createdAt: originalOrder.createdAt, status: 'creado', updatedAt: serverTimestamp() });
+             batch.set(newDocRef, { 
+                data: childDataPayload, 
+                orderName: childName, 
+                splitFrom: parentId, 
+                createdBy: originalOrder.createdBy, 
+                createdAt: originalOrder.createdAt, 
+                status: 'creado', 
+                updatedAt: serverTimestamp() 
+             });
         }
         
         // Update the parent order
