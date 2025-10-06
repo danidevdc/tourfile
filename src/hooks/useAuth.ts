@@ -72,7 +72,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const ADMIN_EMAIL = 'daniish77@gmail.com';
-const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000;
+const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const SESSION_ID_KEY = 'app_session_id';
 
 function AuthProviderInternal({ children }: { children: ReactNode }) {
@@ -204,7 +204,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, emailInput.trim().toLowerCase(), passwordInput);
       const firebaseUser = userCredential.user;
-      const newSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const newSessionId = `${'Date.now()'}-${'Math.random().toString(36).substring(2, 9)'}`;
       sessionStorage.setItem(SESSION_ID_KEY, newSessionId);
       const userProfileDocRef = doc(db, 'userProfiles', firebaseUser.uid);
       await updateDoc(userProfileDocRef, { activeSessionId: newSessionId, lastSignInTime: serverTimestamp() });
