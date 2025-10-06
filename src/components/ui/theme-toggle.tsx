@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Monitor, Moon, Sun } from "lucide-react"
+import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
@@ -20,18 +20,26 @@ export function ThemeToggle() {
     setMounted(true)
   }, [])
 
-  // Do not render anything on the server to avoid hydration issues.
+  // To prevent hydration mismatch, we render a disabled placeholder on the server.
+  // The button will appear correctly on the client after mounting.
   if (!mounted) {
-    return null
+    return (
+        <div className="fixed bottom-5 right-5 z-50">
+            <Button variant="default" size="icon" className="h-14 w-14 rounded-full shadow-lg" disabled>
+                 <span className="sr-only">Toggle theme</span>
+            </Button>
+        </div>
+    );
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="default" size="icon" className="h-14 w-14 rounded-full shadow-lg">
-          {theme === 'light' && <Sun className="h-[1.5rem] w-[1.5rem] transition-all" />}
-          {theme === 'dark' && <Moon className="absolute h-[1.5rem] w-[1.5rem] transition-all" />}
-          {theme === 'system' && <Monitor className="absolute h-[1.5rem] w-[1.5rem] transition-all" />}
+           {theme === 'light' ? 
+                <Sun className="h-[1.5rem] w-[1.5rem] transition-all" /> : 
+                <Moon className="h-[1.5rem] w-[1.5rem] transition-all" />
+           }
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>
@@ -41,9 +49,6 @@ export function ThemeToggle() {
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("dark")}>
           Oscuro
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          Sistema
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
