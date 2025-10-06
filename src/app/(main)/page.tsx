@@ -55,7 +55,7 @@ export default function HomePage() {
                 <FileSpreadsheet className="h-12 w-12 mr-6 text-primary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
                 <div className="text-left flex-grow">
                   <span className="block text-2xl font-bold text-primary-foreground">
-                    Generar Caja Chica
+                    Cajas Chicas
                   </span>
                 </div>
                 <ArrowRight className="h-8 w-8 ml-auto text-primary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
@@ -71,7 +71,7 @@ export default function HomePage() {
                     <ClipboardList className="h-12 w-12 mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
                     <div className="text-left flex-grow">
                       <span className="block text-2xl font-bold">
-                        Generar Órdenes
+                        Órdenes de Servicio
                       </span>
                     </div>
                     <ArrowRight className="h-8 w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
