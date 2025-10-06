@@ -25,14 +25,12 @@ export function ThemeToggle() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="default" size="icon" className="h-14 w-14 rounded-full shadow-lg">
-          {mounted ? (
+          {mounted && (
             <>
               {theme === 'light' && <Sun className="h-[1.5rem] w-[1.5rem] transition-all" />}
               {theme === 'dark' && <Moon className="absolute h-[1.5rem] w-[1.5rem] transition-all" />}
               {theme === 'system' && <Monitor className="absolute h-[1.5rem] w-[1.5rem] transition-all" />}
             </>
-          ) : (
-             <Monitor className="absolute h-[1.5rem] w-[1.5rem]" /> // Placeholder to avoid layout shift
           )}
           <span className="sr-only">Toggle theme</span>
         </Button>
