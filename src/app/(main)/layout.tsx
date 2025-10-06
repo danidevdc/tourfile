@@ -7,7 +7,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 // Define public paths that don't require authentication
 const PUBLIC_PATHS = ["/login", "/register", "/forgot-password"];
@@ -59,9 +58,6 @@ export default function MainAppLayout({
       <Header />
       <main className="relative">
         {children}
-        <div className="fixed bottom-6 right-6 z-50">
-           <ThemeToggle />
-        </div>
       </main>
     </>
   );
