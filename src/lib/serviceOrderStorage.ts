@@ -154,8 +154,8 @@ export async function saveEditedServiceOrder(
                 data: childDataPayload, 
                 orderName: childName, 
                 splitFrom: parentId, 
-                createdBy: originalOrder.createdBy, 
-                createdAt: originalOrder.createdAt, 
+                createdBy: originalOrder.createdBy,
+                createdAt: originalOrder.createdAt,
                 status: 'creado', 
                 updatedAt: serverTimestamp() 
             });
@@ -169,8 +169,8 @@ export async function saveEditedServiceOrder(
                 data: childDataPayload, 
                 orderName: childName, 
                 splitFrom: parentId, 
-                createdBy: originalOrder.createdBy, 
-                createdAt: originalOrder.createdAt, 
+                createdBy: originalOrder.createdBy,
+                createdAt: originalOrder.createdAt,
                 status: 'creado', 
                 updatedAt: serverTimestamp() 
              });
@@ -207,19 +207,28 @@ export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
 
     if (snapshot.empty) return [];
 
-    return snapshot.docs.map(doc => {
+    const orders: StoredServiceOrder[] = [];
+    snapshot.docs.forEach(doc => {
         const data = doc.data();
-        const createdAt = (data.createdAt as Timestamp)?.toDate();
-        const updatedAt = (data.updatedAt as Timestamp)?.toDate();
         
-        return {
+        // Robust date checking
+        if (!data.createdAt || !(data.createdAt instanceof Timestamp)) {
+            console.warn(`Skipping order ${doc.id}: Missing or invalid 'createdAt' field.`);
+            return; // Skip this document
+        }
+        const createdAt = data.createdAt.toDate();
+        const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
+        
+        orders.push({
             id: doc.id,
             ...data,
             createdAt: createdAt,
             updatedAt: updatedAt,
             status: data.status || 'creado'
-        } as StoredServiceOrder;
+        } as StoredServiceOrder);
     });
+    
+    return orders;
 }
 
 export async function getServiceOrderById(orderId: string): Promise<StoredServiceOrder | null> {
