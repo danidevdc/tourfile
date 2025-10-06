@@ -227,6 +227,15 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       const userProfileDoc = await getDoc(userProfileDocRef);
       const currentSessions = userProfileDoc.data()?.activeSessions || [];
       
+      // Notify if this login makes it 2 sessions
+      if (currentSessions.length === 1) {
+          toast({
+              title: "Aviso de Sesión",
+              description: "Tienes 2 sesiones activas.",
+              duration: 5000,
+          });
+      }
+
       let updatedSessions = [...currentSessions, newSessionId];
       // If we exceed max sessions, remove the oldest one
       if (updatedSessions.length > MAX_SESSIONS) {
