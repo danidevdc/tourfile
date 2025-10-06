@@ -27,12 +27,12 @@ export function ThemeToggle() {
         <Button variant="default" size="icon" className="h-14 w-14 rounded-full shadow-lg">
           {mounted ? (
             <>
-              <Sun className="h-[1.5rem] w-[1.5rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-[1.5rem] w-[1.5rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-              {theme === "system" && <Monitor className="absolute h-[1.5rem] w-[1.5rem] scale-100" />}
+              {theme === 'light' && <Sun className="h-[1.5rem] w-[1.5rem] transition-all" />}
+              {theme === 'dark' && <Moon className="absolute h-[1.5rem] w-[1.5rem] transition-all" />}
+              {theme === 'system' && <Monitor className="absolute h-[1.5rem] w-[1.5rem] transition-all" />}
             </>
           ) : (
-            <Monitor className="absolute h-[1.5rem] w-[1.5rem]" />
+             <Monitor className="absolute h-[1.5rem] w-[1.5rem]" /> // Placeholder to avoid layout shift
           )}
           <span className="sr-only">Toggle theme</span>
         </Button>
