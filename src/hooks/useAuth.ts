@@ -26,6 +26,8 @@ import {
   getDocs,
   deleteDoc,
   increment,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 
 export interface UserProfile {
@@ -39,7 +41,7 @@ export interface UserProfile {
   lastName?: string;
   username?: string;
   generatedReportsCount?: number;
-  activeSessionId?: string;
+  activeSessions?: string[]; // Changed from activeSessionId to an array
 }
 
 export interface ActivityLogEntry {
@@ -74,6 +76,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const ADMIN_EMAIL = 'daniish77@gmail.com';
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const SESSION_ID_KEY = 'app_session_id';
+const MAX_SESSIONS = 2; // Allow 2 concurrent sessions
 
 function AuthProviderInternal({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -82,9 +85,17 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   const handleLogout = useCallback(async (isSilent = false, message?: string) => {
-    if (!auth) return;
+    if (!auth || !auth.currentUser) return;
     setIsLoading(true);
     try {
+      const localSessionId = sessionStorage.getItem(SESSION_ID_KEY);
+      if (localSessionId) {
+        const userProfileDocRef = doc(db, 'userProfiles', auth.currentUser.uid);
+        await updateDoc(userProfileDocRef, {
+          activeSessions: arrayRemove(localSessionId)
+        });
+      }
+      
       await signOut(auth);
       if (typeof window !== 'undefined') {
         sessionStorage.clear();
@@ -97,7 +108,10 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error("Logout error:", error);
-      toast({ title: "Error", description: "No se pudo cerrar la sesión.", variant: "destructive" });
+      // Don't show toast on silent logout errors to avoid bothering user
+      if (!isSilent) {
+        toast({ title: "Error", description: "No se pudo cerrar la sesión.", variant: "destructive" });
+      }
     } finally {
       setCurrentUser(null);
       setIsLoading(false);
@@ -120,6 +134,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
           lastName: data.lastName || '',
           username: data.username || '',
           generatedReportsCount: data.generatedReportsCount || 0,
+          activeSessions: data.activeSessions || [], // Ensure it's an array
         } as UserProfile;
       }
       return null;
@@ -158,10 +173,10 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       if (isLoading || !currentUser || !currentUser.profile) return;
       
       const localSessionId = sessionStorage.getItem(SESSION_ID_KEY);
-      const dbSessionId = currentUser.profile.activeSessionId;
+      const dbSessions = currentUser.profile.activeSessions || [];
 
-      if (dbSessionId && localSessionId !== dbSessionId) {
-        await handleLogout(true, 'Tu sesión se ha cerrado porque iniciaste sesión en otro dispositivo.');
+      if (!localSessionId || !dbSessions.includes(localSessionId)) {
+        await handleLogout(true, 'Tu sesión se ha cerrado porque iniciaste sesión en otro dispositivo o la sesión ha expirado.');
       }
     };
     checkSession();
@@ -204,10 +219,25 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, emailInput.trim().toLowerCase(), passwordInput);
       const firebaseUser = userCredential.user;
-      const newSessionId = `${'Date.now()'}-${'Math.random().toString(36).substring(2, 9)'}`;
+      
+      const newSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       sessionStorage.setItem(SESSION_ID_KEY, newSessionId);
+      
       const userProfileDocRef = doc(db, 'userProfiles', firebaseUser.uid);
-      await updateDoc(userProfileDocRef, { activeSessionId: newSessionId, lastSignInTime: serverTimestamp() });
+      const userProfileDoc = await getDoc(userProfileDocRef);
+      const currentSessions = userProfileDoc.data()?.activeSessions || [];
+      
+      let updatedSessions = [...currentSessions, newSessionId];
+      // If we exceed max sessions, remove the oldest one
+      if (updatedSessions.length > MAX_SESSIONS) {
+        updatedSessions.shift(); 
+      }
+
+      await updateDoc(userProfileDocRef, { 
+        activeSessions: updatedSessions,
+        lastSignInTime: serverTimestamp() 
+      });
+
       const profile = await fetchUserProfile(firebaseUser.uid);
       setCurrentUser({ ...firebaseUser, profile });
       toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${profile?.email || "Usuario"}!`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
@@ -239,7 +269,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
         createdAt: serverTimestamp(),
         activityLog: [],
         generatedReportsCount: 0,
-        activeSessionId: '',
+        activeSessions: [], // Initialize with an empty array
       });
       toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}. Por favor, inicia sesión.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
       if (auth.currentUser) await signOut(auth);
@@ -335,3 +365,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+    
