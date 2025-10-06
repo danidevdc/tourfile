@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Home, LogOut, FileSpreadsheet, UserCircle2 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -63,8 +62,6 @@ export default function Header() {
           </TooltipContent>
         </Tooltip>
         
-        <ThemeToggle />
-
         {isLoading ? (
           <div className="flex items-center gap-2">
              <Skeleton className="h-9 w-24 rounded-md" />
