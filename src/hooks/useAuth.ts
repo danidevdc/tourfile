@@ -153,15 +153,19 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       return;
     }
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setIsLoading(true);
+      // Don't set isLoading to false immediately.
       if (firebaseUser) {
+        // We have a user, now fetch their profile. `isLoading` remains true.
         const profile = await fetchUserProfile(firebaseUser.uid);
+        // Once profile is fetched (or fails), set the user and then set loading to false.
         setCurrentUser({ ...firebaseUser, profile: profile || undefined });
+        setIsLoading(false);
       } else {
+        // No user, clear session and set loading to false.
         setCurrentUser(null);
         if (typeof window !== 'undefined') sessionStorage.removeItem(SESSION_ID_KEY);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
     return () => unsubscribe();
   }, [fetchUserProfile, toast]);
@@ -247,18 +251,18 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
         lastSignInTime: serverTimestamp() 
       });
 
-      const profile = await fetchUserProfile(firebaseUser.uid);
-      setCurrentUser({ ...firebaseUser, profile });
-      toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${profile?.email || "Usuario"}!`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
+      // The onAuthStateChanged listener will handle setting the current user and profile.
+      // We just need to trigger a redirect after successful login.
+      toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo!`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
       router.push('/');
     } catch (error: any) {
       let message = "Correo electrónico o contraseña incorrectos.";
       if (error.code === 'auth/user-disabled') message = "Esta cuenta de usuario ha sido deshabilitada.";
       toast({ title: "Error de Inicio de Sesión", description: message, variant: "destructive" });
       setCurrentUser(null);
-    } finally {
-      setIsLoading(false);
-    }
+      setIsLoading(false); // Set loading to false on error
+    } 
+    // Do not set isLoading to false here, let onAuthStateChanged handle it
   }, [router, toast, fetchUserProfile]);
 
   const register = useCallback(async (email?: string, password?: string) => {
@@ -374,5 +378,6 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
 
     
