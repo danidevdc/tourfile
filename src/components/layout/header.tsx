@@ -62,6 +62,8 @@ export default function Header() {
             <p>Ir a Inicio</p>
           </TooltipContent>
         </Tooltip>
+
+        <ThemeToggle />
         
         {isLoading ? (
           <div className="flex items-center gap-2">
@@ -97,7 +99,6 @@ export default function Header() {
              {/* Fallback for non-authenticated users, though MainLayout should prevent this */}
           </>
         )}
-        <ThemeToggle />
       </div>
     </header>
     </TooltipProvider>
