@@ -4,7 +4,6 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from '@/hooks/useAuth';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export const metadata: Metadata = {
   title: 'TourFile Generator',
@@ -34,9 +33,6 @@ export default function RootLayout({
           >
             {children}
             <Toaster />
-            <div className="fixed bottom-5 right-5 z-50">
-              <ThemeToggle />
-            </div>
           </ThemeProvider>
         </AuthProvider>
       </body>

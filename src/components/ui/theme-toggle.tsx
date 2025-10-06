@@ -13,33 +13,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = React.useState(false)
-
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // To prevent hydration mismatch, we render a disabled placeholder on the server.
-  // The button will appear correctly on the client after mounting.
-  if (!mounted) {
-    return (
-        <div className="fixed bottom-5 right-5 z-50">
-            <Button variant="default" size="icon" className="h-14 w-14 rounded-full shadow-lg" disabled>
-                 <span className="sr-only">Toggle theme</span>
-            </Button>
-        </div>
-    );
-  }
+  const { setTheme } = useTheme()
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="default" size="icon" className="h-14 w-14 rounded-full shadow-lg">
-           {theme === 'light' ? 
-                <Sun className="h-[1.5rem] w-[1.5rem] transition-all" /> : 
-                <Moon className="h-[1.5rem] w-[1.5rem] transition-all" />
-           }
+        <Button variant="outline" size="icon">
+          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>

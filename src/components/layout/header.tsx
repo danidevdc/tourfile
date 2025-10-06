@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { ThemeToggle } from '../ui/theme-toggle';
 
 
 export default function Header() {
@@ -96,6 +97,7 @@ export default function Header() {
              {/* Fallback for non-authenticated users, though MainLayout should prevent this */}
           </>
         )}
+        <ThemeToggle />
       </div>
     </header>
     </TooltipProvider>
