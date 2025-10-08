@@ -68,3 +68,4 @@ El panel de administración ofrece control total sobre los datos y la lógica de
     -   `exceljs` para generar los reportes de Excel.
     -   `html2canvas` para la captura de imágenes para WhatsApp.
 -   **Gestión de Formularios:** React Hook Form con Zod para validación.
+
