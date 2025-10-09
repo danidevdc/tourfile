@@ -185,6 +185,12 @@ export function ServiceOrderGeneratorSheet({
         if (!selectedFile || !excelData || !orderData.file) {
             toast({ title: "Datos incompletos", description: "Selecciona un archivo e ingresa un número de file.", variant: "destructive" }); return;
         }
+
+        // Fix: Check if excelData is empty
+        if (excelData.length === 0 || !excelData[0]) {
+            toast({ title: "Archivo Inválido", description: "El archivo Excel parece estar vacío o no tiene columnas.", variant: "destructive" }); return;
+        }
+        
         setIsProcessingSearch(true); setFileSearchStatus("searching");
         await new Promise(resolve => setTimeout(resolve, 300));
         
@@ -193,7 +199,7 @@ export function ServiceOrderGeneratorSheet({
         
         for (let j = 0; j < excelData[0].length; j++) {
             for (let i = 0; i < excelData.length; i++) {
-                 if (excelData[i][j] && String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch) {
+                 if (excelData[i] && excelData[i][j] && String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch) {
                     found = true; fileColumnIndex = j; rowIdxWhereFileNumberFound = i; break;
                 }
             }
@@ -435,7 +441,7 @@ export function ServiceOrderGeneratorSheet({
     const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim();
 
     const filteredFlightOptions = useMemo(() => {
-        const createOption = (f: PredefinedFlight) => ({ value: f.flightNumber, key: f.id, label: `${f.flightNumber} (${f.time})` });
+        const createOption = (f: PredefinedFlight) => ({ value: f.flightNumber, key: f.id, label: `${'f.flightNumber'} (${'f.time'})` });
         const service = newService.servicio?.toUpperCase();
         if (service === 'TRF IN') { return flights.filter(f => f.observations.toUpperCase().includes('LLEGA')).map(createOption); }
         if (service === 'TRF OUT') { return flights.filter(f => f.observations.toUpperCase().includes('SALE')).map(createOption); }
@@ -644,7 +650,7 @@ export function ServiceOrderGeneratorSheet({
                                                     <TableCell className="p-2 border-r border-primary/20 font-sans">{s.servicio}</TableCell>
                                                     <TableCell className="p-1 border-r border-primary/20">
                                                         <Combobox 
-                                                            options={flights.map(f => ({value: f.flightNumber, label: `${f.flightNumber} (${f.time})`}))} 
+                                                            options={flights.map(f => ({value: f.flightNumber, label: `${'f.flightNumber'} (${'f.time'})`}))} 
                                                             value={s.vuelo || ''} 
                                                             onSelect={(val) => handleServiceSummaryChange(originalIndex, 'vuelo', val)} 
                                                             placeholder="Vuelo..." 
@@ -736,3 +742,5 @@ export function ServiceOrderGeneratorSheet({
         </Sheet>
     );
 }
+
+    
