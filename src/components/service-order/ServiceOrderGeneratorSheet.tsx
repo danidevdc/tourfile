@@ -92,15 +92,20 @@ export function ServiceOrderGeneratorSheet({
             try {
                 const data = new Uint8Array(e.target?.result as ArrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                const ws = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null });
+                const sheetName = "Hoja1";
+                const worksheet = workbook.Sheets[sheetName];
+
+                if (!worksheet) {
+                    throw new Error(`El archivo no contiene una hoja llamada "${sheetName}".`);
+                }
+                const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: null });
                 setExcelData(jsonData);
 
                 const base64 = btoa(new Uint8Array(data).reduce((res, byte) => res + String.fromCharCode(byte), ''));
                 sessionStorage.setItem(SESSION_STORAGE_FILE_KEY, base64);
                 sessionStorage.setItem(SESSION_STORAGE_FILENAME_KEY, file.name);
-            } catch (error) {
-                toast({ title: "Error", description: "No se pudo procesar el archivo. Límite de tamaño excedido.", variant: "destructive" });
+            } catch (error: any) {
+                toast({ title: "Error", description: error.message || "No se pudo procesar el archivo. Límite de tamaño excedido.", variant: "destructive" });
                 clearFile();
             }
         };
@@ -186,7 +191,7 @@ export function ServiceOrderGeneratorSheet({
             toast({ title: "Datos incompletos", description: "Selecciona un archivo e ingresa un número de file.", variant: "destructive" }); return;
         }
 
-        // Fix: Check if excelData is empty
+        // Fix: Check if excelData is empty or first row is invalid
         if (excelData.length === 0 || !excelData[0]) {
             toast({ title: "Archivo Inválido", description: "El archivo Excel parece estar vacío o no tiene columnas.", variant: "destructive" }); return;
         }
@@ -196,8 +201,10 @@ export function ServiceOrderGeneratorSheet({
         
         let found = false, fileColumnIndex = -1, rowIdxWhereFileNumberFound = -1;
         const fileNumberToSearch = orderData.file.trim().toUpperCase();
+
+        const numCols = excelData.reduce((max, row) => Math.max(max, row ? row.length : 0), 0);
         
-        for (let j = 0; j < excelData[0].length; j++) {
+        for (let j = 0; j < numCols; j++) {
             for (let i = 0; i < excelData.length; i++) {
                  if (excelData[i] && excelData[i][j] && String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch) {
                     found = true; fileColumnIndex = j; rowIdxWhereFileNumberFound = i; break;
@@ -441,7 +448,7 @@ export function ServiceOrderGeneratorSheet({
     const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim();
 
     const filteredFlightOptions = useMemo(() => {
-        const createOption = (f: PredefinedFlight) => ({ value: f.flightNumber, key: f.id, label: `${'f.flightNumber'} (${'f.time'})` });
+        const createOption = (f: PredefinedFlight) => ({ value: f.flightNumber, key: f.id, label: `${f.flightNumber} (${f.time})` });
         const service = newService.servicio?.toUpperCase();
         if (service === 'TRF IN') { return flights.filter(f => f.observations.toUpperCase().includes('LLEGA')).map(createOption); }
         if (service === 'TRF OUT') { return flights.filter(f => f.observations.toUpperCase().includes('SALE')).map(createOption); }
@@ -650,7 +657,7 @@ export function ServiceOrderGeneratorSheet({
                                                     <TableCell className="p-2 border-r border-primary/20 font-sans">{s.servicio}</TableCell>
                                                     <TableCell className="p-1 border-r border-primary/20">
                                                         <Combobox 
-                                                            options={flights.map(f => ({value: f.flightNumber, label: `${'f.flightNumber'} (${'f.time'})`}))} 
+                                                            options={flights.map(f => ({value: f.flightNumber, label: `${f.flightNumber} (${f.time})`}))} 
                                                             value={s.vuelo || ''} 
                                                             onSelect={(val) => handleServiceSummaryChange(originalIndex, 'vuelo', val)} 
                                                             placeholder="Vuelo..." 
@@ -742,5 +749,3 @@ export function ServiceOrderGeneratorSheet({
         </Sheet>
     );
 }
-
-    

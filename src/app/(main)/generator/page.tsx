@@ -126,8 +126,14 @@ export default function GeneratorPage() {
             const arrayBuffer = e.target?.result;
             if (!arrayBuffer) throw new Error("Error al leer el archivo.");
             const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
+            
+            const sheetName = "Hoja1";
+            const worksheet = workbook.Sheets[sheetName];
+
+            if (!worksheet) {
+                throw new Error(`El archivo no contiene una hoja llamada "${sheetName}".`);
+            }
+            
             const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: null });
             
             setExcelData(data);
@@ -136,11 +142,11 @@ export default function GeneratorPage() {
             setCurrentPaxCount(null);
             setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
             
-          } catch (error) {
+          } catch (error: any) {
             console.error("Error al procesar el archivo Excel:", error);
             toast({
               title: "Error de Procesamiento",
-              description: "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido.",
+              description: error.message || "No se pudo procesar el archivo Excel. Asegúrate de que sea un formato válido y contenga la 'Hoja1'.",
               variant: "destructive",
             });
             handleClearFile();
