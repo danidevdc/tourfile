@@ -19,6 +19,7 @@ import {
     getChildrenByParentId,
     softCancelServiceOrder,
     saveEditedServiceOrder,
+    deleteServiceOrder, // Import the correct soft-delete function
 } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { getFamilyId, childNameFrom, getBaseName, shortPerson } from "@/lib/serviceOrderFamily";
@@ -308,25 +309,18 @@ export default function ServiceOrderListPage() {
 
 
   const handleDeleteOrder = async () => {
-    if(!orderToDelete || !orderToDelete.id || !currentUser?.email) return;
+    if (!orderToDelete || !orderToDelete.id || !currentUser?.email) return;
 
-    const family = families.find(f => f.parent.id === orderToDelete.id || f.children.some(c => c.id === orderToDelete.id));
-    let idsToDelete: string[] = [orderToDelete.id];
-
-    if (family && family.parent.id === orderToDelete.id) {
-        idsToDelete = [orderToDelete.id, ...family.children.map(c => c.id)];
-    }
-    
     try {
-        await deleteBulkServiceOrders(idsToDelete, currentUser.email);
-        toast({ title: "Éxito", description: `${idsToDelete.length} orden(es) marcada(s) como eliminada(s).`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
+        await deleteServiceOrder(orderToDelete.id, currentUser.email);
+        toast({ title: "Éxito", description: `La orden "${getBaseName(orderToDelete.orderName)}" ha sido marcada como eliminada.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
         fetchOrders();
     } catch (error) {
-        toast({ title: "Error", description: "No se pudieron eliminar las órdenes.", variant: "destructive"});
+        toast({ title: "Error", description: "No se pudo eliminar la orden.", variant: "destructive"});
     } finally {
         setOrderToDelete(null);
     }
-  }
+  };
 
   const handleBulkDelete = async () => {
     const idsToDelete = Array.from(selectedOrderIds);
@@ -717,3 +711,5 @@ export default function ServiceOrderListPage() {
     </TooltipProvider>
   );
 }
+
+    
