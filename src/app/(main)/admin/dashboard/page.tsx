@@ -22,13 +22,13 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   Line,
   Legend,
@@ -239,7 +239,7 @@ export default function AdminDashboardPage() {
           </div>
         </CardContent>
       </Card>
-      
+
       <div className="w-full max-w-6xl grid grid-cols-1 gap-6">
         <Card className="shadow-lg">
             <CardHeader>

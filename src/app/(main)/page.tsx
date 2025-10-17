@@ -5,10 +5,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FileSpreadsheet, ArrowRight, ClipboardList, Settings, Plane, Database, ClipboardEdit } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth"; 
+import { useAuth } from "@/hooks/useAuth";
 import { version } from '../../../package.json';
 import { useEffect, useState } from "react";
 import { getIntermediateUserEmail } from "@/lib/appConfigService";
+import { LiveTimeline } from "@/components/LiveTimeline";
 
 
 export default function HomePage() {
@@ -149,6 +150,13 @@ export default function HomePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Live Timeline - Beta Feature */}
+      {!authLoading && isCurrentUserAdmin && (
+        <div className="w-full max-w-7xl mt-8">
+          <LiveTimeline />
+        </div>
+      )}
 
        <footer className="mt-12 text-center text-sm text-muted-foreground">
         <p>&copy; {new Date().getFullYear()} TourFile Generator. Todos los derechos reservados. (Versión: {appVersion})</p>
