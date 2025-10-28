@@ -13,7 +13,7 @@ import { LiveTimeline } from "@/components/LiveTimeline";
 
 
 export default function HomePage() {
-  const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated, currentUser } from useAuth(); 
+  const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated, currentUser } = useAuth(); 
   const [canSeeIntermediateButton, setCanSeeIntermediateButton] = useState(false);
 
   useEffect(() => {
