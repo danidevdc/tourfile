@@ -13,7 +13,7 @@ import { LiveTimeline } from "@/components/LiveTimeline";
 
 
 export default function HomePage() {
-  const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated, currentUser } = useAuth(); 
+  const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated, currentUser } from useAuth(); 
   const [canSeeIntermediateButton, setCanSeeIntermediateButton] = useState(false);
 
   useEffect(() => {
@@ -152,7 +152,7 @@ export default function HomePage() {
       </Card>
 
       {/* Live Timeline - Beta Feature */}
-      {!authLoading && isCurrentUserAdmin && (
+      {!authLoading && isAuthenticated && (
         <div className="w-full max-w-7xl mt-8">
           <LiveTimeline />
         </div>
