@@ -97,8 +97,19 @@ export async function saveEditedServiceOrder(
 
     const batch = writeBatch(db);
     const parentId = originalOrder.splitFrom || originalOrder.id;
+    const parentRef = doc(db, 'serviceOrders', parentId);
     const parentBaseName = getBaseName(originalOrder.orderName);
-    
+
+    // --- CRITICAL FIX: Cancel all existing children before creating new ones ---
+    const existingChildren = await getChildrenByParentId(parentId);
+    existingChildren.forEach(child => {
+        // We only cancel children, not the parent itself if it's in the list
+        if (child.id !== parentId) {
+            const childRef = doc(db, 'serviceOrders', child.id);
+            batch.update(childRef, { status: 'cancelado', updatedAt: serverTimestamp() });
+        }
+    });
+
     const guideServiceMap = new Map<string, any[]>();
     const driverServiceMap = new Map<string, any[]>();
     
@@ -119,33 +130,16 @@ export async function saveEditedServiceOrder(
     
     const needsSplit = guideServiceMap.size > 1 || driverServiceMap.size > 1;
 
-    // If no split is needed, just update the main order
     if (!needsSplit) {
-        batch.update(doc(db, 'serviceOrders', parentId), {
+        // If no split is needed, just update the main order and ensure it's not marked as a split parent.
+        batch.update(parentRef, {
             data: updatedData,
             isSplitParent: false,
             status: 'editado',
             updatedAt: serverTimestamp()
         });
-        
-        // Cancel any existing children because the order is no longer split
-        const existingChildren = await getChildrenByParentId(parentId);
-        existingChildren.forEach(child => {
-            if (child.id !== parentId) {
-                 batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
-            }
-        });
-
     } else { // If a split is needed
-        // Mark existing children for cancellation before creating new ones
-        const existingChildren = await getChildrenByParentId(parentId);
-        existingChildren.forEach(child => {
-            if (child.id !== parentId) {
-                batch.update(doc(db, 'serviceOrders', child.id), { status: 'cancelado', updatedAt: serverTimestamp() });
-            }
-        });
-
-        // Create new children based on the split logic
+        // Create new children for guides
         for (const [guide, services] of guideServiceMap.entries()) {
             const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guide };
             const childName = childNameFrom(parentBaseName, guide, null);
@@ -161,8 +155,9 @@ export async function saveEditedServiceOrder(
             });
         }
 
+        // Create new children for drivers
         for (const [driver, services] of driverServiceMap.entries()) {
-             const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: '' };
+             const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: '' }; // Guia is empty for driver orders
              const childName = childNameFrom(parentBaseName, null, driver);
              const newDocRef = doc(collection(db, 'serviceOrders'));
              batch.set(newDocRef, { 
@@ -176,8 +171,8 @@ export async function saveEditedServiceOrder(
              });
         }
         
-        // Update the parent order
-        batch.update(doc(db, 'serviceOrders', parentId), {
+        // Update the parent order to mark it as a split parent
+        batch.update(parentRef, {
             data: updatedData,
             isSplitParent: true,
             status: 'editado',
