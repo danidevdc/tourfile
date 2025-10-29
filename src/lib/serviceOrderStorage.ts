@@ -144,14 +144,14 @@ export async function saveEditedServiceOrder(
             const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guide };
             const childName = childNameFrom(parentBaseName, guide, null);
             const newDocRef = doc(collection(db, 'serviceOrders'));
-            batch.set(newDocRef, { 
-                data: childDataPayload, 
-                orderName: childName, 
-                splitFrom: parentId, 
+            batch.set(newDocRef, {
+                data: childDataPayload,
+                orderName: childName,
+                splitFrom: parentId,
                 createdBy: originalOrder.createdBy,
-                createdAt: originalOrder.createdAt, // Propagate original creation date
-                status: 'creado', 
-                updatedAt: serverTimestamp() 
+                createdAt: Timestamp.fromDate(originalOrder.createdAt), // Convert Date to Timestamp
+                status: 'creado',
+                updatedAt: serverTimestamp()
             });
         }
 
@@ -160,14 +160,14 @@ export async function saveEditedServiceOrder(
              const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: '' }; // Guia is empty for driver orders
              const childName = childNameFrom(parentBaseName, null, driver);
              const newDocRef = doc(collection(db, 'serviceOrders'));
-             batch.set(newDocRef, { 
-                data: childDataPayload, 
-                orderName: childName, 
-                splitFrom: parentId, 
+             batch.set(newDocRef, {
+                data: childDataPayload,
+                orderName: childName,
+                splitFrom: parentId,
                 createdBy: originalOrder.createdBy,
-                createdAt: originalOrder.createdAt, // Propagate original creation date
-                status: 'creado', 
-                updatedAt: serverTimestamp() 
+                createdAt: Timestamp.fromDate(originalOrder.createdAt), // Convert Date to Timestamp
+                status: 'creado',
+                updatedAt: serverTimestamp()
              });
         }
         

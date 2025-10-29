@@ -302,7 +302,7 @@ export default function ServiceOrderListPage() {
         toast({ title: "Error al Guardar", description: error.message || "No se pudo guardar la orden.", variant: "destructive" });
     }
 
-    fetchOrders(); 
+    await fetchOrders(); // Wait for orders to load before closing modal
     setIsEditModalOpen(false);
     setOrderToEdit(null);
   };
