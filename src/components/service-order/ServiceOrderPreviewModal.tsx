@@ -32,10 +32,13 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
     // Collect all unique guides from services, including the main guide
     const allGuides = new Set<string>();
     if (data.guia) {
-      allGuides.add(data.guia.trim());
+      // If the main guide field has commas, it's likely already a list
+      data.guia.split(',').forEach(g => {
+        if (g.trim()) allGuides.add(g.trim());
+      });
     }
     data.services?.forEach(service => {
-      if (service.guia) {
+      if (service.guia && service.guia.trim()) {
         allGuides.add(service.guia.trim());
       }
     });
