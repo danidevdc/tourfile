@@ -471,7 +471,7 @@ export function ServiceOrderGeneratorSheet({
         ...assignedGuides.map(g => ({ value: g.toUpperCase(), label: g.toUpperCase() }))
     ];
 
-    const assignedDrivers = [...additionalDrivers].filter(Boolean);
+    const assignedDrivers = [choferSelection, ...additionalDrivers].filter(Boolean);
     const serviceDriverOptions = [
         { value: 'NONE', label: 'Ninguno' },
         ...assignedDrivers.map(d => ({ value: d.toUpperCase(), label: d.toUpperCase() }))
