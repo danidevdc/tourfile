@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser, CheckCircle } from "lucide-react";
+import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser, CheckCircle, UserPlus, Car } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { FileSearchStatus } from "@/lib/report-generator";
@@ -85,6 +85,9 @@ export function ServiceOrderGeneratorSheet({
 
     const [selectedServices, setSelectedServices] = useState<Set<number>>(new Set());
     const [masterDate, setMasterDate] = useState<string>('');
+
+    const [additionalGuides, setAdditionalGuides] = useState<string[]>([]);
+    const [additionalDrivers, setAdditionalDrivers] = useState<string[]>([]);
     
     const processAndStoreFile = (file: File) => {
         const reader = new FileReader();
@@ -363,9 +366,9 @@ export function ServiceOrderGeneratorSheet({
         const serviceToAdd: ServiceItem = {
             ...newService,
             fecha: newService.fecha ? format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '',
-            guia: orderData.guia,
-            bus: busTypeSelection || lastService?.bus || '',
-            chofer: choferSelection || lastService?.chofer || '',
+            guia: newService.guia || orderData.guia, // Use selected guide or default to main guide
+            bus: newService.bus || busTypeSelection || lastService?.bus || '',
+            chofer: newService.chofer || choferSelection || lastService?.chofer || '', // Use selected driver or default
         };
         recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
         setOrderData({ ...orderData, services: [...orderData.services, serviceToAdd] });
@@ -458,6 +461,21 @@ export function ServiceOrderGeneratorSheet({
     const busOptions = buses.map(b => ({ value: b.name.toUpperCase(), label: b.name }));
     const finalBusOptions = [...busOptions, { value: 'CONT.', label: 'Contratado' }];
 
+    // Options for selecting guide/driver per service (from assigned ones)
+    const allAvailableGuides = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
+    const allAvailableDrivers = drivers.map(d => ({ value: d.name.toUpperCase(), label: d.name }));
+
+    const assignedGuides = [orderData.guia, ...additionalGuides].filter(Boolean);
+    const serviceGuideOptions = [
+        { value: 'NONE', label: 'Ninguno' },
+        ...assignedGuides.map(g => ({ value: g.toUpperCase(), label: g.toUpperCase() }))
+    ];
+
+    const assignedDrivers = [...additionalDrivers].filter(Boolean);
+    const serviceDriverOptions = [
+        { value: 'NONE', label: 'Ninguno' },
+        ...assignedDrivers.map(d => ({ value: d.toUpperCase(), label: d.toUpperCase() }))
+    ];
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
@@ -557,11 +575,79 @@ export function ServiceOrderGeneratorSheet({
                                 </div>
                                 )}
                             </div>
+
+                            {/* Additional Guides and Drivers Section */}
+                            <div className="space-y-3 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
+                                <div className="flex items-end gap-2">
+                                    <div className="flex-1">
+                                        <Label className="flex items-center gap-2"><UserPlus size={14}/>Guías Adicionales</Label>
+                                        <Combobox
+                                            options={allAvailableGuides.filter(g => g.value !== orderData.guia && !additionalGuides.includes(g.value))}
+                                            value={''}
+                                            onSelect={(val) => {
+                                                if (!additionalGuides.includes(val)) {
+                                                    setAdditionalGuides([...additionalGuides, val]);
+                                                }
+                                            }}
+                                            placeholder="Añadir otro guía..."
+                                            className="h-9 mt-1"
+                                            triggerClassName="bg-background"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    {additionalGuides.map(g => (
+                                        <div key={g} className="flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full px-2 py-0.5">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-4 w-4 text-blue-500"
+                                                onClick={() => setAdditionalGuides(additionalGuides.filter(ag => ag !== g))}
+                                            >
+                                                <XCircle size={14}/>
+                                            </Button>
+                                            <span>{g}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <hr className="my-2 border-zinc-200 dark:border-zinc-700"/>
+                                <div className="flex items-end gap-2">
+                                    <div className="flex-1">
+                                        <Label className="flex items-center gap-2"><Car size={14}/>Choferes Adicionales</Label>
+                                        <Combobox
+                                            options={allAvailableDrivers.filter(d => !additionalDrivers.includes(d.value))}
+                                            value={''}
+                                            onSelect={(val) => {
+                                                if (!additionalDrivers.includes(val)) {
+                                                    setAdditionalDrivers([...additionalDrivers, val]);
+                                                }
+                                            }}
+                                            placeholder="Añadir otro chofer..."
+                                            className="h-9 mt-1"
+                                            triggerClassName="bg-background"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    {additionalDrivers.map(d => (
+                                        <div key={d} className="flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-full px-2 py-0.5">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-4 w-4 text-green-500"
+                                                onClick={() => setAdditionalDrivers(additionalDrivers.filter(ad => ad !== d))}
+                                            >
+                                                <XCircle size={14}/>
+                                            </Button>
+                                            <span>{d}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
-                        
-                        {!isAutomatedMode && (
-                            <div className="p-4 border rounded-lg bg-card">
-                                <h3 className="font-semibold mb-2">Añadir Servicio Manualmente</h3>
+
+                        <div className="p-4 border rounded-lg bg-card">
+                            <h3 className="font-semibold mb-2">Añadir Servicio {isAutomatedMode ? 'Adicional' : 'Manualmente'}</h3>
                                  <div className="flex items-end gap-2">
                                     <div style={{ width: '150px' }}>
                                       <Label>Fecha</Label>
@@ -594,14 +680,47 @@ export function ServiceOrderGeneratorSheet({
                                         <Label>Hora</Label>
                                         <Input value={newService.hora} onChange={handleTimeInputChange} onBlur={handleTimeInputBlur} placeholder="HH:mm" maxLength={5} className="mt-1 w-full"/>
                                     </div>
+                                    <div style={{ width: '150px' }}>
+                                        <Label>Guía</Label>
+                                        <Select
+                                            value={newService.guia || 'DEFAULT'}
+                                            onValueChange={(val) => handleNewServiceChange('guia', val === 'DEFAULT' ? '' : val)}
+                                        >
+                                            <SelectTrigger className="mt-1 bg-card">
+                                                <SelectValue placeholder="Por defecto" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="DEFAULT">Por defecto</SelectItem>
+                                                {serviceGuideOptions.filter(g => g.value !== 'NONE').map(g => (
+                                                    <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div style={{ width: '150px' }}>
+                                        <Label>Chofer</Label>
+                                        <Select
+                                            value={newService.chofer || 'DEFAULT'}
+                                            onValueChange={(val) => handleNewServiceChange('chofer', val === 'DEFAULT' ? '' : val)}
+                                        >
+                                            <SelectTrigger className="mt-1 bg-card">
+                                                <SelectValue placeholder="Por defecto" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="DEFAULT">Por defecto</SelectItem>
+                                                {serviceDriverOptions.filter(d => d.value !== 'NONE').map(d => (
+                                                    <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                     <div>
                                         <Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}>
                                             <PlusCircle className="mr-2 h-5 w-5"/>Añadir
                                         </Button>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                        </div>
 
                         <div className="p-4 border rounded-lg bg-card">
                              <h3 className="font-semibold mb-2">Resumen ({orderData.services.length} servicios)</h3>
