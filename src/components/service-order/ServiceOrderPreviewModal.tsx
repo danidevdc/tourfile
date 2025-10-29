@@ -29,10 +29,20 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
   const [isCopying, setIsCopying] = useState(false);
 
   const processedData = useMemo(() => {
-    // For driver orders, data.guia already contains all guides separated by comma
-    // For guide orders, data.guia contains the single guide
-    // So we use data.guia directly without processing individual service guides
-    const displayGuide = data.guia || '—';
+    // Collect all unique guides from services, including the main guide
+    const allGuides = new Set<string>();
+    if (data.guia) {
+      allGuides.add(data.guia.trim());
+    }
+    data.services?.forEach(service => {
+      if (service.guia) {
+        allGuides.add(service.guia.trim());
+      }
+    });
+
+    // Join the unique guides into a comma-separated string, or use a placeholder if none are found.
+    const displayGuide = allGuides.size > 0 ? Array.from(allGuides).join(', ') : '—';
+
 
     const sortedServices = [...(data.services || [])].sort((a, b) => {
       try {
