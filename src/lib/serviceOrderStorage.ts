@@ -134,7 +134,7 @@ export async function saveEditedServiceOrder(
         // If no split is needed, just update the main order and ensure it's not marked as a split parent.
         batch.update(parentRef, {
             data: updatedData,
-            isSplitParent: false,
+            "data.isSplitParent": false, // Explicitly set isSplitParent to false
             status: 'editado',
             updatedAt: serverTimestamp()
         });
@@ -149,7 +149,7 @@ export async function saveEditedServiceOrder(
                 orderName: childName, 
                 splitFrom: parentId, 
                 createdBy: originalOrder.createdBy,
-                createdAt: originalOrder.createdAt,
+                createdAt: originalOrder.createdAt, // Propagate original creation date
                 status: 'creado', 
                 updatedAt: serverTimestamp() 
             });
@@ -165,7 +165,7 @@ export async function saveEditedServiceOrder(
                 orderName: childName, 
                 splitFrom: parentId, 
                 createdBy: originalOrder.createdBy,
-                createdAt: originalOrder.createdAt,
+                createdAt: originalOrder.createdAt, // Propagate original creation date
                 status: 'creado', 
                 updatedAt: serverTimestamp() 
              });
@@ -174,7 +174,7 @@ export async function saveEditedServiceOrder(
         // Update the parent order to mark it as a split parent
         batch.update(parentRef, {
             data: updatedData,
-            isSplitParent: true,
+            "data.isSplitParent": true, // Set the flag on the parent's data
             status: 'editado',
             updatedAt: serverTimestamp()
         });
