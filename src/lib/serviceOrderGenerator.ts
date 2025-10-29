@@ -1,4 +1,5 @@
 
+
 import ExcelJS from 'exceljs';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -86,8 +87,23 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   worksheet.getRow(1).height = 20.1;
 
   // ---- INFO BLOCK (filas 2–6) ----
+  // Collect unique guides
+  const allGuides = new Set<string>();
+  if (data.guia && data.guia.trim()) {
+    data.guia.split(',').forEach(g => {
+      if (g.trim()) allGuides.add(g.trim());
+    });
+  }
+  data.services?.forEach(service => {
+    if (service.guia && service.guia.trim()) {
+      allGuides.add(service.guia.trim());
+    }
+  });
+  const displayGuide = allGuides.size > 0 ? Array.from(allGuides).join(', ') : '—';
+
+
   const infoData = [
-    { label: 'GUIA:', value: data.guia },
+    { label: 'GUIA:', value: displayGuide },
     { label: 'FILE:', value: data.file },
     { label: 'REF:', value: data.ref },
     { label: 'N° PAX:', value: data.nPax },
