@@ -235,12 +235,8 @@ export default function ServiceOrderListPage() {
   // Expose the modal function and data globally
   useEffect(() => {
     window.showSimplePreviewModal = (order, onStatusUpdate) => {
-        const family = families.find(f => f.parent.id === getFamilyId(order));
-        if (family && family.parent.data.isSplitParent) {
-            showSimplePreviewModal({ ...family.parent }, onStatusUpdate);
-        } else {
-            showSimplePreviewModal(order, onStatusUpdate);
-        }
+        // Always show the specific order (child or parent), not the parent when clicking a child
+        showSimplePreviewModal(order, onStatusUpdate);
     };
     
     // Make handleStatusUpdate available globally for the raw HTML button to call
@@ -280,14 +276,8 @@ export default function ServiceOrderListPage() {
   };
 
   const handlePreviewOrderClick = async (order: StoredServiceOrder) => {
-    const family = families.find(f => f.parent.id === getFamilyId(order));
-    let orderToDisplay = order;
-
-    if (family && family.parent.data.isSplitParent) {
-        orderToDisplay = { ...family.parent };
-    }
-    
-    setOrderToPreview(orderToDisplay);
+    // Always show the specific order (child or parent), not the parent when clicking a child
+    setOrderToPreview(order);
     setIsPreviewModalOpen(true);
   };
   

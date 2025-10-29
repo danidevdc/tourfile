@@ -16,7 +16,7 @@ import {
 import { getServiceOrderRules, type ServiceOrderRule } from '@/lib/serviceOrderRuleService';
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { generateServicesFromExcelColumn } from '@/lib/serviceOrderProcessor';
-import { saveServiceOrder } from '@/lib/serviceOrderStorage';
+import { saveServiceOrder, saveServiceOrderWithSplit } from '@/lib/serviceOrderStorage';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -384,13 +384,12 @@ export function ServiceOrderGeneratorSheet({
             toast({ title: "Datos Requeridos", description: "El guía y el número de file son obligatorios.", variant: "destructive" }); return;
         }
         setIsSaving(true);
-        console.log("Attempting to save order with data:", JSON.stringify(orderData, null, 2)); // DEBUG LOG
         try {
-            await saveServiceOrder(orderData, currentUser.email);
-            toast({ title: "Éxito", description: "Orden de servicio guardada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+            // Use the new split function that automatically divides if multiple guides/drivers
+            await saveServiceOrderWithSplit(orderData, currentUser.email);
+            toast({ title: "Éxito", description: "Orden de servicio guardada y dividida exitosamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
             onSave();
         } catch (error: any) {
-            console.error("Error al guardar la orden:", error); // DEBUG LOG
             toast({ title: "Error", description: error.message || "No se pudo guardar la orden de servicio.", variant: "destructive" });
         } finally {
             setIsSaving(false);

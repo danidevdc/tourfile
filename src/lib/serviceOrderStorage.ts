@@ -68,7 +68,7 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
     if (!db) throw new Error("Firestore not initialized.");
 
     const finalOrderName = orderName || formatOrderName(getFirstDateFromServices(orderData.services), orderData.file);
-    
+
     const newOrderPayload: any = {
         orderName: finalOrderName,
         createdBy: createdByEmail,
@@ -77,7 +77,7 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     };
-    
+
     if (splitFromId) {
         newOrderPayload.splitFrom = splitFromId;
     }
@@ -86,6 +86,107 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
     const docRef = await addDoc(collection(db, 'serviceOrders'), newOrderPayload);
 
     return docRef.id;
+}
+
+/**
+ * Saves a new service order and automatically splits it if multiple guides/drivers are assigned.
+ * This mimics the behavior of saveEditedServiceOrder but for new orders.
+ */
+export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, createdByEmail: string): Promise<void> {
+    if (!db) throw new Error("Firestore not initialized.");
+
+    const batch = writeBatch(db);
+    const parentBaseName = formatOrderName(getFirstDateFromServices(orderData.services), orderData.file);
+
+    // Analyze service distribution
+    const guideServiceMap = new Map<string, any[]>();
+    const driverServiceMap = new Map<string, any[]>();
+
+    const mainGuide = orderData.guia || "SIN GUIA PRINCIPAL";
+
+    orderData.services.forEach(service => {
+        const guideKey = service.guia || mainGuide;
+        if (guideKey && guideKey !== "SIN GUIA PRINCIPAL") {
+            if (!guideServiceMap.has(guideKey)) guideServiceMap.set(guideKey, []);
+            guideServiceMap.get(guideKey)!.push(service);
+        }
+
+        if (service.chofer && service.chofer !== 'NONE' && service.bus?.toUpperCase() !== 'SIN BUS') {
+            if (!driverServiceMap.has(service.chofer)) driverServiceMap.set(service.chofer, []);
+            driverServiceMap.get(service.chofer)!.push(service);
+        }
+    });
+
+    const needsSplit = guideServiceMap.size > 1 || driverServiceMap.size > 1;
+
+    if (!needsSplit) {
+        // No split needed, create a single order
+        const newOrderPayload: any = {
+            orderName: parentBaseName,
+            createdBy: createdByEmail,
+            data: orderData,
+            status: 'creado',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        };
+        const docRef = doc(collection(db, 'serviceOrders'));
+        batch.set(docRef, newOrderPayload);
+    } else {
+        // Split needed: create parent + children
+        const parentRef = doc(collection(db, 'serviceOrders'));
+        const parentId = parentRef.id;
+
+        // Create parent order marked as split
+        batch.set(parentRef, {
+            orderName: parentBaseName,
+            createdBy: createdByEmail,
+            data: { ...orderData, isSplitParent: true },
+            status: 'creado',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+
+        // Create child orders for each guide
+        for (const [guide, services] of guideServiceMap.entries()) {
+            const childDataPayload: ServiceOrderData = { ...orderData, services, guia: guide };
+            const childName = childNameFrom(parentBaseName, guide, null);
+            const childRef = doc(collection(db, 'serviceOrders'));
+            batch.set(childRef, {
+                data: childDataPayload,
+                orderName: childName,
+                splitFrom: parentId,
+                createdBy: createdByEmail,
+                createdAt: serverTimestamp(),
+                status: 'creado',
+                updatedAt: serverTimestamp()
+            });
+        }
+
+        // Create child orders for each driver
+        for (const [driver, services] of driverServiceMap.entries()) {
+            // Collect all unique guides working with this driver
+            const guidesList = services
+                .map(s => (s.guia || orderData.guia)?.trim())
+                .filter(Boolean);
+            const guidesForDriver = Array.from(new Set(guidesList));
+            const guidesString = guidesForDriver.join(', ');
+
+            const childDataPayload: ServiceOrderData = { ...orderData, services, guia: guidesString };
+            const childName = childNameFrom(parentBaseName, null, driver);
+            const childRef = doc(collection(db, 'serviceOrders'));
+            batch.set(childRef, {
+                data: childDataPayload,
+                orderName: childName,
+                splitFrom: parentId,
+                createdBy: createdByEmail,
+                createdAt: serverTimestamp(),
+                status: 'creado',
+                updatedAt: serverTimestamp()
+            });
+        }
+    }
+
+    await batch.commit();
 }
 
 export async function saveEditedServiceOrder(
@@ -100,13 +201,13 @@ export async function saveEditedServiceOrder(
     const parentRef = doc(db, 'serviceOrders', parentId);
     const parentBaseName = getBaseName(originalOrder.orderName);
 
-    // --- CRITICAL FIX: Cancel all existing children before creating new ones ---
+    // --- Delete all existing children before creating new ones ---
     const existingChildren = await getChildrenByParentId(parentId);
     existingChildren.forEach(child => {
-        // We only cancel children, not the parent itself if it's in the list
+        // We only delete children, not the parent itself if it's in the list
         if (child.id !== parentId) {
             const childRef = doc(db, 'serviceOrders', child.id);
-            batch.update(childRef, { status: 'cancelado', updatedAt: serverTimestamp() });
+            batch.delete(childRef);  // Permanently delete old children
         }
     });
 
@@ -157,7 +258,14 @@ export async function saveEditedServiceOrder(
 
         // Create new children for drivers
         for (const [driver, services] of driverServiceMap.entries()) {
-             const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: '' }; // Guia is empty for driver orders
+             // Collect all unique guides working with this driver
+             const guidesList = services
+                .map(s => (s.guia || updatedData.guia)?.trim())
+                .filter(Boolean);
+             const guidesForDriver = Array.from(new Set(guidesList));
+             const guidesString = guidesForDriver.join(', ');
+
+             const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guidesString };
              const childName = childNameFrom(parentBaseName, null, driver);
              const newDocRef = doc(collection(db, 'serviceOrders'));
              batch.set(newDocRef, {
