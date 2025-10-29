@@ -366,9 +366,9 @@ export function ServiceOrderGeneratorSheet({
         const serviceToAdd: ServiceItem = {
             ...newService,
             fecha: newService.fecha ? format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '',
-            guia: newService.guia || orderData.guia, // Use selected guide or default to main guide
-            bus: newService.bus || busTypeSelection || lastService?.bus || '',
-            chofer: newService.chofer || choferSelection || lastService?.chofer || '', // Use selected driver or default
+            guia: orderData.guia, // Always use main guide (like EditModal)
+            bus: busTypeSelection || lastService?.bus || '',
+            chofer: choferSelection || lastService?.chofer || '',
         };
         recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
         setOrderData({ ...orderData, services: [...orderData.services, serviceToAdd] });
@@ -680,40 +680,6 @@ export function ServiceOrderGeneratorSheet({
                                         <Label>Hora</Label>
                                         <Input value={newService.hora} onChange={handleTimeInputChange} onBlur={handleTimeInputBlur} placeholder="HH:mm" maxLength={5} className="mt-1 w-full"/>
                                     </div>
-                                    <div style={{ width: '150px' }}>
-                                        <Label>Guía</Label>
-                                        <Select
-                                            value={newService.guia || 'DEFAULT'}
-                                            onValueChange={(val) => handleNewServiceChange('guia', val === 'DEFAULT' ? '' : val)}
-                                        >
-                                            <SelectTrigger className="mt-1 bg-card">
-                                                <SelectValue placeholder="Por defecto" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="DEFAULT">Por defecto</SelectItem>
-                                                {serviceGuideOptions.filter(g => g.value !== 'NONE').map(g => (
-                                                    <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div style={{ width: '150px' }}>
-                                        <Label>Chofer</Label>
-                                        <Select
-                                            value={newService.chofer || 'DEFAULT'}
-                                            onValueChange={(val) => handleNewServiceChange('chofer', val === 'DEFAULT' ? '' : val)}
-                                        >
-                                            <SelectTrigger className="mt-1 bg-card">
-                                                <SelectValue placeholder="Por defecto" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="DEFAULT">Por defecto</SelectItem>
-                                                {serviceDriverOptions.filter(d => d.value !== 'NONE').map(d => (
-                                                    <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
                                     <div>
                                         <Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}>
                                             <PlusCircle className="mr-2 h-5 w-5"/>Añadir
@@ -784,9 +750,54 @@ export function ServiceOrderGeneratorSheet({
                                                             disabled={!isTransfer}
                                                         />
                                                     </TableCell>
-                                                    <TableCell className="p-2 border-r border-primary/20 font-sans">{guiaFirstName}</TableCell>
-                                                    <TableCell className="p-2 border-r border-primary/20">{s.bus}</TableCell>
-                                                    <TableCell className="p-2 border-r border-primary/20 font-sans">{choferName}</TableCell>
+                                                    <TableCell className="p-1 border-r border-primary/20">
+                                                        <Select
+                                                            value={s.guia || orderData.guia || 'NONE'}
+                                                            onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'guia', value === 'NONE' ? '' : value)}
+                                                        >
+                                                            <SelectTrigger className="h-8 text-xs bg-card/80">
+                                                                <SelectValue placeholder="Guía..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {serviceGuideOptions.map(g => (
+                                                                    <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </TableCell>
+                                                    <TableCell className="p-1 border-r border-primary/20">
+                                                        <Select
+                                                            value={s.bus || 'NONE'}
+                                                            onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'bus', value === 'NONE' ? '' : value)}
+                                                        >
+                                                            <SelectTrigger className="h-8 text-xs bg-card/80">
+                                                                <SelectValue placeholder="Bus..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="NONE" className="text-xs">Ninguno</SelectItem>
+                                                                <SelectItem value="SIN BUS" className="text-xs">SIN BUS (A PIE)</SelectItem>
+                                                                {busOptions.map(b => (
+                                                                    <SelectItem key={b.value} value={b.value} className="text-xs">{b.label}</SelectItem>
+                                                                ))}
+                                                                <SelectItem value="CONT." className="text-xs">Contratado</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </TableCell>
+                                                    <TableCell className="p-1 border-r border-primary/20">
+                                                        <Select
+                                                            value={s.chofer || 'NONE'}
+                                                            onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'chofer', value === 'NONE' ? '' : value)}
+                                                        >
+                                                            <SelectTrigger className="h-8 text-xs bg-card/80">
+                                                                <SelectValue placeholder="Chofer..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {serviceDriverOptions.map(d => (
+                                                                    <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </TableCell>
                                                     <TableCell className="p-1 border-r border-primary/20 font-sans">
                                                         <Input
                                                           value={s.observaciones || ''}
