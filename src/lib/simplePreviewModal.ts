@@ -8,11 +8,11 @@ import { copiarVistaPreviaAlClipboard } from "./copyPreview";
 
 const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
     const { guia, file, ref, nPax, hotel, services, observations, nota } = orderData;
-    
-    const allGuides = new Set<string>();
-    if (guia) allGuides.add(guia);
-    services?.forEach(s => { if (s.guia) allGuides.add(s.guia) });
-    const displayGuide = Array.from(allGuides).join(', ');
+
+    // For driver orders, guia already contains all guides separated by comma
+    // For guide orders, guia contains the single guide
+    // So we use guia directly without processing individual service guides
+    const displayGuide = guia || '—';
 
 
     const infoRows = `
