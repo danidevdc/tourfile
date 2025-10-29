@@ -9,14 +9,26 @@ import { copiarVistaPreviaAlClipboard } from "./copyPreview";
 const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
     const { guia, file, ref, nPax, hotel, services, observations, nota } = orderData;
 
-    // For driver orders, guia already contains all guides separated by comma
-    // For guide orders, guia contains the single guide
-    // So we use guia directly without processing individual service guides
-    const displayGuide = guia || '—';
+    // Collect all unique guides from services, including the main guide
+    const allGuides = new Set<string>();
+    if (guia && guia.trim()) {
+      // If the main guide field has commas, it's likely already a list
+      guia.split(',').forEach(g => {
+        if (g.trim()) allGuides.add(g.trim());
+      });
+    }
+    services?.forEach(service => {
+      if (service.guia && service.guia.trim()) {
+        allGuides.add(service.guia.trim());
+      }
+    });
+    
+    // Join the unique guides into a comma-separated string, or use a placeholder if none are found.
+    const displayGuide = allGuides.size > 0 ? Array.from(allGuides).join(', ') : '—';
 
 
     const infoRows = `
-        <tr><td class="info-label">Guía:</td><td class="info-value">${displayGuide || '—'}</td></tr>
+        <tr><td class="info-label">Guía:</td><td class="info-value">${displayGuide}</td></tr>
         <tr><td class="info-label">File:</td><td class="info-value">${file || '—'}</td></tr>
         <tr><td class="info-label">Ref:</td><td class="info-value">${ref || '—'}</td></tr>
         <tr><td class="info-label">Nº Pax:</td><td class="info-value">${nPax || '—'}</td></tr>
