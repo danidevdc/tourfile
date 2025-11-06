@@ -60,7 +60,7 @@ export async function copiarVistaPreviaAlClipboard(
     toast?.({
         title: "✅ Imagen Copiada",
         description: "La vista previa ha sido copiada. Pégala con Ctrl+V.",
-        className: "bg-green-100 dark:bg-green-900 border-green-500",
+        variant: "success" as any,
         duration: 5000,
     });
     return true;

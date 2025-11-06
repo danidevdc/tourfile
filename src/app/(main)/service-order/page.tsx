@@ -286,7 +286,7 @@ export default function ServiceOrderListPage() {
 
     try {
         await saveEditedServiceOrder(orderToEdit, updatedOrderData, currentUser.email);
-        toast({ title: "Éxito", description: "La orden ha sido actualizada y/o dividida exitosamente.", className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
+        toast({ title: "Éxito", description: "La orden ha sido actualizada y/o dividida exitosamente.", variant: "success" as any });
     } catch (error: any) {
         console.error("Error saving/splitting order:", error);
         toast({ title: "Error al Guardar", description: error.message || "No se pudo guardar la orden.", variant: "destructive" });
@@ -303,8 +303,16 @@ export default function ServiceOrderListPage() {
 
     try {
         await deleteServiceOrder(orderToDelete.id, currentUser.email);
-        toast({ title: "Éxito", description: `La orden "${getBaseName(orderToDelete.orderName)}" ha sido marcada como eliminada.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
-        fetchOrders();
+        toast({ title: "Éxito", description: `La orden "${getBaseName(orderToDelete.orderName)}" ha sido marcada como eliminada.`, variant: "success" as any });
+
+        // Optimización: Actualizar estado local en lugar de recargar desde Firebase
+        setOrders(prevOrders =>
+            prevOrders.map(o =>
+                o.id === orderToDelete.id
+                    ? { ...o, status: 'eliminado', deletedBy: currentUser.email, updatedAt: new Date() }
+                    : o
+            )
+        );
     } catch (error) {
         toast({ title: "Error", description: "No se pudo eliminar la orden.", variant: "destructive"});
     } finally {
@@ -318,9 +326,17 @@ export default function ServiceOrderListPage() {
 
     try {
         await deleteBulkServiceOrders(idsToDelete, currentUser.email);
-        toast({ title: "Eliminación Exitosa", description: `${idsToDelete.length} órdenes marcadas como eliminadas.`, className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700" });
+        toast({ title: "Eliminación Exitosa", description: `${idsToDelete.length} órdenes marcadas como eliminadas.`, variant: "success" as any });
         setSelectedOrderIds(new Set());
-        fetchOrders();
+
+        // Optimización: Actualizar estado local en lugar de recargar desde Firebase
+        setOrders(prevOrders =>
+            prevOrders.map(o =>
+                idsToDelete.includes(o.id)
+                    ? { ...o, status: 'eliminado', deletedBy: currentUser.email, updatedAt: new Date() }
+                    : o
+            )
+        );
     } catch (error) {
         toast({ title: "Error de Eliminación", description: "No se pudieron eliminar las órdenes.", variant: "destructive" });
     }
@@ -330,28 +346,36 @@ export default function ServiceOrderListPage() {
     setIsDownloadingId(order.id);
     try {
       if (!order.id) throw new Error("ID de orden no válido");
-      
+
       const buffer = await generateServiceOrderExcel(order.data);
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
+
       const fileName = order.orderName
         .replace(/\s*—\s*/g, '_')
         .replace(/:/g, '_')
         .replace(/[\s/]/g, '_');
 
       link.download = `${fileName}.xlsx`;
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       if (order.status !== 'excel' && order.status !== 'eliminado' && order.status !== 'cancelado') {
         await updateServiceOrder(order.id, 'excel');
-        fetchOrders();
+
+        // Optimización: Actualizar estado local en lugar de recargar desde Firebase
+        setOrders(prevOrders =>
+            prevOrders.map(o =>
+                o.id === order.id
+                    ? { ...o, status: 'excel', updatedAt: new Date() }
+                    : o
+            )
+        );
       }
 
     } catch(error) {
@@ -366,7 +390,15 @@ export default function ServiceOrderListPage() {
     try {
       if (order.status !== 'impreso' && order.status !== 'eliminado' && order.status !== 'cancelado' && order.status !== 'enviado' && order.status !== 'excel') {
         await updateServiceOrder(order.id, 'impreso');
-        fetchOrders();
+
+        // Optimización: Actualizar estado local en lugar de recargar desde Firebase
+        setOrders(prevOrders =>
+            prevOrders.map(o =>
+                o.id === order.id
+                    ? { ...o, status: 'impreso', updatedAt: new Date() }
+                    : o
+            )
+        );
       }
       const orderDataString = encodeURIComponent(JSON.stringify(order));
       const url = `/service-order-print?order=${orderDataString}`;
@@ -374,7 +406,7 @@ export default function ServiceOrderListPage() {
     } catch (error) {
         toast({ title: "Error", description: "No se pudo generar el PDF.", variant: "destructive" });
     } finally {
-        setIsPrintingPdfId(null); 
+        setIsPrintingPdfId(null);
     }
   };
 

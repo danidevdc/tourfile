@@ -146,7 +146,7 @@ export default function ServiceOrderListPage() {
     
     try {
       await updateServiceOrder(orderToEditInItinerary.id, updatedOrderData);
-      toast({ title: "Éxito", description: "Itinerario actualizado.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      toast({ title: "Éxito", description: "Itinerario actualizado.", variant: "success" as any });
       fetchOrders(); // Refresh list
     } catch(e) {
       toast({ title: "Error", description: "No se pudo actualizar el itinerario.", variant: "destructive" });
@@ -161,7 +161,7 @@ export default function ServiceOrderListPage() {
     if(!orderToDelete || !orderToDelete.id) return;
     try {
       await deleteServiceOrder(orderToDelete.id);
-      toast({ title: "Éxito", description: "Orden de servicio eliminada.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      toast({ title: "Éxito", description: "Orden de servicio eliminada.", variant: "success" as any });
       fetchOrders(); // Refresh list
     } catch (error) {
       toast({ title: "Error", description: "No se pudo eliminar la orden.", variant: "destructive"});

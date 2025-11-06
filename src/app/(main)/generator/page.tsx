@@ -45,7 +45,7 @@ import {
   type FileDataProps,
   type FileSearchStatus 
 } from "@/lib/report-generator";
-import { saveReportInfoToFirestore } from "@/lib/reportService";
+import { saveReportInfoToFirestore, saveBulkReportsToFirestore } from "@/lib/reportService";
 
 
 const formSchema = z.object({
@@ -117,7 +117,7 @@ export default function GeneratorPage() {
         toast({
           title: "Archivo Seleccionado",
           description: file.name,
-          className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
+          variant: "success" as any,
         });
 
         const reader = new FileReader();
@@ -186,7 +186,7 @@ export default function GeneratorPage() {
     toast({
       title: "Lista Limpiada",
       description: "Todos los reportes generados han sido eliminados de la lista.",
-      className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
+      variant: "success" as any,
     });
   };
 
@@ -305,7 +305,7 @@ export default function GeneratorPage() {
             toast({
               title: "Búsqueda Exitosa",
               description: `Nombre de file: ${groupName}`,
-              className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
+              variant: "success" as any,
             });
         } else {
              setCurrentPaxCount("N/A");
@@ -406,7 +406,7 @@ export default function GeneratorPage() {
     toast({
       title: "Reporte Añadido",
       description: `Se añadió el reporte para el file ${newReport.fileNumber} a la lista.`,
-      className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
+      variant: "success" as any,
     });
     setIsProcessingGeneration(false);
   }
@@ -421,7 +421,7 @@ export default function GeneratorPage() {
     toast({
       title: "Reporte Eliminado",
       description: "El reporte ha sido eliminado de la lista.",
-      className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
+      variant: "success" as any,
     });
   };
 
@@ -476,7 +476,7 @@ export default function GeneratorPage() {
       toast({
         title: 'Descarga Exitosa',
         description: `Se descargó el reporte para el file ${report.fileNumber}.`,
-        className: 'bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700',
+        variant: 'success' as any,
       });
       
       if (currentUser?.uid) {
@@ -514,6 +514,7 @@ export default function GeneratorPage() {
     const zip = new JSZip();
     const apiUrl = '/api/generate-excel';
     let successfulDownloads = 0;
+    const successfulReportInfos: Omit<import('@/lib/reportService').ReportInfo, 'id' | 'generationDate'>[] = [];
 
     try {
         const filePromises = generatedReports.map(async (report) => {
@@ -528,10 +529,10 @@ export default function GeneratorPage() {
                 // Return null or a specific error object to handle failed downloads gracefully
                 return null;
             }
-            
-            // Save info to firestore for each report in the zip
+
+            // Optimización: Acumular info del reporte para guardar en batch después
             if (currentUser?.uid) {
-              await saveReportInfoToFirestore({
+              successfulReportInfos.push({
                   fileNumber: report.fileNumber,
                   guideName: report.guideName,
                   groupName: report.groupName,
@@ -578,11 +579,15 @@ export default function GeneratorPage() {
         toast({
             title: "Descarga Completa",
             description: `El archivo .zip con ${files.length} reportes ha sido descargado.`,
-            className: "bg-green-100 dark:bg-green-950/30 dark:text-green-200 dark:border-green-700",
+            variant: "success" as any,
         });
 
+        // Optimización: Guardar todos los reportes en una sola operación batch
         if (currentUser?.uid && successfulDownloads > 0) {
-          await incrementUserReportCountBy(currentUser.uid, successfulDownloads);
+          await Promise.all([
+            saveBulkReportsToFirestore(successfulReportInfos),
+            incrementUserReportCountBy(currentUser.uid, successfulDownloads)
+          ]);
         }
 
     } catch (error) {

@@ -40,7 +40,11 @@ function getColorForOrder(orderId: string): string {
   return pastelColors[Math.abs(hash) % pastelColors.length];
 }
 
-export function LiveTimeline() {
+interface LiveTimelineProps {
+  isActive?: boolean;
+}
+
+export function LiveTimeline({ isActive = true }: LiveTimelineProps) {
   const [orderTimelines, setOrderTimelines] = useState<OrderTimeline[]>([]);
   const [activeTodayCount, setActiveTodayCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -199,11 +203,17 @@ export function LiveTimeline() {
 
 
   // Load all orders once on mount, and set an interval to refresh
+  // Optimización: Solo carga datos cuando isActive es true
   useEffect(() => {
+    if (!isActive) {
+      setIsLoading(false);
+      return;
+    }
+
     fetchOrderTimelines();
-    const refreshInterval = setInterval(fetchOrderTimelines, 5 * 60 * 1000); // Refresh every 5 minutes
+    const refreshInterval = setInterval(fetchOrderTimelines, 30 * 60 * 1000); // Optimizado: Refresh cada 30 minutos (antes: 5 minutos)
     return () => clearInterval(refreshInterval);
-  }, []); 
+  }, [isActive]); 
 
   // Update timeline range when centerDate changes (no data reload)
   useEffect(() => {
@@ -278,6 +288,11 @@ export function LiveTimeline() {
   const toggleFullscreen = () => {
     setIsFullscreen(prev => !prev);
   };
+
+  // Si no está activo, no mostrar nada (el padre maneja la UI)
+  if (!isActive) {
+    return null;
+  }
 
   if (isLoading) {
     return (

@@ -174,7 +174,7 @@ export function ServiceOrderGeneratorSheet({
         const file = event.target.files?.[0];
         if (file) {
             setSelectedFile({ name: file.name });
-            toast({ title: "Archivo Seleccionado", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+            toast({ title: "Archivo Seleccionado", variant: "success" as any });
             processAndStoreFile(file);
         }
         if (event.target) event.target.value = "";
@@ -246,7 +246,7 @@ export function ServiceOrderGeneratorSheet({
             }
             
             setOrderData(prev => ({ ...prev, ref: groupName, nPax: pax, hotel: hotelName, services: [] }));
-            toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}, Hotel: ${hotelName || 'No encontrado'}`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
+            toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}, Hotel: ${hotelName || 'No encontrado'}`, variant: "success" as any, duration: 5000 });
             
         } else {
             setFileSearchStatus("not_found");
@@ -280,7 +280,7 @@ export function ServiceOrderGeneratorSheet({
         }));
         
         setOrderData(prev => ({ ...prev, services: generatedServicesWithDetails }));
-        toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServicesWithDetails.length} servicios.`, className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 5000 });
+        toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServicesWithDetails.length} servicios.`, variant: "success" as any, duration: 5000 });
     };
 
     const handleInputChange = (field: keyof ServiceOrderData, value: string) => {
@@ -387,7 +387,7 @@ export function ServiceOrderGeneratorSheet({
         try {
             // Use the new split function that automatically divides if multiple guides/drivers
             await saveServiceOrderWithSplit(orderData, currentUser.email);
-            toast({ title: "Éxito", description: "Orden de servicio guardada y dividida exitosamente.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
+            toast({ title: "Éxito", description: "Orden de servicio guardada y dividida exitosamente.", variant: "success" as any });
             onSave();
         } catch (error: any) {
             toast({ title: "Error", description: error.message || "No se pudo guardar la orden de servicio.", variant: "destructive" });

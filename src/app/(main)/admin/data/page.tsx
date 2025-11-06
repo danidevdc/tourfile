@@ -231,16 +231,19 @@ export default function DataManagementPage() {
         }
         setIsSubmitting(true);
         try {
-            await createFlight({
+            const flightData = {
                 flightNumber: newFlightNumber.trim().toUpperCase(),
                 time: newFlightTime.trim(),
                 observations: newFlightObs.trim()
-            });
-            toast({ title: "Éxito", description: `Vuelo añadido correctamente.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+            };
+            const docRef = await createFlight(flightData);
+            toast({ title: "Éxito", description: `Vuelo añadido correctamente.`, variant: "success" as any });
             setNewFlightNumber('');
             setNewFlightTime('');
             setNewFlightObs('');
-            await fetchData();
+
+            // Optimización: Actualizar estado local en lugar de recargar desde Firebase
+            setFlights(prev => [...prev, { id: docRef.id, ...flightData }].sort((a, b) => a.flightNumber.localeCompare(b.flightNumber)));
         } catch (error) {
             console.error(`Error adding flight:`, error);
             toast({ title: "Error", description: `No se pudo añadir el vuelo.`, variant: "destructive" });
@@ -265,20 +268,32 @@ export default function DataManagementPage() {
 
     setIsSubmitting(true);
     try {
-      if (type === 'hotels') await createHotel(name);
-      else if (type === 'activities') await createActivity(name);
-      else if (type === 'guides') await createGuide({ firstName: name, lastName: lastName });
+      let docRef;
+      if (type === 'hotels') {
+        docRef = await createHotel(name);
+        setHotels(prev => [...prev, { id: docRef.id, name }].sort((a, b) => a.name.localeCompare(b.name)));
+      }
+      else if (type === 'activities') {
+        docRef = await createActivity(name);
+        setActivities(prev => [...prev, { id: docRef.id, name }].sort((a, b) => a.name.localeCompare(b.name)));
+      }
+      else if (type === 'guides') {
+        docRef = await createGuide({ firstName: name, lastName: lastName });
+        const fullName = `${name} ${lastName}`.trim();
+        setGuides(prev => [...prev, { uid: docRef.id, firstName: name, lastName: lastName, fullName }].sort((a, b) => a.fullName.localeCompare(b.fullName)));
+      }
       else if (type === 'drivers') {
-        const driverNameToSave = driverType === 'externo' && !name.startsWith('CONT ') 
+        const driverNameToSave = driverType === 'externo' && !name.startsWith('CONT ')
             ? `CONT ${name}`
             : name;
-        await createDriver(driverNameToSave);
+        docRef = await createDriver(driverNameToSave);
+        setDrivers(prev => [...prev, { id: docRef.id, name: driverNameToSave }].sort((a, b) => a.name.localeCompare(b.name)));
       }
 
-      toast({ title: "Éxito", description: `${type.slice(0, -1)} añadido correctamente.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      toast({ title: "Éxito", description: `${type.slice(0, -1)} añadido correctamente.`, variant: "success" as any });
       setNewItemName('');
       setNewItemLastName('');
-      await fetchData(); // Refresh data
+      // Optimización: Ya no recargamos desde Firebase, actualizamos estado local arriba
     } catch (error) {
       console.error(`Error adding ${type}:`, error);
       toast({ title: "Error", description: `No se pudo añadir el ${type.slice(0, -1)}.`, variant: "destructive" });
@@ -292,15 +307,30 @@ export default function DataManagementPage() {
     try {
       const id = 'uid' in itemToDelete ? itemToDelete.uid : itemToDelete.id;
       if (!id) throw new Error("ID is missing");
-      
-      if (itemToDelete.type === 'hotels') await deleteHotel(id);
-      else if (itemToDelete.type === 'drivers') await deleteDriver(id);
-      else if (itemToDelete.type === 'activities') await deleteActivity(id);
-      else if (itemToDelete.type === 'guides') await deleteGuide(id);
-      else if (itemToDelete.type === 'flights') await deleteFlight(id);
 
-      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", className: "bg-green-100 dark:bg-green-900 border-green-500" });
-      await fetchData(); // Refresh data
+      if (itemToDelete.type === 'hotels') {
+        await deleteHotel(id);
+        setHotels(prev => prev.filter(h => h.id !== id));
+      }
+      else if (itemToDelete.type === 'drivers') {
+        await deleteDriver(id);
+        setDrivers(prev => prev.filter(d => d.id !== id));
+      }
+      else if (itemToDelete.type === 'activities') {
+        await deleteActivity(id);
+        setActivities(prev => prev.filter(a => a.id !== id));
+      }
+      else if (itemToDelete.type === 'guides') {
+        await deleteGuide(id);
+        setGuides(prev => prev.filter(g => g.uid !== id));
+      }
+      else if (itemToDelete.type === 'flights') {
+        await deleteFlight(id);
+        setFlights(prev => prev.filter(f => f.id !== id));
+      }
+
+      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", variant: "success" as any });
+      // Optimización: Ya no recargamos desde Firebase, actualizamos estado local arriba
     } catch (error) {
        toast({ title: "Error", description: `No se pudo eliminar el registro.`, variant: "destructive" });
     } finally {
@@ -314,15 +344,30 @@ export default function DataManagementPage() {
 
     setIsSubmitting(true);
     try {
-      if (activeTab === 'guides') await deleteBulkGuides(selectedIds);
-      else if (activeTab === 'hotels') await deleteBulkHotels(selectedIds);
-      else if (activeTab === 'drivers') await deleteBulkDrivers(selectedIds);
-      else if (activeTab === 'activities') await deleteBulkActivities(selectedIds);
-      else if (activeTab === 'flights') await deleteBulkFlights(selectedIds);
+      if (activeTab === 'guides') {
+        await deleteBulkGuides(selectedIds);
+        setGuides(prev => prev.filter(g => !selectedIds.includes(g.uid)));
+      }
+      else if (activeTab === 'hotels') {
+        await deleteBulkHotels(selectedIds);
+        setHotels(prev => prev.filter(h => !selectedIds.includes(h.id)));
+      }
+      else if (activeTab === 'drivers') {
+        await deleteBulkDrivers(selectedIds);
+        setDrivers(prev => prev.filter(d => !selectedIds.includes(d.id)));
+      }
+      else if (activeTab === 'activities') {
+        await deleteBulkActivities(selectedIds);
+        setActivities(prev => prev.filter(a => !selectedIds.includes(a.id)));
+      }
+      else if (activeTab === 'flights') {
+        await deleteBulkFlights(selectedIds);
+        setFlights(prev => prev.filter(f => !selectedIds.includes(f.id)));
+      }
 
-      toast({ title: "Eliminación Exitosa", description: `Se eliminaron ${selectedIds.length} registros.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
+      toast({ title: "Eliminación Exitosa", description: `Se eliminaron ${selectedIds.length} registros.`, variant: "success" as any });
       setSelectedItems(prev => ({...prev, [activeTab]: new Set()})); // Clear selection
-      await fetchData();
+      // Optimización: Ya no recargamos desde Firebase, actualizamos estado local arriba
     } catch (error) {
       toast({ title: "Error de Eliminación", description: "No se pudieron eliminar los registros.", variant: "destructive" });
     } finally {
@@ -400,8 +445,25 @@ export default function DataManagementPage() {
           if (records.length === 0) {
             toast({ title: "Archivo Vacío o Formato Incorrecto", description: "Asegúrate que el archivo Excel tenga las columnas correctas ('nombre' y 'apellido' para guías, 'nombre' para los demás, 'numero de vuelo', 'hora', 'observaciones' para vuelos).", variant: "destructive", duration: 7000 });
           } else {
-            toast({ title: "Carga Exitosa", description: `Se procesaron ${records.length} registros desde el archivo.`, className: "bg-green-100 dark:bg-green-900 border-green-500" });
-            await fetchData();
+            toast({ title: "Carga Exitosa", description: `Se procesaron ${records.length} registros desde el archivo.`, variant: "success" as any });
+
+            // Optimización: Solo recargar la colección específica que se subió
+            if (type === 'guides') {
+              const fetchedGuides = await getGuidesFromFirestore();
+              setGuides(fetchedGuides);
+            } else if (type === 'hotels') {
+              const fetchedHotels = await getHotelsFromFirestore();
+              setHotels(fetchedHotels);
+            } else if (type === 'drivers') {
+              const fetchedDrivers = await getDriversFromFirestore();
+              setDrivers(fetchedDrivers);
+            } else if (type === 'activities') {
+              const fetchedActivities = await getActivitiesFromFirestore();
+              setActivities(fetchedActivities);
+            } else if (type === 'flights') {
+              const fetchedFlights = await getFlightsFromFirestore();
+              setFlights(fetchedFlights);
+            }
           }
 
         } catch (err: any) {

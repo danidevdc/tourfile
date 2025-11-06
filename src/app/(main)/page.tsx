@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileSpreadsheet, ArrowRight, ClipboardList, Settings, Plane, Database, ClipboardEdit } from "lucide-react";
+import { FileSpreadsheet, ArrowRight, ClipboardList, Settings, Plane, Database, ClipboardEdit, Calendar, CalendarOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { version } from '../../../package.json';
 import { useEffect, useState } from "react";
@@ -13,8 +13,9 @@ import { LiveTimeline } from "@/components/LiveTimeline";
 
 
 export default function HomePage() {
-  const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated, currentUser } = useAuth(); 
+  const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated, currentUser } = useAuth();
   const [canSeeIntermediateButton, setCanSeeIntermediateButton] = useState(false);
+  const [isTimelineActive, setIsTimelineActive] = useState(false);
 
   useEffect(() => {
     async function checkPermissions() {
@@ -154,7 +155,40 @@ export default function HomePage() {
       {/* Live Timeline - Beta Feature */}
       {!authLoading && isAuthenticated && (
         <div className="w-full max-w-7xl mt-8">
-          <LiveTimeline />
+          {!isTimelineActive ? (
+            <Card className="shadow-lg">
+              <CardContent className="p-8 flex flex-col items-center justify-center text-center">
+                <Calendar className="h-16 w-16 text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Timeline de Órdenes</h3>
+                <p className="text-muted-foreground mb-6 max-w-md">
+                  Visualiza todas tus órdenes de servicio en un calendario interactivo en tiempo real.
+                </p>
+                <Button
+                  onClick={() => setIsTimelineActive(true)}
+                  size="lg"
+                  className="gap-2"
+                >
+                  <Calendar className="h-5 w-5" />
+                  Activar Timeline
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="relative">
+              <div className="absolute top-4 right-4 z-50">
+                <Button
+                  onClick={() => setIsTimelineActive(false)}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <CalendarOff className="h-4 w-4" />
+                  Desactivar Timeline
+                </Button>
+              </div>
+              <LiveTimeline isActive={isTimelineActive} />
+            </div>
+          )}
         </div>
       )}
 

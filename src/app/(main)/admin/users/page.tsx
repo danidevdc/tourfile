@@ -21,7 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { getAllReportsFromFirestore, type ReportInfo } from '@/lib/reportService';
+import { getRecentReportsFromFirestore, type ReportInfo } from '@/lib/reportService';
 
 
 export default function AdminUsersPage() {
@@ -43,9 +43,10 @@ export default function AdminUsersPage() {
         const fetchData = async () => {
           setIsLoadingData(true);
           try {
+            // Optimización: Solo cargar reportes de los últimos 12 meses en lugar de todos los históricos
             const [userProfiles, allReports] = await Promise.all([
                 getAllUserProfiles(),
-                getAllReportsFromFirestore()
+                getRecentReportsFromFirestore(12)
             ]);
             setUsers(userProfiles);
 
@@ -134,7 +135,7 @@ export default function AdminUsersPage() {
     try {
       await deleteUserFromFirestore(userToDelete.uid);
       setUsers(prevUsers => prevUsers.filter(user => user.uid !== userToDelete.uid));
-      toast({ title: "Usuario Eliminado", description: "El perfil del usuario ha sido eliminado. La cuenta de autenticación debe ser eliminada manually desde Firebase Console.", className: "bg-green-100 dark:bg-green-900 border-green-500", duration: 7000 });
+      toast({ title: "Usuario Eliminado", description: "El perfil del usuario ha sido eliminado. La cuenta de autenticación debe ser eliminada manually desde Firebase Console.", variant: "success" as any, duration: 7000 });
 
     } catch (error) {
       // Error toast is handled within deleteUserFromFirestore
