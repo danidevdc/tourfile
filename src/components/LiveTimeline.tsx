@@ -64,149 +64,150 @@ export function LiveTimeline() {
     return () => clearInterval(timer);
   }, []);
 
-  // Load all orders once
-  useEffect(() => {
-    const fetchOrderTimelines = async () => {
-      setIsLoading(true);
-      try {
-        const allOrders = await getAllServiceOrders();
-        const activeOrders = allOrders.filter(
-          order => order.status !== 'eliminado' && order.status !== 'cancelado'
-        );
+  const fetchOrderTimelines = async () => {
+    setIsLoading(true);
+    try {
+      const allOrders = await getAllServiceOrders();
+      const activeOrders = allOrders.filter(
+        order => order.status !== 'eliminado' && order.status !== 'cancelado'
+      );
 
-        const timelines: OrderTimeline[] = [];
+      const timelines: OrderTimeline[] = [];
 
-        activeOrders.forEach(order => {
-          if (!order || !order.data || !order.data.services || !Array.isArray(order.data.services)) {
-            return;
-          }
+      activeOrders.forEach(order => {
+        if (!order || !order.data || !order.data.services || !Array.isArray(order.data.services)) {
+          return;
+        }
 
-          const serviceDates: Date[] = [];
-          const dailyAssignments = new Map<number, { guide?: string; driver?: string }>();
+        const serviceDates: Date[] = [];
+        const dailyAssignments = new Map<number, { guide?: string; driver?: string }>();
 
-          order.data.services.forEach(service => {
-            try {
-              if (!service || !service.fecha) return;
-              const serviceDate = parse(service.fecha, 'dd/MM/yyyy', new Date());
-              if (!isNaN(serviceDate.getTime())) {
-                const normalizedDate = startOfDay(serviceDate);
-                serviceDates.push(normalizedDate);
-                
-                const timestamp = normalizedDate.getTime();
-                if (!dailyAssignments.has(timestamp)) {
-                    dailyAssignments.set(timestamp, {});
-                }
-                const assignment = dailyAssignments.get(timestamp)!;
-                
-                // Assign guide for the day. Use service-specific guide, fallback to main guide.
-                const responsibleGuide = service.guia || order.data.guia;
-                if (responsibleGuide && !assignment.guide) {
-                  assignment.guide = responsibleGuide;
-                }
-
-                // Assign driver for the day
-                if (service.chofer && !assignment.driver) {
-                   assignment.driver = service.chofer;
-                }
+        order.data.services.forEach(service => {
+          try {
+            if (!service || !service.fecha) return;
+            const serviceDate = parse(service.fecha, 'dd/MM/yyyy', new Date());
+            if (!isNaN(serviceDate.getTime())) {
+              const normalizedDate = startOfDay(serviceDate);
+              serviceDates.push(normalizedDate);
+              
+              const timestamp = normalizedDate.getTime();
+              if (!dailyAssignments.has(timestamp)) {
+                  dailyAssignments.set(timestamp, {});
               }
-            } catch (error) {
-              console.error('Error parsing service date:', error);
-            }
-          });
-          
-          // Fill in guides for days that had a service but no specific guide assigned
-          dailyAssignments.forEach((assignment, timestamp) => {
-              if (!assignment.guide) {
-                  assignment.guide = order.data.guia;
+              const assignment = dailyAssignments.get(timestamp)!;
+              
+              // Assign guide for the day. Use service-specific guide, fallback to main guide.
+              const responsibleGuide = service.guia || order.data.guia;
+              if (responsibleGuide && !assignment.guide) {
+                assignment.guide = responsibleGuide;
               }
-          });
 
-
-          if (serviceDates.length === 0) return;
-
-          serviceDates.sort((a, b) => a.getTime() - b.getTime());
-          const startDate = serviceDates[0];
-          const endDate = serviceDates[serviceDates.length - 1];
-
-          const totalDays = differenceInDays(endDate, startDate) + 1;
-
-          const today = startOfDay(new Date());
-          let status: 'upcoming' | 'active' | 'completed';
-          if (isBefore(endDate, today)) {
-            status = 'completed';
-          } else if (isAfter(startDate, today)) {
-            status = 'upcoming';
-          } else {
-            status = 'active';
-          }
-
-          timelines.push({
-            orderId: order.id,
-            orderName: order.orderName,
-            file: order.data.file || 'N/A',
-            groupName: order.data.ref || order.data.hotel || 'Sin nombre',
-            startDate,
-            endDate,
-            color: getColorForOrder(order.id),
-            status,
-            totalDays,
-            dailyAssignments
-          });
-        });
-
-        // Filter out split orders - keep only parent orders or the longest duration one
-        const filteredTimelines: OrderTimeline[] = [];
-        const processedFiles = new Set<string>();
-
-        const timelinesByFile = new Map<string, OrderTimeline[]>();
-        timelines.forEach(timeline => {
-          const file = timeline.file;
-          if (!timelinesByFile.has(file)) {
-            timelinesByFile.set(file, []);
-          }
-          timelinesByFile.get(file)!.push(timeline);
-        });
-
-        timelinesByFile.forEach((ordersForFile) => {
-            if (ordersForFile.length === 1) {
-              filteredTimelines.push(ordersForFile[0]);
-            } else {
-              const longestOrder = ordersForFile.reduce((longest, current) => 
-                current.totalDays > longest.totalDays ? current : longest
-              );
-              filteredTimelines.push(longestOrder);
+              // Assign driver for the day
+              if (service.chofer && !assignment.driver) {
+                 assignment.driver = service.chofer;
+              }
             }
+          } catch (error) {
+            console.error('Error parsing service date:', error);
+          }
         });
         
-        filteredTimelines.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+        // Fill in guides for days that had a service but no specific guide assigned
+        dailyAssignments.forEach((assignment, timestamp) => {
+            if (!assignment.guide) {
+                assignment.guide = order.data.guia;
+            }
+        });
 
-        setOrderTimelines(filteredTimelines);
 
-        // --- Calculate Active Today Count ---
+        if (serviceDates.length === 0) return;
+
+        serviceDates.sort((a, b) => a.getTime() - b.getTime());
+        const startDate = serviceDates[0];
+        const endDate = serviceDates[serviceDates.length - 1];
+
+        const totalDays = differenceInDays(endDate, startDate) + 1;
+
         const today = startOfDay(new Date());
-        const countForToday = filteredTimelines.filter(timeline => {
-            const isStartBeforeOrOnToday = !isAfter(timeline.startDate, today);
-            const isEndAfterOrOnToday = !isBefore(timeline.endDate, today);
-            return isStartBeforeOrOnToday && isEndAfterOrOnToday;
-        }).length;
+        let status: 'upcoming' | 'active' | 'completed';
+        if (isBefore(endDate, today)) {
+          status = 'completed';
+        } else if (isAfter(startDate, today)) {
+          status = 'upcoming';
+        } else {
+          status = 'active';
+        }
 
-        setActiveTodayCount(countForToday);
+        timelines.push({
+          orderId: order.id,
+          orderName: order.orderName,
+          file: order.data.file || 'N/A',
+          groupName: order.data.ref || order.data.hotel || 'Sin nombre',
+          startDate,
+          endDate,
+          color: getColorForOrder(order.id),
+          status,
+          totalDays,
+          dailyAssignments
+        });
+      });
 
-      } catch (error) {
-        console.error('Error fetching order timelines:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      // Filter out split orders - keep only parent orders or the longest duration one
+      const filteredTimelines: OrderTimeline[] = [];
+      const processedFiles = new Set<string>();
 
+      const timelinesByFile = new Map<string, OrderTimeline[]>();
+      timelines.forEach(timeline => {
+        const file = timeline.file;
+        if (!timelinesByFile.has(file)) {
+          timelinesByFile.set(file, []);
+        }
+        timelinesByFile.get(file)!.push(timeline);
+      });
+
+      timelinesByFile.forEach((ordersForFile) => {
+          if (ordersForFile.length === 1) {
+            filteredTimelines.push(ordersForFile[0]);
+          } else {
+            const longestOrder = ordersForFile.reduce((longest, current) => 
+              current.totalDays > longest.totalDays ? current : longest
+            );
+            filteredTimelines.push(longestOrder);
+          }
+      });
+      
+      filteredTimelines.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+
+      setOrderTimelines(filteredTimelines);
+
+      // --- Calculate Active Today Count ---
+      const today = startOfDay(new Date());
+      const countForToday = filteredTimelines.filter(timeline => {
+          const isStartBeforeOrOnToday = !isAfter(timeline.startDate, today);
+          const isEndAfterOrOnToday = !isBefore(timeline.endDate, today);
+          return isStartBeforeOrOnToday && isEndAfterOrOnToday;
+      }).length;
+
+      setActiveTodayCount(countForToday);
+
+    } catch (error) {
+      console.error('Error fetching order timelines:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  // Load all orders once on mount, and set an interval to refresh
+  useEffect(() => {
     fetchOrderTimelines();
-    const refreshInterval = setInterval(fetchOrderTimelines, 5 * 60 * 1000);
+    const refreshInterval = setInterval(fetchOrderTimelines, 5 * 60 * 1000); // Refresh every 5 minutes
     return () => clearInterval(refreshInterval);
-  }, [isFullscreen]); // Only re-fetch when fullscreen changes or on mount
+  }, []); 
 
   // Update timeline range when centerDate changes (no data reload)
   useEffect(() => {
-    if (orderTimelines.length === 0) return;
+    if (orderTimelines.length === 0 && !isLoading) return;
 
     const daysBeforeAfter = isFullscreen ? 7 : 5;
     const rangeStart = addDays(centerDate, -daysBeforeAfter);
@@ -220,7 +221,7 @@ export function LiveTimeline() {
     }
 
     setTimelineRange({ start: rangeStart, end: rangeEnd, days });
-  }, [centerDate, orderTimelines, isFullscreen]);
+  }, [centerDate, orderTimelines, isFullscreen, isLoading]);
 
   const scrollToFirstOrderOnDate = (targetDate: Date) => {
     if (scrollAreaRef.current) {
@@ -359,7 +360,7 @@ export function LiveTimeline() {
       <CardContent>
         <ScrollArea ref={scrollAreaRef} className={`transition-all duration-300 ${isFullscreen ? 'h-[calc(100vh-12rem)]' : 'h-[450px]'}`}>
           <div className={`relative transition-opacity duration-300 ${isTransitioning ? 'opacity-50' : 'opacity-100'}`}>
-            <div className="sticky top-0 bg-background z-30 pb-3 border-b-2">
+            <div className="sticky top-0 bg-background z-20 pb-3 border-b-2">
               <div className="flex text-sm font-medium">
                 {timelineRange.days.map((day, index) => {
                   const isToday = day.getTime() === today.getTime();
@@ -375,11 +376,14 @@ export function LiveTimeline() {
                 })}
               </div>
             </div>
+            
+            <div className="absolute -top-1.5 left-0 right-0 h-0 z-40">
+                <div className="absolute left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md" style={{ left: `${redLinePosition}%` }}>{format(currentTime, 'HH:mm', { locale: es })}</div>
+            </div>
 
             <div className="relative mt-4 space-y-4">
-              <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 shadow-lg pointer-events-none" style={{ left: `${redLinePosition}%` }}>
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md z-40">{format(currentTime, 'HH:mm', { locale: es })}</div>
-                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-red-500 rounded-full shadow-md animate-pulse z-40" />
+              <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 shadow-lg pointer-events-none" style={{ left: `${redLinePosition}%` }}>
+                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-red-500 rounded-full shadow-md animate-pulse z-10" />
               </div>
               <div className="absolute inset-0 flex pointer-events-none">
                 {timelineRange.days.map((day, index) => {
