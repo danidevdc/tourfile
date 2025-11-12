@@ -738,7 +738,16 @@ export function ServiceOrderGeneratorSheet({
                                                     <TableCell className="p-1 border-r border-primary/20">
                                                         <Input value={s.hora} onChange={(e) => handleSummaryTimeChange(originalIndex, e.target.value)} onBlur={(e) => handleSummaryTimeBlur(originalIndex, e.target.value)} placeholder="HH:mm" maxLength={5} className="h-8 text-xs bg-card/80"/>
                                                     </TableCell>
-                                                    <TableCell className="p-2 border-r border-primary/20 font-sans">{s.servicio}</TableCell>
+                                                    <TableCell className="p-1 border-r border-primary/20">
+                                                        <Combobox
+                                                            options={activityOptions}
+                                                            value={s.servicio || ''}
+                                                            onSelect={(value) => handleServiceSummaryChange(originalIndex, 'servicio', value)}
+                                                            placeholder="Actividad..."
+                                                            className="h-8 text-xs"
+                                                            triggerClassName="bg-card/80"
+                                                        />
+                                                    </TableCell>
                                                     <TableCell className="p-1 border-r border-primary/20">
                                                         <Combobox 
                                                             options={flights.map(f => ({value: f.flightNumber, label: `${f.flightNumber} (${f.time})`}))} 
