@@ -18,28 +18,18 @@ export async function copiarVistaPreviaAlClipboard(
   }
 
   try {
-    const html2canvas = (await import("html2canvas")).default;
+    const { domToBlob } = await import("modern-screenshot");
 
-    console.log("[copyPreview] Fonts are ready. Calling html2canvas...");
+    console.log("[copyPreview] Fonts are ready. Calling modern-screenshot...");
     await (document as any).fonts?.ready;
 
-    const canvas = await html2canvas(captureNode, {
+    const blob = await domToBlob(captureNode, {
       scale: 2,
-      useCORS: true,
       backgroundColor: "#ffffff",
-      logging: false,
-      width: captureNode.scrollWidth,
-      height: captureNode.scrollHeight,
-      windowWidth: captureNode.scrollWidth,
-      windowHeight: captureNode.scrollHeight,
     });
 
-    const blob: Blob | null = await new Promise((resolve) =>
-      canvas.toBlob(b => resolve(b), "image/png", 0.95)
-    );
-
     if (!blob) {
-        throw new Error("No se pudo generar el blob de la imagen desde el canvas.");
+        throw new Error("No se pudo generar el blob de la imagen.");
     }
     console.log("[copyPreview] Blob generated:", blob);
 
