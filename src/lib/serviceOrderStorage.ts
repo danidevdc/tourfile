@@ -31,10 +31,10 @@ export interface StoredServiceOrder {
   createdBy: string;
   createdAt: Date;
   updatedAt?: Date;
-  data: ServiceOrderData & { isSplitParent?: boolean; responsible?: { guia?: string; chofer?: string }; splitKey?: string; };
-  status: OrderStatus; 
-  deletedBy?: string; 
-  splitFrom?: string; 
+  data: ServiceOrderData & { isSplitParent?: boolean; isSplitSeparated?: boolean; responsible?: { guia?: string; chofer?: string }; splitKey?: string; };
+  status: OrderStatus;
+  deletedBy?: string;
+  splitFrom?: string;
 }
 
 
@@ -89,10 +89,64 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
 }
 
 /**
+ * Saves a service order in "Split Mode" - creates identical orders for both guide and driver.
+ * This is only used when exactly 1 guide and 1 driver are assigned and split mode is enabled.
+ */
+export async function saveServiceOrderInSplitMode(orderData: ServiceOrderData, createdByEmail: string): Promise<void> {
+    if (!db) throw new Error("Firestore not initialized.");
+
+    const batch = writeBatch(db);
+    const parentBaseName = formatOrderName(getFirstDateFromServices(orderData.services), orderData.file);
+
+    // Create parent order marked as split
+    const parentRef = doc(collection(db, 'serviceOrders'));
+    const parentId = parentRef.id;
+
+    batch.set(parentRef, {
+        orderName: parentBaseName,
+        createdBy: createdByEmail,
+        data: { ...orderData, isSplitParent: true, isSplitSeparated: true },
+        status: 'creado',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+
+    // Create child order for the guide (with all services)
+    const guideChildName = childNameFrom(parentBaseName, orderData.guia, null);
+    const guideChildRef = doc(collection(db, 'serviceOrders'));
+    batch.set(guideChildRef, {
+        data: { ...orderData, isSplitSeparated: true },
+        orderName: guideChildName,
+        splitFrom: parentId,
+        createdBy: createdByEmail,
+        createdAt: serverTimestamp(),
+        status: 'creado',
+        updatedAt: serverTimestamp()
+    });
+
+    // Create child order for the driver (with all services)
+    // Get the unique driver from services
+    const uniqueDriver = orderData.services.find(s => s.chofer)?.chofer || '';
+    const driverChildName = childNameFrom(parentBaseName, null, uniqueDriver);
+    const driverChildRef = doc(collection(db, 'serviceOrders'));
+    batch.set(driverChildRef, {
+        data: { ...orderData, isSplitSeparated: true },
+        orderName: driverChildName,
+        splitFrom: parentId,
+        createdBy: createdByEmail,
+        createdAt: serverTimestamp(),
+        status: 'creado',
+        updatedAt: serverTimestamp()
+    });
+
+    await batch.commit();
+}
+
+/**
  * Saves a new service order and automatically splits it if multiple guides/drivers are assigned.
  * This mimics the behavior of saveEditedServiceOrder but for new orders.
  */
-export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, createdByEmail: string): Promise<void> {
+export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, createdByEmail: string, forceSplitMode: boolean = false): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
 
     const batch = writeBatch(db);
@@ -243,15 +297,55 @@ export async function saveEditedServiceOrder(
         });
         
         const needsSplit = guideServiceMap.size > 1 || driverServiceMap.size > 1;
+        const wasSplitSeparated = originalOrder.data.isSplitSeparated === true;
 
         if (!needsSplit) {
             // If no split is needed, just update the main order and ensure it's not marked as a split parent.
             batch.update(parentRef, {
-                data: { ...updatedData, isSplitParent: false }, // Explicitly set isSplitParent to false
+                data: { ...updatedData, isSplitParent: false, isSplitSeparated: false }, // Explicitly set flags to false
                 status: 'editado',
                 updatedAt: serverTimestamp()
             });
-        } else { // If a split is needed
+        } else if (wasSplitSeparated && guideServiceMap.size === 1 && driverServiceMap.size === 1) {
+            // Special case: was split separated and still has 1 guide + 1 driver
+            // Recreate as split separated (2 identical child orders)
+            const guide = Array.from(guideServiceMap.keys())[0];
+            const driver = Array.from(driverServiceMap.keys())[0];
+
+            // Create child order for the guide (with all services)
+            const guideChildName = childNameFrom(parentBaseName, guide, null);
+            const guideChildRef = doc(collection(db, 'serviceOrders'));
+            batch.set(guideChildRef, {
+                data: { ...updatedData, isSplitSeparated: true },
+                orderName: guideChildName,
+                splitFrom: parentId,
+                createdBy: originalOrder.createdBy,
+                createdAt: Timestamp.fromDate(originalOrder.createdAt),
+                status: 'creado',
+                updatedAt: serverTimestamp()
+            });
+
+            // Create child order for the driver (with all services)
+            const driverChildName = childNameFrom(parentBaseName, null, driver);
+            const driverChildRef = doc(collection(db, 'serviceOrders'));
+            batch.set(driverChildRef, {
+                data: { ...updatedData, isSplitSeparated: true },
+                orderName: driverChildName,
+                splitFrom: parentId,
+                createdBy: originalOrder.createdBy,
+                createdAt: Timestamp.fromDate(originalOrder.createdAt),
+                status: 'creado',
+                updatedAt: serverTimestamp()
+            });
+
+            // Update the parent order to mark it as split separated
+            batch.update(parentRef, {
+                data: { ...updatedData, isSplitParent: true, isSplitSeparated: true },
+                status: 'editado',
+                updatedAt: serverTimestamp()
+            });
+        } else {
+            // Standard divided split: Create new children for guides and drivers
             // Create new children for guides
             for (const [guide, services] of guideServiceMap.entries()) {
                 const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guide };
@@ -289,10 +383,10 @@ export async function saveEditedServiceOrder(
                     updatedAt: serverTimestamp()
                  });
             }
-            
-            // Update the parent order to mark it as a split parent
+
+            // Update the parent order to mark it as a split parent (but not split separated)
             batch.update(parentRef, {
-                data: { ...updatedData, isSplitParent: true }, // Set the flag on the parent's data
+                data: { ...updatedData, isSplitParent: true, isSplitSeparated: false }, // Set the flag on the parent's data
                 status: 'editado',
                 updatedAt: serverTimestamp()
             });

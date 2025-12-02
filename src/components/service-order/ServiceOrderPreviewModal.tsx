@@ -86,12 +86,12 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
   return (
     <>
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-       <DialogContent className="max-w-[1250px] w-full flex flex-col max-h-[95vh]">
-        <DialogHeader className="p-4 border-b flex-shrink-0">
+       <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[1250px] w-full flex flex-col max-h-[95vh] p-0">
+        <DialogHeader className="mobile-padding border-b flex-shrink-0">
           <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
         </DialogHeader>
-        
-         <div className="overflow-auto min-h-0">
+
+         <div className="overflow-auto min-h-0 mobile-padding">
             <div ref={captureRef} className={cn(
                 "bg-white text-zinc-900 uppercase w-[1120px] mx-auto pt-[3px] pb-[5px] px-[10px]",
               )}>

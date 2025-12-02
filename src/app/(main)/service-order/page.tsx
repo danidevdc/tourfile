@@ -49,6 +49,7 @@ import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPre
 import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, getBusesFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity, type PredefinedFlight, type Bus } from "@/lib/serviceOrderService";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ServiceOrderDeletionFilter, type FilterState } from "@/components/service-order/ServiceOrderDeletionFilter";
+import { ServiceOrderMobileCard } from "@/components/service-order/ServiceOrderMobileCard";
 
 
 const defaultObsText = '';
@@ -472,9 +473,13 @@ export default function ServiceOrderListPage() {
         case 'editado': baseBadge = <Badge variant="secondary" className="bg-orange-500 text-white hover:bg-orange-600">Editado</Badge>; break;
         default: baseBadge = <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Creado</Badge>;
     }
-    
+
     if (childCount > 0) {
-        return <div className="flex items-center gap-1">{baseBadge}<Badge className="bg-purple-600 hover:bg-purple-700"><Split className="h-3 w-3 mr-1"/>Dividida</Badge></div>;
+        const isSplitSeparated = order.data?.isSplitSeparated === true;
+        const splitBadge = isSplitSeparated
+            ? <Badge className="bg-yellow-600 hover:bg-yellow-700"><Split className="h-3 w-3 mr-1"/>Separada</Badge>
+            : <Badge className="bg-purple-600 hover:bg-purple-700"><Split className="h-3 w-3 mr-1"/>Dividida</Badge>;
+        return <div className="flex items-center gap-1">{baseBadge}{splitBadge}</div>;
     }
     return baseBadge;
   };
@@ -531,19 +536,21 @@ export default function ServiceOrderListPage() {
   
   return (
     <TooltipProvider>
-    <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background space-y-6">
-      <div className="w-full max-w-7xl flex justify-between items-center">
-        <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go home">
+    <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] mobile-padding bg-background space-y-4 sm:space-y-6">
+      <div className="w-full max-w-7xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go home" className="touch-target">
             <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex gap-2">
-            <Button onClick={handleAutomatedOrderClick} className="bg-green-600 hover:bg-green-700 text-white">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button onClick={handleAutomatedOrderClick} className="bg-green-600 hover:bg-green-700 text-white mobile-full-width touch-target text-sm sm:text-base">
                 <Bot className="mr-2 h-4 w-4" />
-                Generar Orden Automatizada
+                <span className="hidden sm:inline">Generar Orden Automatizada</span>
+                <span className="sm:hidden">Orden Automatizada</span>
             </Button>
-            <Button onClick={handleNewOrderClick}>
+            <Button onClick={handleNewOrderClick} className="mobile-full-width touch-target text-sm sm:text-base">
                 <FilePlus className="mr-2 h-4 w-4" />
-                Nueva Orden de Servicio
+                <span className="hidden sm:inline">Nueva Orden de Servicio</span>
+                <span className="sm:hidden">Nueva Orden</span>
             </Button>
         </div>
       </div>
@@ -565,42 +572,80 @@ export default function ServiceOrderListPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="border rounded-lg overflow-hidden">
-                {numSelected > 0 && filterState !== 'deleted' && (
-                  <div className="p-2 bg-muted/50 flex justify-between items-center">
-                    <span className="text-sm font-medium">{numSelected} seleccionado(s)</span>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                           <Trash2 className="mr-2 h-4 w-4" />
-                           Eliminar Seleccionados
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader><AlertDialogTitle>Confirmar Eliminación</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            ¿Estás seguro de que quieres eliminar {numSelected} orden(es)? Esta acción las marcará como eliminadas.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">
-                            Sí, eliminar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                )}
+            {numSelected > 0 && filterState !== 'deleted' && (
+              <div className="p-3 mb-4 bg-muted/50 flex justify-between items-center rounded-lg">
+                <span className="text-sm font-medium">{numSelected} seleccionado(s)</span>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="touch-target">
+                       <Trash2 className="mr-2 h-4 w-4" />
+                       Eliminar
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Confirmar Eliminación</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        ¿Estás seguro de que quieres eliminar {numSelected} orden(es)? Esta acción las marcará como eliminadas.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">
+                        Sí, eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+
+            {/* Mobile Card View - Visible only on mobile */}
+            <div className="mobile-card-view space-y-3">
+              {paginatedFamilies.length > 0 ? paginatedFamilies.map(({ parent, children }) => {
+                const parentName = getBaseName(parent.orderName);
+                const canModify = isCurrentUserAdmin || currentUser?.email === parent.createdBy;
+
+                return (
+                  <ServiceOrderMobileCard
+                    key={parent.id}
+                    order={parent}
+                    childOrders={children}
+                    parentName={parentName}
+                    isExpanded={expandedFamilies.has(parent.id)}
+                    isSelected={selectedOrderIds.has(parent.id)}
+                    canModify={canModify}
+                    isCurrentUserAdmin={isCurrentUserAdmin}
+                    isDownloadingId={isDownloadingId}
+                    isPrintingPdfId={isPrintingPdfId}
+                    onToggleExpand={() => toggleFamilyExpansion(parent.id)}
+                    onSelect={(checked) => handleSelectOne(parent.id, checked)}
+                    onPreview={handlePreviewOrderClick}
+                    onEdit={handleEditOrderClick}
+                    onDownload={handleDownloadExcel}
+                    onPrint={handlePrintToPdf}
+                    onDelete={setOrderToDelete}
+                    getStatusBadge={getStatusBadge}
+                    getDeletionDescription={getDeletionAlertDescription}
+                  />
+                );
+              }) : (
+                <Card className="p-8 text-center text-muted-foreground">
+                  {searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}
+                </Card>
+              )}
+            </div>
+
+            {/* Desktop Table View - Hidden on mobile */}
+            <div className="desktop-table-view border rounded-lg overflow-hidden">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            {isCurrentUserAdmin && <TableHead className="w-12"><Checkbox checked={isAllSelected} onCheckedChange={(checked) => handleSelectAll(!!checked)} aria-label="Seleccionar todas" disabled={filterState === 'deleted'} /></TableHead>}
-                            <TableHead>Nombre de la Orden</TableHead>
-                            <TableHead>Responsable(s)</TableHead>
-                            <TableHead>Estado</TableHead>
-                            {isCurrentUserAdmin && <TableHead>Creado Por</TableHead>}
-                            {isCurrentUserAdmin && <TableHead className="w-[120px]">Fecha</TableHead>}
+                            {isCurrentUserAdmin && <TableHead className="w-12 border-r border-border/40"><Checkbox checked={isAllSelected} onCheckedChange={(checked) => handleSelectAll(!!checked)} aria-label="Seleccionar todas" disabled={filterState === 'deleted'} /></TableHead>}
+                            <TableHead className="border-r border-border/40">Nombre de la Orden</TableHead>
+                            <TableHead className="border-r border-border/40">Responsable(s)</TableHead>
+                            <TableHead className="border-r border-border/40">Estado</TableHead>
+                            {isCurrentUserAdmin && <TableHead className="border-r border-border/40">Creado Por</TableHead>}
+                            {isCurrentUserAdmin && <TableHead className="w-[120px] border-r border-border/40">Fecha de registro</TableHead>}
                             <TableHead className="text-left">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -628,9 +673,9 @@ export default function ServiceOrderListPage() {
                                 <React.Fragment key={parent.id}>
                                     <TableRow>
                                         {isCurrentUserAdmin && (
-                                            <TableCell><Checkbox checked={selectedOrderIds.has(parent.id)} onCheckedChange={(c) => handleSelectOne(parent.id, !!c)} aria-label={`Seleccionar ${parentName}`} disabled={parent.status === 'eliminado' || parent.status === 'cancelado'} /></TableCell>
+                                            <TableCell className="border-r border-border/40"><Checkbox checked={selectedOrderIds.has(parent.id)} onCheckedChange={(c) => handleSelectOne(parent.id, !!c)} aria-label={`Seleccionar ${parentName}`} disabled={parent.status === 'eliminado' || parent.status === 'cancelado'} /></TableCell>
                                         )}
-                                        <TableCell className="font-semibold">
+                                        <TableCell className="font-semibold border-r border-border/40">
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => toggleFamilyExpansion(parent.id)}
@@ -642,15 +687,15 @@ export default function ServiceOrderListPage() {
                                                 </button>
                                             </div>
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="border-r border-border/40">
                                             <div className="flex items-center gap-1 flex-wrap">
                                                 {displayedGuides.map(g => <Badge key={g} className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 hover:bg-blue-100"><User size={12} className="mr-1"/>{shortPerson(g)}</Badge>)}
                                                 {displayedDrivers.map(d => <Badge key={d} className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 hover:bg-green-100"><Car size={12} className="mr-1"/>{shortPerson(d)}</Badge>)}
                                             </div>
                                         </TableCell>
-                                        <TableCell>{getStatusBadge(parent, childCount)}</TableCell>
-                                        {isCurrentUserAdmin && <TableCell>{parent.createdBy}</TableCell>}
-                                        {isCurrentUserAdmin && <TableCell>{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>}
+                                        <TableCell className="border-r border-border/40">{getStatusBadge(parent, childCount)}</TableCell>
+                                        {isCurrentUserAdmin && <TableCell className="border-r border-border/40">{parent.createdBy}</TableCell>}
+                                        {isCurrentUserAdmin && <TableCell className="border-r border-border/40">{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>}
                                         <TableCell>{renderOrderActions(parent)}</TableCell>
                                     </TableRow>
 
@@ -659,23 +704,23 @@ export default function ServiceOrderListPage() {
                                         const isGuidePerspective = child.orderName.includes(" — G-");
                                         return (
                                             <TableRow key={child.id} className="bg-muted/30 hover:bg-muted/50">
-                                                {isCurrentUserAdmin && <TableCell><Checkbox checked={selectedOrderIds.has(child.id)} onCheckedChange={(c) => handleSelectOne(child.id, !!c)} disabled={child.status === 'eliminado' || child.status === 'cancelado'} /></TableCell>}
-                                                <TableCell className="pl-12">
+                                                {isCurrentUserAdmin && <TableCell className="border-r border-border/40"><Checkbox checked={selectedOrderIds.has(child.id)} onCheckedChange={(c) => handleSelectOne(child.id, !!c)} disabled={child.status === 'eliminado' || child.status === 'cancelado'} /></TableCell>}
+                                                <TableCell className="pl-12 border-r border-border/40">
                                                     <div className="text-sm">
                                                         <span className="font-medium">{child.orderName}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="border-r border-border/40">
                                                     <div className="flex items-center gap-1 flex-wrap">
                                                         {isGuidePerspective && child.data.guia && <Badge className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 hover:bg-blue-100"><User size={12} className="mr-1"/>{shortPerson(child.data.guia)}</Badge>}
-                                                        {isDriverPerspective && Array.from(new Set(child.data.services?.map(s => s.chofer).filter(Boolean))).map(c => 
+                                                        {isDriverPerspective && Array.from(new Set(child.data.services?.map(s => s.chofer).filter(Boolean))).map(c =>
                                                           <Badge key={c} className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 hover:bg-green-100"><Car size={12} className="mr-1"/>{shortPerson(c as string)}</Badge>
                                                         )}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>{getStatusBadge(child)}</TableCell>
-                                                {isCurrentUserAdmin && <TableCell>{child.createdBy}</TableCell>}
-                                                {isCurrentUserAdmin && <TableCell>{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>}
+                                                <TableCell className="border-r border-border/40">{getStatusBadge(child)}</TableCell>
+                                                {isCurrentUserAdmin && <TableCell className="border-r border-border/40">{child.createdBy}</TableCell>}
+                                                {isCurrentUserAdmin && <TableCell className="border-r border-border/40">{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>}
                                                 <TableCell>{renderOrderActions(child)}</TableCell>
                                             </TableRow>
                                         );
@@ -688,11 +733,31 @@ export default function ServiceOrderListPage() {
                     </TableBody>
                 </Table>
             </div>
+
+            {/* Pagination */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-end space-x-2 py-4">
-                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1}>Anterior</Button>
-                    <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
-                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages}>Siguiente</Button>
+                <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-end gap-3 sm:gap-2 py-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="mobile-full-width touch-target"
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="mobile-full-width touch-target"
+                    >
+                      Siguiente
+                    </Button>
                 </div>
             )}
           </CardContent>

@@ -220,28 +220,28 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-[1300px] w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
-        <DialogHeader className="p-4 border-b">
-          <DialogTitle>Editando Orden: {order.orderName.replace(/_/g, ' ')}</DialogTitle>
+      <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[1300px] w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
+        <DialogHeader className="mobile-padding border-b">
+          <DialogTitle className="mobile-text-lg">Editando Orden: {order.orderName.replace(/_/g, ' ')}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-grow overflow-y-auto px-4 py-2 space-y-4">
+        <div className="flex-grow overflow-y-auto overflow-x-hidden mobile-padding space-y-4">
             {/* Main Details */}
             <div className="space-y-2 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
-                <div className="flex items-end gap-2">
-                    <div className="flex-none" style={{width: '150px'}}><Label htmlFor="file-edit">File</Label><Input id="file-edit" value={editableOrderData.file} onChange={(e) => handleDataChange('file', e.target.value)} className="h-9 mt-1 bg-background"/></div>
-                    <div className="flex-grow"><Label htmlFor="ref-edit">Ref (Grupo)</Label><Input id="ref-edit" value={editableOrderData.ref} onChange={(e) => handleDataChange('ref', e.target.value)} className="h-9 mt-1 bg-background"/></div>
-                    <div style={{width: '80px'}}><Label htmlFor="pax-edit">Nº Pax</Label><Input id="pax-edit" value={editableOrderData.nPax} onChange={(e) => handleDataChange('nPax', e.target.value)} className="h-9 mt-1 bg-background"/></div>
-                    <div className="flex-1" style={{minWidth: '250px'}}><Label>Hotel</Label><Combobox options={hotelOptions} value={editableOrderData.hotel} onSelect={(value) => handleDataChange('hotel', value)} placeholder="Buscar hotel..." className="h-9 mt-1" triggerClassName="bg-background"/></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="w-full"><Label htmlFor="file-edit">File</Label><Input id="file-edit" value={editableOrderData.file} onChange={(e) => handleDataChange('file', e.target.value)} className="h-9 mt-1 bg-background"/></div>
+                    <div className="w-full"><Label htmlFor="ref-edit">Ref (Grupo)</Label><Input id="ref-edit" value={editableOrderData.ref} onChange={(e) => handleDataChange('ref', e.target.value)} className="h-9 mt-1 bg-background"/></div>
+                    <div className="w-full"><Label htmlFor="pax-edit">Nº Pax</Label><Input id="pax-edit" value={editableOrderData.nPax} onChange={(e) => handleDataChange('nPax', e.target.value)} className="h-9 mt-1 bg-background"/></div>
+                    <div className="w-full"><Label>Hotel</Label><Combobox options={hotelOptions} value={editableOrderData.hotel} onSelect={(value) => handleDataChange('hotel', value)} placeholder="Buscar hotel..." className="h-9 mt-1" triggerClassName="bg-background"/></div>
                 </div>
             </div>
 
             {/* Responsibles */}
             {!isChildOrder && (
               <div className="space-y-3 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
-                  <div className="flex items-end gap-2">
-                      <div className="flex-1"><Label className="flex items-center gap-2"><UserPlus size={14}/>Guía Principal (por defecto)</Label><Combobox options={allAvailableGuides} value={editableOrderData.guia} onSelect={(value) => handleDataChange('guia', value)} placeholder="Seleccionar guía..." className="h-9 mt-1" triggerClassName="bg-background"/></div>
-                      <div className="flex-1"><Label className="flex items-center gap-2"><UserPlus size={14}/>Guías Adicionales</Label><Combobox options={allAvailableGuides.filter(g => g.value !== editableOrderData.guia)} value={''} onSelect={(val) => {if (!additionalGuides.includes(val)) setAdditionalGuides([...additionalGuides, val])}} placeholder="Añadir otro guía..." className="h-9 mt-1" triggerClassName="bg-background"/></div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="w-full"><Label className="flex items-center gap-2"><UserPlus size={14}/>Guía Principal (por defecto)</Label><Combobox options={allAvailableGuides} value={editableOrderData.guia} onSelect={(value) => handleDataChange('guia', value)} placeholder="Seleccionar guía..." className="h-9 mt-1" triggerClassName="bg-background"/></div>
+                      <div className="w-full"><Label className="flex items-center gap-2"><UserPlus size={14}/>Guías Adicionales</Label><Combobox options={allAvailableGuides.filter(g => g.value !== editableOrderData.guia)} value={''} onSelect={(val) => {if (!additionalGuides.includes(val)) setAdditionalGuides([...additionalGuides, val])}} placeholder="Añadir otro guía..." className="h-9 mt-1" triggerClassName="bg-background"/></div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                       {additionalGuides.map(g => <div key={g} className="flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full px-2 py-0.5"><Button variant="ghost" size="icon" className="h-4 w-4 text-blue-500" onClick={() => setAdditionalGuides(additionalGuides.filter(ag => ag !== g))}><XCircle size={14}/></Button><span>{g}</span></div>)}
@@ -258,11 +258,11 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
             {/* Add New Service Form */}
             <div className="pt-2 space-y-2 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
-               <Label className="font-semibold">Añadir Nuevo Servicio</Label>
-               <div className="flex items-end gap-2">
-                    <div style={{ width: '150px' }}><Label className="text-xs font-semibold">Fecha</Label><Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 h-8 text-xs bg-background"/></div>
-                    <div className="flex-grow" style={{maxWidth: '600px'}}><Label className="text-xs font-semibold">Actividad</Label><Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 h-8 text-xs" triggerClassName="bg-background" /></div>
-                    <div className="flex-grow"><Label className="text-xs font-semibold">Vuelo</Label><Combobox options={filteredFlightOptions} value={newService.vuelo || ''} onSelect={handleFlightSelect} placeholder="Seleccionar vuelo..." className="mt-1 h-8 text-xs" triggerClassName="bg-background" disabled={!newService.servicio?.toUpperCase().includes('TRF')}/></div>
+               <Label className="font-semibold mobile-text-base">Añadir Nuevo Servicio</Label>
+               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                    <div className="w-full"><Label className="text-xs font-semibold">Fecha</Label><Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 h-8 text-xs bg-background"/></div>
+                    <div className="w-full"><Label className="text-xs font-semibold">Actividad</Label><Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 h-8 text-xs" triggerClassName="bg-background" /></div>
+                    <div className="w-full"><Label className="text-xs font-semibold">Vuelo</Label><Combobox options={filteredFlightOptions} value={newService.vuelo || ''} onSelect={handleFlightSelect} placeholder="Seleccionar vuelo..." className="mt-1 h-8 text-xs" triggerClassName="bg-background" disabled={!newService.servicio?.toUpperCase().includes('TRF')}/></div>
                     <div style={{ width: '90px' }}><Label className="text-xs font-semibold">Hora</Label><Input value={newService.hora} onChange={handleNewServiceTimeChange} onBlur={(e) => handleTimeBlur(-1, e.target.value)} placeholder="HH:mm" maxLength={5} className="mt-1 h-8 text-xs bg-background"/></div>
                     <div><Button onClick={addNewServiceRow} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isAddServiceDisabled}><PlusCircle className="mr-2 h-4 w-4"/>Añadir</Button></div>
                </div>

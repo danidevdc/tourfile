@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef, type ChangeEvent, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, type ChangeEvent } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
@@ -16,7 +16,7 @@ import {
 import { getServiceOrderRules, type ServiceOrderRule } from '@/lib/serviceOrderRuleService';
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { generateServicesFromExcelColumn } from '@/lib/serviceOrderProcessor';
-import { saveServiceOrder, saveServiceOrderWithSplit } from '@/lib/serviceOrderStorage';
+import { saveServiceOrder, saveServiceOrderWithSplit, saveServiceOrderInSplitMode } from '@/lib/serviceOrderStorage';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,12 +25,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser, CheckCircle, UserPlus, Car } from "lucide-react";
+import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser, CheckCircle, UserPlus, Car, Split } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { FileSearchStatus } from "@/lib/report-generator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const initialNewServiceState: ServiceItem = {
     fecha: '', hora: '', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
@@ -88,7 +90,19 @@ export function ServiceOrderGeneratorSheet({
 
     const [additionalGuides, setAdditionalGuides] = useState<string[]>([]);
     const [additionalDrivers, setAdditionalDrivers] = useState<string[]>([]);
-    
+    const [isSplitMode, setIsSplitMode] = useState(false);
+
+    // Calculate if split mode can be enabled (only with exactly 1 guide and 1 driver)
+    const splitModeStatus = useMemo(() => {
+        const totalGuides = orderData.guia ? 1 + additionalGuides.length : additionalGuides.length;
+        const totalDrivers = choferSelection ? 1 + additionalDrivers.length : additionalDrivers.length;
+
+        const canEnableSplit = totalGuides === 1 && totalDrivers === 1;
+        const willBeDivided = totalGuides > 1 || totalDrivers > 1;
+
+        return { canEnableSplit, willBeDivided, totalGuides, totalDrivers };
+    }, [orderData.guia, additionalGuides, choferSelection, additionalDrivers]);
+
     const processAndStoreFile = (file: File) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -385,9 +399,18 @@ export function ServiceOrderGeneratorSheet({
         }
         setIsSaving(true);
         try {
-            // Use the new split function that automatically divides if multiple guides/drivers
-            await saveServiceOrderWithSplit(orderData, currentUser.email);
-            toast({ title: "Éxito", description: "Orden de servicio guardada y dividida exitosamente.", variant: "success" as any });
+            // If split mode is enabled and conditions are met, use split mode
+            if (isSplitMode && splitModeStatus.canEnableSplit) {
+                await saveServiceOrderInSplitMode(orderData, currentUser.email);
+                toast({ title: "Éxito", description: "Orden de servicio separada guardada exitosamente (1 para guía, 1 para chofer).", variant: "success" as any });
+            } else {
+                // Otherwise, use the automatic split function
+                await saveServiceOrderWithSplit(orderData, currentUser.email);
+                const message = splitModeStatus.willBeDivided
+                    ? "Orden de servicio guardada y dividida exitosamente."
+                    : "Orden de servicio guardada exitosamente.";
+                toast({ title: "Éxito", description: message, variant: "success" as any });
+            }
             onSave();
         } catch (error: any) {
             toast({ title: "Error", description: error.message || "No se pudo guardar la orden de servicio.", variant: "destructive" });
@@ -478,7 +501,7 @@ export function ServiceOrderGeneratorSheet({
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
-            <SheetContent side="top" className="w-full h-full max-h-screen flex flex-col sm:max-w-full">
+            <SheetContent side="top" className="w-full h-full max-h-screen flex flex-col sm:max-w-full overflow-y-auto">
                 <SheetHeader>
                      <SheetTitle className="text-2xl font-headline text-primary">
                         {isAutomatedMode ? "Generar Orden de Servicio Automatizada" : "Nueva Orden de Servicio"}
@@ -487,10 +510,10 @@ export function ServiceOrderGeneratorSheet({
                        Completa los detalles de la orden aquí. Haz clic en guardar cuando hayas terminado.
                     </SheetDescription>
                 </SheetHeader>
-                <div className="flex-grow min-h-0 overflow-y-auto pr-6 -mr-6 relative">
+                <div className="flex-grow min-h-0 overflow-y-auto mobile-padding relative">
                     <div className="space-y-4 py-4">
-                         <div className="space-y-4 p-4 border rounded-lg bg-card">
-                            <div className="grid grid-cols-2 gap-4">
+                         <div className="space-y-4 p-3 sm:p-4 border rounded-lg bg-card">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <Label>Programa:</Label>
                                     <div className="flex items-center gap-2 mt-1">
@@ -511,7 +534,7 @@ export function ServiceOrderGeneratorSheet({
                                     </div>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                 <div>
                                   <Label htmlFor="ref">Ref (Grupo):</Label>
                                   <Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", orderData.ref && "border-green-500")} />
@@ -532,8 +555,8 @@ export function ServiceOrderGeneratorSheet({
                                     />
                                 </div>
                             </div>
-                             <div className="grid grid-cols-10 items-end gap-4">
-                                <div className="col-span-3">
+                             <div className="grid grid-cols-1 sm:grid-cols-10 items-end gap-4">
+                                <div className="sm:col-span-3">
                                     <Label>Guía Principal*</Label>
                                     <Combobox 
                                         options={guideOptions} 
@@ -544,7 +567,7 @@ export function ServiceOrderGeneratorSheet({
                                         triggerClassName={cn(orderData.guia && "border-green-500 font-medium")}
                                     />
                                 </div>
-                                <div className="col-span-2">
+                                <div className="sm:col-span-2">
                                     <Label>Bus/Tipo Chofer*</Label>
                                     <Select value={busTypeSelection} onValueChange={setBusTypeSelection}>
                                         <SelectTrigger className={cn("mt-1 bg-card", busTypeSelection && "border-green-500 font-medium")}>
@@ -553,7 +576,7 @@ export function ServiceOrderGeneratorSheet({
                                         <SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                                     </Select>
                                 </div>
-                                <div className="col-span-3">
+                                <div className="sm:col-span-3">
                                     <Label>Chofer*</Label>
                                     <Combobox 
                                         options={driverOptions} 
@@ -645,7 +668,7 @@ export function ServiceOrderGeneratorSheet({
                             </div>
                         </div>
 
-                        <div className="p-4 border rounded-lg bg-card">
+                        <div className="p-3 sm:p-4 border rounded-lg bg-card">
                             <h3 className="font-semibold mb-2">Añadir Servicio {isAutomatedMode ? 'Adicional' : 'Manualmente'}</h3>
                                  <div className="flex items-end gap-2">
                                     <div style={{ width: '150px' }}>
@@ -687,9 +710,9 @@ export function ServiceOrderGeneratorSheet({
                                 </div>
                         </div>
 
-                        <div className="p-4 border rounded-lg bg-card">
-                             <h3 className="font-semibold mb-2">Resumen ({orderData.services.length} servicios)</h3>
-                            <div className="max-h-64 overflow-y-auto border rounded-md bg-card">
+                        <div className="p-3 sm:p-4 border rounded-lg bg-card">
+                             <h3 className="font-semibold mb-2 mobile-text-base">Resumen ({orderData.services.length} servicios)</h3>
+                            <div className="max-h-64 overflow-y-auto overflow-x-auto border rounded-md bg-card">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10 hover:bg-primary/10">
                                         <TableRow className="border-b-primary/20">
@@ -832,7 +855,7 @@ export function ServiceOrderGeneratorSheet({
                             </div>
                         </div>
                         
-                        <div className="p-4 border rounded-lg bg-card">
+                        <div className="p-3 sm:p-4 border rounded-lg bg-card">
                             <Accordion type="multiple" className="w-full">
                               <AccordionItem value="item-1">
                                 <AccordionTrigger>Observaciones Generales</AccordionTrigger>
@@ -872,11 +895,44 @@ export function ServiceOrderGeneratorSheet({
                         </div>
                     )}
                 </div>
-                <div className="pt-4 border-t gap-2 flex justify-end">
+                <div className="pt-4 border-t gap-2 flex justify-end items-center">
                     <Button variant="outline" onClick={handleClearForm} className="mr-auto border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
                         <Eraser className="mr-2 h-4 w-4"/>
                         Limpiar Formulario
                     </Button>
+                    {/* Split Mode Toggle */}
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center gap-3 px-4 py-2 rounded-md border bg-muted/30">
+                                    <div className="flex items-center gap-2">
+                                        <Split className="h-4 w-4 text-purple-600" />
+                                        <Label htmlFor="split-mode" className="text-sm font-medium cursor-pointer">
+                                            {splitModeStatus.willBeDivided
+                                                ? `Dividida (${splitModeStatus.totalGuides}G/${splitModeStatus.totalDrivers}C)`
+                                                : "Orden Separada"}
+                                        </Label>
+                                    </div>
+                                    <Switch
+                                        id="split-mode"
+                                        checked={isSplitMode}
+                                        onCheckedChange={setIsSplitMode}
+                                        disabled={!splitModeStatus.canEnableSplit}
+                                        className="data-[state=checked]:bg-purple-600"
+                                    />
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                                {splitModeStatus.canEnableSplit ? (
+                                    <p>Activar para crear 2 órdenes idénticas: una para el guía y otra para el chofer. Solo disponible con 1 guía y 1 chofer.</p>
+                                ) : splitModeStatus.willBeDivided ? (
+                                    <p>Con más de 1 guía o chofer, la orden se dividirá automáticamente (cada responsable recibe solo sus servicios).</p>
+                                ) : (
+                                    <p>Necesitas asignar 1 guía y 1 chofer para habilitar la orden separada.</p>
+                                )}
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <Button variant="outline" onClick={onClose}>Cerrar</Button>
                     <Button onClick={handleSaveOrder} disabled={isSaving || isLoadingData}>
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}

@@ -111,6 +111,47 @@ body {
   }
 }
 
+/* Mobile-optimized utilities */
+@layer utilities {
+  /* Touch target optimization - minimum 44x44px for better mobile UX */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Mobile-friendly spacing */
+  .mobile-padding {
+    @apply px-4 py-3 sm:px-6 sm:py-4;
+  }
+
+  /* Card view for mobile (hidden on desktop) */
+  .mobile-card-view {
+    @apply block md:hidden;
+  }
+
+  /* Table view for desktop (hidden on mobile) */
+  .desktop-table-view {
+    @apply hidden md:block;
+  }
+
+  /* Optimized text sizes for mobile readability */
+  .mobile-text-base {
+    @apply text-sm sm:text-base;
+  }
+
+  .mobile-text-lg {
+    @apply text-base sm:text-lg;
+  }
+
+  .mobile-text-xl {
+    @apply text-lg sm:text-xl;
+  }
+
+  /* Full width on mobile, auto on desktop */
+  .mobile-full-width {
+    @apply w-full md:w-auto;
+  }
+}
+
 @media print {
   body {
     -webkit-print-color-adjust: exact;
