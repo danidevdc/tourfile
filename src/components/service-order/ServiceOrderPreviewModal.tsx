@@ -63,7 +63,13 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
       return 0;
     });
 
-    return { displayGuide, sortedServices };
+    // Calculate total from tarifa column
+    const totalTarifa = sortedServices.reduce((sum, service) => {
+      const tarifa = parseFloat(service.tarifa || '0');
+      return sum + (isNaN(tarifa) ? 0 : tarifa);
+    }, 0);
+
+    return { displayGuide, sortedServices, totalTarifa };
   }, [data]);
 
   const handleCopy = async () => {
@@ -93,7 +99,7 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
 
          <div className="overflow-auto min-h-0 mobile-padding">
             <div ref={captureRef} className={cn(
-                "bg-white text-zinc-900 uppercase w-[1120px] mx-auto pt-[3px] pb-[5px] px-[10px]",
+                "bg-white text-zinc-900 uppercase w-[1200px] mx-auto pt-[3px] pb-[5px] px-[10px]",
               )}>
                 <div className="relative">
                    <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
@@ -139,6 +145,7 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
                               <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[90px] text-center align-middle text-[11px]">Guía</TableHead>
                               <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[70px] text-center align-middle text-[11px]">Bus</TableHead>
                               <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[85px] text-center align-middle text-[11px]">Chofer</TableHead>
+                              <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[80px] text-center align-middle text-[11px]">Tarifa</TableHead>
                               <TableHead className="text-black font-bold py-1 px-2 h-auto text-left align-middle text-[11px]">Observaciones</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -175,6 +182,9 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
                                      <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
                                        {choferFirstName}
                                       </TableCell>
+                                     <TableCell className="p-2 border-r border-gray-200 text-center align-middle text-xs">
+                                       {s.tarifa || ""}
+                                      </TableCell>
                                      <TableCell className="p-2 text-left align-middle text-xs whitespace-normal">
                                        {s.observaciones}
                                       </TableCell>
@@ -183,9 +193,20 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
                               })
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">No hay servicios en esta orden.</TableCell>
+                                <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">No hay servicios en esta orden.</TableCell>
                               </TableRow>
                             )}
+                            <TableRow className="bg-gray-100 hover:bg-gray-100 border-t-2 border-gray-400">
+                              <TableCell className="p-2 border-r border-gray-200"></TableCell>
+                              <TableCell className="p-2 border-r border-gray-200"></TableCell>
+                              <TableCell className="p-2 border-r border-gray-200"></TableCell>
+                              <TableCell className="p-2 border-r border-gray-200"></TableCell>
+                              <TableCell className="p-2 border-r border-gray-200"></TableCell>
+                              <TableCell className="p-2 border-r border-gray-200"></TableCell>
+                              <TableCell className="p-2 border-r border-gray-200 text-center align-middle font-bold text-xs">TOTAL</TableCell>
+                              <TableCell className="p-2 border-r border-gray-200 text-center align-middle font-bold text-xs">{processedData.totalTarifa.toFixed(2)}</TableCell>
+                              <TableCell className="p-2"></TableCell>
+                            </TableRow>
                           </TableBody>
                         </Table>
                       </div>

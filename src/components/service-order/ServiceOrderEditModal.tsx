@@ -33,7 +33,7 @@ interface ServiceOrderEditModalProps {
 }
 
 const initialNewServiceState: ServiceItem = {
-    fecha: '', hora: '', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
+    fecha: '', hora: '', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', tarifa: '', observaciones: ''
 };
 
 
@@ -218,6 +218,14 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
   
   const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim();
 
+  // Calculate total from tarifa column
+  const totalTarifa = useMemo(() => {
+    return editableOrderData.services.reduce((sum, service) => {
+      const tarifa = parseFloat(service.tarifa || '0');
+      return sum + (isNaN(tarifa) ? 0 : tarifa);
+    }, 0);
+  }, [editableOrderData.services]);
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[1300px] w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
@@ -271,8 +279,8 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
            {/* Services Table */}
            <div className="rounded-lg border overflow-hidden">
             <div className="overflow-x-auto">
-                <Table className="table-fixed min-w-[1200px]">
-                  <TableHeader><TableRow className="bg-primary/10 hover:bg-primary/10 h-auto"><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '120px'}}>Fecha</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '70px'}}>Hora</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px', width: '250px'}}>Servicio</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '150px'}}>Vuelo</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '210px'}}>Guía</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '110px'}}>Bus</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '170px'}}>Chofer</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px', width: '250px'}}>Observaciones</TableHead><TableHead className="text-primary font-bold py-1 px-2 h-auto text-center align-middle" style={{fontSize: '11px', width: '50px'}}></TableHead></TableRow></TableHeader>
+                <Table className="table-fixed min-w-[1300px]">
+                  <TableHeader><TableRow className="bg-primary/10 hover:bg-primary/10 h-auto"><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '120px'}}>Fecha</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '70px'}}>Hora</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px', width: '250px'}}>Servicio</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '150px'}}>Vuelo</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '210px'}}>Guía</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '110px'}}>Bus</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '170px'}}>Chofer</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-center align-middle" style={{fontSize: '11px', width: '100px'}}>Tarifa</TableHead><TableHead className="text-primary font-bold py-1 px-2 border-r border-primary/20 h-auto text-left align-middle" style={{fontSize: '11px', width: '250px'}}>Observaciones</TableHead><TableHead className="text-primary font-bold py-1 px-2 h-auto text-center align-middle" style={{fontSize: '11px', width: '50px'}}></TableHead></TableRow></TableHeader>
                   <TableBody>
                     {sortedServices.map((s, index) => {
                       const showDate = index === 0 || sortedServices[index - 1].fecha !== s.fecha;
@@ -292,11 +300,24 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium"><Select value={s.guia || editableOrderData.guia || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'guia', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="Guía..." /></SelectTrigger><SelectContent>{serviceGuideOptions.map(g => <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>)}</SelectContent></Select></TableCell>
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Select value={s.bus || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="..." /></SelectTrigger><SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent></Select></TableCell>
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Select value={s.chofer || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'chofer', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="Chofer..." /></SelectTrigger><SelectContent>{serviceDriverOptions.map(d => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}</SelectContent></Select></TableCell>
+                          <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Input value={s.tarifa || ''} onChange={(e) => handleServiceChange(originalIndex, 'tarifa', e.target.value)} placeholder="" className="h-8 text-xs bg-background text-center"/></TableCell>
                           <TableCell className="p-1 align-middle border-r border-primary/10 text-left"><Input value={s.observaciones || ''} onChange={(e) => handleServiceChange(originalIndex, 'observaciones', e.target.value)} className="h-8 text-xs bg-background"/></TableCell>
                           <TableCell className="p-1 align-middle text-center"><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed" onClick={() => handleRemoveService(originalIndex)} disabled={!canDelete} title={canDelete ? "Eliminar servicio" : "No se puede eliminar el último servicio"}><XCircle className="h-4 w-4" /></Button></TableCell>
                         </TableRow>
                       );
                     })}
+                    <TableRow className="bg-zinc-50 dark:bg-zinc-800 border-t-2 border-primary">
+                      <TableCell className="p-1 align-middle border-r border-primary/10"></TableCell>
+                      <TableCell className="p-1 align-middle border-r border-primary/10"></TableCell>
+                      <TableCell className="p-1 align-middle border-r border-primary/10"></TableCell>
+                      <TableCell className="p-1 align-middle border-r border-primary/10"></TableCell>
+                      <TableCell className="p-1 align-middle border-r border-primary/10"></TableCell>
+                      <TableCell className="p-1 align-middle border-r border-primary/10"></TableCell>
+                      <TableCell className="p-2 align-middle border-r border-primary/10 text-center font-bold text-sm">TOTAL</TableCell>
+                      <TableCell className="p-2 align-middle border-r border-primary/10 text-center font-bold text-sm">{totalTarifa.toFixed(2)}</TableCell>
+                      <TableCell className="p-1 align-middle border-r border-primary/10"></TableCell>
+                      <TableCell className="p-1 align-middle"></TableCell>
+                    </TableRow>
                   </TableBody>
                 </Table>
               </div>
