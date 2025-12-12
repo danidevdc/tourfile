@@ -52,7 +52,7 @@ export default function ContributeDataPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [flights, setFlights] = useState<PredefinedFlight[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
-  
+
   // States for adding new items
   const [newItemName, setNewItemName] = useState('');
   const [newItemLastName, setNewItemLastName] = useState('');
@@ -65,7 +65,7 @@ export default function ContributeDataPage() {
   const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingValues, setEditingValues] = useState<Record<string, any>>({});
-  
+
   const [searchTerm, setSearchTerm] = useState('');
 
   const initialTab = searchParams.get('tab') as DataType | null;
@@ -110,7 +110,7 @@ export default function ContributeDataPage() {
     if (!authLoading) {
       fetchData();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, authLoading]);
 
   const handleAddItem = async (type: DataType) => {
@@ -122,12 +122,12 @@ export default function ContributeDataPage() {
         }
         const flightExists = await checkIfFlightExists(newFlightNumber.trim().toUpperCase());
         if (flightExists) {
-            toast({ title: "Registro Duplicado", description: `El vuelo "${newFlightNumber.toUpperCase()}" ya existe en la base de datos.`, variant: "destructive" }); return;
+          toast({ title: "Registro Duplicado", description: `El vuelo "${newFlightNumber.toUpperCase()}" ya existe en la base de datos.`, variant: "destructive" }); return;
         }
         await createFlight({
-            flightNumber: newFlightNumber.trim().toUpperCase(),
-            time: newFlightTime.trim(),
-            observations: newFlightObs.trim()
+          flightNumber: newFlightNumber.trim().toUpperCase(),
+          time: newFlightTime.trim(),
+          observations: newFlightObs.trim()
         });
         toast({ title: "¡Gracias!", description: `Vuelo añadido correctamente.`, variant: "success" as any });
         setNewFlightNumber(''); setNewFlightTime(''); setNewFlightObs('');
@@ -139,7 +139,7 @@ export default function ContributeDataPage() {
           toast({ title: "Dato Requerido", description: "El nombre no puede estar vacío.", variant: "destructive" }); return;
         }
         if (type === 'guides' && !lastName) {
-           toast({ title: "Dato Requerido", description: "El apellido no puede estar vacío.", variant: "destructive" }); return;
+          toast({ title: "Dato Requerido", description: "El apellido no puede estar vacío.", variant: "destructive" }); return;
         }
 
         let exists = false;
@@ -150,13 +150,13 @@ export default function ContributeDataPage() {
         else if (type === 'activities') exists = await checkIfActivityExists(name);
         else if (type === 'buses') exists = await checkIfBusExists(name);
         else if (type === 'drivers') {
-            finalNameToSave = driverType === 'externo' && !name.startsWith('CONT ') ? `CONT ${name}` : name;
-            exists = await checkIfDriverExists(finalNameToSave);
+          finalNameToSave = driverType === 'externo' && !name.startsWith('CONT ') ? `CONT ${name}` : name;
+          exists = await checkIfDriverExists(finalNameToSave);
         }
-        
+
         if (exists) {
-            toast({ title: "Registro Duplicado", description: `El registro "${type === 'guides' ? `${name} ${lastName}`: finalNameToSave}" ya existe.`, variant: "destructive" });
-            return;
+          toast({ title: "Registro Duplicado", description: `El registro "${type === 'guides' ? `${name} ${lastName}` : finalNameToSave}" ya existe.`, variant: "destructive" });
+          return;
         }
 
         if (type === 'guides') await createGuide({ firstName: name, lastName: lastName });
@@ -182,7 +182,7 @@ export default function ContributeDataPage() {
     try {
       const id = 'uid' in itemToDelete ? itemToDelete.uid : itemToDelete.id;
       if (!id) throw new Error("ID is missing");
-      
+
       if (itemToDelete.type === 'hotels') await deleteHotel(id);
       else if (itemToDelete.type === 'drivers') await deleteDriver(id);
       else if (itemToDelete.type === 'activities') await deleteActivity(id);
@@ -194,21 +194,21 @@ export default function ContributeDataPage() {
       toast({ title: "Eliminado", description: "El registro ha sido eliminado.", variant: "success" as any });
       await fetchData();
     } catch (error) {
-       toast({ title: "Error", description: `No se pudo eliminar el registro.`, variant: "destructive" });
+      toast({ title: "Error", description: `No se pudo eliminar el registro.`, variant: "destructive" });
     } finally {
       setItemToDelete(null);
     }
   };
-  
+
   const handleEditClick = (item: any, type: DataType) => {
     const id = item.uid || item.id;
     setEditingItemId(id);
     if (type === 'guides') {
-        setEditingValues({ [id]: { firstName: item.firstName, lastName: item.lastName } });
+      setEditingValues({ [id]: { firstName: item.firstName, lastName: item.lastName } });
     } else if (type === 'flights') {
-        setEditingValues({ [id]: { flightNumber: item.flightNumber, time: item.time, observations: item.observations } });
+      setEditingValues({ [id]: { flightNumber: item.flightNumber, time: item.time, observations: item.observations } });
     } else {
-        setEditingValues({ [id]: { name: item.name } });
+      setEditingValues({ [id]: { name: item.name } });
     }
   };
 
@@ -216,27 +216,27 @@ export default function ContributeDataPage() {
     setEditingItemId(null);
     setEditingValues({});
   };
-  
+
   const handleSaveEdit = async (id: string, type: DataType) => {
     const newValues = editingValues[id];
     if (!newValues) return;
     try {
-        if (type === 'guides') await updateGuide(id, { firstName: newValues.firstName, lastName: newValues.lastName });
-        else if (type === 'hotels') await updateHotel(id, newValues.name);
-        else if (type === 'drivers') await updateDriver(id, newValues.name);
-        else if (type === 'activities') await updateActivity(id, newValues.name);
-        else if (type === 'flights') await updateFlight(id, { flightNumber: newValues.flightNumber, time: newValues.time, observations: newValues.observations });
-        else if (type === 'buses') await updateBus(id, newValues.name);
+      if (type === 'guides') await updateGuide(id, { firstName: newValues.firstName, lastName: newValues.lastName });
+      else if (type === 'hotels') await updateHotel(id, newValues.name);
+      else if (type === 'drivers') await updateDriver(id, newValues.name);
+      else if (type === 'activities') await updateActivity(id, newValues.name);
+      else if (type === 'flights') await updateFlight(id, { flightNumber: newValues.flightNumber, time: newValues.time, observations: newValues.observations });
+      else if (type === 'buses') await updateBus(id, newValues.name);
 
-        toast({ title: "Guardado", description: "El registro ha sido actualizado.", variant: "success" as any });
-        await fetchData();
+      toast({ title: "Guardado", description: "El registro ha sido actualizado.", variant: "success" as any });
+      await fetchData();
     } catch (error) {
-        toast({ title: "Error", description: `No se pudo guardar el registro.`, variant: "destructive" });
+      toast({ title: "Error", description: `No se pudo guardar el registro.`, variant: "destructive" });
     } finally {
-        handleCancelEdit();
+      handleCancelEdit();
     }
   };
-  
+
   const handleEditingChange = (id: string, field: string, value: string) => {
     setEditingValues(prev => ({
       ...prev,
@@ -254,44 +254,69 @@ export default function ContributeDataPage() {
 
   const getTitleForType = (type: DataType): string => {
     switch (type) {
-        case 'guides': return 'Añadir Nuevo Guía';
-        case 'hotels': return 'Añadir Nuevo Hotel';
-        case 'drivers': return 'Añadir Nuevo Chofer';
-        case 'activities': return 'Añadir Nueva Actividad';
-        case 'flights': return 'Añadir Nuevo Vuelo';
-        case 'buses': return 'Añadir Nuevo Bus';
-        default: return 'Añadir Nuevo';
+      case 'guides': return 'Añadir Nuevo Guía';
+      case 'hotels': return 'Añadir Nuevo Hotel';
+      case 'drivers': return 'Añadir Nuevo Chofer';
+      case 'activities': return 'Añadir Nueva Actividad';
+      case 'flights': return 'Añadir Nuevo Vuelo';
+      case 'buses': return 'Añadir Nuevo Bus';
+      default: return 'Añadir Nuevo';
     }
   }
 
+  const renderSearchInput = () => (
+    <div className="relative w-full mb-6 mt-2 px-1">
+      <div className="relative group">
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-lg blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+        <div className="relative flex items-center bg-background rounded-lg border border-slate-200 dark:border-slate-800">
+          <Search className="absolute left-3 h-5 w-5 text-sky-500" />
+          <Input
+            placeholder={`Buscar en ${activeTab === 'guides' ? 'guías' :
+              activeTab === 'hotels' ? 'hoteles' :
+                activeTab === 'drivers' ? 'choferes' :
+                  activeTab === 'buses' ? 'buses' :
+                    activeTab === 'activities' ? 'actividades' : 'vuelos'}... para verificar duplicados`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 h-11 border-none focus-visible:ring-0 shadow-none bg-transparent"
+          />
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground mt-2 ml-1 flex items-center gap-1">
+        <span className="inline-block w-2 h-2 rounded-full bg-red-400"></span>
+        Si el registro ya existe, aparecerá resaltado en rojo en la lista.
+      </p>
+    </div>
+  );
+
   const renderAddForm = (type: DataType) => (
-    <Card className="mt-4">
+    <Card className="mt-4 mb-6">
       <CardHeader><CardTitle className="text-lg">{getTitleForType(type)}</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         {type === 'flights' ? ( /* Flight Form */
-             <div className="flex gap-2 items-center flex-col sm:flex-row">
-                <Input value={newFlightNumber} onChange={(e) => setNewFlightNumber(e.target.value)} placeholder="Número de Vuelo (ej: OB305)"/>
-                <Input value={newFlightTime} onChange={(e) => setNewFlightTime(e.target.value)} placeholder="Hora (ej: 08:30)"/>
-                <Input value={newFlightObs} onChange={(e) => setNewFlightObs(e.target.value)} placeholder="Observaciones (opcional)"/>
-             </div>
+          <div className="flex gap-2 items-center flex-col sm:flex-row">
+            <Input value={newFlightNumber} onChange={(e) => setNewFlightNumber(e.target.value)} placeholder="Número de Vuelo (ej: OB305)" />
+            <Input value={newFlightTime} onChange={(e) => setNewFlightTime(e.target.value)} placeholder="Hora (ej: 08:30)" />
+            <Input value={newFlightObs} onChange={(e) => setNewFlightObs(e.target.value)} placeholder="Observaciones (opcional)" />
+          </div>
         ) : type === 'drivers' ? ( /* Driver Form */
-            <>
-                <RadioGroup defaultValue="propio" onValueChange={(val: 'propio' | 'externo') => setDriverType(val)} className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2"><RadioGroupItem value="propio" id="r-propio" /><Label htmlFor="r-propio">Propio</Label></div>
-                    <div className="flex items-center space-x-2"><RadioGroupItem value="externo" id="r-externo" /><Label htmlFor="r-externo">Externo (se añade 'CONT ')</Label></div>
-                </RadioGroup>
-                <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Nombre del nuevo chofer..." onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)} />
-            </>
+          <>
+            <RadioGroup defaultValue="propio" onValueChange={(val: 'propio' | 'externo') => setDriverType(val)} className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2"><RadioGroupItem value="propio" id="r-propio" /><Label htmlFor="r-propio">Propio</Label></div>
+              <div className="flex items-center space-x-2"><RadioGroupItem value="externo" id="r-externo" /><Label htmlFor="r-externo">Externo (se añade 'CONT ')</Label></div>
+            </RadioGroup>
+            <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Nombre del nuevo chofer..." onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)} />
+          </>
         ) : type === 'guides' ? ( /* Guide Form */
-            <div className="flex gap-2 items-center flex-col sm:flex-row">
-                <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Nombre del guía..." onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)} />
-                <Input value={newItemLastName} onChange={(e) => setNewItemLastName(e.target.value)} placeholder="Apellido del guía..." onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)} />
-            </div>
+          <div className="flex gap-2 items-center flex-col sm:flex-row">
+            <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Nombre del guía..." onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)} />
+            <Input value={newItemLastName} onChange={(e) => setNewItemLastName(e.target.value)} placeholder="Apellido del guía..." onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)} />
+          </div>
         ) : ( /* Generic Form for Hotels, Activities, Buses */
-            <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder={`Nombre del nuevo ${type.slice(0, -1)}...`} onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)} />
+          <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder={`Nombre del nuevo ${type.slice(0, -1)}...`} onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)} />
         )}
         <div className="flex justify-end gap-2">
-           <Button onClick={() => handleAddItem(type)} disabled={isSubmitting}>
+          <Button onClick={() => handleAddItem(type)} disabled={isSubmitting}>
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
             Añadir
           </Button>
@@ -305,113 +330,127 @@ export default function ContributeDataPage() {
     const lowercasedFilter = searchTerm.toLowerCase();
 
     return data.filter(item => {
-        if (type === 'guides') return item.fullName.toLowerCase().includes(lowercasedFilter);
-        if (type === 'flights') return item.flightNumber.toLowerCase().includes(lowercasedFilter) || item.observations.toLowerCase().includes(lowercasedFilter);
-        return item.name.toLowerCase().includes(lowercasedFilter);
+      if (type === 'guides') return item.fullName.toLowerCase().includes(lowercasedFilter);
+      if (type === 'flights') return item.flightNumber.toLowerCase().includes(lowercasedFilter) || item.observations.toLowerCase().includes(lowercasedFilter);
+      return item.name.toLowerCase().includes(lowercasedFilter);
     });
   };
 
   const renderTable = (data: any[], type: DataType) => {
     const isEditing = (item: any) => editingItemId === (item.uid || item.id);
-    
+
+    // Check for exact match with searchTerm to highlight
+    const isExactMatch = (item: any) => {
+      if (!searchTerm) return false;
+      const lowerSearch = searchTerm.trim().toLowerCase();
+      if (type === 'guides') return item.fullName.toLowerCase() === lowerSearch;
+      if (type === 'flights') return item.flightNumber.toLowerCase() === lowerSearch;
+      return item.name.toLowerCase() === lowerSearch;
+    };
+
     return (
-    <div className="border rounded-lg mt-4 overflow-hidden">
-      <div className="max-h-96 overflow-y-auto">
-        <Table>
-          <TableHeader className="sticky top-0 bg-background z-10">
-            <TableRow>
-              {type === 'guides' ? (<><TableHead>Nombre</TableHead><TableHead>Apellido</TableHead></>) : 
-               type === 'flights' ? (<><TableHead>Vuelo</TableHead><TableHead>Hora</TableHead><TableHead>Obs.</TableHead></>) : 
-               (<TableHead>Nombre</TableHead>)}
-               <TableHead className="text-right w-[120px]">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.length === 0 ? (
-              <TableRow><TableCell colSpan={type === 'guides' || type === 'flights' ? 4 : 3} className="text-center h-24">No hay datos.</TableCell></TableRow>
-            ) : (
-              data.map(item => {
-                const id = item.uid || item.id;
-                return (
-                <TableRow key={id} className={cn(isEditing(item) && "bg-muted/50")}>
-                   {isEditing(item) ? (
-                    <>
-                      {type === 'guides' ? (
+      <div className="border rounded-lg mt-4 overflow-hidden">
+        <div className="max-h-96 overflow-y-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10">
+              <TableRow>
+                {type === 'guides' ? (<><TableHead>Nombre</TableHead><TableHead>Apellido</TableHead></>) :
+                  type === 'flights' ? (<><TableHead>Vuelo</TableHead><TableHead>Hora</TableHead><TableHead>Obs.</TableHead></>) :
+                    (<TableHead>Nombre</TableHead>)}
+                <TableHead className="text-right w-[120px]">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.length === 0 ? (
+                <TableRow><TableCell colSpan={type === 'guides' || type === 'flights' ? 4 : 3} className="text-center h-24">No hay datos.</TableCell></TableRow>
+              ) : (
+                data.map(item => {
+                  const id = item.uid || item.id;
+                  const highlight = isExactMatch(item);
+                  return (
+                    <TableRow key={id} className={cn(
+                      isEditing(item) ? "bg-muted/50" : "",
+                      !isEditing(item) && highlight ? "bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/50" : ""
+                    )}>
+                      {isEditing(item) ? (
                         <>
-                          <TableCell><Input value={editingValues[id].firstName} onChange={(e) => handleEditingChange(id, 'firstName', e.target.value.toUpperCase())} /></TableCell>
-                          <TableCell><Input value={editingValues[id].lastName} onChange={(e) => handleEditingChange(id, 'lastName', e.target.value.toUpperCase())} /></TableCell>
-                        </>
-                      ) : type === 'flights' ? (
-                        <>
-                          <TableCell><Input value={editingValues[id].flightNumber} onChange={(e) => handleEditingChange(id, 'flightNumber', e.target.value.toUpperCase())}/></TableCell>
-                          <TableCell><Input value={editingValues[id].time} onChange={(e) => handleEditingChange(id, 'time', e.target.value)}/></TableCell>
-                          <TableCell><Input value={editingValues[id].observations} onChange={(e) => handleEditingChange(id, 'observations', e.target.value)}/></TableCell>
-                        </>
-                      ) : (
-                        <TableCell colSpan={type === 'guides' || type === 'flights' ? 3 : 1}>
-                            <Input value={editingValues[id].name} onChange={(e) => handleEditingChange(id, 'name', e.target.value.toUpperCase())} />
-                        </TableCell>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {type === 'guides' ? (
-                        <>
-                          <TableCell>{item.firstName}</TableCell>
-                          <TableCell>{item.lastName}</TableCell>
-                        </>
-                      ) : type === 'flights' ? (
-                        <>
-                          <TableCell>{item.flightNumber}</TableCell>
-                          <TableCell>{item.time}</TableCell>
-                          <TableCell>{item.observations}</TableCell>
+                          {type === 'guides' ? (
+                            <>
+                              <TableCell><Input value={editingValues[id].firstName} onChange={(e) => handleEditingChange(id, 'firstName', e.target.value.toUpperCase())} /></TableCell>
+                              <TableCell><Input value={editingValues[id].lastName} onChange={(e) => handleEditingChange(id, 'lastName', e.target.value.toUpperCase())} /></TableCell>
+                            </>
+                          ) : type === 'flights' ? (
+                            <>
+                              <TableCell><Input value={editingValues[id].flightNumber} onChange={(e) => handleEditingChange(id, 'flightNumber', e.target.value.toUpperCase())} /></TableCell>
+                              <TableCell><Input value={editingValues[id].time} onChange={(e) => handleEditingChange(id, 'time', e.target.value)} /></TableCell>
+                              <TableCell><Input value={editingValues[id].observations} onChange={(e) => handleEditingChange(id, 'observations', e.target.value)} /></TableCell>
+                            </>
+                          ) : (
+                            <TableCell colSpan={type === 'guides' || type === 'flights' ? 3 : 1}>
+                              <Input value={editingValues[id].name} onChange={(e) => handleEditingChange(id, 'name', e.target.value.toUpperCase())} />
+                            </TableCell>
+                          )}
                         </>
                       ) : (
-                        <TableCell>{item.name}</TableCell>
-                      )}
-                    </>
-                  )}
-                  <TableCell className="text-right space-x-1">
-                    {isEditing(item) ? (
                         <>
+                          {type === 'guides' ? (
+                            <>
+                              <TableCell>{item.firstName}</TableCell>
+                              <TableCell>{item.lastName}</TableCell>
+                            </>
+                          ) : type === 'flights' ? (
+                            <>
+                              <TableCell>{item.flightNumber}</TableCell>
+                              <TableCell>{item.time}</TableCell>
+                              <TableCell>{item.observations}</TableCell>
+                            </>
+                          ) : (
+                            <TableCell>{item.name}</TableCell>
+                          )}
+                        </>
+                      )}
+                      <TableCell className="text-right space-x-1">
+                        {isEditing(item) ? (
+                          <>
                             <Button variant="default" size="icon" title="Guardar Cambios" onClick={() => handleSaveEdit(id, type)}><Save className="h-4 w-4" /></Button>
                             <Button variant="outline" size="icon" title="Cancelar" onClick={handleCancelEdit}><XCircle className="h-4 w-4" /></Button>
-                        </>
-                    ) : (
-                        <Button variant="outline" size="icon" title={`Editar ${type.slice(0, -1)}`} onClick={() => handleEditClick(item, type)}><Edit className="h-4 w-4" /></Button>
-                    )}
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="icon" title={`Eliminar ${type.slice(0, -1)}`} onClick={() => setItemToDelete({ ...item, type })}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      {itemToDelete && id === (itemToDelete.uid || itemToDelete.id) && (
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Se eliminará permanentemente "{type === 'guides' ? item.fullName : type === 'flights' ? item.flightNumber : item.name}". Esta acción no se puede deshacer.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive hover:bg-destructive/90">
-                              Sí, eliminar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      )}
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              )})
-            )}
-          </TableBody>
-        </Table>
+                          </>
+                        ) : (
+                          <Button variant="outline" size="icon" title={`Editar ${type.slice(0, -1)}`} onClick={() => handleEditClick(item, type)}><Edit className="h-4 w-4" /></Button>
+                        )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="icon" title={`Eliminar ${type.slice(0, -1)}`} onClick={() => setItemToDelete({ ...item, type })}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          {itemToDelete && id === ((itemToDelete as any).uid || (itemToDelete as any).id) && (
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Se eliminará permanentemente "{type === 'guides' ? item.fullName : type === 'flights' ? item.flightNumber : item.name}". Esta acción no se puede deshacer.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive hover:bg-destructive/90">
+                                  Sí, eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          )}
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
-    </div>
-  );
+    );
   };
 
   if (authLoading || isLoading) {
@@ -424,15 +463,7 @@ export default function ContributeDataPage() {
         <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go to Home">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-         <div className="relative w-full max-w-sm ml-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={`Buscar en ${activeTab}...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-        </div>
+        {/* Search Input Moved Inside Tabs */}
       </div>
       <Card className="w-full max-w-5xl shadow-lg">
         <CardHeader>
@@ -443,7 +474,7 @@ export default function ContributeDataPage() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-6 mb-4">
               <TabsTrigger value="guides"><UserSquare className="mr-2 h-4 w-4" />Guías</TabsTrigger>
               <TabsTrigger value="hotels"><HotelIcon className="mr-2 h-4 w-4" />Hoteles</TabsTrigger>
               <TabsTrigger value="drivers"><Car className="mr-2 h-4 w-4" />Choferes</TabsTrigger>
@@ -451,15 +482,41 @@ export default function ContributeDataPage() {
               <TabsTrigger value="activities"><ListChecks className="mr-2 h-4 w-4" />Actividades</TabsTrigger>
               <TabsTrigger value="flights"><Plane className="mr-2 h-4 w-4" />Vuelos</TabsTrigger>
             </TabsList>
-            <TabsContent value="guides">{renderAddForm('guides')}{renderTable(filteredData(guides, 'guides'), 'guides')}</TabsContent>
-            <TabsContent value="hotels">{renderAddForm('hotels')}{renderTable(filteredData(hotels, 'hotels'), 'hotels')}</TabsContent>
-            <TabsContent value="drivers">{renderAddForm('drivers')}{renderTable(filteredData(drivers, 'drivers'), 'drivers')}</TabsContent>
-            <TabsContent value="buses">{renderAddForm('buses')}{renderTable(filteredData(buses, 'buses'), 'buses')}</TabsContent>
-            <TabsContent value="activities">{renderAddForm('activities')}{renderTable(filteredData(activities, 'activities'), 'activities')}</TabsContent>
-            <TabsContent value="flights">{renderAddForm('flights')}{renderTable(filteredData(flights, 'flights'), 'flights')}</TabsContent>
+
+            <TabsContent value="guides">
+              {renderAddForm('guides')}
+              {renderSearchInput()}
+              {renderTable(filteredData(guides, 'guides'), 'guides')}
+            </TabsContent>
+            <TabsContent value="hotels">
+              {renderAddForm('hotels')}
+              {renderSearchInput()}
+              {renderTable(filteredData(hotels, 'hotels'), 'hotels')}
+            </TabsContent>
+            <TabsContent value="drivers">
+              {renderAddForm('drivers')}
+              {renderSearchInput()}
+              {renderTable(filteredData(drivers, 'drivers'), 'drivers')}
+            </TabsContent>
+            <TabsContent value="buses">
+              {renderAddForm('buses')}
+              {renderSearchInput()}
+              {renderTable(filteredData(buses, 'buses'), 'buses')}
+            </TabsContent>
+            <TabsContent value="activities">
+              {renderAddForm('activities')}
+              {renderSearchInput()}
+              {renderTable(filteredData(activities, 'activities'), 'activities')}
+            </TabsContent>
+            <TabsContent value="flights">
+              {renderAddForm('flights')}
+              {renderSearchInput()}
+              {renderTable(filteredData(flights, 'flights'), 'flights')}
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
     </div>
   );
 }
+
