@@ -10,25 +10,27 @@ import { version } from '../../../package.json';
 import { useEffect, useState } from "react";
 import { getIntermediateUserEmail } from "@/lib/appConfigService";
 import { LiveTimeline } from "@/components/LiveTimeline";
+import { MonthlyDownloadModal } from "@/components/service-order/MonthlyDownloadModal";
 
 
 export default function HomePage() {
   const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated, currentUser } = useAuth();
   const [canSeeIntermediateButton, setCanSeeIntermediateButton] = useState(false);
   const [isTimelineActive, setIsTimelineActive] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   useEffect(() => {
     async function checkPermissions() {
-        if (authLoading || !currentUser) {
-            setCanSeeIntermediateButton(false);
-            return;
-        }
-        if (isCurrentUserAdmin) {
-            setCanSeeIntermediateButton(true);
-            return;
-        }
-        const intermediateEmail = await getIntermediateUserEmail();
-        setCanSeeIntermediateButton(!!intermediateEmail && currentUser.email === intermediateEmail);
+      if (authLoading || !currentUser) {
+        setCanSeeIntermediateButton(false);
+        return;
+      }
+      if (isCurrentUserAdmin) {
+        setCanSeeIntermediateButton(true);
+        return;
+      }
+      const intermediateEmail = await getIntermediateUserEmail();
+      setCanSeeIntermediateButton(!!intermediateEmail && currentUser.email === intermediateEmail);
     }
     checkPermissions();
   }, [authLoading, currentUser, isCurrentUserAdmin]);
@@ -65,54 +67,70 @@ export default function HomePage() {
             </Link>
 
             {isAuthenticated && (
-                <Link href="/service-order" passHref>
-                  <Button
-                    variant="outline"
-                    className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-primary text-primary hover:bg-transparent hover:text-primary"
-                  >
-                    <ClipboardList className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
-                    <div className="text-left flex-grow">
-                      <span className="block text-xl sm:text-2xl font-bold">
-                        Órdenes de Servicio
-                      </span>
-                    </div>
-                    <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-                  </Button>
-                </Link>
+              <Link href="/service-order" passHref>
+                <Button
+                  variant="outline"
+                  className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-primary text-primary hover:bg-transparent hover:text-primary"
+                >
+                  <ClipboardList className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                  <div className="text-left flex-grow">
+                    <span className="block text-xl sm:text-2xl font-bold">
+                      Órdenes de Servicio
+                    </span>
+                  </div>
+                  <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                </Button>
+              </Link>
             )}
 
             {isAuthenticated && (
-                 <Link href="/admin/contribute" passHref>
-                  <Button
-                    variant="outline"
-                    className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-transparent hover:text-blue-600 dark:hover:text-blue-400"
-                  >
-                    <Database className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
-                    <div className="text-left flex-grow">
-                      <span className="block text-xl sm:text-2xl font-bold">
-                        Aportar Datos
-                      </span>
-                    </div>
-                    <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-blue-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-                  </Button>
-                </Link>
+              <Link href="/admin/contribute" passHref>
+                <Button
+                  variant="outline"
+                  className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-transparent hover:text-blue-600 dark:hover:text-blue-400"
+                >
+                  <Database className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                  <div className="text-left flex-grow">
+                    <span className="block text-xl sm:text-2xl font-bold">
+                      Aportar Datos
+                    </span>
+                  </div>
+                  <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-blue-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                </Button>
+              </Link>
+            )}
+
+            {isAuthenticated && (
+              <Button
+                variant="outline"
+                onClick={() => setIsDownloadModalOpen(true)}
+                className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-green-600/20 text-green-700 dark:text-green-400 hover:bg-transparent hover:text-green-800 dark:hover:text-green-300"
+              >
+                <FileSpreadsheet className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                <div className="text-left flex-grow">
+                  <span className="block text-xl sm:text-2xl font-bold">
+                    Reportes Mensuales
+                  </span>
+                </div>
+                <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-green-600/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+              </Button>
             )}
 
             {!authLoading && canSeeIntermediateButton && (
               <Link href="/admin/edit-service-order-logic" passHref>
-                  <Button
-                    variant="outline"
-                    className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-transparent hover:text-amber-600 dark:hover:text-amber-400"
-                  >
-                    <ClipboardEdit className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
-                    <div className="text-left flex-grow">
-                      <span className="block text-xl sm:text-2xl font-bold">
-                        Editar Lógica
-                      </span>
-                    </div>
-                    <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-amber-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-                  </Button>
-                </Link>
+                <Button
+                  variant="outline"
+                  className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-transparent hover:text-amber-600 dark:hover:text-amber-400"
+                >
+                  <ClipboardEdit className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                  <div className="text-left flex-grow">
+                    <span className="block text-xl sm:text-2xl font-bold">
+                      Editar Lógica
+                    </span>
+                  </div>
+                  <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-amber-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                </Button>
+              </Link>
             )}
 
             {!authLoading && isCurrentUserAdmin && (
@@ -193,7 +211,12 @@ export default function HomePage() {
         </div>
       )}
 
-       <footer className="mt-12 text-center text-sm text-muted-foreground">
+      <MonthlyDownloadModal
+        isOpen={isDownloadModalOpen}
+        onClose={() => setIsDownloadModalOpen(false)}
+      />
+
+      <footer className="mt-12 text-center text-sm text-muted-foreground">
         <p>&copy; {new Date().getFullYear()} TourFile Generator. Todos los derechos reservados. (Versión: {appVersion})</p>
       </footer>
     </div>
