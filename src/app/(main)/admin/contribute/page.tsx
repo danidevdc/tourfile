@@ -81,9 +81,16 @@ export default function ContributeDataPage() {
   const fetchData = async () => {
     if (isAuthenticated) {
       setIsLoading(true);
+
+      // Try to initialize buses, but don't fail if it errors (e.g. permissions)
       try {
         await initializeDefaultBuses();
-        const [fetchedHotels, fetchedDrivers, fetchedActivities, fetchedGuides, fetchedFlights, fetchedBuses] = await Promise.all([
+      } catch (e) {
+        console.warn("Could not initialize default buses:", e);
+      }
+
+      try {
+        const results = await Promise.allSettled([
           getHotelsFromFirestore(),
           getDriversFromFirestore(),
           getActivitiesFromFirestore(),
@@ -91,15 +98,37 @@ export default function ContributeDataPage() {
           getFlightsFromFirestore(),
           getBusesFromFirestore(),
         ]);
-        setHotels(fetchedHotels);
-        setDrivers(fetchedDrivers);
-        setActivities(fetchedActivities);
-        setGuides(fetchedGuides);
-        setFlights(fetchedFlights);
-        setBuses(fetchedBuses);
+
+        const [
+          hotelsResult,
+          driversResult,
+          activitiesResult,
+          guidesResult,
+          flightsResult,
+          busesResult
+        ] = results;
+
+        if (hotelsResult.status === 'fulfilled') setHotels(hotelsResult.value);
+        else console.error("Error fetching hotels:", hotelsResult.reason);
+
+        if (driversResult.status === 'fulfilled') setDrivers(driversResult.value);
+        else console.error("Error fetching drivers:", driversResult.reason);
+
+        if (activitiesResult.status === 'fulfilled') setActivities(activitiesResult.value);
+        else console.error("Error fetching activities:", activitiesResult.reason);
+
+        if (guidesResult.status === 'fulfilled') setGuides(guidesResult.value);
+        else console.error("Error fetching guides:", guidesResult.reason);
+
+        if (flightsResult.status === 'fulfilled') setFlights(flightsResult.value);
+        else console.error("Error fetching flights:", flightsResult.reason);
+
+        if (busesResult.status === 'fulfilled') setBuses(busesResult.value);
+        else console.error("Error fetching buses:", busesResult.reason);
+
       } catch (error) {
-        console.error("Error loading data:", error);
-        toast({ title: "Error", description: "No se pudieron cargar los datos.", variant: "destructive" });
+        console.error("Error unexpected loading data:", error);
+        toast({ title: "Error", description: "Ocurrió un problema al cargar algunos datos.", variant: "destructive" });
       } finally {
         setIsLoading(false);
       }
@@ -386,7 +415,7 @@ export default function ContributeDataPage() {
                               <TableCell><Input value={editingValues[id].observations} onChange={(e) => handleEditingChange(id, 'observations', e.target.value)} /></TableCell>
                             </>
                           ) : (
-                            <TableCell colSpan={type === 'guides' || type === 'flights' ? 3 : 1}>
+                            <TableCell colSpan={1}>
                               <Input value={editingValues[id].name} onChange={(e) => handleEditingChange(id, 'name', e.target.value.toUpperCase())} />
                             </TableCell>
                           )}
