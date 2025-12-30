@@ -4,13 +4,14 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileSpreadsheet, ArrowRight, ClipboardList, Settings, Plane, Database, ClipboardEdit, Calendar, CalendarOff } from "lucide-react";
+import { FileSpreadsheet, ArrowRight, ClipboardList, Settings, Plane, Database, ClipboardEdit, Calendar, CalendarOff, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { version } from '../../../package.json';
 import { useEffect, useState } from "react";
 import { getIntermediateUserEmail } from "@/lib/appConfigService";
 import { LiveTimeline } from "@/components/LiveTimeline";
 import { MonthlyDownloadModal } from "@/components/service-order/MonthlyDownloadModal";
+import { checkDatabaseConnection } from "@/lib/dbConnectionCheck";
 
 
 export default function HomePage() {
@@ -18,6 +19,8 @@ export default function HomePage() {
   const [canSeeIntermediateButton, setCanSeeIntermediateButton] = useState(false);
   const [isTimelineActive, setIsTimelineActive] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
 
   useEffect(() => {
     async function checkPermissions() {
@@ -35,6 +38,49 @@ export default function HomePage() {
     checkPermissions();
   }, [authLoading, currentUser, isCurrentUserAdmin]);
 
+  // Check database connection on mount
+  useEffect(() => {
+    verifyDatabaseConnection();
+  }, []);
+
+  // Smart reconnection: verify connection when user returns to tab after being away
+  useEffect(() => {
+    let lastVisibilityChange = Date.now();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const timeSinceLastCheck = Date.now() - lastVisibilityChange;
+        // Only verify if tab was hidden for more than 2 minutes
+        if (timeSinceLastCheck > 2 * 60 * 1000) {
+          console.log('Tab regained focus after inactivity, verifying database connection...');
+          verifyDatabaseConnection();
+        }
+        lastVisibilityChange = Date.now();
+      } else {
+        lastVisibilityChange = Date.now();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  const verifyDatabaseConnection = async () => {
+    setIsCheckingConnection(true);
+    try {
+      const isConnected = await checkDatabaseConnection();
+      setDbConnected(isConnected);
+    } catch (error) {
+      console.error('Error checking database connection:', error);
+      setDbConnected(false);
+    } finally {
+      setIsCheckingConnection(false);
+    }
+  };
+
   const appVersion = `${version} - DC`;
 
   return (
@@ -48,6 +94,47 @@ export default function HomePage() {
             <p className="mobile-text-lg text-muted-foreground mt-2">
               Selecciona una opción
             </p>
+
+            {/* Database Connection Status */}
+            <div className="mt-6 flex justify-center">
+              <div className={`inline-flex items-center gap-3 px-6 py-3 rounded-lg border-2 transition-all duration-300 ${dbConnected === null ? 'border-gray-300 bg-gray-50' :
+                dbConnected ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'
+                }`}>
+                {isCheckingConnection ? (
+                  <>
+                    <RefreshCw className="h-5 w-5 text-gray-500 animate-spin" />
+                    <span className="text-sm font-medium text-gray-700">Verificando conexión...</span>
+                  </>
+                ) : dbConnected === null ? (
+                  <>
+                    <Database className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-700">Verificando base de datos...</span>
+                  </>
+                ) : dbConnected ? (
+                  <>
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <span className="text-sm font-semibold text-green-700">Base de datos conectada</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-5 w-5 text-red-600" />
+                    <div className="flex flex-col sm:flex-row items-center gap-2">
+                      <span className="text-sm font-semibold text-red-700">Sin conexión a la base de datos</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={verifyDatabaseConnection}
+                        disabled={isCheckingConnection}
+                        className="border-red-400 text-red-700 hover:bg-red-100 h-7 text-xs"
+                      >
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        Reconectar
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
