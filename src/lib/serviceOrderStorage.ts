@@ -4,19 +4,23 @@
 
 import { db } from '@/lib/firebase';
 import {
-  collection,
-  doc,
-  addDoc,
-  getDocs,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-  Timestamp,
-  query,
-  orderBy,
-  writeBatch,
-  where,
+    collection,
+    doc,
+    addDoc,
+    getDocs,
+    getDoc,
+    updateDoc,
+    deleteDoc,
+    serverTimestamp,
+    Timestamp,
+    query,
+    orderBy,
+    writeBatch,
+    where,
+    limit,
+    startAfter,
+    getCountFromServer,
+    QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { type ServiceOrderData } from './serviceOrderGenerator';
 import { format, parse } from 'date-fns';
@@ -26,15 +30,15 @@ import { childNameFrom, getBaseName } from './serviceOrderFamily';
 export type OrderStatus = 'creado' | 'editado' | 'enviado' | 'eliminado' | 'excel' | 'cancelado' | 'impreso';
 
 export interface StoredServiceOrder {
-  id: string;
-  orderName: string;
-  createdBy: string;
-  createdAt: Date;
-  updatedAt?: Date;
-  data: ServiceOrderData & { isSplitParent?: boolean; isSplitSeparated?: boolean; responsible?: { guia?: string; chofer?: string }; splitKey?: string; };
-  status: OrderStatus;
-  deletedBy?: string;
-  splitFrom?: string;
+    id: string;
+    orderName: string;
+    createdBy: string;
+    createdAt: Date;
+    updatedAt?: Date;
+    data: ServiceOrderData & { isSplitParent?: boolean; isSplitSeparated?: boolean; responsible?: { guia?: string; chofer?: string }; splitKey?: string; };
+    status: OrderStatus;
+    deletedBy?: string;
+    splitFrom?: string;
 }
 
 
@@ -47,7 +51,7 @@ function getFirstDateFromServices(services: ServiceOrderData['services']): Date 
             const dateA = parse(a.fecha, 'dd/MM/yyyy', new Date()).getTime();
             const dateB = parse(b.fecha, 'dd/MM/yyyy', new Date()).getTime();
             if (dateA !== dateB) return dateA - dateB;
-        } catch {}
+        } catch { }
         return a.hora.localeCompare(b.hora);
     });
     try {
@@ -180,6 +184,7 @@ export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, cre
             createdBy: createdByEmail,
             data: orderData,
             status: 'creado',
+            isRoot: true,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         };
@@ -190,12 +195,13 @@ export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, cre
         const parentRef = doc(collection(db, 'serviceOrders'));
         const parentId = parentRef.id;
 
-        // Create parent order marked as split
+        // Create parent order marked as split and root
         batch.set(parentRef, {
             orderName: parentBaseName,
             createdBy: createdByEmail,
             data: { ...orderData, isSplitParent: true },
             status: 'creado',
+            isRoot: true,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
@@ -274,13 +280,13 @@ export async function saveEditedServiceOrder(
         // --- Delete all existing children before creating new ones ---
         const existingChildren = await getChildrenByParentId(parentId);
         existingChildren.forEach(child => {
-            const childRef = doc(db, 'serviceOrders', child.id);
+            const childRef = doc(db!, 'serviceOrders', child.id);
             batch.delete(childRef); // Permanently delete old children
         });
 
         const guideServiceMap = new Map<string, any[]>();
         const driverServiceMap = new Map<string, any[]>();
-        
+
         const mainGuide = updatedData.guia || "SIN GUIA PRINCIPAL";
 
         updatedData.services.forEach(service => {
@@ -289,13 +295,13 @@ export async function saveEditedServiceOrder(
                 if (!guideServiceMap.has(guideKey)) guideServiceMap.set(guideKey, []);
                 guideServiceMap.get(guideKey)!.push(service);
             }
-            
+
             if (service.chofer && service.chofer !== 'NONE' && service.bus?.toUpperCase() !== 'SIN BUS') {
                 if (!driverServiceMap.has(service.chofer)) driverServiceMap.set(service.chofer, []);
                 driverServiceMap.get(service.chofer)!.push(service);
             }
         });
-        
+
         const needsSplit = guideServiceMap.size > 1 || driverServiceMap.size > 1;
         const wasSplitSeparated = originalOrder.data.isSplitSeparated === true;
 
@@ -364,16 +370,16 @@ export async function saveEditedServiceOrder(
 
             // Create new children for drivers
             for (const [driver, services] of driverServiceMap.entries()) {
-                 const guidesList = services
+                const guidesList = services
                     .map(s => (s.guia || updatedData.guia)?.trim())
                     .filter(Boolean);
-                 const guidesForDriver = Array.from(new Set(guidesList));
-                 const guidesString = guidesForDriver.join(', ');
+                const guidesForDriver = Array.from(new Set(guidesList));
+                const guidesString = guidesForDriver.join(', ');
 
-                 const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guidesString };
-                 const childName = childNameFrom(parentBaseName, null, driver);
-                 const newDocRef = doc(collection(db, 'serviceOrders'));
-                 batch.set(newDocRef, {
+                const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guidesString };
+                const childName = childNameFrom(parentBaseName, null, driver);
+                const newDocRef = doc(collection(db, 'serviceOrders'));
+                batch.set(newDocRef, {
                     data: childDataPayload,
                     orderName: childName,
                     splitFrom: parentId,
@@ -381,7 +387,7 @@ export async function saveEditedServiceOrder(
                     createdAt: Timestamp.fromDate(originalOrder.createdAt), // Carry over original creation data
                     status: 'creado',
                     updatedAt: serverTimestamp()
-                 });
+                });
             }
 
             // Update the parent order to mark it as a split parent (but not split separated)
@@ -408,17 +414,19 @@ export async function updateServiceOrder(orderId: string, status: OrderStatus): 
 
 export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
     if (!db) throw new Error("Firestore not initialized.");
-    
+
     const ordersRef = collection(db, 'serviceOrders');
     const q = query(ordersRef, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
+
+    console.log(`📊 getAllServiceOrders() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
 
     if (snapshot.empty) return [];
 
     const orders: StoredServiceOrder[] = [];
     snapshot.docs.forEach(doc => {
         const data = doc.data();
-        
+
         // Robust date checking
         if (!data.createdAt || !(data.createdAt instanceof Timestamp)) {
             console.warn(`Skipping order ${doc.id}: Missing or invalid 'createdAt' field.`);
@@ -426,7 +434,7 @@ export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
         }
         const createdAt = data.createdAt.toDate();
         const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
-        
+
         orders.push({
             id: doc.id,
             ...data,
@@ -435,8 +443,146 @@ export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
             status: data.status || 'creado'
         } as StoredServiceOrder);
     });
-    
+
     return orders;
+}
+
+export async function getTotalServiceOrdersCount(): Promise<number> {
+    if (!db) throw new Error("Firestore not initialized.");
+    const ordersRef = collection(db, 'serviceOrders');
+    // Count only root orders to match the families pagination
+    const q = query(ordersRef, where('isRoot', '==', true));
+    const snapshot = await getCountFromServer(q);
+
+    let count = snapshot.data().count;
+
+    // Fallback: If no roots are found (e.g. before migration), return the total count 
+    // but this is temporary until the data is migrated.
+    if (count === 0) {
+        const totalSnapshot = await getCountFromServer(ordersRef);
+        return totalSnapshot.data().count;
+    }
+
+    console.log(`📊 getTotalServiceOrdersCount() - Counted ${count} root orders.`);
+    return count;
+}
+
+/**
+ * One-time migration to tag all existing non-child orders as roots.
+ * This fixes the pagination count for old data.
+ */
+export async function runMigrateRoots(): Promise<number> {
+    if (!db) throw new Error("Firestore not initialized.");
+    const ordersRef = collection(db, 'serviceOrders');
+    const q = query(ordersRef, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+
+    let migratedCount = 0;
+    const batch = writeBatch(db);
+
+    snapshot.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        // If it's not a child (no splitFrom) and doesn't have isRoot yet
+        if (!data.splitFrom && !data.isRoot) {
+            batch.update(docSnap.ref, { isRoot: true });
+            migratedCount++;
+        }
+    });
+
+    if (migratedCount > 0) {
+        await batch.commit();
+    }
+
+    return migratedCount;
+}
+
+export async function getServiceOrdersPaginated(
+    pageSize: number = 10,
+    lastVisible: QueryDocumentSnapshot | null = null
+): Promise<{ orders: StoredServiceOrder[], lastDoc: QueryDocumentSnapshot | null }> {
+    if (!db) throw new Error("Firestore not initialized.");
+
+    const ordersRef = collection(db, 'serviceOrders');
+    let parents: StoredServiceOrder[] = [];
+    let currentLastDoc: QueryDocumentSnapshot | null = lastVisible;
+    let iterations = 0;
+    const MAX_ITERATIONS = 3; // Basic safety
+
+    while (parents.length < pageSize && iterations < MAX_ITERATIONS) {
+        iterations++;
+
+        let q = query(
+            ordersRef,
+            orderBy('createdAt', 'desc'),
+            limit(pageSize * 2)
+        );
+
+        if (currentLastDoc) {
+            q = query(q, startAfter(currentLastDoc));
+        }
+
+        const snapshot = await getDocs(q);
+        console.log(`📊 getServiceOrdersPaginated (Batch ${iterations}) - Read ${snapshot.size} documents`);
+
+        if (snapshot.empty) break;
+
+        for (const docSnap of snapshot.docs) {
+            const data = docSnap.data();
+
+            // It's a root/parent if it has no splitFrom
+            if (!data.splitFrom) {
+                const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
+                const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
+
+                parents.push({
+                    id: docSnap.id,
+                    ...data,
+                    createdAt,
+                    updatedAt,
+                    status: data.status || 'creado'
+                } as StoredServiceOrder);
+
+                if (parents.length === pageSize) {
+                    currentLastDoc = docSnap;
+                    break;
+                }
+            }
+            currentLastDoc = docSnap;
+        }
+
+        if (snapshot.size < pageSize * 2) break; // End of collection
+    }
+
+    if (parents.length === 0) return { orders: [], lastDoc: null };
+
+    // Fetch children for these parents
+    const parentIds = parents.map(p => p.id);
+    const children: StoredServiceOrder[] = [];
+
+    if (parentIds.length > 0) {
+        const childrenQ = query(ordersRef, where('splitFrom', 'in', parentIds));
+        const childrenSnap = await getDocs(childrenQ);
+        console.log(`📊 getServiceOrdersPaginated (Children) - Read ${childrenSnap.size} children`);
+
+        childrenSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
+            const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
+
+            children.push({
+                id: docSnap.id,
+                ...data,
+                createdAt,
+                updatedAt,
+                status: data.status || 'creado'
+            } as StoredServiceOrder);
+        });
+    }
+
+    return {
+        orders: [...parents, ...children],
+        lastDoc: currentLastDoc
+    };
 }
 
 export async function getServiceOrderById(orderId: string): Promise<StoredServiceOrder | null> {
@@ -445,7 +591,7 @@ export async function getServiceOrderById(orderId: string): Promise<StoredServic
     const docSnap = await getDoc(orderRef);
 
     if (!docSnap.exists()) return null;
-    
+
     const data = docSnap.data();
     return {
         id: docSnap.id,
@@ -458,7 +604,7 @@ export async function getServiceOrderById(orderId: string): Promise<StoredServic
 
 export async function getChildrenByParentId(parentId: string): Promise<StoredServiceOrder[]> {
     if (!db) throw new Error("Firestore not initialized.");
-    
+
     const ordersRef = collection(db, 'serviceOrders');
     const q = query(ordersRef, where('splitFrom', '==', parentId));
     const snapshot = await getDocs(q);
@@ -491,7 +637,7 @@ export async function deleteBulkServiceOrders(orderIds: string[], deletedByEmail
     if (!db) throw new Error("Firestore not initialized.");
     const batch = writeBatch(db);
     orderIds.forEach(id => {
-        const orderRef = doc(db, 'serviceOrders', id);
+        const orderRef = doc(db!, 'serviceOrders', id);
         batch.update(orderRef, {
             status: 'eliminado',
             deletedBy: deletedByEmail,
@@ -504,7 +650,7 @@ export async function deleteBulkServiceOrders(orderIds: string[], deletedByEmail
 
 export async function softCancelServiceOrder(orderId: string): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
-    const orderRef = doc(db, 'serviceOrders', orderId);
+    const orderRef = doc(db!, 'serviceOrders', orderId);
     await updateDoc(orderRef, {
         status: 'cancelado',
         updatedAt: serverTimestamp()
@@ -514,10 +660,10 @@ export async function softCancelServiceOrder(orderId: string): Promise<void> {
 
 export async function recoverServiceOrder(orderId: string): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
-    const orderRef = doc(db, 'serviceOrders', orderId);
+    const orderRef = doc(db!, 'serviceOrders', orderId);
     await updateDoc(orderRef, {
-        status: 'editado', 
-        deletedBy: '', 
+        status: 'editado',
+        deletedBy: '',
         updatedAt: serverTimestamp()
     });
 }

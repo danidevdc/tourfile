@@ -21,6 +21,8 @@ export async function getAllOrderHeaders(): Promise<OrderHeader[]> {
     const q = query(ordersRef, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
 
+    console.log(`📊 getAllOrderHeaders() - Read ${snapshot.size} documents (${snapshot.size} reads) for report mapping`);
+
     return snapshot.docs.map(doc => ({
         id: doc.id,
         orderName: doc.data().orderName || ''

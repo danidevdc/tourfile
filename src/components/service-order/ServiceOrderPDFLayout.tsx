@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import { getAllServiceOrders, deleteServiceOrder, updateServiceOrder, type StoredServiceOrder } from '@/lib/serviceOrderStorage';
+import { getServiceOrdersPaginated, deleteServiceOrder, updateServiceOrder, type StoredServiceOrder } from '@/lib/serviceOrderStorage';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 
 import { Button } from "@/components/ui/button";
@@ -36,32 +36,36 @@ const defaultObsText = 'LA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA
 const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS REALIZADOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA';
 
 const initialOrderDataState: ServiceOrderData = {
-    guia: '', file: '', ref: '', nPax: '', hotel: '', services: [],
-    observations: defaultObsText, nota: defaultNotaText
+  guia: '', file: '', ref: '', nPax: '', hotel: '', services: [],
+  observations: defaultObsText, nota: defaultNotaText
 };
 
 const ITEMS_PER_PAGE = 10;
 
 export default function ServiceOrderListPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isLoading: authLoading, isCurrentUserAdmin } = useAuth();
   const { toast } = useToast();
 
   const [orders, setOrders] = useState<StoredServiceOrder[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [guides, setGuides] = useState<ServiceOrderGuide[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  
+
+  // Get page from URL params, default to 1
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
+
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isItineraryModalOpen, setIsItineraryModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
-  
+
   const [orderToEditInSheet, setOrderToEditInSheet] = useState<StoredServiceOrder | null>(null);
   const [orderToEditInItinerary, setOrderToEditInItinerary] = useState<StoredServiceOrder | null>(null);
   const [orderToPreview, setOrderToPreview] = useState<StoredServiceOrder | null>(null);
-  
+
   const [intermediateOrderData, setIntermediateOrderData] = useState<ServiceOrderData>(initialOrderDataState);
 
 
@@ -70,15 +74,16 @@ export default function ServiceOrderListPage() {
   const [isPrintingPdfId, setIsPrintingPdfId] = useState<string | null>(null);
 
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (page: number = 1) => {
     setIsLoading(true);
     try {
-      const [fetchedOrders, fetchedGuides, fetchedDrivers] = await Promise.all([
-        getAllServiceOrders(),
+      const [paginatedData, fetchedGuides, fetchedDrivers] = await Promise.all([
+        getServiceOrdersPaginated(page, ITEMS_PER_PAGE),
         getGuidesFromFirestore(),
         getDriversFromFirestore()
       ]);
-      setOrders(fetchedOrders);
+      setOrders(paginatedData.orders);
+      setTotalCount(paginatedData.totalCount);
       setGuides(fetchedGuides);
       setDrivers(fetchedDrivers);
     } catch (error) {
@@ -90,35 +95,42 @@ export default function ServiceOrderListPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      fetchOrders();
+      fetchOrders(currentPage);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, currentPage]);
 
   const filteredOrders = useMemo(() => {
     if (!searchTerm) return orders;
     const lowercasedFilter = searchTerm.toLowerCase();
     return orders.filter(order => {
-        const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
-        return (
-            order.orderName.toLowerCase().includes(lowercasedFilter) ||
-            order.data.guia.toLowerCase().includes(lowercasedFilter) ||
-            order.createdBy.toLowerCase().includes(lowercasedFilter) ||
-            date.toLowerCase().includes(lowercasedFilter)
-        );
+      const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
+      return (
+        order.orderName.toLowerCase().includes(lowercasedFilter) ||
+        order.data.guia.toLowerCase().includes(lowercasedFilter) ||
+        order.createdBy.toLowerCase().includes(lowercasedFilter) ||
+        date.toLowerCase().includes(lowercasedFilter)
+      );
     });
   }, [searchTerm, orders]);
-  
-  const paginatedOrders = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredOrders, currentPage]);
 
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+  // When searching, show all filtered results on one page
+  // When not searching, show paginated results from server
+  const displayOrders = searchTerm ? filteredOrders : orders;
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
+  const totalPages = searchTerm
+    ? Math.ceil(filteredOrders.length / ITEMS_PER_PAGE)
+    : Math.ceil(totalCount / ITEMS_PER_PAGE);
+
+  // Navigate to a different page
+  const goToPage = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', page.toString());
+    router.push(`?${params.toString()}`);
+  };
+
+
 
 
   const handleNewOrderClick = () => {
@@ -135,7 +147,7 @@ export default function ServiceOrderListPage() {
     setOrderToPreview(order);
     setIsPreviewModalOpen(true);
   }
-  
+
   const handleSaveFromModal = async (updatedServices: StoredServiceOrder['data']['services']) => {
     if (!orderToEditInItinerary) return;
 
@@ -143,12 +155,12 @@ export default function ServiceOrderListPage() {
       ...orderToEditInItinerary.data,
       services: updatedServices
     };
-    
+
     try {
       await updateServiceOrder(orderToEditInItinerary.id, updatedOrderData);
       toast({ title: "Éxito", description: "Itinerario actualizado.", variant: "success" as any });
       fetchOrders(); // Refresh list
-    } catch(e) {
+    } catch (e) {
       toast({ title: "Error", description: "No se pudo actualizar el itinerario.", variant: "destructive" });
     } finally {
       setIsItineraryModalOpen(false);
@@ -158,13 +170,13 @@ export default function ServiceOrderListPage() {
 
 
   const handleDeleteOrder = async () => {
-    if(!orderToDelete || !orderToDelete.id) return;
+    if (!orderToDelete || !orderToDelete.id) return;
     try {
       await deleteServiceOrder(orderToDelete.id);
       toast({ title: "Éxito", description: "Orden de servicio eliminada.", variant: "success" as any });
       fetchOrders(); // Refresh list
     } catch (error) {
-      toast({ title: "Error", description: "No se pudo eliminar la orden.", variant: "destructive"});
+      toast({ title: "Error", description: "No se pudo eliminar la orden.", variant: "destructive" });
     } finally {
       setOrderToDelete(null);
     }
@@ -174,7 +186,7 @@ export default function ServiceOrderListPage() {
     setIsDownloadingId(order.id);
     try {
       if (!order.id) throw new Error("ID de orden no válido");
-      
+
       const buffer = await generateServiceOrderExcel(order.data);
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
@@ -186,7 +198,7 @@ export default function ServiceOrderListPage() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-    } catch(error) {
+    } catch (error) {
       toast({ title: "Error", description: "No se pudo generar el archivo Excel.", variant: "destructive" });
     } finally {
       setIsDownloadingId(null);
@@ -205,170 +217,198 @@ export default function ServiceOrderListPage() {
     setIsSheetOpen(false);
     setOrderToEditInSheet(null);
     setIntermediateOrderData(initialOrderDataState);
-    fetchOrders(); 
+    fetchOrders();
   };
-  
+
   const onSheetClose = () => {
     setIsSheetOpen(false);
   }
 
   const onSheetClearAndNew = () => {
-      setIntermediateOrderData(initialOrderDataState);
-      setOrderToEditInSheet(null);
+    setIntermediateOrderData(initialOrderDataState);
+    setOrderToEditInSheet(null);
   };
 
   if (authLoading || isLoading) {
     return <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
-  
+
   return (
     <TooltipProvider>
-    <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background space-y-6">
-      <div className="w-full max-w-7xl flex justify-between items-center">
-        <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go home">
+      <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 sm:p-6 lg:p-8 bg-background space-y-6">
+        <div className="w-full max-w-7xl flex justify-between items-center">
+          <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go home">
             <ArrowLeft className="h-5 w-5" />
-        </Button>
-        {isCurrentUserAdmin && (
-          <Button onClick={handleNewOrderClick}>
+          </Button>
+          {isCurrentUserAdmin && (
+            <Button onClick={handleNewOrderClick}>
               <FilePlus className="mr-2 h-4 w-4" />
               Nueva Orden de Servicio
-          </Button>
-        )}
-      </div>
+            </Button>
+          )}
+        </div>
 
-       <Card className="w-full max-w-7xl shadow-lg">
+        <Card className="w-full max-w-7xl shadow-lg">
           <CardHeader>
-             <div className="flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                    <ListOrdered className="h-8 w-8 text-primary"/>
-                    <CardTitle className="text-2xl font-headline text-primary">Órdenes de Servicio</CardTitle>
-                </div>
-                <div className="relative w-full max-w-xs">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                    placeholder="Buscar orden..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                    />
-                </div>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <ListOrdered className="h-8 w-8 text-primary" />
+                <CardTitle className="text-2xl font-headline text-primary">Órdenes de Servicio</CardTitle>
+              </div>
+              <div className="relative w-full max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar orden..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="border rounded-lg overflow-hidden">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[26%] border-r">Nombre de la Orden</TableHead>
-                            <TableHead className="w-[25%] border-r">Guía Asignado</TableHead>
-                            <TableHead className="w-[15%] border-r">Creado Por</TableHead>
-                            <TableHead className="w-[10%] border-r">Fecha de Creación</TableHead>
-                            <TableHead className="text-right w-[24%]">Acciones</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {paginatedOrders.length > 0 ? (
-                            paginatedOrders.map((order) => (
-                                <TableRow key={order.id}>
-                                    <TableCell className="font-medium border-r">{order.orderName}</TableCell>
-                                    <TableCell className="border-r">{order.data.guia}</TableCell>
-                                    <TableCell className="border-r">{order.createdBy}</TableCell>
-                                    <TableCell className="border-r">{format(order.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
-                                    <TableCell className="text-right space-x-1">
-                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"><Eye className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
-                                        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditItineraryClick(order)} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700"><ListOrdered className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Editar Itinerario</p></TooltipContent></Tooltip>
-                                        
-                                        <Tooltip><TooltipTrigger asChild>
-                                           <Button 
-                                              variant="outline"
-                                              size="icon" 
-                                              onClick={() => handlePrintToPdf(order)}
-                                              disabled={isPrintingPdfId === order.id}
-                                              className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700"
-                                            >
-                                              {isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Printer className="h-4 w-4"/>}
-                                           </Button>
-                                        </TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[26%] border-r">Nombre de la Orden</TableHead>
+                    <TableHead className="w-[25%] border-r">Guía Asignado</TableHead>
+                    <TableHead className="w-[15%] border-r">Creado Por</TableHead>
+                    <TableHead className="w-[10%] border-r">Fecha de Creación</TableHead>
+                    <TableHead className="text-right w-[24%]">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {displayOrders.length > 0 ? (
+                    displayOrders.map((order: StoredServiceOrder) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-medium border-r">{order.orderName}</TableCell>
+                        <TableCell className="border-r">{order.data.guia}</TableCell>
+                        <TableCell className="border-r">{order.createdBy}</TableCell>
+                        <TableCell className="border-r">{format(order.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
+                        <TableCell className="text-right space-x-1">
+                          <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"><Eye className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Vista Previa</p></TooltipContent></Tooltip>
+                          <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => handleEditItineraryClick(order)} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700"><ListOrdered className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Editar Itinerario</p></TooltipContent></Tooltip>
 
-                                        <Tooltip><TooltipTrigger asChild>
-                                           <Button 
-                                              variant="outline" 
-                                              size="icon"
-                                              onClick={() => handleDownloadExcel(order)} 
-                                              disabled={isDownloadingId === order.id}
-                                              className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700"
-                                            >
-                                                {isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="h-4 w-4"/>}
-                                            </Button>
-                                        </TooltipTrigger><TooltipContent><p>Descargar Excel</p></TooltipContent></Tooltip>
-                                        
-                                        <AlertDialog>
-                                            <Tooltip><TooltipTrigger asChild>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="destructive" size="icon" onClick={() => setOrderToDelete(order)}>
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                            </TooltipTrigger><TooltipContent><p>Eliminar Orden</p></TooltipContent></Tooltip>
-                                            
-                                            {orderToDelete && orderToDelete.id === order.id && (
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Se eliminará permanentemente la orden "{orderToDelete.orderName}". Esta acción no se puede deshacer.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cerrar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">
-                                                            Sí, eliminar
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            )}
-                                        </AlertDialog>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                    {searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                          <Tooltip><TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handlePrintToPdf(order)}
+                              disabled={isPrintingPdfId === order.id}
+                              className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700"
+                            >
+                              {isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                            </Button>
+                          </TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>
+
+                          <Tooltip><TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleDownloadExcel(order)}
+                              disabled={isDownloadingId === order.id}
+                              className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700"
+                            >
+                              {isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                            </Button>
+                          </TooltipTrigger><TooltipContent><p>Descargar Excel</p></TooltipContent></Tooltip>
+
+                          <AlertDialog>
+                            <Tooltip><TooltipTrigger asChild>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="icon" onClick={() => setOrderToDelete(order)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                            </TooltipTrigger><TooltipContent><p>Eliminar Orden</p></TooltipContent></Tooltip>
+
+                            {orderToDelete && orderToDelete.id === order.id && (
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Se eliminará permanentemente la orden "{orderToDelete.orderName}". Esta acción no se puede deshacer.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cerrar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">
+                                    Sí, eliminar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            )}
+                          </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                        {searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
             {totalPages > 1 && (
-                <div className="flex items-center justify-end space-x-2 py-4">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                        disabled={currentPage === 1}
-                    >
-                        Anterior
-                    </Button>
-                    <span className="text-sm text-muted-foreground">
-                        Página {currentPage} de {totalPages}
-                    </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                        disabled={currentPage === totalPages}
-                    >
-                        Siguiente
-                    </Button>
+              <div className="flex items-center justify-center gap-2 py-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Anterior
+                </Button>
+
+                {/* Page numbers */}
+                <div className="flex gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => {
+                      // Show first page, last page, current page, and pages around current
+                      if (page === 1 || page === totalPages) return true;
+                      if (Math.abs(page - currentPage) <= 2) return true;
+                      return false;
+                    })
+                    .map((page, index, array) => {
+                      // Add ellipsis if there's a gap
+                      const prevPage = array[index - 1];
+                      const showEllipsis = prevPage && page - prevPage > 1;
+
+                      return (
+                        <div key={page} className="flex items-center gap-1">
+                          {showEllipsis && <span className="px-2 text-muted-foreground">...</span>}
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => goToPage(page)}
+                            className="min-w-[40px]"
+                          >
+                            {page}
+                          </Button>
+                        </div>
+                      );
+                    })}
                 </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
 
         {isItineraryModalOpen && orderToEditInItinerary && (
-          <ItineraryEditModal 
+          <ItineraryEditModal
             services={orderToEditInItinerary.data.services}
             guides={guides}
             drivers={drivers}
@@ -379,7 +419,7 @@ export default function ServiceOrderListPage() {
             }}
           />
         )}
-        
+
         {isPreviewModalOpen && orderToPreview && (
           <ServiceOrderPreviewModal
             order={orderToPreview}
@@ -390,16 +430,16 @@ export default function ServiceOrderListPage() {
           />
         )}
 
-        <ServiceOrderGeneratorSheet 
-            isOpen={isSheetOpen}
-            onClose={onSheetClose}
-            onSave={onSheetSave}
-            orderData={intermediateOrderData}
-            setOrderData={setIntermediateOrderData}
-            existingOrderId={orderToEditInSheet?.id || null}
-            onClearAndNew={onSheetClearAndNew}
+        <ServiceOrderGeneratorSheet
+          isOpen={isSheetOpen}
+          onClose={onSheetClose}
+          onSave={onSheetSave}
+          orderData={intermediateOrderData}
+          setOrderData={setIntermediateOrderData}
+          existingOrderId={orderToEditInSheet?.id || null}
+          onClearAndNew={onSheetClearAndNew}
         />
-    </div>
+      </div>
     </TooltipProvider>
   );
 }

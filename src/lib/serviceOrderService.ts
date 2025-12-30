@@ -24,12 +24,12 @@ import { format, parse } from 'date-fns';
 // --- Interface Definitions ---
 
 export interface Hotel {
-  id: string; 
+  id: string;
   name: string;
 }
 
 export interface Activity {
-  id: string; 
+  id: string;
   name: string;
   suggestedTime?: string; // Field for the most common time
   timeCounts?: { [time: string]: number }; // Field to count usages
@@ -54,8 +54,8 @@ export interface PredefinedFlight {
 }
 
 export interface Bus {
-    id: string;
-    name: string;
+  id: string;
+  name: string;
 }
 
 export interface ServiceOrderGuide extends Guide {
@@ -68,7 +68,7 @@ export interface ServiceItem {
   servicio: string;
   vuelo?: string;
   guia?: string;
-  bus?: string; 
+  bus?: string;
   chofer?: string;
   observaciones?: string;
 }
@@ -78,24 +78,24 @@ const defaultBuses = ['Bus 8', 'Bus 9', 'Bus 10'];
 
 // --- Initialization Functions ---
 export async function initializeDefaultBuses(): Promise<void> {
-    if (!db) throw new Error("Firestore not initialized.");
-    const busesRef = collection(db, 'buses');
-    console.log("Attempting to initialize default buses...");
+  if (!db) throw new Error("Firestore not initialized.");
+  const busesRef = collection(db, 'buses');
+  console.log("Attempting to initialize default buses...");
 
-    try {
-        const batch = writeBatch(db);
-        defaultBuses.forEach(busName => {
-            // Use the bus name as the document ID to enforce uniqueness
-            const docRef = doc(busesRef, busName.toUpperCase());
-            // Use set with merge:true. This will create the doc if it doesn't exist,
-            // or do nothing if it does. It will not overwrite existing data.
-            batch.set(docRef, { name: busName.toUpperCase() }, { merge: true });
-        });
-        await batch.commit();
-        console.log('Default buses initialization check complete.');
-    } catch (error) {
-        console.error("Error during default bus initialization:", error);
-    }
+  try {
+    const batch = writeBatch(db);
+    defaultBuses.forEach(busName => {
+      // Use the bus name as the document ID to enforce uniqueness
+      const docRef = doc(busesRef, busName.toUpperCase());
+      // Use set with merge:true. This will create the doc if it doesn't exist,
+      // or do nothing if it does. It will not overwrite existing data.
+      batch.set(docRef, { name: busName.toUpperCase() }, { merge: true });
+    });
+    await batch.commit();
+    console.log('Default buses initialization check complete.');
+  } catch (error) {
+    console.error("Error during default bus initialization:", error);
+  }
 }
 
 
@@ -105,7 +105,9 @@ export async function getGuidesFromFirestore(): Promise<ServiceOrderGuide[]> {
   if (!db) throw new Error("Firestore not initialized.");
   const guidesRef = collection(db, 'guides');
   const snapshot = await getDocs(guidesRef);
-  
+
+  console.log(`📊 getGuidesFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+
   if (snapshot.empty) return [];
 
   return snapshot.docs.map(doc => {
@@ -126,11 +128,13 @@ export async function getHotelsFromFirestore(): Promise<Hotel[]> {
   const hotelsRef = collection(db, 'hotels');
   const snapshot = await getDocs(hotelsRef);
 
+  console.log(`📊 getHotelsFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+
   if (snapshot.empty) return [];
 
-  return snapshot.docs.map(doc => ({ 
-    id: doc.id, 
-    name: (doc.data().name as string).toUpperCase() 
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    name: (doc.data().name as string).toUpperCase()
   } as Hotel))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -140,10 +144,12 @@ export async function getActivitiesFromFirestore(): Promise<Activity[]> {
   const activitiesRef = collection(db, 'activities');
   const snapshot = await getDocs(activitiesRef);
 
+  console.log(`📊 getActivitiesFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+
   if (snapshot.empty) return [];
 
-  return snapshot.docs.map(doc => ({ 
-    id: doc.id, 
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
     name: (doc.data().name as string).toUpperCase(),
     suggestedTime: doc.data().suggestedTime, // Also fetch the suggested time
   } as Activity))
@@ -155,11 +161,13 @@ export async function getDriversFromFirestore(): Promise<Driver[]> {
   const driversRef = collection(db, 'drivers');
   const snapshot = await getDocs(driversRef);
 
+  console.log(`📊 getDriversFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+
   if (snapshot.empty) return [];
 
-  return snapshot.docs.map(doc => ({ 
-    id: doc.id, 
-    name: (doc.data().name as string).toUpperCase() 
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    name: (doc.data().name as string).toUpperCase()
   } as Driver))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -168,32 +176,38 @@ export async function getFlightsFromFirestore(): Promise<PredefinedFlight[]> {
   if (!db) throw new Error("Firestore not initialized.");
   const flightsRef = collection(db, 'flights');
   const snapshot = await getDocs(flightsRef);
+
+  console.log(`📊 getFlightsFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+
   if (snapshot.empty) return [];
-  return snapshot.docs.map(doc => ({ 
-    id: doc.id, 
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
     ...(doc.data() as Omit<PredefinedFlight, 'id'>)
   } as PredefinedFlight)).sort((a, b) => a.flightNumber.localeCompare(b.flightNumber));
 }
 
 export async function getBusesFromFirestore(): Promise<Bus[]> {
-    if (!db) throw new Error("Firestore not initialized.");
-    const busesRef = collection(db, 'buses');
-    const snapshot = await getDocs(busesRef);
-    if (snapshot.empty) return [];
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        name: (doc.data().name as string).toUpperCase()
-    } as Bus)).sort((a, b) => a.name.localeCompare(b.name));
+  if (!db) throw new Error("Firestore not initialized.");
+  const busesRef = collection(db, 'buses');
+  const snapshot = await getDocs(busesRef);
+
+  console.log(`📊 getBusesFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+
+  if (snapshot.empty) return [];
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    name: (doc.data().name as string).toUpperCase()
+  } as Bus)).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 
 // --- Functions to Check for Duplicates ---
 
 async function checkExists(collectionName: string, fieldName: string, value: string): Promise<boolean> {
-    if (!db) return false;
-    const q = query(collection(db, collectionName), where(fieldName, "==", value.toUpperCase()));
-    const snapshot = await getDocs(q);
-    return !snapshot.empty;
+  if (!db) return false;
+  const q = query(collection(db, collectionName), where(fieldName, "==", value.toUpperCase()));
+  const snapshot = await getDocs(q);
+  return !snapshot.empty;
 }
 
 export const checkIfHotelExists = (name: string) => checkExists('hotels', 'name', name);
@@ -202,52 +216,52 @@ export const checkIfDriverExists = (name: string) => checkExists('drivers', 'nam
 export const checkIfFlightExists = (flightNumber: string) => checkExists('flights', 'flightNumber', flightNumber);
 
 export async function checkIfBusExists(name: string): Promise<boolean> {
-    if (!db) return false;
-    const busDocRef = doc(db, 'buses', name.toUpperCase());
-    const docSnap = await getDoc(busDocRef);
-    return docSnap.exists();
+  if (!db) return false;
+  const busDocRef = doc(db, 'buses', name.toUpperCase());
+  const docSnap = await getDoc(busDocRef);
+  return docSnap.exists();
 }
 
 
 export async function checkIfGuideExists(firstName: string, lastName: string): Promise<boolean> {
-    if (!db) return false;
-    const q = query(collection(db, 'guides'), 
-        where("firstName", "==", firstName.toUpperCase()),
-        where("lastName", "==", lastName.toUpperCase())
-    );
-    const snapshot = await getDocs(q);
-    return !snapshot.empty;
+  if (!db) return false;
+  const q = query(collection(db, 'guides'),
+    where("firstName", "==", firstName.toUpperCase()),
+    where("lastName", "==", lastName.toUpperCase())
+  );
+  const snapshot = await getDocs(q);
+  return !snapshot.empty;
 }
 
 
 // --- Data Creation Functions (Single) ---
 
-export const createGuide = (guide: {firstName: string, lastName: string}) => addDoc(collection(db!, 'guides'), guide);
+export const createGuide = (guide: { firstName: string, lastName: string }) => addDoc(collection(db!, 'guides'), guide);
 export const createHotel = (name: string) => addDoc(collection(db!, 'hotels'), { name });
 export const createActivity = (name: string) => addDoc(collection(db!, 'activities'), { name });
 export const createDriver = (name: string) => addDoc(collection(db!, 'drivers'), { name });
 export const createFlight = (flight: Omit<PredefinedFlight, 'id'>) => addDoc(collection(db!, 'flights'), flight);
 export const createBus = (name: string) => {
-    if (!db) throw new Error("Firestore not initialized.");
-    const docRef = doc(db, 'buses', name.toUpperCase());
-    return setDoc(docRef, { name: name.toUpperCase() });
+  if (!db) throw new Error("Firestore not initialized.");
+  const docRef = doc(db, 'buses', name.toUpperCase());
+  return setDoc(docRef, { name: name.toUpperCase() });
 };
 
 
 // --- Data Update Functions ---
-export const updateGuide = (id: string, data: {firstName: string, lastName: string}) => setDoc(doc(db!, 'guides', id), data);
+export const updateGuide = (id: string, data: { firstName: string, lastName: string }) => setDoc(doc(db!, 'guides', id), data);
 export const updateHotel = (id: string, name: string) => setDoc(doc(db!, 'hotels', id), { name });
 export const updateActivity = (id: string, name: string) => setDoc(doc(db!, 'activities', id), { name });
 export const updateDriver = (id: string, name: string) => setDoc(doc(db!, 'drivers', id), { name });
 export const updateFlight = (id: string, data: Omit<PredefinedFlight, 'id'>) => setDoc(doc(db!, 'flights', id), data);
 export const updateBus = (id: string, name: string) => {
-    if (!db) throw new Error("Firestore not initialized.");
-    // This is more complex if the ID is the name. If the name changes, the ID must change.
-    // This implies deleting the old doc and creating a new one.
-    // For simplicity, let's assume the name (the ID) is NOT editable, only other fields if they existed.
-    // If name IS the only field, an "update" is essentially just ensuring it exists.
-    const docRef = doc(db, 'buses', id); // Here, id is the old name
-    return setDoc(docRef, { name: name.toUpperCase() });
+  if (!db) throw new Error("Firestore not initialized.");
+  // This is more complex if the ID is the name. If the name changes, the ID must change.
+  // This implies deleting the old doc and creating a new one.
+  // For simplicity, let's assume the name (the ID) is NOT editable, only other fields if they existed.
+  // If name IS the only field, an "update" is essentially just ensuring it exists.
+  const docRef = doc(db, 'buses', id); // Here, id is the old name
+  return setDoc(docRef, { name: name.toUpperCase() });
 };
 
 // --- Data Creation Functions (Bulk) ---
@@ -262,10 +276,10 @@ const createBulk = async (collectionName: string, records: { [key: string]: any 
   await batch.commit();
 };
 
-export const createBulkGuides = (guides: {firstName: string, lastName: string}[]) => createBulk('guides', guides);
-export const createBulkHotels = (hotels: {name: string}[]) => createBulk('hotels', hotels);
-export const createBulkActivities = (activities: {name: string}[]) => createBulk('activities', activities);
-export const createBulkDrivers = (drivers: {name: string}[]) => createBulk('drivers', drivers);
+export const createBulkGuides = (guides: { firstName: string, lastName: string }[]) => createBulk('guides', guides);
+export const createBulkHotels = (hotels: { name: string }[]) => createBulk('hotels', hotels);
+export const createBulkActivities = (activities: { name: string }[]) => createBulk('activities', activities);
+export const createBulkDrivers = (drivers: { name: string }[]) => createBulk('drivers', drivers);
 export const createBulkFlights = (flights: Omit<PredefinedFlight, 'id'>[]) => createBulk('flights', flights);
 
 
@@ -280,13 +294,13 @@ export const deleteBus = (id: string) => deleteDoc(doc(db!, 'buses', id));
 
 // --- Bulk Deletion Functions ---
 const deleteBulk = async (collectionName: string, ids: string[]) => {
-    if (!db) throw new Error("Firestore not initialized");
-    const batch = writeBatch(db);
-    ids.forEach(id => {
-        const docRef = doc(db, collectionName, id);
-        batch.delete(docRef);
-    });
-    await batch.commit();
+  if (!db) throw new Error("Firestore not initialized");
+  const batch = writeBatch(db);
+  ids.forEach(id => {
+    const docRef = doc(db, collectionName, id);
+    batch.delete(docRef);
+  });
+  await batch.commit();
 };
 
 export const deleteBulkGuides = (ids: string[]) => deleteBulk('guides', ids);
@@ -314,7 +328,7 @@ export async function recordActivityTimeUsage(activityName: string, time: string
     console.warn(`Activity "${activityName}" not found. Cannot record time usage.`);
     return;
   }
-  
+
   const activityDocRef = querySnapshot.docs[0].ref;
 
   try {
@@ -334,7 +348,7 @@ export async function recordActivityTimeUsage(activityName: string, time: string
       if (newCount >= 2) {
         updates.suggestedTime = time;
       }
-      
+
       transaction.update(activityDocRef, updates);
     });
   } catch (error) {
@@ -351,7 +365,7 @@ export async function getSuggestedTimeForActivity(activityName: string): Promise
   if (!db || !activityName) return null;
 
   const activityQuery = query(collection(db, 'activities'), where('name', '==', activityName.toUpperCase()));
-  
+
   try {
     const querySnapshot = await getDocs(activityQuery);
     if (querySnapshot.empty) {
