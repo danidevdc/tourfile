@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
-
 import {
   getServiceOrdersPaginated,
   getTotalServiceOrdersCount,
@@ -22,6 +21,7 @@ import {
   saveEditedServiceOrder,
   deleteServiceOrder,
   getAllServiceOrders,
+  runMigrateRoots,
 } from '@/lib/serviceOrderStorage';
 import { checkDatabaseConnection } from "@/lib/dbConnectionCheck";
 import { type QueryDocumentSnapshot } from 'firebase/firestore';
@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Loader2, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown, Image, Split, User, Car, CheckCircle2, XCircle, RefreshCw, Database } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown, ChevronLeft, ChevronRight, Image, Split, User, Car, CheckCircle2, XCircle, RefreshCw, Database } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -111,8 +111,8 @@ export default function ServiceOrderListPage() {
   const [isPrintingPdfId, setIsPrintingPdfId] = useState<string | null>(null);
 
   // Pagination states
-  const [totalCount, setTotalCount] = useState(0);
   const [lastDocs, setLastDocs] = useState<(QueryDocumentSnapshot | null)[]>([null]);
+  const [hasMore, setHasMore] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
@@ -213,14 +213,18 @@ export default function ServiceOrderListPage() {
         // Global Search Mode: Fetch all to filter locally as Firestore doesn't support 'contains'
         const allOrders = await getAllServiceOrders();
         setOrders(allOrders);
+        setHasMore(false); // Not used in search mode as we have the full list
       } else {
         // Paginated Mode: Fetch only one page
         const cursor = lastDocs[page - 1] || null;
         const { orders: fetchedOrders, lastDoc } = await getServiceOrdersPaginated(ITEMS_PER_PAGE, cursor);
         setOrders(fetchedOrders);
+
+        // Update next page cursor and hasMore
         if (lastDoc && page >= lastDocs.length) {
           setLastDocs(prev => [...prev, lastDoc]);
         }
+        setHasMore(!!lastDoc);
       }
     } catch (error) {
       toast({ title: "Error", description: "No se pudieron cargar las órdenes.", variant: "destructive" });
@@ -250,14 +254,13 @@ export default function ServiceOrderListPage() {
 
   const fetchInitialData = async () => {
     try {
-      const [fetchedGuides, fetchedDrivers, fetchedHotels, fetchedActivities, fetchedFlights, fetchedBuses, count] = await Promise.all([
+      const [fetchedGuides, fetchedDrivers, fetchedHotels, fetchedActivities, fetchedFlights, fetchedBuses] = await Promise.all([
         getGuidesFromFirestore(),
         getDriversFromFirestore(),
         getHotelsFromFirestore(),
         getActivitiesFromFirestore(),
         getFlightsFromFirestore(),
         getBusesFromFirestore(),
-        getTotalServiceOrdersCount(),
       ]);
       setGuides(fetchedGuides);
       setDrivers(fetchedDrivers);
@@ -265,7 +268,6 @@ export default function ServiceOrderListPage() {
       setActivities(fetchedActivities);
       setFlights(fetchedFlights);
       setBuses(fetchedBuses);
-      setTotalCount(count);
     } catch (error) {
       console.error("Error fetching metadata:", error);
     }
@@ -286,7 +288,17 @@ export default function ServiceOrderListPage() {
 
   useEffect(() => {
     verifyDatabaseConnection();
-  }, []);
+
+    // Silent migration for admins to fix pagination on old data
+    if (isCurrentUserAdmin) {
+      runMigrateRoots().then(count => {
+        if (count > 0) {
+          console.log(`✅ Migrated ${count} orders to root status.`);
+          fetchInitialData(); // Refresh count after migration
+        }
+      });
+    }
+  }, [isCurrentUserAdmin]);
 
   const handleStatusUpdate = async (orderId: string) => {
     const orderToUpdate = orders.find(o => o.id === orderId);
@@ -367,12 +379,19 @@ export default function ServiceOrderListPage() {
   };
 
 
-  const totalPages = useMemo(() => {
+  const searchTotalPages = useMemo(() => {
     if (debouncedSearchTerm.trim().length > 0) {
       return Math.ceil(families.length / ITEMS_PER_PAGE) || 1;
     }
-    return Math.ceil(totalCount / ITEMS_PER_PAGE) || 1;
-  }, [debouncedSearchTerm, families.length, totalCount]);
+    return 1;
+  }, [debouncedSearchTerm, families.length]);
+
+  const showPagination = useMemo(() => {
+    if (debouncedSearchTerm.trim().length > 0) {
+      return searchTotalPages > 1;
+    }
+    return currentPage > 1 || hasMore;
+  }, [debouncedSearchTerm, searchTotalPages, currentPage, hasMore]);
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -852,29 +871,47 @@ export default function ServiceOrderListPage() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-end gap-3 sm:gap-2 py-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1 || isLoading}
-                  className="mobile-full-width touch-target"
-                >
-                  Anterior
-                </Button>
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
-                  Página {currentPage} de {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages || isLoading}
-                  className="mobile-full-width touch-target"
-                >
-                  Siguiente
-                </Button>
+            {showPagination && (
+              <div className="flex items-center justify-between sm:justify-end gap-3 py-4 border-t border-border/40 mt-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1 || isLoading}
+                    className="h-9 px-3 gap-1 hover:bg-primary/5 transition-colors"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    <span className="hidden sm:inline">Anterior</span>
+                  </Button>
+
+                  <div className="flex items-center px-3 h-9 rounded-md border border-border/40 bg-muted/30">
+                    <span className="text-sm font-medium">
+                      {debouncedSearchTerm.trim().length > 0 ? (
+                        <>Resultados: {currentPage} <span className="text-muted-foreground mx-1">/</span> {searchTotalPages}</>
+                      ) : (
+                        <>Página {currentPage}</>
+                      )}
+                    </span>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (debouncedSearchTerm.trim().length > 0) {
+                        if (currentPage < searchTotalPages) handlePageChange(currentPage + 1);
+                      } else {
+                        handlePageChange(currentPage + 1);
+                      }
+                    }}
+                    disabled={isLoading || (debouncedSearchTerm.trim().length > 0 ? currentPage >= searchTotalPages : !hasMore)}
+                    className="h-9 px-3 gap-1 hover:bg-primary/5 transition-colors"
+                  >
+                    <span className="hidden sm:inline">Siguiente</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

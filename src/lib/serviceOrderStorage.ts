@@ -450,21 +450,27 @@ export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
 export async function getTotalServiceOrdersCount(): Promise<number> {
     if (!db) throw new Error("Firestore not initialized.");
     const ordersRef = collection(db, 'serviceOrders');
-    // Count only root orders to match the families pagination
-    const q = query(ordersRef, where('isRoot', '==', true));
-    const snapshot = await getCountFromServer(q);
 
-    let count = snapshot.data().count;
+    // 1. Get count of documents specifically marked as roots
+    const rootQuery = query(ordersRef, where('isRoot', '==', true));
+    const rootSnapshot = await getCountFromServer(rootQuery);
+    let rootCount = rootSnapshot.data().count;
 
-    // Fallback: If no roots are found (e.g. before migration), return the total count 
-    // but this is temporary until the data is migrated.
-    if (count === 0) {
-        const totalSnapshot = await getCountFromServer(ordersRef);
-        return totalSnapshot.data().count;
+    // 2. Get total document count for context
+    const totalSnapshot = await getCountFromServer(ordersRef);
+    const totalCount = totalSnapshot.data().count;
+
+    // Fallback: If rootCount is suspiciously low compared to totalCount, 
+    // it's likely old data hasn't been migrated.
+    // We assume roughly 1/3 of docs are roots (parent + 2 children avg)
+    // If roots < 5% of total, we use totalCount/2 as a safe estimate for UI
+    if (rootCount < totalCount * 0.05 && totalCount > 10) {
+        console.warn(`⚠️ Low root count (${rootCount}/${totalCount}). UI might be using estimated pagination.`);
+        return Math.ceil(totalCount / 2.5); // Heuristic until migration
     }
 
-    console.log(`📊 getTotalServiceOrdersCount() - Counted ${count} root orders.`);
-    return count;
+    console.log(`📊 getTotalServiceOrdersCount() - Counted ${rootCount} root orders.`);
+    return rootCount;
 }
 
 /**
