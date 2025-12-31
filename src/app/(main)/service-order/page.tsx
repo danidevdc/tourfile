@@ -288,13 +288,14 @@ export default function ServiceOrderListPage() {
 
   useEffect(() => {
     verifyDatabaseConnection();
+    fetchInitialData(); // Cargar guías, hoteles, etc. para todos los usuarios
 
     // Silent migration for admins to fix pagination on old data
     if (isCurrentUserAdmin) {
       runMigrateRoots().then(count => {
         if (count > 0) {
           console.log(`✅ Migrated ${count} orders to root status.`);
-          fetchInitialData(); // Refresh count after migration
+          fetchInitialData(); // Refrescar si hubo migración (aunque ya se cargó arriba, por seguridad)
         }
       });
     }
