@@ -71,6 +71,9 @@ service cloud.firestore {
     // --- App Configuration (Special Roles) ---
     // Only admins can write to this document.
     // Any authenticated user can read it to check for special permissions.
+    match /appConfig/healthCheck {
+      allow read: if true;
+    }
     match /appConfig/{docId} {
       allow read: if isAuth();
       allow write: if isAdmin();

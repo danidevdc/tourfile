@@ -8,10 +8,11 @@ export async function checkDatabaseConnection(): Promise<boolean> {
             return false;
         }
 
-        // Try to fetch a single document from any collection to verify connection
-        // Using a lightweight query to minimize data transfer
-        const testQuery = query(collection(db, 'serviceOrders'), limit(1));
-        await getDocs(testQuery);
+        // Usamos un documento específico en lugar de una consulta de colección
+        // Esto permite configurar una regla de lectura pública más segura
+        const { doc, getDoc } = await import('firebase/firestore');
+        const healthDoc = doc(db, 'appConfig', 'healthCheck');
+        await getDoc(healthDoc);
 
         return true;
     } catch (error) {
