@@ -22,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, Eye, FileDown, Trash2, Files } from "lucide-react";
+import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, Eye, FileDown, Trash2, Files, RefreshCw, Database } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -39,13 +39,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ResultsDialogContent } from "@/components/report/ResultsDialogContent";
-import { 
-  generateExpenseDetails, 
-  type GeneratedReportInfo, 
+import {
+  generateExpenseDetails,
+  type GeneratedReportInfo,
   type FileDataProps,
-  type FileSearchStatus 
+  type FileSearchStatus
 } from "@/lib/report-generator";
 import { saveReportInfoToFirestore, saveBulkReportsToFirestore } from "@/lib/reportService";
+import { checkDatabaseConnection } from "@/lib/dbConnectionCheck";
 
 
 const formSchema = z.object({
@@ -81,6 +82,8 @@ export default function GeneratorPage() {
   const [isDownloadingReportId, setIsDownloadingReportId] = useState<string | null>(null);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [isClearListAlertOpen, setIsClearListAlertOpen] = useState(false);
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
 
 
   const form = useForm<FormValues>({
@@ -90,6 +93,23 @@ export default function GeneratorPage() {
       guideName: "",
     },
   });
+
+  const verifyDatabaseConnection = async () => {
+    setIsCheckingConnection(true);
+    try {
+      const isConnected = await checkDatabaseConnection();
+      setDbConnected(isConnected);
+    } catch (error) {
+      console.error('Error checking database connection:', error);
+      setDbConnected(false);
+    } finally {
+      setIsCheckingConnection(false);
+    }
+  };
+
+  useEffect(() => {
+    verifyDatabaseConnection();
+  }, []);
 
   useEffect(() => {
     if (!selectedFile) {
@@ -105,9 +125,9 @@ export default function GeneratorPage() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files && event.target.files[0];
-    
+
     if (selectedFile || !file) {
-        setSelectedFile(null);
+      setSelectedFile(null);
     }
 
     if (file) {
@@ -126,22 +146,22 @@ export default function GeneratorPage() {
             const arrayBuffer = e.target?.result;
             if (!arrayBuffer) throw new Error("Error al leer el archivo.");
             const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
-            
+
             const sheetName = "Hoja1";
             const worksheet = workbook.Sheets[sheetName];
 
             if (!worksheet) {
-                throw new Error(`El archivo no contiene una hoja llamada "${sheetName}".`);
+              throw new Error(`El archivo no contiene una hoja llamada "${sheetName}".`);
             }
-            
+
             const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: null });
-            
+
             setExcelData(data);
             setFileSearchStatus("idle");
             setFoundCellValue(null);
             setCurrentPaxCount(null);
             setFileDataProps({ fileIdRowIndex: null, columnIndex: null });
-            
+
           } catch (error: any) {
             console.error("Error al procesar el archivo Excel:", error);
             toast({
@@ -213,7 +233,7 @@ export default function GeneratorPage() {
 
     if (!fileNumberToSearch) {
       setFileSearchStatus("error");
-      form.setError("fileNumber", { type: "manual", message: "Ingresa un número de file para buscar."});
+      form.setError("fileNumber", { type: "manual", message: "Ingresa un número de file para buscar." });
       toast({ title: "Error de Búsqueda", description: "Ingresa un número de file para buscar.", variant: "destructive" });
       return;
     }
@@ -232,7 +252,7 @@ export default function GeneratorPage() {
       for (let j = 0; j < numCols; j++) {
         for (let i = 0; i < excelData.length; i++) {
           if (excelData[i] && excelData[i][j] !== undefined && excelData[i][j] !== null) {
-             if (String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch.trim().toUpperCase()) {
+            if (String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch.trim().toUpperCase()) {
               colIdx = j;
               rowIdxWhereFileNumberFound = i;
               found = true;
@@ -256,24 +276,24 @@ export default function GeneratorPage() {
       let dateFound = false;
 
       for (let i = rowIdxWhereFileNumberFound; i < excelData.length; i++) {
-          const cellValue = excelData[i]?.[colIdx];
-          if (!cellValue) continue;
+        const cellValue = excelData[i]?.[colIdx];
+        if (!cellValue) continue;
 
-          let parsedDateObj: Date | null = null;
-          if (cellValue instanceof Date) {
-              parsedDateObj = cellValue;
-          } else if (typeof cellValue === 'number' && cellValue > 25569) { // Excel serial date check
-              const parsed = XLSX.SSF.parse_date_code(cellValue);
-              if (parsed) {
-                  parsedDateObj = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0));
-              }
+        let parsedDateObj: Date | null = null;
+        if (cellValue instanceof Date) {
+          parsedDateObj = cellValue;
+        } else if (typeof cellValue === 'number' && cellValue > 25569) { // Excel serial date check
+          const parsed = XLSX.SSF.parse_date_code(cellValue);
+          if (parsed) {
+            parsedDateObj = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0));
           }
+        }
 
-          if (parsedDateObj && !isNaN(parsedDateObj.valueOf())) {
-              dateFound = true;
-              dateRowIndex = i;
-              break; // Encontramos la primera fecha válida y la usamos
-          }
+        if (parsedDateObj && !isNaN(parsedDateObj.valueOf())) {
+          dateFound = true;
+          dateRowIndex = i;
+          break; // Encontramos la primera fecha válida y la usamos
+        }
       }
 
       if (dateFound) {
@@ -282,44 +302,44 @@ export default function GeneratorPage() {
 
         // Comienza a buscar el PAX desde la fila siguiente a la fecha
         for (let i = dateRowIndex + 1; i < excelData.length; i++) {
-            const paxRaw = excelData[i]?.[colIdx];
-            if (paxRaw !== null && paxRaw !== undefined) {
-                const paxValue = String(paxRaw).trim();
+          const paxRaw = excelData[i]?.[colIdx];
+          if (paxRaw !== null && paxRaw !== undefined) {
+            const paxValue = String(paxRaw).trim();
 
-                // Regex para formato "1+3" (permite espacios alrededor de '+')
-                const plusFormatRegex = /^\d+\s*\+\s*\d+$/;
-                // Regex para número de 1 o 2 dígitos
-                const numberRegex = /^\d{1,2}$/;
+            // Regex para formato "1+3" (permite espacios alrededor de '+')
+            const plusFormatRegex = /^\d+\s*\+\s*\d+$/;
+            // Regex para número de 1 o 2 dígitos
+            const numberRegex = /^\d{1,2}$/;
 
-                if (numberRegex.test(paxValue) || plusFormatRegex.test(paxValue)) {
-                    pax = paxValue;
-                    paxFound = true;
-                    break; // Encontrado, deja de buscar
-                }
+            if (numberRegex.test(paxValue) || plusFormatRegex.test(paxValue)) {
+              pax = paxValue;
+              paxFound = true;
+              break; // Encontrado, deja de buscar
             }
+          }
         }
-        
+
         if (paxFound) {
-            setCurrentPaxCount(pax);
-            setFileSearchStatus("found");
-            toast({
-              title: "Búsqueda Exitosa",
-              description: `Nombre de file: ${groupName}`,
-              variant: "success" as any,
-            });
+          setCurrentPaxCount(pax);
+          setFileSearchStatus("found");
+          toast({
+            title: "Búsqueda Exitosa",
+            description: `Nombre de file: ${groupName}`,
+            variant: "success" as any,
+          });
         } else {
-             setCurrentPaxCount("N/A");
-             setFileSearchStatus("found"); // Aún "found" porque se encontró el file/grupo.
-             toast({
-                title: "Búsqueda Parcial",
-                description: `File y grupo encontrados, pero no se pudo localizar un N° de PAX válido.`,
-                variant: "default",
-            });
+          setCurrentPaxCount("N/A");
+          setFileSearchStatus("found"); // Aún "found" porque se encontró el file/grupo.
+          toast({
+            title: "Búsqueda Parcial",
+            description: `File y grupo encontrados, pero no se pudo localizar un N° de PAX válido.`,
+            variant: "default",
+          });
         }
       } else {
-          setFileSearchStatus("not_found");
-          setCurrentPaxCount(null);
-          toast({ title: "Búsqueda Parcial", description: `File encontrado, pero no se pudo localizar la fecha o el N° de PAX.`, variant: "destructive" });
+        setFileSearchStatus("not_found");
+        setCurrentPaxCount(null);
+        toast({ title: "Búsqueda Parcial", description: `File encontrado, pero no se pudo localizar la fecha o el N° de PAX.`, variant: "destructive" });
       }
       // --- Fin de la nueva lógica ---
 
@@ -342,13 +362,13 @@ export default function GeneratorPage() {
     setIsFileMissingError(false);
 
     if (fileSearchStatus !== "found" || !foundCellValue || !currentPaxCount || fileDataProps.fileIdRowIndex === null || fileDataProps.columnIndex === null) {
-       toast({ title: "Error", description: "Busca y confirma el file antes de generar. Asegúrate que se extrajo el nombre y el número de PAX.", variant: "destructive" });
+      toast({ title: "Error", description: "Busca y confirma el file antes de generar. Asegúrate que se extrajo el nombre y el número de PAX.", variant: "destructive" });
       return;
     }
 
     if (currentPaxCount === "N/A" || isNaN(parseInt(currentPaxCount, 10))) {
-        toast({ title: "Error de Datos", description: "El número de PAX no es válido o no fue encontrado. Verifica el archivo Excel y la búsqueda del file.", variant: "destructive" });
-        return;
+      toast({ title: "Error de Datos", description: "El número de PAX no es válido o no fue encontrado. Verifica el archivo Excel y la búsqueda del file.", variant: "destructive" });
+      return;
     }
 
     setIsProcessingGeneration(true);
@@ -360,16 +380,16 @@ export default function GeneratorPage() {
       currentPaxCount
     );
 
-     if (tourStartDate === "N/A") {
-         if (expenses.length === 0 && excelData[fileDataProps.fileIdRowIndex!] && !excelData[fileDataProps.fileIdRowIndex!].some((cell: any) => String(cell).toLowerCase().includes("ct-city tour"))) {
-             toast({ title: "Error de Generación", description: "No se pudo determinar la fecha de inicio del tour. Verifica el archivo Excel.", variant: "destructive" });
-             setIsProcessingGeneration(false);
-             return;
-         }
-         toast({ title: "Advertencia de Generación", description: "No se pudo determinar la fecha de inicio del tour, se usará una fecha por defecto o estará vacía donde sea aplicable.", variant: "default" });
+    if (tourStartDate === "N/A") {
+      if (expenses.length === 0 && excelData[fileDataProps.fileIdRowIndex!] && !excelData[fileDataProps.fileIdRowIndex!].some((cell: any) => String(cell).toLowerCase().includes("ct-city tour"))) {
+        toast({ title: "Error de Generación", description: "No se pudo determinar la fecha de inicio del tour. Verifica el archivo Excel.", variant: "destructive" });
+        setIsProcessingGeneration(false);
+        return;
+      }
+      toast({ title: "Advertencia de Generación", description: "No se pudo determinar la fecha de inicio del tour, se usará una fecha por defecto o estará vacía donde sea aplicable.", variant: "default" });
     }
     if (expenses.length === 0) {
-        toast({ title: "Advertencia de Generación", description: "No se generaron detalles de gastos. El reporte estará vacío o solo con cabeceras.", variant: "default" });
+      toast({ title: "Advertencia de Generación", description: "No se generaron detalles de gastos. El reporte estará vacío o solo con cabeceras.", variant: "default" });
     }
 
     const currentInputFileNumber = values.fileNumber;
@@ -443,12 +463,12 @@ export default function GeneratorPage() {
         let errorMessage = `Error del servidor (${response.status})`;
 
         if (contentType && contentType.includes("application/json")) {
-            const errorData = await response.json();
-            console.error('Server JSON error response:', JSON.stringify(errorData, null, 2));
-            errorMessage = errorData.details || errorData.error || errorMessage;
+          const errorData = await response.json();
+          console.error('Server JSON error response:', JSON.stringify(errorData, null, 2));
+          errorMessage = errorData.details || errorData.error || errorMessage;
         } else {
-            const errorText = await response.text();
-            console.error("Non-JSON error response from server:", errorText);
+          const errorText = await response.text();
+          console.error("Non-JSON error response from server:", errorText);
         }
 
         throw new Error(errorMessage);
@@ -462,7 +482,7 @@ export default function GeneratorPage() {
           filename = decodeURIComponent(match[1]);
         }
       }
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -472,13 +492,13 @@ export default function GeneratorPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      
+
       toast({
         title: 'Descarga Exitosa',
         description: `Se descargó el reporte para el file ${report.fileNumber}.`,
         variant: 'success' as any,
       });
-      
+
       if (currentUser?.uid) {
         await incrementUserReportCountBy(currentUser.uid, 1);
         await saveReportInfoToFirestore({
@@ -489,7 +509,7 @@ export default function GeneratorPage() {
           generatedBy: currentUser.email || currentUser.uid,
         });
       }
-      
+
     } catch (error) {
       console.error('Error downloading Excel file:', error);
       toast({
@@ -506,9 +526,9 @@ export default function GeneratorPage() {
     if (generatedReports.length < 2) return;
     setIsDownloadingAll(true);
     toast({
-        title: "Iniciando Compresión",
-        description: `Preparando ${generatedReports.length} reportes...`,
-        duration: 3000
+      title: "Iniciando Compresión",
+      description: `Preparando ${generatedReports.length} reportes...`,
+      duration: 3000
     });
 
     const zip = new JSZip();
@@ -517,98 +537,133 @@ export default function GeneratorPage() {
     const successfulReportInfos: Omit<import('@/lib/reportService').ReportInfo, 'id' | 'generationDate'>[] = [];
 
     try {
-        const filePromises = generatedReports.map(async (report) => {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(report),
-            });
-
-            if (!response.ok) {
-                console.error(`Fallo al generar el reporte para el file ${report.fileNumber}`);
-                // Return null or a specific error object to handle failed downloads gracefully
-                return null;
-            }
-
-            // Optimización: Acumular info del reporte para guardar en batch después
-            if (currentUser?.uid) {
-              successfulReportInfos.push({
-                  fileNumber: report.fileNumber,
-                  guideName: report.guideName,
-                  groupName: report.groupName,
-                  paxCount: report.paxCount,
-                  generatedBy: currentUser.email || currentUser.uid,
-              });
-            }
-
-            const blob = await response.blob();
-            const contentDisposition = response.headers.get('Content-Disposition');
-            let fileName = `reporte_${report.fileNumber}.xlsx`; // fallback
-            if (contentDisposition) {
-                const match = contentDisposition.match(/filename="([^"]+)"/i);
-                if (match && match[1]) {
-                    fileName = decodeURIComponent(match[1]);
-                }
-            }
-            successfulDownloads++;
-            return { fileName, blob };
+      const filePromises = generatedReports.map(async (report) => {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(report),
         });
 
-        const files = (await Promise.all(filePromises)).filter((file): file is {fileName: string, blob: Blob} => file !== null);
-
-        if (files.length === 0) {
-          throw new Error("No se pudo generar ningún reporte para el archivo ZIP.");
+        if (!response.ok) {
+          console.error(`Fallo al generar el reporte para el file ${report.fileNumber}`);
+          // Return null or a specific error object to handle failed downloads gracefully
+          return null;
         }
 
-        files.forEach(file => {
-            const sanitizedFileName = file.fileName.replace(/[/\\]/g, '_');
-            zip.file(sanitizedFileName, file.blob);
-        });
-
-        const zipBlob = await zip.generateAsync({ type: "blob" });
-
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(zipBlob);
-        const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
-        link.download = `Reportes_Caja_Chica_${timestamp}.zip`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-
-        toast({
-            title: "Descarga Completa",
-            description: `El archivo .zip con ${files.length} reportes ha sido descargado.`,
-            variant: "success" as any,
-        });
-
-        // Optimización: Guardar todos los reportes en una sola operación batch
-        if (currentUser?.uid && successfulDownloads > 0) {
-          await Promise.all([
-            saveBulkReportsToFirestore(successfulReportInfos),
-            incrementUserReportCountBy(currentUser.uid, successfulDownloads)
-          ]);
+        // Optimización: Acumular info del reporte para guardar en batch después
+        if (currentUser?.uid) {
+          successfulReportInfos.push({
+            fileNumber: report.fileNumber,
+            guideName: report.guideName,
+            groupName: report.groupName,
+            paxCount: report.paxCount,
+            generatedBy: currentUser.email || currentUser.uid,
+          });
         }
+
+        const blob = await response.blob();
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let fileName = `reporte_${report.fileNumber}.xlsx`; // fallback
+        if (contentDisposition) {
+          const match = contentDisposition.match(/filename="([^"]+)"/i);
+          if (match && match[1]) {
+            fileName = decodeURIComponent(match[1]);
+          }
+        }
+        successfulDownloads++;
+        return { fileName, blob };
+      });
+
+      const files = (await Promise.all(filePromises)).filter((file): file is { fileName: string, blob: Blob } => file !== null);
+
+      if (files.length === 0) {
+        throw new Error("No se pudo generar ningún reporte para el archivo ZIP.");
+      }
+
+      files.forEach(file => {
+        const sanitizedFileName = file.fileName.replace(/[/\\]/g, '_');
+        zip.file(sanitizedFileName, file.blob);
+      });
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(zipBlob);
+      const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
+      link.download = `Reportes_Caja_Chica_${timestamp}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      toast({
+        title: "Descarga Completa",
+        description: `El archivo .zip con ${files.length} reportes ha sido descargado.`,
+        variant: "success" as any,
+      });
+
+      // Optimización: Guardar todos los reportes en una sola operación batch
+      if (currentUser?.uid && successfulDownloads > 0) {
+        await Promise.all([
+          saveBulkReportsToFirestore(successfulReportInfos),
+          incrementUserReportCountBy(currentUser.uid, successfulDownloads)
+        ]);
+      }
 
     } catch (error) {
-        console.error("Error al descargar todos los reportes:", error);
-        toast({
-            title: "Error en Descarga Múltiple",
-            description: (error as Error).message || "No se pudieron descargar todos los reportes.",
-            variant: "destructive",
-        });
+      console.error("Error al descargar todos los reportes:", error);
+      toast({
+        title: "Error en Descarga Múltiple",
+        description: (error as Error).message || "No se pudieron descargar todos los reportes.",
+        variant: "destructive",
+      });
     } finally {
-        setIsDownloadingAll(false);
+      setIsDownloadingAll(false);
     }
   };
 
 
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
-      <div className="w-full max-w-3xl mb-4">
+      <div className="w-full max-w-3xl mb-4 flex justify-between items-center">
         <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back" className="hover:bg-primary/90">
           <ArrowLeft className="h-5 w-5" />
         </Button>
+
+        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-300 ${dbConnected === null ? 'border-gray-200 bg-gray-50' :
+          dbConnected ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+          }`}>
+          {isCheckingConnection ? (
+            <>
+              <RefreshCw className="h-4 w-4 text-gray-500 animate-spin" />
+              <span className="text-xs font-medium text-gray-600">Verificando...</span>
+            </>
+          ) : dbConnected === null ? (
+            <>
+              <Database className="h-4 w-4 text-gray-500" />
+              <span className="text-xs font-medium text-gray-600">DB Status</span>
+            </>
+          ) : dbConnected ? (
+            <>
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span className="text-xs font-semibold text-green-600">Conectado</span>
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-red-500" />
+              <span className="text-xs font-semibold text-red-600">Offline</span>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={verifyDatabaseConnection}
+                disabled={isCheckingConnection}
+                className="h-6 w-6 text-red-600 hover:bg-red-100 p-0"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
       <Card className="w-full max-w-3xl shadow-lg">
         <CardHeader>
@@ -658,7 +713,7 @@ export default function GeneratorPage() {
                   />
                 </div>
                 {isFileMissingError && !selectedFile && (
-                     <p className="text-sm font-medium text-destructive mt-1">Por favor, selecciona un archivo para buscar.</p>
+                  <p className="text-sm font-medium text-destructive mt-1">Por favor, selecciona un archivo para buscar.</p>
                 )}
               </FormItem>
 
@@ -678,7 +733,7 @@ export default function GeneratorPage() {
                             onChange={(e) => {
                               field.onChange(e);
                               if (fileSearchStatus !== "idle" && fileSearchStatus !== "searching") {
-                                setFileSearchStatus("idle"); 
+                                setFileSearchStatus("idle");
                               }
                             }}
                           />
@@ -699,8 +754,8 @@ export default function GeneratorPage() {
                       {fileSearchStatus === "found" && foundCellValue && (
                         <div className="mt-2 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm">
                           <CheckCircle2 className="inline-block mr-2 h-4 w-4 align-middle text-green-700 dark:text-green-300" />
-                           Nombre de file: <strong>{foundCellValue}</strong>
-                           {currentPaxCount && currentPaxCount !== "N/A" && <span className="ml-2"> (PAX: <strong>{currentPaxCount}</strong>)</span>}
+                          Nombre de file: <strong>{foundCellValue}</strong>
+                          {currentPaxCount && currentPaxCount !== "N/A" && <span className="ml-2"> (PAX: <strong>{currentPaxCount}</strong>)</span>}
                         </div>
                       )}
                       {fileSearchStatus === "not_found" && (
@@ -708,7 +763,7 @@ export default function GeneratorPage() {
                           <XCircle className="mr-1 h-4 w-4" /> File no encontrado.
                         </div>
                       )}
-                       {fileSearchStatus === "error" && !isFileMissingError && form.getValues("fileNumber") && (
+                      {fileSearchStatus === "error" && !isFileMissingError && form.getValues("fileNumber") && (
                         <div className="flex items-center text-sm text-destructive mt-1">
                           <XCircle className="mr-1 h-4 w-4" /> Error en la búsqueda.
                         </div>
@@ -724,7 +779,7 @@ export default function GeneratorPage() {
                     <FormItem>
                       <FormLabel>Nombre del Guía</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ingresa nombre del guía" {...field} className="bg-muted"/>
+                        <Input placeholder="Ingresa nombre del guía" {...field} className="bg-muted" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -794,11 +849,11 @@ export default function GeneratorPage() {
                         className="bg-green-600 text-white hover:bg-green-700 focus-visible:ring-green-500"
                       >
                         {isDownloadingReportId === report.id ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
-                            <FileDown className="mr-2 h-4 w-4" />
+                          <FileDown className="mr-2 h-4 w-4" />
                         )}
-                         Descargar
+                        Descargar
                       </Button>
                       <Button variant="destructive" size="icon" onClick={() => handleDeleteReport(report.id)} title="Eliminar">
                         <Trash2 className="h-4 w-4" />
@@ -811,40 +866,40 @@ export default function GeneratorPage() {
           </CardContent>
           {generatedReports.length >= 2 && (
             <CardFooter className="p-6 pt-4 border-t flex justify-end gap-2">
-                <Button
-                  onClick={handleDownloadAll}
-                  disabled={isDownloadingAll}
-                  variant="outline"
-                  className="border-primary text-primary hover:bg-primary/10 hover:text-primary"
-                >
-                  {isDownloadingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Files className="mr-2 h-4 w-4" />}
-                  Descargar Todo
-                </Button>
-                <AlertDialog open={isClearListAlertOpen} onOpenChange={setIsClearListAlertOpen}>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Limpiar Lista
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta acción eliminará los {generatedReports.length} reportes de la lista. Esta acción no se puede deshacer.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleClearList} className="bg-destructive hover:bg-destructive/90">
-                          Sí, limpiar lista
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+              <Button
+                onClick={handleDownloadAll}
+                disabled={isDownloadingAll}
+                variant="outline"
+                className="border-primary text-primary hover:bg-primary/10 hover:text-primary"
+              >
+                {isDownloadingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Files className="mr-2 h-4 w-4" />}
+                Descargar Todo
+              </Button>
+              <AlertDialog open={isClearListAlertOpen} onOpenChange={setIsClearListAlertOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Limpiar Lista
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta acción eliminará los {generatedReports.length} reportes de la lista. Esta acción no se puede deshacer.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearList} className="bg-destructive hover:bg-destructive/90">
+                      Sí, limpiar lista
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardFooter>
           )}
         </Card>

@@ -45,7 +45,7 @@ export function parsePaxCount(paxString: string): number {
       return parts[0] + parts[1];
     }
   }
-  
+
   // Fallback for single numbers
   const num = parseInt(trimmedPax, 10);
   return isNaN(num) ? 0 : num;
@@ -96,7 +96,7 @@ export async function generateExpenseDetails(
 
   let tourStartDateRaw: Date | null = null;
   let tourStartDate = "N/A";
-  
+
   for (let i = fileIdRowIndex; i < excelData.length; i++) {
     const cellValue = excelData[i]?.[columnIndex];
     if (!cellValue) continue;
@@ -117,38 +117,41 @@ export async function generateExpenseDetails(
       break;
     }
   }
-  
+
   const paxNum = parsePaxCount(paxCountString);
   if (paxNum === 0) {
     console.error("Número de PAX no válido o no encontrado:", paxCountString);
     return { expenses: [], tourStartDate: "N/A" };
   }
-  
+
   // --- Fetch Dynamic Rules from Firestore ---
   let rules: ExpenseRule[] = [];
   try {
     rules = await getExpenseRulesFromFirestore('La Paz');
+    if (rules.length === 0) {
+      throw new Error("No se encontraron reglas configuradas en la base de datos.");
+    }
   } catch (error) {
     console.error("Failed to fetch expense rules from Firestore:", error);
-    // Depending on desired behavior, you could throw the error or return empty
-    return { expenses: [], tourStartDate: tourStartDate };
+    // Rethrow to be caught by the UI
+    throw new Error(error instanceof Error ? error.message : "Error al conectar con la base de datos para obtener las reglas.");
   }
-  
+
   // CRITICAL FIX: Ensure only active rules are used for generation.
-  const activeRules = rules.filter(r => r.isActive).sort((a,b) => a.order - b.order);
-  
+  const activeRules = rules.filter(r => r.isActive).sort((a, b) => a.order - b.order);
+
   // Prepare column data for searching. Convert to lower case once for efficiency.
   const columnData = excelData.map(row => String(row[columnIndex] || '').toLowerCase());
   const contiene = (keyword: string) => columnData.some(cell => cell.includes(keyword.toLowerCase()));
 
   // --- Apply Rules to Generate Expenses ---
   for (const rule of activeRules) { // Iterate over ACTIVE rules only
-     if (contiene(rule.keyword)) {
+    if (contiene(rule.keyword)) {
       // Handle special case for 'AM' which also requires 'City Tour'
       if (rule.keyword.toLowerCase() === 'am' && !contiene('city tour')) {
         continue;
       }
-      
+
       const newItem: ExpenseItem = {
         date: tourStartDate,
         quantity: rule.quantityFormula,

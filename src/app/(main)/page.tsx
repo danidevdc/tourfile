@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileSpreadsheet, ArrowRight, ClipboardList, Settings, Plane, Database, ClipboardEdit, Calendar, CalendarOff, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { FileSpreadsheet, ArrowRight, ArrowLeft, ClipboardList, Settings, Plane, Database, ClipboardEdit, Calendar, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { version } from '../../../package.json';
 import { useEffect, useState } from "react";
@@ -220,6 +220,23 @@ export default function HomePage() {
               </Link>
             )}
 
+            {/* Live Timeline Option */}
+            {isAuthenticated && (
+              <Button
+                variant="outline"
+                onClick={() => setIsTimelineActive(true)}
+                className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-indigo-500/20 text-indigo-600 dark:text-indigo-400 hover:bg-transparent hover:text-indigo-600 dark:hover:text-indigo-400"
+              >
+                <Calendar className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                <div className="text-left flex-grow">
+                  <span className="block text-xl sm:text-2xl font-bold">
+                    Timeline de Órdenes
+                  </span>
+                </div>
+                <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-indigo-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+              </Button>
+            )}
+
             {!authLoading && isCurrentUserAdmin && (
               <>
                 <Link href="/flight-search" passHref>
@@ -257,44 +274,30 @@ export default function HomePage() {
         </CardContent>
       </Card>
 
-      {/* Live Timeline - Beta Feature */}
-      {!authLoading && isAuthenticated && (
-        <div className="w-full max-w-7xl mt-6 sm:mt-8">
-          {!isTimelineActive ? (
-            <Card className="shadow-lg">
-              <CardContent className="p-6 sm:p-8 flex flex-col items-center justify-center text-center">
-                <Calendar className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mb-4" />
-                <h3 className="mobile-text-xl font-semibold mb-2">Timeline de Órdenes</h3>
-                <p className="mobile-text-base text-muted-foreground mb-6 max-w-md">
-                  Visualiza todas tus órdenes de servicio en un calendario interactivo en tiempo real.
-                </p>
-                <Button
-                  onClick={() => setIsTimelineActive(true)}
-                  size="lg"
-                  className="gap-2 touch-target"
-                >
-                  <Calendar className="h-5 w-5" />
-                  Activar Timeline
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="relative">
-              <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-50">
-                <Button
-                  onClick={() => setIsTimelineActive(false)}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 touch-target text-sm"
-                >
-                  <CalendarOff className="h-4 w-4" />
-                  <span className="hidden sm:inline">Desactivar Timeline</span>
-                  <span className="sm:hidden">Ocultar</span>
-                </Button>
+      {/* Full Screen Timeline Overlay */}
+      {isTimelineActive && (
+        <div className="fixed inset-0 z-[100] bg-background flex flex-col p-4 animate-in fade-in duration-300">
+          <div className="w-full max-w-7xl mx-auto flex flex-col h-full">
+            <div className="flex items-center justify-between mb-4 bg-muted/30 p-4 rounded-xl border border-indigo-500/10">
+              <div className="flex items-center gap-3">
+                <Calendar className="h-6 w-6 text-indigo-500" />
+                <h2 className="text-xl font-bold text-primary">Timeline de Órdenes de Servicio</h2>
               </div>
+              <Button
+                onClick={() => setIsTimelineActive(false)}
+                variant="outline"
+                size="sm"
+                className="gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Cerrar y volver al menú
+              </Button>
+            </div>
+
+            <div className="flex-grow overflow-auto rounded-xl border shadow-sm">
               <LiveTimeline isActive={isTimelineActive} />
             </div>
-          )}
+          </div>
         </div>
       )}
 
