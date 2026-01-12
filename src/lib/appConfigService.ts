@@ -6,25 +6,26 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const CONFIG_COLLECTION = 'appConfig';
 const SPECIAL_ROLES_DOC_ID = 'specialRoles';
+const EDITORS_LIST_KEY = 'allowedEditors';
 
 /**
  * Sets the email for the intermediate user role in Firestore.
  * @param email The email address to set. Can be an empty string to remove the role.
  */
-export async function setIntermediateUserEmail(email: string): Promise<void> {
+export async function setIntermediateUserEmail(emails: string[]): Promise<void> {
   if (!db) throw new Error("Firestore is not initialized.");
-  
+
   const configDocRef = doc(db, CONFIG_COLLECTION, SPECIAL_ROLES_DOC_ID);
-  
+
   try {
-    // setDoc with merge: true will create the document if it doesn't exist,
-    // or update it if it does, without overwriting other fields.
-    await setDoc(configDocRef, { 
-      intermediateUserEmail: email 
+    // Save as an array of lowercase emails
+    const cleanEmails = emails.map(e => e.trim().toLowerCase()).filter(Boolean);
+    await setDoc(configDocRef, {
+      [EDITORS_LIST_KEY]: cleanEmails
     }, { merge: true });
   } catch (error) {
-    console.error("Error setting intermediate user email:", error);
-    throw new Error("Failed to update special role in database.");
+    console.error("Error setting allowed editors:", error);
+    throw new Error("Failed to update special roles in database.");
   }
 }
 
@@ -32,10 +33,10 @@ export async function setIntermediateUserEmail(email: string): Promise<void> {
  * Retrieves the email of the user with the intermediate role.
  * @returns The email address as a string, or null if it's not set or an error occurs.
  */
-export async function getIntermediateUserEmail(): Promise<string | null> {
+export async function getIntermediateUserEmails(): Promise<string[]> {
   if (!db) {
     console.error("Firestore is not initialized.");
-    return null;
+    return [];
   }
 
   const configDocRef = doc(db, CONFIG_COLLECTION, SPECIAL_ROLES_DOC_ID);
@@ -43,14 +44,17 @@ export async function getIntermediateUserEmail(): Promise<string | null> {
   try {
     const docSnap = await getDoc(configDocRef);
     if (docSnap.exists()) {
-      return docSnap.data().intermediateUserEmail || null;
-    } else {
-      // Document doesn't exist, so no email is set
-      return null;
+      const data = docSnap.data();
+      // Support both new list and old single field for backward compatibility
+      const list = data[EDITORS_LIST_KEY] || [];
+      const oldSingle = data.intermediateUserEmail ? [data.intermediateUserEmail] : [];
+
+      const combined = new Set([...list, ...oldSingle]);
+      return Array.from(combined);
     }
+    return [];
   } catch (error) {
-    console.error("Error getting intermediate user email:", error);
-    // Return null to ensure the app doesn't break if Firestore fails
-    return null; 
+    console.warn("Silent error getting special roles (likely permission/session):", error);
+    return [];
   }
 }

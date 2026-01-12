@@ -24,6 +24,7 @@ import {
   runMigrateRoots,
 } from '@/lib/serviceOrderStorage';
 import { checkDatabaseConnection } from "@/lib/dbConnectionCheck";
+import { getIntermediateUserEmails } from "@/lib/appConfigService";
 import { type QueryDocumentSnapshot } from 'firebase/firestore';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { getFamilyId, childNameFrom, getBaseName, shortPerson } from "@/lib/serviceOrderFamily";
@@ -109,6 +110,7 @@ export default function ServiceOrderListPage() {
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
   const [isPrintingPdfId, setIsPrintingPdfId] = useState<string | null>(null);
+  const [isIntermediateEditor, setIsIntermediateEditor] = useState(false);
 
   // Pagination states
   const [lastDocs, setLastDocs] = useState<(QueryDocumentSnapshot | null)[]>([null]);
@@ -268,6 +270,12 @@ export default function ServiceOrderListPage() {
       setActivities(fetchedActivities);
       setFlights(fetchedFlights);
       setBuses(fetchedBuses);
+
+      // Check for intermediate permissions
+      if (currentUser?.email) {
+        const allowedEmails = await getIntermediateUserEmails();
+        setIsIntermediateEditor(allowedEmails.includes(currentUser.email));
+      }
     } catch (error) {
       console.error("Error fetching metadata:", error);
     }
@@ -613,20 +621,18 @@ export default function ServiceOrderListPage() {
   const isAllSelected = numInPage > 0 && numSelected === numInPage;
 
   const renderOrderActions = (order: StoredServiceOrder) => {
-    const canModify = isCurrentUserAdmin || currentUser?.email === order.createdBy;
+    const canEdit = isCurrentUserAdmin || isIntermediateEditor || currentUser?.email === order.createdBy;
+    const canDelete = isCurrentUserAdmin || currentUser?.email === order.createdBy;
     const isDeleted = order.status === 'eliminado' || order.status === 'cancelado';
-
-    // const simplePreviewButtonHtml = `<button title="Vista Previa Rápida" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-purple-600/50 bg-background hover:bg-purple-100/80 text-purple-600 hover:text-purple-700 dark:hover:bg-purple-900/20 dark:text-purple-400 dark:border-purple-600/70 h-8 w-8 p-0" onclick="window.showSimplePreviewModal(window.__serviceOrdersMap.get('${order.id}'), window.__handleStatusUpdate)"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>`;
 
     return (
       <div className="text-left space-x-1">
-        {/* <span dangerouslySetInnerHTML={{ __html: simplePreviewButtonHtml }} /> */}
         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary h-8 w-8 p-0"><Eye className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Vista Previa (WhatsApp)</p></TooltipContent></Tooltip>
-        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} disabled={!canModify || isDeleted} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"><FilePenLine className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
+        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} disabled={!canEdit || isDeleted} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"><FilePenLine className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleDownloadExcel(order)} disabled={isDownloadingId === order.id || isDeleted} className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0">{isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent><p>Descargar Excel</p></TooltipContent></Tooltip>
         {isCurrentUserAdmin && (<Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePrintToPdf(order)} disabled={isPrintingPdfId === order.id || isDeleted} className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0">{isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>)}
         {!isDeleted && (<AlertDialog>
-          <Tooltip><TooltipTrigger asChild><AlertDialogTrigger asChild><Button variant="destructive" size="sm" disabled={!canModify} onClick={() => setOrderToDelete(order)} className="h-8 w-8 p-0"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger></TooltipTrigger><TooltipContent><p>Eliminar Orden</p></TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><AlertDialogTrigger asChild><Button variant="destructive" size="sm" disabled={!canDelete} onClick={() => setOrderToDelete(order)} className="h-8 w-8 p-0"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger></TooltipTrigger><TooltipContent><p>Eliminar Orden</p></TooltipContent></Tooltip>
           {orderToDelete && orderToDelete.id === order.id && (<AlertDialogContent>
             <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de eliminar esta orden?</AlertDialogTitle><AlertDialogDescription>{getDeletionAlertDescription()}</AlertDialogDescription></AlertDialogHeader>
             <AlertDialogFooter><AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cerrar</AlertDialogCancel><AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">Sí, eliminar</AlertDialogAction></AlertDialogFooter>
@@ -744,7 +750,8 @@ export default function ServiceOrderListPage() {
             <div className="mobile-card-view space-y-3">
               {displayedFamilies.length > 0 ? displayedFamilies.map(({ parent, children }) => {
                 const parentName = getBaseName(parent.orderName);
-                const canModify = isCurrentUserAdmin || currentUser?.email === parent.createdBy;
+                const canEdit = isCurrentUserAdmin || isIntermediateEditor || currentUser?.email === parent.createdBy;
+                const canDelete = isCurrentUserAdmin || currentUser?.email === parent.createdBy;
 
                 return (
                   <ServiceOrderMobileCard
@@ -754,7 +761,8 @@ export default function ServiceOrderListPage() {
                     parentName={parentName}
                     isExpanded={expandedFamilies.has(parent.id)}
                     isSelected={selectedOrderIds.has(parent.id)}
-                    canModify={canModify}
+                    canModify={canEdit}
+                    canDelete={canDelete}
                     isCurrentUserAdmin={isCurrentUserAdmin}
                     isDownloadingId={isDownloadingId}
                     isPrintingPdfId={isPrintingPdfId}
@@ -954,7 +962,7 @@ export default function ServiceOrderListPage() {
           buses={buses}
         />
       </div>
-    </TooltipProvider>
+    </TooltipProvider >
   );
 }
 

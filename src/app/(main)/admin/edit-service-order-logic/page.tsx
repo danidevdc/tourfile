@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { 
+import {
   getServiceOrderRules,
   saveServiceOrderRules,
   deleteServiceOrderRule,
@@ -30,7 +30,7 @@ import {
   type ServiceOrderRule,
 } from '@/lib/serviceOrderRuleService';
 import { getActivitiesFromFirestore, type Activity } from '@/lib/serviceOrderService';
-import { getIntermediateUserEmail } from '@/lib/appConfigService';
+import { getIntermediateUserEmails } from '@/lib/appConfigService';
 import { Switch } from '@/components/ui/switch';
 
 
@@ -49,32 +49,32 @@ export default function EditServiceOrderLogicPage() {
 
   useEffect(() => {
     async function checkPermissions() {
-        if (authLoading) return;
+      if (authLoading) return;
 
-        setIsCheckingPermission(true);
-        if (isCurrentUserAdmin) {
-            setHasPermission(true);
-            setIsCheckingPermission(false);
-            return;
-        }
+      setIsCheckingPermission(true);
+      if (isCurrentUserAdmin) {
+        setHasPermission(true);
+        setIsCheckingPermission(false);
+        return;
+      }
 
-        try {
-            const intermediateEmail = await getIntermediateUserEmail();
-            if (currentUser?.email && currentUser.email === intermediateEmail) {
-                setHasPermission(true);
-            } else {
-                setHasPermission(false);
-                toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
-                router.replace('/');
-            }
-        } catch (error) {
-            console.error("Permission check failed:", error);
-            setHasPermission(false);
-            toast({ title: "Error de Permisos", description: "No se pudo verificar tu nivel de acceso.", variant: "destructive" });
-            router.replace('/');
-        } finally {
-            setIsCheckingPermission(false);
+      try {
+        const allowedEmails = await getIntermediateUserEmails();
+        if (currentUser?.email && allowedEmails.includes(currentUser.email)) {
+          setHasPermission(true);
+        } else {
+          setHasPermission(false);
+          toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
+          router.replace('/');
         }
+      } catch (error) {
+        console.error("Permission check failed:", error);
+        setHasPermission(false);
+        toast({ title: "Error de Permisos", description: "No se pudo verificar tu nivel de acceso.", variant: "destructive" });
+        router.replace('/');
+      } finally {
+        setIsCheckingPermission(false);
+      }
     }
     checkPermissions();
   }, [authLoading, isCurrentUserAdmin, currentUser, router, toast]);
@@ -84,8 +84,8 @@ export default function EditServiceOrderLogicPage() {
       if (hasPermission) {
         setIsLoading(true);
         try {
-          await initializeDefaultServiceOrderRules(); 
-          
+          await initializeDefaultServiceOrderRules();
+
           const [fetchedRules, fetchedActivities] = await Promise.all([
             getServiceOrderRules(),
             getActivitiesFromFirestore(),
@@ -112,7 +112,7 @@ export default function EditServiceOrderLogicPage() {
       prevRules.map(rule => {
         if (rule.id === id) {
           const updatedRule = { ...rule, [field]: value };
-           if (rule.id.startsWith('new_') && field === 'keyword' && (value as string).length > 0) {
+          if (rule.id.startsWith('new_') && field === 'keyword' && (value as string).length > 0) {
             updatedRule.isActive = true;
           }
           return updatedRule;
@@ -135,7 +135,7 @@ export default function EditServiceOrderLogicPage() {
 
   const handleDeleteRule = async () => {
     if (!ruleToDelete) return;
-    
+
     if (ruleToDelete.id.startsWith('new_')) {
       setRules(prev => prev.filter(r => r.id !== ruleToDelete.id));
       toast({ title: "Regla Removida", description: "La nueva regla ha sido descartada.", variant: "success" as any });
@@ -157,17 +157,17 @@ export default function EditServiceOrderLogicPage() {
   const handleSaveChanges = async () => {
     const hasEmptyRule = rules.some(rule => !rule.keyword.trim() || !rule.activity.trim());
     if (hasEmptyRule) {
-        toast({ title: "Error de Validación", description: "Todas las reglas deben tener una 'Palabra Clave' y una 'Actividad' asignada.", variant: "destructive", duration: 5000 });
-        return;
+      toast({ title: "Error de Validación", description: "Todas las reglas deben tener una 'Palabra Clave' y una 'Actividad' asignada.", variant: "destructive", duration: 5000 });
+      return;
     }
 
     setIsSaving(true);
     try {
       await saveServiceOrderRules(rules);
-      
+
       const fetchedRules = await getServiceOrderRules();
       setRules(fetchedRules.sort((a, b) => a.order - b.order));
-      
+
       toast({ title: "Éxito", description: "Todas las reglas han sido guardadas.", variant: "success" as any });
     } catch (error) {
       toast({ title: "Error al Guardar", description: "No se pudieron guardar los cambios.", variant: "destructive" });
@@ -193,14 +193,14 @@ export default function EditServiceOrderLogicPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className='flex gap-2'>
-            <Button onClick={handleAddNewRule} variant='outline'>
-                <PlusCircle className="mr-2 h-5 w-5" />
-                Añadir Regla
-            </Button>
-            <Button onClick={handleSaveChanges} disabled={isSaving}>
-                {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-                Guardar Cambios
-            </Button>
+          <Button onClick={handleAddNewRule} variant='outline'>
+            <PlusCircle className="mr-2 h-5 w-5" />
+            Añadir Regla
+          </Button>
+          <Button onClick={handleSaveChanges} disabled={isSaving}>
+            {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+            Guardar Cambios
+          </Button>
         </div>
       </div>
       <Card className="w-full max-w-4xl shadow-lg">
@@ -238,36 +238,36 @@ export default function EditServiceOrderLogicPage() {
                       />
                     </TableCell>
                     <TableCell>
-                       <Combobox
-                          options={activityOptions}
-                          value={rule.activity}
-                          onSelect={(value) => handleInputChange(rule.id, 'activity', value)}
-                          placeholder="Seleccionar actividad..."
-                       />
+                      <Combobox
+                        options={activityOptions}
+                        value={rule.activity}
+                        onSelect={(value) => handleInputChange(rule.id, 'activity', value)}
+                        placeholder="Seleccionar actividad..."
+                      />
                     </TableCell>
                     <TableCell className="text-center">
                       <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="icon" title="Eliminar Regla" onClick={() => setRuleToDelete(rule)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          {ruleToDelete?.id === rule.id && (
-                             <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>¿Estás seguro de eliminar esta regla?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Se eliminará la regla para <strong className="text-foreground">{ruleToDelete.keyword}</strong>. Esta acción no se puede deshacer.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel onClick={() => setRuleToDelete(null)}>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={handleDeleteRule} className="bg-destructive hover:bg-destructive/90">
-                                    Sí, eliminar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                          )}
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="icon" title="Eliminar Regla" onClick={() => setRuleToDelete(rule)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        {ruleToDelete?.id === rule.id && (
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Estás seguro de eliminar esta regla?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Se eliminará la regla para <strong className="text-foreground">{ruleToDelete.keyword}</strong>. Esta acción no se puede deshacer.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setRuleToDelete(null)}>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleDeleteRule} className="bg-destructive hover:bg-destructive/90">
+                                Sí, eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        )}
                       </AlertDialog>
                     </TableCell>
                   </TableRow>

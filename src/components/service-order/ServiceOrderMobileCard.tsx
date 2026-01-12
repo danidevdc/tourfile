@@ -41,6 +41,7 @@ interface ServiceOrderMobileCardProps {
   isExpanded: boolean;
   isSelected: boolean;
   canModify: boolean;
+  canDelete: boolean;
   isCurrentUserAdmin: boolean;
   isDownloadingId: string | null;
   isPrintingPdfId: string | null;
@@ -62,6 +63,7 @@ export function ServiceOrderMobileCard({
   isExpanded,
   isSelected,
   canModify,
+  canDelete,
   isCurrentUserAdmin,
   isDownloadingId,
   isPrintingPdfId,
@@ -260,7 +262,7 @@ export function ServiceOrderMobileCard({
                   <Button
                     variant="outline"
                     size="icon"
-                    disabled={!canModify}
+                    disabled={!canDelete}
                     className="h-10 w-10 touch-target text-destructive border-destructive/50 hover:bg-destructive/10 disabled:opacity-50"
                     title="Eliminar Orden"
                   >
@@ -394,7 +396,7 @@ export function ServiceOrderMobileCard({
                         Imprimir PDF
                       </DropdownMenuItem>
                     )}
-                    {!isChildDeleted && canModifyChild && (
+                    {!isChildDeleted && canDelete && (
                       <>
                         {isCurrentUserAdmin && <DropdownMenuSeparator />}
                         <DropdownMenuItem

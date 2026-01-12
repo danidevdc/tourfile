@@ -8,10 +8,10 @@ import { FileSpreadsheet, ArrowRight, ArrowLeft, ClipboardList, Settings, Plane,
 import { useAuth } from "@/hooks/useAuth";
 import { version } from '../../../package.json';
 import { useEffect, useState } from "react";
-import { getIntermediateUserEmail } from "@/lib/appConfigService";
+import { checkDatabaseConnection } from "@/lib/dbConnectionCheck";
+import { getIntermediateUserEmails } from "@/lib/appConfigService";
 import { LiveTimeline } from "@/components/LiveTimeline";
 import { MonthlyDownloadModal } from "@/components/service-order/MonthlyDownloadModal";
-import { checkDatabaseConnection } from "@/lib/dbConnectionCheck";
 
 
 export default function HomePage() {
@@ -32,8 +32,8 @@ export default function HomePage() {
         setCanSeeIntermediateButton(true);
         return;
       }
-      const intermediateEmail = await getIntermediateUserEmail();
-      setCanSeeIntermediateButton(!!intermediateEmail && currentUser.email === intermediateEmail);
+      const allowedEmails = await getIntermediateUserEmails();
+      setCanSeeIntermediateButton(allowedEmails.includes(currentUser.email || ""));
     }
     checkPermissions();
   }, [authLoading, currentUser, isCurrentUserAdmin]);
