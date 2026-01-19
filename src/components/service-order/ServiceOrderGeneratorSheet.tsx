@@ -9,9 +9,9 @@ import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import {
-  getGuidesFromFirestore, getHotelsFromFirestore, getDriversFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, getBusesFromFirestore,
-  recordActivityTimeUsage, getSuggestedTimeForActivity,
-  type ServiceOrderGuide, type Hotel, type Driver, type Activity, type ServiceItem, type PredefinedFlight, type Bus,
+    getGuidesFromFirestore, getHotelsFromFirestore, getDriversFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, getBusesFromFirestore,
+    recordActivityTimeUsage, getSuggestedTimeForActivity,
+    type ServiceOrderGuide, type Hotel, type Driver, type Activity, type ServiceItem, type PredefinedFlight, type Bus,
 } from '@/lib/serviceOrderService';
 import { getServiceOrderRules, type ServiceOrderRule } from '@/lib/serviceOrderRuleService';
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
@@ -49,7 +49,7 @@ interface ServiceOrderGeneratorSheetProps {
     onClose: () => void;
     onSave: () => void;
     orderData: ServiceOrderData;
-    setOrderData: (data: ServiceOrderData) => void;
+    setOrderData: React.Dispatch<React.SetStateAction<ServiceOrderData>>;
     onClearAndNew: () => void;
     isAutomatedMode: boolean;
     guides: ServiceOrderGuide[];
@@ -60,9 +60,9 @@ interface ServiceOrderGeneratorSheetProps {
     buses: Bus[];
 }
 
-export function ServiceOrderGeneratorSheet({ 
+export function ServiceOrderGeneratorSheet({
     isOpen, onClose, onSave, orderData, setOrderData, onClearAndNew, isAutomatedMode,
-    guides, hotels, drivers, activities, flights, buses 
+    guides, hotels, drivers, activities, flights, buses
 }: ServiceOrderGeneratorSheetProps) {
     const { currentUser } = useAuth();
     const { toast } = useToast();
@@ -73,14 +73,14 @@ export function ServiceOrderGeneratorSheet({
     const [ownDrivers, setOwnDrivers] = useState<Driver[]>([]);
     const [externalDrivers, setExternalDrivers] = useState<Driver[]>([]);
     const [serviceOrderRules, setServiceOrderRules] = useState<ServiceOrderRule[]>([]);
-    
+
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [selectedFile, setSelectedFile] = useState<{name: string} | null>(null);
+    const [selectedFile, setSelectedFile] = useState<{ name: string } | null>(null);
     const [excelData, setExcelData] = useState<any[][] | null>(null);
     const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
     const [isProcessingSearch, setIsProcessingSearch] = useState(false);
     const [foundFileColumnIndex, setFoundFileColumnIndex] = useState<number | null>(null);
-    
+
     const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
     const [busTypeSelection, setBusTypeSelection] = useState('');
     const [choferSelection, setChoferSelection] = useState('');
@@ -176,14 +176,14 @@ export function ServiceOrderGeneratorSheet({
         }
         loadRules();
     }, [isOpen, toast]);
-    
-     useEffect(() => {
+
+    useEffect(() => {
         if (drivers.length > 0) {
             setOwnDrivers(drivers.filter(d => !d.name.startsWith('CONT ')));
             setExternalDrivers(drivers.filter(d => d.name.startsWith('CONT ')));
         }
     }, [drivers]);
-    
+
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
@@ -212,18 +212,18 @@ export function ServiceOrderGeneratorSheet({
         if (excelData.length === 0 || !excelData[0]) {
             toast({ title: "Archivo Inválido", description: "El archivo Excel parece estar vacío o no tiene columnas.", variant: "destructive" }); return;
         }
-        
+
         setIsProcessingSearch(true); setFileSearchStatus("searching");
         await new Promise(resolve => setTimeout(resolve, 300));
-        
+
         let found = false, fileColumnIndex = -1, rowIdxWhereFileNumberFound = -1;
         const fileNumberToSearch = orderData.file.trim().toUpperCase();
 
         const numCols = excelData.reduce((max, row) => Math.max(max, row ? row.length : 0), 0);
-        
+
         for (let j = 0; j < numCols; j++) {
             for (let i = 0; i < excelData.length; i++) {
-                 if (excelData[i] && excelData[i][j] && String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch) {
+                if (excelData[i] && excelData[i][j] && String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch) {
                     found = true; fileColumnIndex = j; rowIdxWhereFileNumberFound = i; break;
                 }
             }
@@ -232,10 +232,10 @@ export function ServiceOrderGeneratorSheet({
 
         if (found) {
             setFileSearchStatus("found");
-            setFoundFileColumnIndex(fileColumnIndex); 
-            
+            setFoundFileColumnIndex(fileColumnIndex);
+
             const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[fileColumnIndex] || "No encontrado").toUpperCase();
-            
+
             let pax = "N/A";
             for (let i = rowIdxWhereFileNumberFound + 1; i < excelData.length && i < rowIdxWhereFileNumberFound + 10; i++) {
                 const paxRaw = excelData[i]?.[fileColumnIndex];
@@ -245,7 +245,7 @@ export function ServiceOrderGeneratorSheet({
                     if (paxRegex.test(paxValue)) { pax = paxValue; break; }
                 }
             }
-            
+
             let hotelName = "";
             const hotelRegex = /hotel/i;
             for (let i = 0; i < excelData.length; i++) {
@@ -254,14 +254,14 @@ export function ServiceOrderGeneratorSheet({
                     const foundHotel = hotels.find(h => cellText.toUpperCase().includes(h.name.toUpperCase()));
                     if (foundHotel) {
                         hotelName = foundHotel.name;
-                        break; 
+                        break;
                     }
                 }
             }
-            
-            setOrderData(prev => ({ ...prev, ref: groupName, nPax: pax, hotel: hotelName, services: [] }));
+
+            setOrderData((prev: ServiceOrderData) => ({ ...prev, ref: groupName, nPax: pax, hotel: hotelName, services: [] }));
             toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}, Hotel: ${hotelName || 'No encontrado'}`, variant: "success" as any, duration: 5000 });
-            
+
         } else {
             setFileSearchStatus("not_found");
             setOrderData({ ...orderData, ref: '', nPax: '', hotel: '', services: [] });
@@ -285,16 +285,18 @@ export function ServiceOrderGeneratorSheet({
         }
 
         const generatedServicesRaw = generateServicesFromExcelColumn(excelData, foundFileColumnIndex, serviceOrderRules, activities, flights);
-        
+
         const generatedServicesWithDetails = generatedServicesRaw.map(service => ({
             ...service,
+            id: crypto.randomUUID(),
             guia: mainGuide,
             bus: mainBus,
             chofer: mainChofer,
         }));
-        
-        setOrderData(prev => ({ ...prev, services: generatedServicesWithDetails }));
-        toast({ title: "Generación Exitosa", description: `Se generaron ${generatedServicesWithDetails.length} servicios.`, variant: "success" as any, duration: 5000 });
+
+        const sortedGenerated = sortServiceItems(generatedServicesWithDetails);
+        setOrderData((prev: ServiceOrderData) => ({ ...prev, services: sortedGenerated }));
+        toast({ title: "Generación Exitosa", description: `Se generaron ${sortedGenerated.length} servicios ordenados.`, variant: "success" as any, duration: 5000 });
     };
 
     const handleInputChange = (field: keyof ServiceOrderData, value: string) => {
@@ -308,13 +310,13 @@ export function ServiceOrderGeneratorSheet({
     };
 
     const handleNewServiceChange = (field: keyof ServiceItem, value: string) => {
-        setNewService(prev => ({ ...prev, [field]: value.toUpperCase() }));
+        setNewService((prev: ServiceItem) => ({ ...prev, [field]: value.toUpperCase() }));
     };
 
     const handleServiceSummaryChange = (index: number, field: keyof ServiceItem, value: string) => {
         const updatedServices = [...orderData.services];
         updatedServices[index] = { ...updatedServices[index], [field]: value };
-        
+
         if (field === 'vuelo') {
             const selectedFlight = flights.find(f => f.flightNumber.toUpperCase() === value.toUpperCase());
             if (selectedFlight) {
@@ -322,10 +324,10 @@ export function ServiceOrderGeneratorSheet({
                 updatedServices[index].observaciones = selectedFlight.observations;
             }
         }
-        
-        setOrderData(prev => ({ ...prev, services: updatedServices }));
+
+        setOrderData((prev: ServiceOrderData) => ({ ...prev, services: updatedServices }));
     };
-    
+
     const handleTimeInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         const rawValue = e.target.value;
         const numbersOnly = rawValue.replace(/[^0-9]/g, '');
@@ -333,17 +335,17 @@ export function ServiceOrderGeneratorSheet({
 
         if (numbersOnly.length > 0) formatted = numbersOnly.slice(0, 2);
         if (numbersOnly.length > 2) formatted += ':' + numbersOnly.slice(2, 4);
-        
+
         handleNewServiceChange('hora', formatted);
     };
-    
+
     const handleTimeInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
         const rawValue = e.target.value.replace(/[^0-9]/g, '');
         if (rawValue.length === 4) {
-             handleNewServiceChange('hora', `${rawValue.slice(0,2)}:${rawValue.slice(2,4)}`);
+            handleNewServiceChange('hora', `${rawValue.slice(0, 2)}:${rawValue.slice(2, 4)}`);
         }
     };
-    
+
     const handleSummaryTimeChange = (index: number, rawValue: string) => {
         const numbersOnly = rawValue.replace(/[^0-9]/g, '');
         let formatted = '';
@@ -361,13 +363,13 @@ export function ServiceOrderGeneratorSheet({
 
     const handleActivitySelect = async (activityName: string) => {
         const upperActivityName = activityName.toUpperCase();
-        setNewService(prev => ({...prev, servicio: upperActivityName, hora: ''}));
+        setNewService(prev => ({ ...prev, servicio: upperActivityName, hora: '' }));
         if (upperActivityName !== 'TRF IN' && upperActivityName !== 'TRF OUT' && !newService.hora) {
             const suggestedTime = await getSuggestedTimeForActivity(upperActivityName);
             if (suggestedTime) { handleNewServiceChange('hora', suggestedTime); }
         }
     };
-    
+
     const handleFlightSelect = (flightNumber: string) => {
         const selectedFlight = flights.find(f => f.flightNumber.toUpperCase() === flightNumber.toUpperCase());
         if (selectedFlight) {
@@ -379,6 +381,7 @@ export function ServiceOrderGeneratorSheet({
         const lastService = orderData.services[orderData.services.length - 1];
         const serviceToAdd: ServiceItem = {
             ...newService,
+            id: crypto.randomUUID(),
             fecha: newService.fecha ? format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '',
             guia: orderData.guia, // Always use main guide (like EditModal)
             bus: busTypeSelection || lastService?.bus || '',
@@ -418,7 +421,7 @@ export function ServiceOrderGeneratorSheet({
             setIsSaving(false);
         }
     };
-    
+
     const handleApplyDateToSelected = () => {
         if (!masterDate || selectedServices.size === 0) {
             toast({ title: "Datos incompletos", description: "Selecciona una fecha y al menos un servicio.", variant: "destructive" }); return;
@@ -444,25 +447,40 @@ export function ServiceOrderGeneratorSheet({
         setSelectedServices(newSelection);
     };
 
-    const sortedServices = useMemo(() => {
-        return [...orderData.services].sort((a, b) => {
+    const sortServiceItems = (items: ServiceItem[]) => {
+        return [...items].sort((a, b) => {
             try {
-                const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
-                const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
+                const dateA = a.fecha ? parse(a.fecha, "dd/MM/yyyy", new Date()).getTime() : 0;
+                const dateB = b.fecha ? parse(b.fecha, "dd/MM/yyyy", new Date()).getTime() : 0;
                 if (dateA !== dateB) return dateA - dateB;
-            } catch {}
+            } catch { }
 
             const hasTimeA = a.hora && a.hora.trim() !== '';
             const hasTimeB = b.hora && b.hora.trim() !== '';
 
             if (hasTimeA && !hasTimeB) return -1;
             if (!hasTimeA && hasTimeB) return 1;
-            if (hasTimeA && hasTimeB) {
-                return a.hora.localeCompare(b.hora);
-            }
-            
-            return 0; // Maintain original order if no dates/times to compare
+            if (hasTimeA && hasTimeB) return a.hora.localeCompare(b.hora);
+            return 0;
         });
+    };
+
+    // Automatic sorting with debounce
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setOrderData((prev: ServiceOrderData) => {
+                const sorted = sortServiceItems(prev.services);
+                // Check if order actually changed to avoid unnecessary updates
+                const isDifferent = JSON.stringify(sorted.map(s => ({ f: s.fecha, h: s.hora, s: s.servicio }))) !==
+                    JSON.stringify(prev.services.map(s => ({ f: s.fecha, h: s.hora, s: s.servicio })));
+
+                if (isDifferent) {
+                    return { ...prev, services: sorted };
+                }
+                return prev;
+            });
+        }, 2000);
+        return () => clearTimeout(timer);
     }, [orderData.services]);
 
 
@@ -479,7 +497,7 @@ export function ServiceOrderGeneratorSheet({
         if (service === 'TRF OUT') { return flights.filter(f => f.observations.toUpperCase().includes('SALE')).map(createOption); }
         return flights.map(createOption);
     }, [newService.servicio, flights]);
-    
+
     const busOptions = buses.map(b => ({ value: b.name.toUpperCase(), label: b.name }));
     const finalBusOptions = [...busOptions, { value: 'CONT.', label: 'Contratado' }];
 
@@ -503,16 +521,16 @@ export function ServiceOrderGeneratorSheet({
         <Sheet open={isOpen} onOpenChange={onClose}>
             <SheetContent side="top" className="w-full h-full max-h-screen flex flex-col sm:max-w-full overflow-y-auto">
                 <SheetHeader>
-                     <SheetTitle className="text-2xl font-headline text-primary">
+                    <SheetTitle className="text-2xl font-headline text-primary">
                         {isAutomatedMode ? "Generar Orden de Servicio Automatizada" : "Nueva Orden de Servicio"}
                     </SheetTitle>
                     <SheetDescription>
-                       Completa los detalles de la orden aquí. Haz clic en guardar cuando hayas terminado.
+                        Completa los detalles de la orden aquí. Haz clic en guardar cuando hayas terminado.
                     </SheetDescription>
                 </SheetHeader>
                 <div className="flex-grow min-h-0 overflow-y-auto mobile-padding relative">
                     <div className="space-y-4 py-4">
-                         <div className="space-y-4 p-3 sm:p-4 border rounded-lg bg-card">
+                        <div className="space-y-4 p-3 sm:p-4 border rounded-lg bg-card">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <Label>Programa:</Label>
@@ -520,7 +538,7 @@ export function ServiceOrderGeneratorSheet({
                                         <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className={cn("w-full justify-start", selectedFile && "border-green-500 font-medium text-green-700")}>
                                             <Upload className="mr-2 h-4 w-4" />{selectedFile ? selectedFile.name : "Seleccionar .xlsx"}
                                         </Button>
-                                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls"/>
+                                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls" />
                                         {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile}><Trash2 className="h-4 w-4" /></Button>}
                                     </div>
                                 </div>
@@ -529,40 +547,40 @@ export function ServiceOrderGeneratorSheet({
                                     <div className="flex items-center gap-1 mt-1">
                                         <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} className={cn(orderData.file && "border-green-500")} />
                                         <Button type="button" onClick={handleSearchFile} size="icon" disabled={!selectedFile || !orderData.file || isProcessingSearch}>
-                                            {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4" />}
+                                            {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                                         </Button>
                                     </div>
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                 <div>
-                                  <Label htmlFor="ref">Ref (Grupo):</Label>
-                                  <Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", orderData.ref && "border-green-500")} />
+                                    <Label htmlFor="ref">Ref (Grupo):</Label>
+                                    <Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", orderData.ref && "border-green-500")} />
                                 </div>
                                 <div>
-                                  <Label htmlFor="nPax">Nº Pax:</Label>
-                                  <Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className={cn("mt-1", orderData.nPax && "border-green-500")} />
+                                    <Label htmlFor="nPax">Nº Pax:</Label>
+                                    <Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className={cn("mt-1", orderData.nPax && "border-green-500")} />
                                 </div>
                                 <div>
                                     <Label>Hotel</Label>
-                                    <Combobox 
-                                        options={hotelOptions} 
-                                        value={orderData.hotel} 
-                                        onSelect={(val) => handleSelectChange('hotel', val)} 
-                                        placeholder="Buscar hotel..." 
+                                    <Combobox
+                                        options={hotelOptions}
+                                        value={orderData.hotel}
+                                        onSelect={(val) => handleSelectChange('hotel', val)}
+                                        placeholder="Buscar hotel..."
                                         className="mt-1 bg-card"
                                         triggerClassName={cn(orderData.hotel && "border-green-500 font-medium")}
                                     />
                                 </div>
                             </div>
-                             <div className="grid grid-cols-1 sm:grid-cols-10 items-end gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-10 items-end gap-4">
                                 <div className="sm:col-span-3">
                                     <Label>Guía Principal*</Label>
-                                    <Combobox 
-                                        options={guideOptions} 
-                                        value={orderData.guia} 
-                                        onSelect={(val) => handleSelectChange('guide', val)} 
-                                        placeholder="Buscar guía..." 
+                                    <Combobox
+                                        options={guideOptions}
+                                        value={orderData.guia}
+                                        onSelect={(val) => handleSelectChange('guide', val)}
+                                        placeholder="Buscar guía..."
                                         className="mt-1 bg-card"
                                         triggerClassName={cn(orderData.guia && "border-green-500 font-medium")}
                                     />
@@ -578,23 +596,23 @@ export function ServiceOrderGeneratorSheet({
                                 </div>
                                 <div className="sm:col-span-3">
                                     <Label>Chofer*</Label>
-                                    <Combobox 
-                                        options={driverOptions} 
-                                        value={choferSelection} 
-                                        onSelect={setChoferSelection} 
-                                        placeholder="Seleccionar chofer..." 
+                                    <Combobox
+                                        options={driverOptions}
+                                        value={choferSelection}
+                                        onSelect={setChoferSelection}
+                                        placeholder="Seleccionar chofer..."
                                         className="mt-1 bg-card"
                                         triggerClassName={cn(choferSelection && "border-green-500 font-medium")}
                                         disabled={!busTypeSelection}
                                     />
                                 </div>
                                 {isAutomatedMode && (
-                                <div className="col-span-2 flex items-center">
-                                     <Button onClick={handleGenerateServices} disabled={fileSearchStatus !== "found" || !orderData.guia || !busTypeSelection || !choferSelection} className="w-full h-10 bg-green-600 hover:bg-green-700 text-white">
-                                      <CheckCircle className="mr-2 h-5 w-5"/>
-                                      Generar Servicios
-                                    </Button>
-                                </div>
+                                    <div className="col-span-2 flex items-center">
+                                        <Button onClick={handleGenerateServices} disabled={fileSearchStatus !== "found" || !orderData.guia || !busTypeSelection || !choferSelection} className="w-full h-10 bg-green-600 hover:bg-green-700 text-white">
+                                            <CheckCircle className="mr-2 h-5 w-5" />
+                                            Generar Servicios
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
 
@@ -602,7 +620,7 @@ export function ServiceOrderGeneratorSheet({
                             <div className="space-y-3 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
                                 <div className="flex items-end gap-2">
                                     <div className="flex-1">
-                                        <Label className="flex items-center gap-2"><UserPlus size={14}/>Guías Adicionales</Label>
+                                        <Label className="flex items-center gap-2"><UserPlus size={14} />Guías Adicionales</Label>
                                         <Combobox
                                             options={allAvailableGuides.filter(g => g.value !== orderData.guia && !additionalGuides.includes(g.value))}
                                             value={''}
@@ -626,16 +644,16 @@ export function ServiceOrderGeneratorSheet({
                                                 className="h-4 w-4 text-blue-500"
                                                 onClick={() => setAdditionalGuides(additionalGuides.filter(ag => ag !== g))}
                                             >
-                                                <XCircle size={14}/>
+                                                <XCircle size={14} />
                                             </Button>
                                             <span>{g}</span>
                                         </div>
                                     ))}
                                 </div>
-                                <hr className="my-2 border-zinc-200 dark:border-zinc-700"/>
+                                <hr className="my-2 border-zinc-200 dark:border-zinc-700" />
                                 <div className="flex items-end gap-2">
                                     <div className="flex-1">
-                                        <Label className="flex items-center gap-2"><Car size={14}/>Choferes Adicionales</Label>
+                                        <Label className="flex items-center gap-2"><Car size={14} />Choferes Adicionales</Label>
                                         <Combobox
                                             options={allAvailableDrivers.filter(d => !additionalDrivers.includes(d.value))}
                                             value={''}
@@ -659,7 +677,7 @@ export function ServiceOrderGeneratorSheet({
                                                 className="h-4 w-4 text-green-500"
                                                 onClick={() => setAdditionalDrivers(additionalDrivers.filter(ad => ad !== d))}
                                             >
-                                                <XCircle size={14}/>
+                                                <XCircle size={14} />
                                             </Button>
                                             <span>{d}</span>
                                         </div>
@@ -670,54 +688,56 @@ export function ServiceOrderGeneratorSheet({
 
                         <div className="p-3 sm:p-4 border rounded-lg bg-card">
                             <h3 className="font-semibold mb-2">Añadir Servicio {isAutomatedMode ? 'Adicional' : 'Manualmente'}</h3>
-                                 <div className="flex items-end gap-2">
-                                    <div style={{ width: '150px' }}>
-                                      <Label>Fecha</Label>
-                                      <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full"/>
-                                    </div>
-                                    <div className="flex-grow" style={{ minWidth: '250px' }}>
-                                        <Label>Actividad</Label>
-                                        <Combobox 
-                                            options={activityOptions} 
-                                            value={newService.servicio} 
-                                            onSelect={handleActivitySelect} 
-                                            placeholder="Buscar actividad..." 
-                                            className="mt-1 bg-card"
-                                            triggerClassName={cn(newService.servicio && "border-green-500 font-medium")}
-                                        />
-                                    </div>
-                                    <div className="flex-grow" style={{ minWidth: '200px' }}>
-                                        <Label>Vuelo</Label>
-                                        <Combobox 
-                                            options={filteredFlightOptions} 
-                                            value={newService.vuelo || ''} 
-                                            onSelect={handleFlightSelect} 
-                                            placeholder="Seleccionar vuelo..." 
-                                            className="mt-1 bg-card"
-                                            triggerClassName={cn(newService.vuelo && "border-green-500 font-medium")}
-                                            disabled={!newService.servicio?.toUpperCase().includes('TRF')}
-                                        />
-                                    </div>
-                                    <div style={{ width: '100px' }}>
-                                        <Label>Hora</Label>
-                                        <Input value={newService.hora} onChange={handleTimeInputChange} onBlur={handleTimeInputBlur} placeholder="HH:mm" maxLength={5} className="mt-1 w-full"/>
-                                    </div>
-                                    <div>
-                                        <Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}>
-                                            <PlusCircle className="mr-2 h-5 w-5"/>Añadir
-                                        </Button>
-                                    </div>
+                            <div className="flex items-end gap-2">
+                                <div style={{ width: '150px' }}>
+                                    <Label>Fecha</Label>
+                                    <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full" />
                                 </div>
+                                <div className="flex-grow" style={{ minWidth: '250px' }}>
+                                    <Label>Actividad</Label>
+                                    <Combobox
+                                        options={activityOptions}
+                                        value={newService.servicio}
+                                        onSelect={handleActivitySelect}
+                                        placeholder="Buscar actividad..."
+                                        className="mt-1 bg-card"
+                                        triggerClassName={cn(newService.servicio && "border-green-500 font-medium")}
+                                    />
+                                </div>
+                                <div className="flex-grow" style={{ minWidth: '200px' }}>
+                                    <Label>Vuelo</Label>
+                                    <Combobox
+                                        options={filteredFlightOptions}
+                                        value={newService.vuelo || ''}
+                                        onSelect={handleFlightSelect}
+                                        placeholder="Seleccionar vuelo..."
+                                        className="mt-1 bg-card"
+                                        triggerClassName={cn(newService.vuelo && "border-green-500 font-medium")}
+                                        disabled={!newService.servicio?.toUpperCase().includes('TRF')}
+                                    />
+                                </div>
+                                <div style={{ width: '100px' }}>
+                                    <Label>Hora</Label>
+                                    <Input value={newService.hora} onChange={handleTimeInputChange} onBlur={handleTimeInputBlur} placeholder="HH:mm" maxLength={5} className="mt-1 w-full" />
+                                </div>
+                                <div>
+                                    <Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}>
+                                        <PlusCircle className="mr-2 h-5 w-5" />Añadir
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="p-3 sm:p-4 border rounded-lg bg-card">
-                             <h3 className="font-semibold mb-2 mobile-text-base">Resumen ({orderData.services.length} servicios)</h3>
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="font-semibold mobile-text-base">Resumen ({orderData.services.length} servicios)</h3>
+                            </div>
                             <div className="max-h-64 overflow-y-auto overflow-x-auto border rounded-md bg-card">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10 hover:bg-primary/10">
                                         <TableRow className="border-b-primary/20">
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '40px'}}>
-                                                 <Checkbox 
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{ width: '40px' }}>
+                                                <Checkbox
                                                     checked={selectedServices.size > 0 && selectedServices.size === orderData.services.length}
                                                     onCheckedChange={(checked) => {
                                                         const newSelection = new Set<number>();
@@ -726,123 +746,124 @@ export function ServiceOrderGeneratorSheet({
                                                         }
                                                         setSelectedServices(newSelection);
                                                     }}
-                                                 />
+                                                />
                                             </TableHead>
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '120px'}}>Fecha</TableHead>
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '90px'}}>Hora</TableHead>
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{ width: '120px' }}>Fecha</TableHead>
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{ width: '90px' }}>Hora</TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20">Servicio</TableHead>
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '200px'}}>Vuelo</TableHead>
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '120px'}}>Guía</TableHead>
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '70px'}}>Bus</TableHead>
-                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{width: '120px'}}>Chofer</TableHead>
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{ width: '200px' }}>Vuelo</TableHead>
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{ width: '120px' }}>Guía</TableHead>
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{ width: '70px' }}>Bus</TableHead>
+                                            <TableHead className="text-primary font-bold p-2 border-r border-primary/20" style={{ width: '120px' }}>Chofer</TableHead>
                                             <TableHead className="text-primary font-bold p-2 border-r border-primary/20">Observaciones</TableHead>
-                                            <TableHead className="text-primary font-bold p-2" style={{width: '40px'}}></TableHead>
+                                            <TableHead className="text-primary font-bold p-2" style={{ width: '40px' }}></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {sortedServices.length > 0 ? (
-                                            sortedServices.map((s, i) => {
-                                                const originalIndex = orderData.services.indexOf(s);
+                                        {orderData.services.length > 0 ? (
+                                            orderData.services.map((s, i) => {
+                                                const originalIndex = i;
                                                 const guiaFirstName = (s.guia || "").split(" ")[0];
                                                 const choferName = (s.chofer || "").replace(/^CONT\s/i, '');
                                                 const isTransfer = s.servicio?.toUpperCase().includes('TRF');
 
                                                 return (
-                                                <TableRow key={i} className="font-mono border-b-primary/20">
-                                                     <TableCell className="p-1 border-r border-primary/20 text-center">
-                                                        <Checkbox 
-                                                            checked={selectedServices.has(originalIndex)}
-                                                            onCheckedChange={(checked) => handleSelectService(originalIndex, !!checked)}
-                                                        />
-                                                     </TableCell>
-                                                    <TableCell className="p-1 border-r border-primary/20">
-                                                        <Input type="date" value={s.fecha ? format(parse(s.fecha, 'dd/MM/yyyy', new Date()), 'yyyy-MM-dd') : ''} onChange={(e) => handleServiceSummaryChange(originalIndex, 'fecha', e.target.value ? format(parse(e.target.value, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '')} className="h-8 text-xs bg-card/80"/>
-                                                    </TableCell>
-                                                    <TableCell className="p-1 border-r border-primary/20">
-                                                        <Input value={s.hora} onChange={(e) => handleSummaryTimeChange(originalIndex, e.target.value)} onBlur={(e) => handleSummaryTimeBlur(originalIndex, e.target.value)} placeholder="HH:mm" maxLength={5} className="h-8 text-xs bg-card/80"/>
-                                                    </TableCell>
-                                                    <TableCell className="p-1 border-r border-primary/20">
-                                                        <Combobox
-                                                            options={activityOptions}
-                                                            value={s.servicio || ''}
-                                                            onSelect={(value) => handleServiceSummaryChange(originalIndex, 'servicio', value)}
-                                                            placeholder="Actividad..."
-                                                            className="h-8 text-xs"
-                                                            triggerClassName="bg-card/80"
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="p-1 border-r border-primary/20">
-                                                        <Combobox 
-                                                            options={flights.map(f => ({value: f.flightNumber, label: `${f.flightNumber} (${f.time})`}))} 
-                                                            value={s.vuelo || ''} 
-                                                            onSelect={(val) => handleServiceSummaryChange(originalIndex, 'vuelo', val)} 
-                                                            placeholder="Vuelo..." 
-                                                            className="h-8 text-xs" triggerClassName="bg-card/80"
-                                                            disabled={!isTransfer}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="p-1 border-r border-primary/20">
-                                                        <Select
-                                                            value={s.guia || orderData.guia || 'NONE'}
-                                                            onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'guia', value === 'NONE' ? '' : value)}
-                                                        >
-                                                            <SelectTrigger className="h-8 text-xs bg-card/80">
-                                                                <SelectValue placeholder="Guía..." />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {serviceGuideOptions.map(g => (
-                                                                    <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </TableCell>
-                                                    <TableCell className="p-1 border-r border-primary/20">
-                                                        <Select
-                                                            value={s.bus || 'NONE'}
-                                                            onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'bus', value === 'NONE' ? '' : value)}
-                                                        >
-                                                            <SelectTrigger className="h-8 text-xs bg-card/80">
-                                                                <SelectValue placeholder="Bus..." />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="NONE" className="text-xs">Ninguno</SelectItem>
-                                                                <SelectItem value="SIN BUS" className="text-xs">SIN BUS (A PIE)</SelectItem>
-                                                                {busOptions.map(b => (
-                                                                    <SelectItem key={b.value} value={b.value} className="text-xs">{b.label}</SelectItem>
-                                                                ))}
-                                                                <SelectItem value="CONT." className="text-xs">Contratado</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </TableCell>
-                                                    <TableCell className="p-1 border-r border-primary/20">
-                                                        <Select
-                                                            value={s.chofer || 'NONE'}
-                                                            onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'chofer', value === 'NONE' ? '' : value)}
-                                                        >
-                                                            <SelectTrigger className="h-8 text-xs bg-card/80">
-                                                                <SelectValue placeholder="Chofer..." />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {serviceDriverOptions.map(d => (
-                                                                    <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </TableCell>
-                                                    <TableCell className="p-1 border-r border-primary/20 font-sans">
-                                                        <Input
-                                                          value={s.observaciones || ''}
-                                                          onChange={(e) => handleServiceSummaryChange(originalIndex, 'observaciones', e.target.value)}
-                                                          className="h-8 text-xs bg-card/80"
-                                                        />
-                                                    </TableCell>
-                                                     <TableCell className="p-1 text-center">
-                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10" onClick={() => removeServiceRow(originalIndex)}>
-                                                            <XCircle className="h-4 w-4" />
-                                                        </Button>
-                                                     </TableCell>
-                                                </TableRow>
-                                            )})
+                                                    <TableRow key={s.id || i} className="font-mono border-b-primary/20">
+                                                        <TableCell className="p-1 border-r border-primary/20 text-center">
+                                                            <Checkbox
+                                                                checked={selectedServices.has(originalIndex)}
+                                                                onCheckedChange={(checked) => handleSelectService(originalIndex, !!checked)}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="p-1 border-r border-primary/20">
+                                                            <Input type="date" value={s.fecha ? format(parse(s.fecha, 'dd/MM/yyyy', new Date()), 'yyyy-MM-dd') : ''} onChange={(e) => handleServiceSummaryChange(originalIndex, 'fecha', e.target.value ? format(parse(e.target.value, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '')} className="h-8 text-xs bg-card/80" />
+                                                        </TableCell>
+                                                        <TableCell className="p-1 border-r border-primary/20">
+                                                            <Input value={s.hora} onChange={(e) => handleSummaryTimeChange(originalIndex, e.target.value)} onBlur={(e) => handleSummaryTimeBlur(originalIndex, e.target.value)} placeholder="HH:mm" maxLength={5} className="h-8 text-xs bg-card/80" />
+                                                        </TableCell>
+                                                        <TableCell className="p-1 border-r border-primary/20">
+                                                            <Combobox
+                                                                options={activityOptions}
+                                                                value={s.servicio || ''}
+                                                                onSelect={(value) => handleServiceSummaryChange(originalIndex, 'servicio', value)}
+                                                                placeholder="Actividad..."
+                                                                className="h-8 text-xs"
+                                                                triggerClassName="bg-card/80"
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="p-1 border-r border-primary/20">
+                                                            <Combobox
+                                                                options={flights.map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})` }))}
+                                                                value={s.vuelo || ''}
+                                                                onSelect={(val) => handleServiceSummaryChange(originalIndex, 'vuelo', val)}
+                                                                placeholder="Vuelo..."
+                                                                className="h-8 text-xs" triggerClassName="bg-card/80"
+                                                                disabled={!isTransfer}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="p-1 border-r border-primary/20">
+                                                            <Select
+                                                                value={s.guia || orderData.guia || 'NONE'}
+                                                                onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'guia', value === 'NONE' ? '' : value)}
+                                                            >
+                                                                <SelectTrigger className="h-8 text-xs bg-card/80">
+                                                                    <SelectValue placeholder="Guía..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {serviceGuideOptions.map(g => (
+                                                                        <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </TableCell>
+                                                        <TableCell className="p-1 border-r border-primary/20">
+                                                            <Select
+                                                                value={s.bus || 'NONE'}
+                                                                onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'bus', value === 'NONE' ? '' : value)}
+                                                            >
+                                                                <SelectTrigger className="h-8 text-xs bg-card/80">
+                                                                    <SelectValue placeholder="Bus..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="NONE" className="text-xs">Ninguno</SelectItem>
+                                                                    <SelectItem value="SIN BUS" className="text-xs">SIN BUS (A PIE)</SelectItem>
+                                                                    {busOptions.map(b => (
+                                                                        <SelectItem key={b.value} value={b.value} className="text-xs">{b.label}</SelectItem>
+                                                                    ))}
+                                                                    <SelectItem value="CONT." className="text-xs">Contratado</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </TableCell>
+                                                        <TableCell className="p-1 border-r border-primary/20">
+                                                            <Select
+                                                                value={s.chofer || 'NONE'}
+                                                                onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'chofer', value === 'NONE' ? '' : value)}
+                                                            >
+                                                                <SelectTrigger className="h-8 text-xs bg-card/80">
+                                                                    <SelectValue placeholder="Chofer..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {serviceDriverOptions.map(d => (
+                                                                        <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </TableCell>
+                                                        <TableCell className="p-1 border-r border-primary/20 font-sans">
+                                                            <Input
+                                                                value={s.observaciones || ''}
+                                                                onChange={(e) => handleServiceSummaryChange(originalIndex, 'observaciones', e.target.value)}
+                                                                className="h-8 text-xs bg-card/80"
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="p-1 text-center">
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10" onClick={() => removeServiceRow(originalIndex)}>
+                                                                <XCircle className="h-4 w-4" />
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )
+                                            })
                                         ) : (
                                             <TableRow>
                                                 <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
@@ -854,21 +875,21 @@ export function ServiceOrderGeneratorSheet({
                                 </Table>
                             </div>
                         </div>
-                        
+
                         <div className="p-3 sm:p-4 border rounded-lg bg-card">
                             <Accordion type="multiple" className="w-full">
-                              <AccordionItem value="item-1">
-                                <AccordionTrigger>Observaciones Generales</AccordionTrigger>
-                                <AccordionContent>
-                                  <Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={5}/>
-                                </AccordionContent>
-                              </AccordionItem>
-                              <AccordionItem value="item-2">
-                                <AccordionTrigger>Nota (Pie de página)</AccordionTrigger>
-                                <AccordionContent>
-                                  <Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5}/>
-                                </AccordionContent>
-                              </AccordionItem>
+                                <AccordionItem value="item-1">
+                                    <AccordionTrigger>Observaciones Generales</AccordionTrigger>
+                                    <AccordionContent>
+                                        <Textarea id="observaciones" value={orderData.observations} onChange={e => handleInputChange('observations', e.target.value)} className="mt-1" rows={5} />
+                                    </AccordionContent>
+                                </AccordionItem>
+                                <AccordionItem value="item-2">
+                                    <AccordionTrigger>Nota (Pie de página)</AccordionTrigger>
+                                    <AccordionContent>
+                                        <Textarea id="nota" value={orderData.nota} onChange={e => handleInputChange('nota', e.target.value)} className="mt-1" rows={5} />
+                                    </AccordionContent>
+                                </AccordionItem>
                             </Accordion>
                         </div>
                     </div>
@@ -877,9 +898,9 @@ export function ServiceOrderGeneratorSheet({
                         <div className="sticky bottom-4 w-full flex justify-center">
                             <div className="flex items-center gap-2 p-2 rounded-lg border bg-background shadow-lg animate-in fade-in-50 slide-in-from-bottom-5">
                                 <span className="text-sm font-medium pl-2">{selectedServices.size} servicio(s) seleccionado(s)</span>
-                                 <Input 
-                                    type="date" 
-                                    id="master-date" 
+                                <Input
+                                    type="date"
+                                    id="master-date"
                                     value={masterDate}
                                     onChange={(e) => setMasterDate(e.target.value)}
                                     className="h-9 w-36"
@@ -888,7 +909,7 @@ export function ServiceOrderGeneratorSheet({
                                     Asignar Fecha
                                 </Button>
                                 <Button onClick={() => setSelectedServices(new Set())} size="sm" variant="ghost">
-                                    <XCircle className="mr-2 h-4 w-4"/>
+                                    <XCircle className="mr-2 h-4 w-4" />
                                     Limpiar
                                 </Button>
                             </div>
@@ -897,7 +918,7 @@ export function ServiceOrderGeneratorSheet({
                 </div>
                 <div className="pt-4 border-t gap-2 flex justify-end items-center">
                     <Button variant="outline" onClick={handleClearForm} className="mr-auto border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
-                        <Eraser className="mr-2 h-4 w-4"/>
+                        <Eraser className="mr-2 h-4 w-4" />
                         Limpiar Formulario
                     </Button>
                     {/* Split Mode Toggle */}
@@ -935,7 +956,7 @@ export function ServiceOrderGeneratorSheet({
                     </TooltipProvider>
                     <Button variant="outline" onClick={onClose}>Cerrar</Button>
                     <Button onClick={handleSaveOrder} disabled={isSaving || isLoadingData}>
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                         Guardar Orden
                     </Button>
                 </div>

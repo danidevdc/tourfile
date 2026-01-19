@@ -62,7 +62,20 @@ export interface ServiceOrderGuide extends Guide {
   fullName: string;
 }
 
+export interface ServiceOrderData {
+  guia: string;
+  file: string;
+  ref: string;
+  nPax: string;
+  hotel: string;
+  services: ServiceItem[];
+  observations?: string;
+  nota?: string;
+  isSplitSeparated?: boolean;
+}
+
 export interface ServiceItem {
+  id?: string;
   fecha: string;
   hora: string;
   servicio: string;
@@ -70,6 +83,7 @@ export interface ServiceItem {
   guia?: string;
   bus?: string;
   chofer?: string;
+  tarifa?: string;
   observaciones?: string;
 }
 
