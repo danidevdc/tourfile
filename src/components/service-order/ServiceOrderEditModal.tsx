@@ -320,7 +320,14 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
                     return (
                       <TableRow key={s.id || originalIndex} className={cn("break-words align-middle h-8", rowBgClass)} style={{ fontSize: '11px' }}>
-                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center">{showDate && s.fecha ? (<span className="inline-flex items-center justify-center rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 font-bold text-primary">{s.fecha}</span>) : null}</TableCell>
+                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center">
+                          <Input
+                            type="date"
+                            value={s.fecha ? format(parse(s.fecha, 'dd/MM/yyyy', new Date()), 'yyyy-MM-dd') : ''}
+                            onChange={(e) => handleServiceChange(originalIndex, 'fecha', e.target.value ? format(parse(e.target.value, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '')}
+                            className="h-8 text-[10px] bg-background text-center px-1"
+                          />
+                        </TableCell>
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Input value={s.hora || ''} onChange={(e) => handleServiceChange(originalIndex, 'hora', e.target.value)} onBlur={(e) => handleTimeBlur(originalIndex, e.target.value)} maxLength={5} placeholder="HH:mm" className="h-8 text-xs bg-background text-center" /></TableCell>
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-left"><Combobox options={activityOptions} value={s.servicio || ''} onSelect={(value) => handleServiceChange(originalIndex, 'servicio', value)} placeholder="Actividad..." className="h-8 text-xs" triggerClassName="bg-background" /></TableCell>
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Combobox options={flights.map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})` }))} value={s.vuelo || ''} onSelect={(value) => handleServiceChange(originalIndex, 'vuelo', value)} placeholder="Vuelo..." className="h-8 text-xs" triggerClassName="bg-background" disabled={!isTransfer} /></TableCell>
