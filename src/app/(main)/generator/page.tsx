@@ -213,7 +213,7 @@ export default function GeneratorPage() {
   const getFileNumberInputClasses = (): string => {
     let baseClasses = "bg-muted";
     if (fileSearchStatus === "found") {
-      baseClasses = "bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 focus-visible:ring-green-500 dark:focus-visible:ring-green-500";
+      baseClasses = "bg-green-100 dark:bg-emerald-950/40 border-green-500 dark:border-emerald-500/50 text-green-800 dark:text-emerald-200 focus-visible:ring-green-500 dark:focus-visible:ring-emerald-500";
     } else if (fileSearchStatus === "not_found" || (fileSearchStatus === "error" && form.getValues("fileNumber"))) {
       baseClasses = "bg-red-100 dark:bg-red-900 border-destructive text-destructive focus-visible:ring-destructive dark:focus-visible:ring-destructive";
     }
@@ -630,34 +630,34 @@ export default function GeneratorPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
 
-        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-300 ${dbConnected === null ? 'border-gray-200 bg-gray-50' :
-          dbConnected ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-300 ${dbConnected === null ? 'border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-800' :
+          dbConnected ? 'border-green-200 bg-green-50 dark:bg-emerald-950/20 dark:border-emerald-500/30' : 'border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-500/30'
           }`}>
           {isCheckingConnection ? (
             <>
               <RefreshCw className="h-4 w-4 text-gray-500 animate-spin" />
-              <span className="text-xs font-medium text-gray-600">Verificando...</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Verificando...</span>
             </>
           ) : dbConnected === null ? (
             <>
               <Database className="h-4 w-4 text-gray-500" />
-              <span className="text-xs font-medium text-gray-600">DB Status</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">DB Status</span>
             </>
           ) : dbConnected ? (
             <>
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span className="text-xs font-semibold text-green-600">Conectado</span>
+              <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-emerald-400" />
+              <span className="text-xs font-semibold text-green-600 dark:text-emerald-400">Conectado</span>
             </>
           ) : (
             <div className="flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-red-500" />
-              <span className="text-xs font-semibold text-red-600">Offline</span>
+              <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />
+              <span className="text-xs font-semibold text-red-600 dark:text-red-400">Offline</span>
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={verifyDatabaseConnection}
                 disabled={isCheckingConnection}
-                className="h-6 w-6 text-red-600 hover:bg-red-100 p-0"
+                className="h-6 w-6 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 p-0"
               >
                 <RefreshCw className="h-3 w-3" />
               </Button>
@@ -667,7 +667,7 @@ export default function GeneratorPage() {
       </div>
       <Card className="w-full max-w-3xl shadow-lg">
         <CardHeader>
-          <CardTitle className="text-3xl font-headline text-center text-primary">Generador de Cajas Chicas (La Paz)</CardTitle>
+          <CardTitle className="text-3xl font-headline text-center text-teal-600 dark:text-teal-400">Generador de Cajas Chicas (La Paz)</CardTitle>
           <CardDescription className="text-center">
             Sube tu archivo de programa, ingresa los detalles y genera tu reporte.
           </CardDescription>
@@ -685,7 +685,7 @@ export default function GeneratorPage() {
                     className={cn(
                       "flex-grow justify-start text-left font-normal",
                       selectedFile
-                        ? "bg-green-100 dark:bg-green-900 border-green-500 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200"
+                        ? "bg-green-100 dark:bg-emerald-950/40 border-green-500 dark:border-emerald-500/50 hover:bg-green-200 dark:hover:bg-emerald-900/60 text-green-800 dark:text-emerald-200"
                         : "bg-muted",
                       isFileMissingError && !selectedFile ? "border-destructive" : ""
                     )}
@@ -745,15 +745,15 @@ export default function GeneratorPage() {
                           size="icon"
                           disabled={!selectedFile || !field.value || isProcessingSearch}
                           aria-label="Buscar File"
-                          className="bg-primary text-primary-foreground hover:bg-primary/90"
+                          className="bg-teal-600 text-white hover:bg-teal-700 dark:bg-teal-600 dark:hover:bg-teal-700"
                         >
                           {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                         </Button>
                       </div>
                       <FormMessage />
                       {fileSearchStatus === "found" && foundCellValue && (
-                        <div className="mt-2 p-2 border rounded-md bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200 text-sm">
-                          <CheckCircle2 className="inline-block mr-2 h-4 w-4 align-middle text-green-700 dark:text-green-300" />
+                        <div className="mt-2 p-2 border rounded-md bg-green-100 dark:bg-emerald-950/40 border-green-500 dark:border-emerald-500/50 text-green-800 dark:text-emerald-200 text-sm">
+                          <CheckCircle2 className="inline-block mr-2 h-4 w-4 align-middle text-green-700 dark:text-emerald-400" />
                           Nombre de file: <strong>{foundCellValue}</strong>
                           {currentPaxCount && currentPaxCount !== "N/A" && <span className="ml-2"> (PAX: <strong>{currentPaxCount}</strong>)</span>}
                         </div>
@@ -788,7 +788,7 @@ export default function GeneratorPage() {
 
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full bg-teal-600 text-white hover:bg-teal-700 dark:bg-teal-600 dark:hover:bg-teal-700"
                   disabled={isProcessingGeneration || !selectedFile || fileSearchStatus !== 'found' || !form.formState.isValid || !currentPaxCount || currentPaxCount === "N/A"}
                 >
                   {isProcessingGeneration ? (
@@ -806,7 +806,7 @@ export default function GeneratorPage() {
       {generatedReports.length > 0 && (
         <Card className="w-full shadow-lg mt-8 max-w-3xl">
           <CardHeader>
-            <CardTitle className="text-xl font-headline text-center text-primary">Reportes Generados</CardTitle>
+            <CardTitle className="text-xl font-headline text-center text-teal-600 dark:text-teal-400">Reportes Generados</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -870,7 +870,7 @@ export default function GeneratorPage() {
                 onClick={handleDownloadAll}
                 disabled={isDownloadingAll}
                 variant="outline"
-                className="border-primary text-primary hover:bg-primary/10 hover:text-primary"
+                className="border-teal-500/20 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/20"
               >
                 {isDownloadingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Files className="mr-2 h-4 w-4" />}
                 Descargar Todo

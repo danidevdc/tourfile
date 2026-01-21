@@ -97,35 +97,35 @@ export default function HomePage() {
 
             {/* Database Connection Status */}
             <div className="mt-6 flex justify-center">
-              <div className={`inline-flex items-center gap-3 px-6 py-3 rounded-lg border-2 transition-all duration-300 ${dbConnected === null ? 'border-gray-300 bg-gray-50' :
-                dbConnected ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'
+              <div className={`inline-flex items-center gap-3 px-6 py-3 rounded-lg border-2 transition-all duration-300 ${dbConnected === null ? 'border-gray-300 bg-gray-50 dark:bg-gray-900 dark:border-gray-700' :
+                dbConnected ? 'border-green-500 bg-green-50 dark:bg-emerald-950/20 dark:border-emerald-500/50' : 'border-red-500 bg-red-50 dark:bg-red-950/20 dark:border-red-500/50'
                 }`}>
                 {isCheckingConnection ? (
                   <>
                     <RefreshCw className="h-5 w-5 text-gray-500 animate-spin" />
-                    <span className="text-sm font-medium text-gray-700">Verificando conexión...</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Verificando conexión...</span>
                   </>
                 ) : dbConnected === null ? (
                   <>
                     <Database className="h-5 w-5 text-gray-500" />
-                    <span className="text-sm font-medium text-gray-700">Verificando base de datos...</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Verificando base de datos...</span>
                   </>
                 ) : dbConnected ? (
                   <>
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <span className="text-sm font-semibold text-green-700">Base de datos conectada</span>
+                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-emerald-400" />
+                    <span className="text-sm font-semibold text-green-700 dark:text-emerald-400">Base de datos conectada</span>
                   </>
                 ) : (
                   <>
                     <XCircle className="h-5 w-5 text-red-600" />
                     <div className="flex flex-col sm:flex-row items-center gap-2">
-                      <span className="text-sm font-semibold text-red-700">Sin conexión a la base de datos</span>
+                      <span className="text-sm font-semibold text-red-700 dark:text-red-400">Sin conexión a la base de datos</span>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={verifyDatabaseConnection}
                         disabled={isCheckingConnection}
-                        className="border-red-400 text-red-700 hover:bg-red-100 h-7 text-xs"
+                        className="border-red-400 text-red-700 dark:text-red-400 dark:border-red-900/50 hover:bg-red-100 dark:hover:bg-red-900/50 h-7 text-xs"
                       >
                         <RefreshCw className="h-3 w-3 mr-1" />
                         Reconectar
@@ -140,16 +140,16 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             <Link href="/city-selection" passHref>
               <Button
-                variant="default"
-                className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group"
+                variant="outline"
+                className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-teal-500/20 text-teal-600 dark:text-teal-400 hover:bg-transparent hover:text-teal-700 dark:hover:text-teal-300"
               >
-                <FileSpreadsheet className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 text-primary-foreground transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                <FileSpreadsheet className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
                 <div className="text-left flex-grow">
-                  <span className="block text-xl sm:text-2xl font-bold text-primary-foreground">
+                  <span className="block text-xl sm:text-2xl font-bold">
                     Cajas Chicas
                   </span>
                 </div>
-                <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-primary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-teal-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
               </Button>
             </Link>
 
@@ -157,7 +157,7 @@ export default function HomePage() {
               <Link href="/service-order" passHref>
                 <Button
                   variant="outline"
-                  className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-primary text-primary hover:bg-transparent hover:text-primary"
+                  className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-primary/20 text-primary hover:bg-transparent hover:text-primary"
                 >
                   <ClipboardList className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
                   <div className="text-left flex-grow">

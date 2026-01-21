@@ -655,34 +655,34 @@ export default function ServiceOrderListPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-300 ${dbConnected === null ? 'border-gray-200 bg-gray-50' :
-              dbConnected ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-300 ${dbConnected === null ? 'border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-800' :
+              dbConnected ? 'border-green-200 bg-green-50 dark:bg-emerald-950/20 dark:border-emerald-500/30' : 'border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-500/30'
               }`}>
               {isCheckingConnection ? (
                 <>
                   <RefreshCw className="h-4 w-4 text-gray-500 animate-spin" />
-                  <span className="text-xs font-medium text-gray-600">Verificando...</span>
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Verificando...</span>
                 </>
               ) : dbConnected === null ? (
                 <>
                   <Database className="h-4 w-4 text-gray-500" />
-                  <span className="text-xs font-medium text-gray-600">DB Status</span>
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400">DB Status</span>
                 </>
               ) : dbConnected ? (
                 <>
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-xs font-semibold text-green-600">Conectado</span>
+                  <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-emerald-400" />
+                  <span className="text-xs font-semibold text-green-600 dark:text-emerald-400">Conectado</span>
                 </>
               ) : (
                 <div className="flex items-center gap-2">
-                  <XCircle className="h-4 w-4 text-red-500" />
-                  <span className="text-xs font-semibold text-red-600">Offline</span>
+                  <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />
+                  <span className="text-xs font-semibold text-red-600 dark:text-red-400">Offline</span>
                   <Button
                     size="icon"
                     variant="ghost"
                     onClick={verifyDatabaseConnection}
                     disabled={isCheckingConnection}
-                    className="h-6 w-6 text-red-600 hover:bg-red-100 p-0"
+                    className="h-6 w-6 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 p-0"
                   >
                     <RefreshCw className="h-3 w-3" />
                   </Button>
