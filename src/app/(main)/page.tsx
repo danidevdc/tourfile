@@ -12,6 +12,7 @@ import { checkDatabaseConnection } from "@/lib/dbConnectionCheck";
 import { getIntermediateUserEmails } from "@/lib/appConfigService";
 import { LiveTimeline } from "@/components/LiveTimeline";
 import { MonthlyDownloadModal } from "@/components/service-order/MonthlyDownloadModal";
+import { checkForMasterDataUpdates } from "@/lib/serviceOrderService";
 
 
 export default function HomePage() {
@@ -80,6 +81,28 @@ export default function HomePage() {
       setIsCheckingConnection(false);
     }
   };
+
+  // Check for master data updates periodically and on visibility change
+  useEffect(() => {
+    // Check once on mount
+    checkForMasterDataUpdates();
+
+    const interval = setInterval(async () => {
+      await checkForMasterDataUpdates();
+    }, 5 * 60 * 1000); // Every 5 minutes
+
+    const handleMasterDataVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        await checkForMasterDataUpdates();
+      }
+    };
+    document.addEventListener('visibilitychange', handleMasterDataVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleMasterDataVisibilityChange);
+    };
+  }, []);
 
   const appVersion = `${version} - DC`;
 

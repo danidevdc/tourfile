@@ -20,6 +20,112 @@ import {
 } from 'firebase/firestore';
 // import { getFlightFromFirestore } from './flightSyncService'; // This file was removed.
 import { format, parse } from 'date-fns';
+import { serverTimestamp } from 'firebase/firestore';
+
+// --- Caching Configuration ---
+const CACHE_VERSION_ID = 'masterDataVersion';
+const CACHE_COLLECTION = 'appConfig';
+const CACHE_STORAGE_KEY_PREFIX = 'tourfile_cache_';
+const VERSION_STORAGE_KEY = 'tourfile_master_data_version';
+
+async function getRemoteVersion(): Promise<number> {
+  if (!db) return 0;
+  try {
+    const versionDocRef = doc(db, CACHE_COLLECTION, CACHE_VERSION_ID);
+    const snap = await getDoc(versionDocRef);
+    if (!snap.exists()) {
+      // Initialize if not exists
+      await setDoc(versionDocRef, { version: 1, lastUpdate: serverTimestamp() });
+      return 1;
+    }
+    return snap.data().version || 0;
+  } catch (error) {
+    console.warn("Failed to fetch remote version:", error);
+    return 0;
+  }
+}
+
+function getLocalVersion(): number {
+  if (typeof window === 'undefined') return 0;
+  const v = sessionStorage.getItem(VERSION_STORAGE_KEY);
+  return v ? parseInt(v, 10) : 0;
+}
+
+function setLocalVersion(v: number) {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(VERSION_STORAGE_KEY, v.toString());
+}
+
+function getCachedData<T>(key: string): T[] | null {
+  if (typeof window === 'undefined') return null;
+  const data = sessionStorage.getItem(CACHE_STORAGE_KEY_PREFIX + key);
+  return data ? JSON.parse(data) : null;
+}
+
+function setCachedData<T>(key: string, data: T[]) {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(CACHE_STORAGE_KEY_PREFIX + key, JSON.stringify(data));
+}
+
+export function clearMasterDataCache() {
+  if (typeof window === 'undefined') return;
+  const keysToRemove = Object.keys(sessionStorage).filter(k => k.startsWith(CACHE_STORAGE_KEY_PREFIX));
+  keysToRemove.forEach(k => sessionStorage.removeItem(k));
+  sessionStorage.removeItem(VERSION_STORAGE_KEY);
+}
+
+async function incrementRemoteVersion(): Promise<void> {
+  if (!db) return;
+  const versionDocRef = doc(db, CACHE_COLLECTION, CACHE_VERSION_ID);
+  await updateDoc(versionDocRef, {
+    version: increment(1),
+    lastUpdate: serverTimestamp()
+  });
+}
+
+/**
+ * Checks if the remote master data version has changed.
+ * Returns true if there was an update.
+ */
+export async function checkForMasterDataUpdates(): Promise<boolean> {
+  const remoteVersion = await getRemoteVersion();
+  const localVersion = getLocalVersion();
+
+  if (remoteVersion > 0 && remoteVersion !== localVersion) {
+    console.log(`🌐 Nueva versión detectada: v${remoteVersion} (local: v${localVersion}). Limpiando caché...`);
+    clearMasterDataCache();
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Generic function to fetch data with caching
+ */
+async function fetchWithCache<T>(
+  key: string,
+  fetchFn: () => Promise<T[]>,
+  forceRefresh: boolean = false
+): Promise<T[]> {
+  const remoteVersion = await getRemoteVersion();
+  const localVersion = getLocalVersion();
+
+  if (!forceRefresh && remoteVersion === localVersion && localVersion > 0) {
+    const cached = getCachedData<T>(key);
+    if (cached) {
+      console.log(`✅ Usando caché para ${key} (version ${localVersion})`);
+      return cached;
+    }
+  }
+
+  console.log(`📊 Descargando ${key} desde Firebase... (remote: v${remoteVersion}, local: v${localVersion})`);
+  const data = await fetchFn();
+
+  setCachedData(key, data);
+  if (remoteVersion > 0) setLocalVersion(remoteVersion);
+
+  return data;
+}
 
 // --- Interface Definitions ---
 
@@ -115,103 +221,115 @@ export async function initializeDefaultBuses(): Promise<void> {
 
 // --- Data Fetching Functions ---
 
-export async function getGuidesFromFirestore(): Promise<ServiceOrderGuide[]> {
-  if (!db) throw new Error("Firestore not initialized.");
-  const guidesRef = collection(db, 'guides');
-  const snapshot = await getDocs(guidesRef);
+export async function getGuidesFromFirestore(forceRefresh: boolean = false): Promise<ServiceOrderGuide[]> {
+  return fetchWithCache<ServiceOrderGuide>('guides', async () => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const guidesRef = collection(db, 'guides');
+    const snapshot = await getDocs(guidesRef);
 
-  console.log(`📊 getGuidesFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+    console.log(`📊 getGuidesFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
 
-  if (snapshot.empty) return [];
+    if (snapshot.empty) return [];
 
-  return snapshot.docs.map(doc => {
-    const data = doc.data() as Omit<Guide, 'uid'>;
-    const firstName = data.firstName.toUpperCase();
-    const lastName = data.lastName.toUpperCase();
-    return {
-      uid: doc.id,
-      firstName: firstName,
-      lastName: lastName,
-      fullName: `${firstName} ${lastName}`.trim()
-    };
-  }).sort((a, b) => a.fullName.localeCompare(b.fullName));
+    return snapshot.docs.map(doc => {
+      const data = doc.data() as Omit<Guide, 'uid'>;
+      const firstName = data.firstName.toUpperCase();
+      const lastName = data.lastName.toUpperCase();
+      return {
+        uid: doc.id,
+        firstName: firstName,
+        lastName: lastName,
+        fullName: `${firstName} ${lastName}`.trim()
+      };
+    }).sort((a, b) => a.fullName.localeCompare(b.fullName));
+  }, forceRefresh);
 }
 
-export async function getHotelsFromFirestore(): Promise<Hotel[]> {
-  if (!db) throw new Error("Firestore not initialized.");
-  const hotelsRef = collection(db, 'hotels');
-  const snapshot = await getDocs(hotelsRef);
+export async function getHotelsFromFirestore(forceRefresh: boolean = false): Promise<Hotel[]> {
+  return fetchWithCache<Hotel>('hotels', async () => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const hotelsRef = collection(db, 'hotels');
+    const snapshot = await getDocs(hotelsRef);
 
-  console.log(`📊 getHotelsFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+    console.log(`📊 getHotelsFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
 
-  if (snapshot.empty) return [];
+    if (snapshot.empty) return [];
 
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    name: (doc.data().name as string).toUpperCase()
-  } as Hotel))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      name: (doc.data().name as string).toUpperCase()
+    } as Hotel))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, forceRefresh);
 }
 
-export async function getActivitiesFromFirestore(): Promise<Activity[]> {
-  if (!db) throw new Error("Firestore not initialized.");
-  const activitiesRef = collection(db, 'activities');
-  const snapshot = await getDocs(activitiesRef);
+export async function getActivitiesFromFirestore(forceRefresh: boolean = false): Promise<Activity[]> {
+  return fetchWithCache<Activity>('activities', async () => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const activitiesRef = collection(db, 'activities');
+    const snapshot = await getDocs(activitiesRef);
 
-  console.log(`📊 getActivitiesFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+    console.log(`📊 getActivitiesFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
 
-  if (snapshot.empty) return [];
+    if (snapshot.empty) return [];
 
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    name: (doc.data().name as string).toUpperCase(),
-    suggestedTime: doc.data().suggestedTime, // Also fetch the suggested time
-  } as Activity))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      name: (doc.data().name as string).toUpperCase(),
+      suggestedTime: doc.data().suggestedTime, // Also fetch the suggested time
+    } as Activity))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, forceRefresh);
 }
 
-export async function getDriversFromFirestore(): Promise<Driver[]> {
-  if (!db) throw new Error("Firestore not initialized.");
-  const driversRef = collection(db, 'drivers');
-  const snapshot = await getDocs(driversRef);
+export async function getDriversFromFirestore(forceRefresh: boolean = false): Promise<Driver[]> {
+  return fetchWithCache<Driver>('drivers', async () => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const driversRef = collection(db, 'drivers');
+    const snapshot = await getDocs(driversRef);
 
-  console.log(`📊 getDriversFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+    console.log(`📊 getDriversFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
 
-  if (snapshot.empty) return [];
+    if (snapshot.empty) return [];
 
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    name: (doc.data().name as string).toUpperCase()
-  } as Driver))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      name: (doc.data().name as string).toUpperCase()
+    } as Driver))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, forceRefresh);
 }
 
-export async function getFlightsFromFirestore(): Promise<PredefinedFlight[]> {
-  if (!db) throw new Error("Firestore not initialized.");
-  const flightsRef = collection(db, 'flights');
-  const snapshot = await getDocs(flightsRef);
+export async function getFlightsFromFirestore(forceRefresh: boolean = false): Promise<PredefinedFlight[]> {
+  return fetchWithCache<PredefinedFlight>('flights', async () => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const flightsRef = collection(db, 'flights');
+    const snapshot = await getDocs(flightsRef);
 
-  console.log(`📊 getFlightsFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+    console.log(`📊 getFlightsFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
 
-  if (snapshot.empty) return [];
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...(doc.data() as Omit<PredefinedFlight, 'id'>)
-  } as PredefinedFlight)).sort((a, b) => a.flightNumber.localeCompare(b.flightNumber));
+    if (snapshot.empty) return [];
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...(doc.data() as Omit<PredefinedFlight, 'id'>)
+    } as PredefinedFlight)).sort((a, b) => a.flightNumber.localeCompare(b.flightNumber));
+  }, forceRefresh);
 }
 
-export async function getBusesFromFirestore(): Promise<Bus[]> {
-  if (!db) throw new Error("Firestore not initialized.");
-  const busesRef = collection(db, 'buses');
-  const snapshot = await getDocs(busesRef);
+export async function getBusesFromFirestore(forceRefresh: boolean = false): Promise<Bus[]> {
+  return fetchWithCache<Bus>('buses', async () => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const busesRef = collection(db, 'buses');
+    const snapshot = await getDocs(busesRef);
 
-  console.log(`📊 getBusesFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+    console.log(`📊 getBusesFromFirestore() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
 
-  if (snapshot.empty) return [];
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    name: (doc.data().name as string).toUpperCase()
-  } as Bus)).sort((a, b) => a.name.localeCompare(b.name));
+    if (snapshot.empty) return [];
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      name: (doc.data().name as string).toUpperCase()
+    } as Bus)).sort((a, b) => a.name.localeCompare(b.name));
+  }, forceRefresh);
 }
 
 
@@ -250,32 +368,116 @@ export async function checkIfGuideExists(firstName: string, lastName: string): P
 
 // --- Data Creation Functions (Single) ---
 
-export const createGuide = (guide: { firstName: string, lastName: string }) => addDoc(collection(db!, 'guides'), guide);
-export const createHotel = (name: string) => addDoc(collection(db!, 'hotels'), { name });
-export const createActivity = (name: string) => addDoc(collection(db!, 'activities'), { name });
-export const createDriver = (name: string) => addDoc(collection(db!, 'drivers'), { name });
-export const createFlight = (flight: Omit<PredefinedFlight, 'id'>) => addDoc(collection(db!, 'flights'), flight);
-export const createBus = (name: string) => {
+export const createGuide = async (guide: { firstName: string, lastName: string }) => {
+  const batch = writeBatch(db!);
+  const ref = doc(collection(db!, 'guides'));
+  batch.set(ref, guide);
+  const versionRef = doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID);
+  batch.update(versionRef, { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const createHotel = async (name: string) => {
+  const batch = writeBatch(db!);
+  const ref = doc(collection(db!, 'hotels'));
+  batch.set(ref, { name });
+  const versionRef = doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID);
+  batch.update(versionRef, { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const createActivity = async (name: string) => {
+  const batch = writeBatch(db!);
+  const ref = doc(collection(db!, 'activities'));
+  batch.set(ref, { name });
+  const versionRef = doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID);
+  batch.update(versionRef, { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const createDriver = async (name: string) => {
+  const batch = writeBatch(db!);
+  const ref = doc(collection(db!, 'drivers'));
+  batch.set(ref, { name });
+  const versionRef = doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID);
+  batch.update(versionRef, { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const createFlight = async (flight: Omit<PredefinedFlight, 'id'>) => {
+  const batch = writeBatch(db!);
+  const ref = doc(collection(db!, 'flights'));
+  batch.set(ref, flight);
+  const versionRef = doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID);
+  batch.update(versionRef, { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const createBus = async (name: string) => {
   if (!db) throw new Error("Firestore not initialized.");
+  const batch = writeBatch(db);
   const docRef = doc(db, 'buses', name.toUpperCase());
-  return setDoc(docRef, { name: name.toUpperCase() });
+  batch.set(docRef, { name: name.toUpperCase() });
+  const versionRef = doc(db, CACHE_COLLECTION, CACHE_VERSION_ID);
+  batch.update(versionRef, { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
 };
 
 
 // --- Data Update Functions ---
-export const updateGuide = (id: string, data: { firstName: string, lastName: string }) => setDoc(doc(db!, 'guides', id), data);
-export const updateHotel = (id: string, name: string) => setDoc(doc(db!, 'hotels', id), { name });
-export const updateActivity = (id: string, name: string) => setDoc(doc(db!, 'activities', id), { name });
-export const updateDriver = (id: string, name: string) => setDoc(doc(db!, 'drivers', id), { name });
-export const updateFlight = (id: string, data: Omit<PredefinedFlight, 'id'>) => setDoc(doc(db!, 'flights', id), data);
-export const updateBus = (id: string, name: string) => {
+export const updateGuide = async (id: string, data: { firstName: string, lastName: string }) => {
+  const batch = writeBatch(db!);
+  batch.set(doc(db!, 'guides', id), data);
+  batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const updateHotel = async (id: string, name: string) => {
+  const batch = writeBatch(db!);
+  batch.set(doc(db!, 'hotels', id), { name });
+  batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const updateActivity = async (id: string, name: string) => {
+  const batch = writeBatch(db!);
+  batch.set(doc(db!, 'activities', id), { name });
+  batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const updateDriver = async (id: string, name: string) => {
+  const batch = writeBatch(db!);
+  batch.set(doc(db!, 'drivers', id), { name });
+  batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const updateFlight = async (id: string, data: Omit<PredefinedFlight, 'id'>) => {
+  const batch = writeBatch(db!);
+  batch.set(doc(db!, 'flights', id), data);
+  batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const updateBus = async (id: string, name: string) => {
   if (!db) throw new Error("Firestore not initialized.");
-  // This is more complex if the ID is the name. If the name changes, the ID must change.
-  // This implies deleting the old doc and creating a new one.
-  // For simplicity, let's assume the name (the ID) is NOT editable, only other fields if they existed.
-  // If name IS the only field, an "update" is essentially just ensuring it exists.
-  const docRef = doc(db, 'buses', id); // Here, id is the old name
-  return setDoc(docRef, { name: name.toUpperCase() });
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'buses', id), { name: name.toUpperCase() });
+  batch.update(doc(db, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
 };
 
 // --- Data Creation Functions (Bulk) ---
@@ -287,7 +489,9 @@ const createBulk = async (collectionName: string, records: { [key: string]: any 
     const docRef = doc(collectionRef);
     batch.set(docRef, record);
   });
+  batch.update(doc(db, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
   await batch.commit();
+  clearMasterDataCache();
 };
 
 export const createBulkGuides = (guides: { firstName: string, lastName: string }[]) => createBulk('guides', guides);
@@ -299,22 +503,65 @@ export const createBulkFlights = (flights: Omit<PredefinedFlight, 'id'>[]) => cr
 
 // --- Data Deletion Functions ---
 
-export const deleteGuide = (id: string) => deleteDoc(doc(db!, 'guides', id));
-export const deleteHotel = (id: string) => deleteDoc(doc(db!, 'hotels', id));
-export const deleteActivity = (id: string) => deleteDoc(doc(db!, 'activities', id));
-export const deleteDriver = (id: string) => deleteDoc(doc(db!, 'drivers', id));
-export const deleteFlight = (id: string) => deleteDoc(doc(db!, 'flights', id));
-export const deleteBus = (id: string) => deleteDoc(doc(db!, 'buses', id));
+export const deleteGuide = async (id: string) => {
+  const batch = writeBatch(db!);
+  batch.delete(doc(db!, 'guides', id));
+  batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const deleteHotel = async (id: string) => {
+  const batch = writeBatch(db!);
+  batch.delete(doc(db!, 'hotels', id));
+  batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const deleteActivity = async (id: string) => {
+  const batch = writeBatch(db!);
+  batch.delete(doc(db!, 'activities', id));
+  batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const deleteDriver = async (id: string) => {
+  const batch = writeBatch(db!);
+  batch.delete(doc(db!, 'drivers', id));
+  batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const deleteFlight = async (id: string) => {
+  const batch = writeBatch(db!);
+  batch.delete(doc(db!, 'flights', id));
+  batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
+
+export const deleteBus = async (id: string) => {
+  const batch = writeBatch(db!);
+  batch.delete(doc(db!, 'buses', id));
+  batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
+  await batch.commit();
+  clearMasterDataCache();
+};
 
 // --- Bulk Deletion Functions ---
 const deleteBulk = async (collectionName: string, ids: string[]) => {
   if (!db) throw new Error("Firestore not initialized");
   const batch = writeBatch(db);
   ids.forEach(id => {
-    const docRef = doc(db, collectionName, id);
+    const docRef = doc(db!, collectionName, id);
     batch.delete(docRef);
   });
+  batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), { version: increment(1), lastUpdate: serverTimestamp() });
   await batch.commit();
+  clearMasterDataCache();
 };
 
 export const deleteBulkGuides = (ids: string[]) => deleteBulk('guides', ids);

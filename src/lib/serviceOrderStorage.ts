@@ -27,6 +27,21 @@ import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { childNameFrom, getBaseName } from './serviceOrderFamily';
 
+// --- Caching Configuration for Search/Timeline ---
+const SEARCH_CACHE_KEY = 'tourfile_orders_cache';
+const SEARCH_SYNC_KEY = 'tourfile_orders_last_sync';
+
+/**
+ * Clear the search cache - useful after significant changes or to force a full refresh.
+ */
+export function clearServiceOrdersSearchCache() {
+    if (typeof window !== 'undefined') {
+        sessionStorage.removeItem(SEARCH_CACHE_KEY);
+        sessionStorage.removeItem(SEARCH_SYNC_KEY);
+        console.log('🗑️ Cache de búsqueda de órdenes eliminado.');
+    }
+}
+
 export type OrderStatus = 'creado' | 'editado' | 'enviado' | 'eliminado' | 'excel' | 'cancelado' | 'impreso';
 
 export interface StoredServiceOrder {
@@ -412,39 +427,95 @@ export async function updateServiceOrder(orderId: string, status: OrderStatus): 
     });
 }
 
+/**
+ * Fetches all service orders using a Delta Sync strategy.
+ * It only downloads documents that have changed since the last sync in the current session.
+ * Greatly reduces reads for search and timeline views.
+ */
 export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
     if (!db) throw new Error("Firestore not initialized.");
 
+    // 1. Try to load from Session Storage
+    let cachedOrders: any[] = [];
+    let lastSyncTimestamp = 0;
+
+    if (typeof window !== 'undefined') {
+        const storedOrders = sessionStorage.getItem(SEARCH_CACHE_KEY);
+        const storedSync = sessionStorage.getItem(SEARCH_SYNC_KEY);
+        if (storedOrders) cachedOrders = JSON.parse(storedOrders);
+        if (storedSync) lastSyncTimestamp = parseInt(storedSync, 10);
+    }
+
     const ordersRef = collection(db, 'serviceOrders');
-    const q = query(ordersRef, orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
+    let q;
 
-    console.log(`📊 getAllServiceOrders() - Read ${snapshot.size} documents (${snapshot.size} reads)`);
+    if (lastSyncTimestamp > 0) {
+        // Incrementally fetch only what changed
+        // We look for updates since (lastSync - 5 seconds) to handle clock skews and overlapping updates
+        q = query(
+            ordersRef,
+            where('updatedAt', '>', Timestamp.fromMillis(lastSyncTimestamp - 5000)),
+            orderBy('updatedAt', 'desc')
+        );
+        console.log(`🔍 Iniciando sincronización incremental del buscador (Desde: ${new Date(lastSyncTimestamp).toLocaleTimeString()})...`);
+    } else {
+        // First download of the session
+        q = query(ordersRef, orderBy('createdAt', 'desc'), limit(3000));
+        console.log('📊 Descargando catálogo completo de órdenes por primera vez en esta sesión...');
+    }
 
-    if (snapshot.empty) return [];
+    try {
+        const snapshot = await getDocs(q);
 
-    const orders: StoredServiceOrder[] = [];
-    snapshot.docs.forEach(doc => {
-        const data = doc.data();
+        if (!snapshot.empty) {
+            console.log(`📊 Sincronizados ${snapshot.size} cambios/registros desde Firebase (${snapshot.size} reads)`);
 
-        // Robust date checking
-        if (!data.createdAt || !(data.createdAt instanceof Timestamp)) {
-            console.warn(`Skipping order ${doc.id}: Missing or invalid 'createdAt' field.`);
-            return; // Skip this document
+            const newDeltas = snapshot.docs.map(docSnap => {
+                const data = docSnap.data();
+                return {
+                    ...data,
+                    id: docSnap.id,
+                    // Store as milliseconds for JSON compatibility
+                    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : (data.createdAt || Date.now()),
+                    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : (data.updatedAt || Date.now())
+                };
+            });
+
+            // Merge deltas with existing cache
+            const mergedMap = new Map();
+            cachedOrders.forEach(o => mergedMap.set(o.id, o));
+            newDeltas.forEach(o => mergedMap.set(o.id, o));
+
+            const finalOrders = Array.from(mergedMap.values());
+
+            // Save back to sessionStorage
+            if (typeof window !== 'undefined') {
+                sessionStorage.setItem(SEARCH_CACHE_KEY, JSON.stringify(finalOrders));
+                sessionStorage.setItem(SEARCH_SYNC_KEY, Date.now().toString());
+            }
+
+            cachedOrders = finalOrders;
+        } else {
+            console.log('✅ Buscador al día. 0 lecturas adicionales.');
         }
-        const createdAt = data.createdAt.toDate();
-        const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
 
-        orders.push({
-            id: doc.id,
-            ...data,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            status: data.status || 'creado'
-        } as StoredServiceOrder);
-    });
+        // Return processed orders (convert flat JSON back to Date objects)
+        return cachedOrders.map(o => ({
+            ...o,
+            createdAt: new Date(o.createdAt),
+            updatedAt: o.updatedAt ? new Date(o.updatedAt) : undefined,
+            status: o.status || 'creado'
+        } as StoredServiceOrder)).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-    return orders;
+    } catch (error) {
+        console.error("Error in Delta Sync fetching:", error);
+        // Fallback to cache if exists, otherwise empty
+        return cachedOrders.map(o => ({
+            ...o,
+            createdAt: new Date(o.createdAt),
+            updatedAt: o.updatedAt ? new Date(o.updatedAt) : undefined,
+        } as StoredServiceOrder));
+    }
 }
 
 export async function getTotalServiceOrdersCount(): Promise<number> {

@@ -118,15 +118,9 @@ export default function ServiceOrderListPage() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
-  // Debounce search term
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+  // Search state improvement
+  const [activeSearchTerm, setActiveSearchTerm] = useState(""); // This is the term actually being searched
 
   const families = useMemo(() => {
     const currentFilter = isCurrentUserAdmin ? filterState : 'active';
@@ -141,9 +135,9 @@ export default function ServiceOrderListPage() {
 
     const visibleOrders = orders.filter(orderIsVisible);
 
-    const searchedOrders = debouncedSearchTerm
+    const searchedOrders = activeSearchTerm
       ? visibleOrders.filter(order => {
-        const lowercasedFilter = debouncedSearchTerm.toLowerCase();
+        const lowercasedFilter = activeSearchTerm.toLowerCase();
         const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
 
         if (!order.data) return false;
@@ -198,33 +192,38 @@ export default function ServiceOrderListPage() {
       }))
       .sort((a, b) => b.parent.createdAt.getTime() - a.parent.createdAt.getTime());
 
-  }, [orders, filterState, debouncedSearchTerm, isCurrentUserAdmin]);
+  }, [orders, filterState, activeSearchTerm, isCurrentUserAdmin]);
 
   const displayedFamilies = useMemo(() => {
-    if (debouncedSearchTerm.trim().length > 0) {
+    if (activeSearchTerm.trim().length > 0) {
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
       return families.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     }
     return families;
-  }, [families, debouncedSearchTerm, currentPage]);
+  }, [families, activeSearchTerm, currentPage]);
 
   const fetchOrders = async (page: number = 1) => {
     setIsLoading(true);
     try {
-      if (debouncedSearchTerm.trim().length > 0) {
+      if (activeSearchTerm.trim().length > 0) {
         // Global Search Mode: Fetch all to filter locally as Firestore doesn't support 'contains'
         const allOrders = await getAllServiceOrders();
         setOrders(allOrders);
         setHasMore(false); // Not used in search mode as we have the full list
       } else {
         // Paginated Mode: Fetch only one page
-        const cursor = lastDocs[page - 1] || null;
+        const cursor = lastDocs[page - 1];
+        console.log(`Paging: Page ${page}, using cursor index ${page - 1}`, cursor);
         const { orders: fetchedOrders, lastDoc } = await getServiceOrdersPaginated(ITEMS_PER_PAGE, cursor);
         setOrders(fetchedOrders);
 
-        // Update next page cursor and hasMore
+        // Record the cursor for the NEXT page (index 'page')
         if (lastDoc && page >= lastDocs.length) {
-          setLastDocs(prev => [...prev, lastDoc]);
+          setLastDocs(prev => {
+            const nextCursors = [...prev];
+            nextCursors[page] = lastDoc;
+            return nextCursors;
+          });
         }
         setHasMore(!!lastDoc);
       }
@@ -238,7 +237,7 @@ export default function ServiceOrderListPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (debouncedSearchTerm.trim().length === 0) {
+      if (activeSearchTerm.trim().length === 0) {
         // Reset to real pagination when search is cleared
         setCurrentPage(1);
         setLastDocs([null]);
@@ -250,7 +249,16 @@ export default function ServiceOrderListPage() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearchTerm, filterState, authLoading]);
+  }, [activeSearchTerm, filterState, authLoading]);
+
+  const handleExecuteSearch = () => {
+    setActiveSearchTerm(searchTerm);
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm("");
+    setActiveSearchTerm("");
+  };
 
 
 
@@ -297,19 +305,10 @@ export default function ServiceOrderListPage() {
   useEffect(() => {
     verifyDatabaseConnection();
 
-    // Solo cargamos datos y ejecutamos migración si la autenticación ya terminó
+    // Solo cargamos datos si la autenticación ya terminó
     if (!authLoading) {
       fetchInitialData(); // Cargar guías, hoteles, etc.
-
-      // Silent migration for admins to fix pagination on old data
-      if (isCurrentUserAdmin) {
-        runMigrateRoots().then(count => {
-          if (count > 0) {
-            console.log(`✅ Migrated ${count} orders to root status.`);
-            fetchInitialData(); // Refrescar si hubo migración
-          }
-        });
-      }
+      fetchOrders(1); // Cargar primera página de órdenes
     }
   }, [isCurrentUserAdmin, authLoading]);
 
@@ -393,22 +392,23 @@ export default function ServiceOrderListPage() {
 
 
   const searchTotalPages = useMemo(() => {
-    if (debouncedSearchTerm.trim().length > 0) {
+    if (activeSearchTerm.trim().length > 0) {
       return Math.ceil(families.length / ITEMS_PER_PAGE) || 1;
     }
     return 1;
-  }, [debouncedSearchTerm, families.length]);
+  }, [activeSearchTerm, families.length]);
 
   const showPagination = useMemo(() => {
-    if (debouncedSearchTerm.trim().length > 0) {
+    if (activeSearchTerm.trim().length > 0) {
       return searchTotalPages > 1;
     }
     return currentPage > 1 || hasMore;
-  }, [debouncedSearchTerm, searchTotalPages, currentPage, hasMore]);
+  }, [activeSearchTerm, searchTotalPages, currentPage, hasMore]);
 
   const handlePageChange = (newPage: number) => {
+    if (newPage === currentPage) return;
     setCurrentPage(newPage);
-    if (debouncedSearchTerm.trim().length === 0) {
+    if (activeSearchTerm.trim().length === 0) {
       fetchOrders(newPage);
     }
   };
@@ -711,9 +711,38 @@ export default function ServiceOrderListPage() {
               </div>
               <div className="flex w-full sm:w-auto items-center gap-2">
                 {isCurrentUserAdmin && <ServiceOrderDeletionFilter value={filterState} onValueChange={setFilterState} />}
-                <div className="relative w-full sm:w-auto flex-grow">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Buscar orden..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 focus-visible:ring-2 focus-visible:ring-primary" />
+                <div className="relative w-full sm:w-auto flex-grow flex gap-2">
+                  <div className="relative flex-grow">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Escribe y presiona Enter..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleExecuteSearch();
+                        if (e.key === 'Escape') handleClearSearch();
+                      }}
+                      className="pl-10 pr-10 focus-visible:ring-2 focus-visible:ring-primary min-w-[200px]"
+                    />
+                    {searchTerm && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleClearSearch}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <Button
+                    onClick={handleExecuteSearch}
+                    variant="secondary"
+                    className="shrink-0 gap-2 border shadow-sm"
+                  >
+                    <Search className="h-4 w-4" />
+                    <span className="hidden md:inline">Buscar</span>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -877,7 +906,7 @@ export default function ServiceOrderListPage() {
                       </React.Fragment>
                     )
                   }) : (
-                    <TableRow><TableCell colSpan={isCurrentUserAdmin ? 7 : 5} className="text-center h-24 text-muted-foreground">{searchTerm ? `No se encontraron órdenes para "${searchTerm}"` : "No se han encontrado órdenes de servicio."}</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={isCurrentUserAdmin ? 7 : 5} className="text-center h-24 text-muted-foreground">{activeSearchTerm ? `No se encontraron órdenes para "${activeSearchTerm}"` : "No se han encontrado órdenes de servicio."}</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -900,7 +929,7 @@ export default function ServiceOrderListPage() {
 
                   <div className="flex items-center px-3 h-9 rounded-md border border-border/40 bg-muted/30">
                     <span className="text-sm font-medium">
-                      {debouncedSearchTerm.trim().length > 0 ? (
+                      {activeSearchTerm.trim().length > 0 ? (
                         <>Resultados: {currentPage} <span className="text-muted-foreground mx-1">/</span> {searchTotalPages}</>
                       ) : (
                         <>Página {currentPage}</>
@@ -912,13 +941,13 @@ export default function ServiceOrderListPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      if (debouncedSearchTerm.trim().length > 0) {
+                      if (activeSearchTerm.trim().length > 0) {
                         if (currentPage < searchTotalPages) handlePageChange(currentPage + 1);
                       } else {
                         handlePageChange(currentPage + 1);
                       }
                     }}
-                    disabled={isLoading || (debouncedSearchTerm.trim().length > 0 ? currentPage >= searchTotalPages : !hasMore)}
+                    disabled={isLoading || (activeSearchTerm.trim().length > 0 ? currentPage >= searchTotalPages : !hasMore)}
                     className="h-9 px-3 gap-1 hover:bg-primary/5 transition-colors"
                   >
                     <span className="hidden sm:inline">Siguiente</span>
