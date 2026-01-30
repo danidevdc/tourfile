@@ -15,7 +15,10 @@ service cloud.firestore {
       return isAuth() && request.auth.token.email == email;
     }
     function isIntermediateUser() {
-      return isAuth() && request.auth.token.email == get(/databases/$(database)/documents/appConfig/specialRoles).data.intermediateUserEmail;
+      return isAuth() && (
+        request.auth.token.email == get(/databases/$(database)/documents/appConfig/specialRoles).data.intermediateUserEmail ||
+        request.auth.token.email in get(/databases/$(database)/documents/appConfig/specialRoles).data.allowedEditors
+      );
     }
     
     // --- User Profiles ---
@@ -35,31 +38,24 @@ service cloud.firestore {
     }
 
     // --- Master Data (Guides, Hotels, etc.) ---
-    // Any authenticated user can read master data. Only admins can write.
+    // Anyone logged in can read/write/update/delete.
     match /guides/{docId} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
+      allow read, write, update, delete: if isAuth();
     }
     match /hotels/{docId} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
+      allow read, write, update, delete: if isAuth();
     }
     match /drivers/{docId} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
+      allow read, write, update, delete: if isAuth();
     }
     match /activities/{activityId} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
+      allow read, write, update, delete: if isAuth();
     }
     match /flights/{flightId} {
-      allow read: if isAuth();
-      allow create, update: if isAuth();
-      allow delete: if isAdmin();
+      allow read, write, update, delete: if isAuth();
     }
     match /buses/{busId} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
+      allow read, write, update, delete: if isAuth();
     }
     
     // --- Business Logic Rules ---
@@ -75,13 +71,12 @@ service cloud.firestore {
     match /appConfig/healthCheck {
       allow read: if true;
     }
-    match /appConfig/masterDataVersion {
-      allow read: if isAuth();
-      allow write: if isAuth();
-    }
-    match /appConfig/{docId} {
+    match /appConfig/specialRoles {
       allow read: if isAuth();
       allow write: if isAdmin();
+    }
+    match /appConfig/{docId} {
+      allow read, write: if isAuth();
     }
     
     // ADDED THIS BLOCK: Rules for the new Service Order Logic editor
@@ -105,12 +100,10 @@ service cloud.firestore {
     
     // --- Service Orders ---
     // Any authenticated user can read and create orders.
-    // Only the owner or an admin can update or delete an order.
+    // Only the owner, an admin, or an intermediate user can update or delete an order.
     match /serviceOrders/{orderId} {
       allow read, create: if isAuth();
-      allow update: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin());
-      // Deletion is handled by status change, so update permission is sufficient.
-      // A specific delete rule could be more restrictive if needed.
+      allow update, delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin() || isIntermediateUser());
     }
 
     // --- Learning Data for AI/Suggestions ---
