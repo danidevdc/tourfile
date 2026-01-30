@@ -108,10 +108,10 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
               </div>
 
               <div className="border-2 border-gray-400 rounded-lg mt-1 p-4">
-                <Table className="mb-4">
+                <Table className="mb-4" wrapperClassName="overflow-visible">
                   <TableBody>
                     <TableRow className="hover:bg-white border-none">
-                      <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto w-24 align-middle">Guía:</TableCell>
+                      <TableCell className="font-bold text-black text-xs pt-[5px] pb-[8px] px-[7px] h-auto w-24 align-middle whitespace-nowrap">Guía:</TableCell>
                       <TableCell className="text-xs pt-[5px] pb-[8px] px-[7px] h-auto border border-gray-300 rounded-md bg-gray-50 align-middle">{processedData.displayGuide || "—"}</TableCell>
                     </TableRow>
                     <TableRow className="hover:bg-white border-none">
@@ -134,8 +134,8 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
                 </Table>
 
                 <div className="mt-4">
-                  <div className="rounded-lg border border-gray-300 overflow-hidden">
-                    <Table className="table-fixed w-full">
+                  <div className="rounded-lg border border-gray-300 overflow-visible">
+                    <Table className="table-fixed w-full" wrapperClassName="overflow-visible">
                       <TableHeader>
                         <TableRow className="bg-gray-100 hover:bg-gray-100 h-auto whitespace-nowrap">
                           <TableHead className="text-black font-bold py-1 px-2 border-r border-gray-300 h-auto w-[86px] text-center align-middle text-[11px]">Fecha</TableHead>
@@ -160,7 +160,7 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
                             const choferFirstName = choferSanitized.split(' ')[0];
 
                             return (
-                              <TableRow key={i} className="bg-white hover:bg-white text-xs whitespace-nowrap">
+                              <TableRow key={i} className="bg-white hover:bg-white text-xs">
                                 <TableCell className="p-2 border-r border-gray-200 text-center font-semibold align-middle text-xs">
                                   {showDate && s.fecha ? s.fecha : ""}
                                 </TableCell>
