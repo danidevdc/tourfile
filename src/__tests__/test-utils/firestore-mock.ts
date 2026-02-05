@@ -18,12 +18,24 @@ export function collection(_db: any, name: string) {
   return { __collection: name };
 }
 
-export function doc(_db: any, collectionName: string, id?: string) {
-  // support being called as doc(db, 'buses', name) or doc(db, collection, id)
-  if (typeof collectionName === 'object' && collectionName.__collection) {
-    return { __collection: collectionName.__collection, id };
+export function doc(...args: any[]) {
+  // Supports multiple call signatures:
+  // doc(db, 'collection', 'id')
+  // doc(db, collectionRef, 'id')
+  // doc(collectionRef)
+  if (args.length === 1) {
+    const collectionRef = args[0];
+    if (collectionRef && collectionRef.__collection) {
+      return { __collection: collectionRef.__collection, id: undefined };
+    }
   }
-  return { __collection: collectionName, id };
+
+  const [_db, collectionOrName, id] = args;
+  if (collectionOrName && typeof collectionOrName === 'object' && collectionOrName.__collection) {
+    return { __collection: collectionOrName.__collection, id };
+  }
+
+  return { __collection: collectionOrName, id };
 }
 
 export function where(field: string, op: string, value: any) {
@@ -48,21 +60,41 @@ export async function getDocs(refOrQuery: any) {
   }
 
   const col = store[collectionName] || {};
-  const docs = Object.keys(col).map(id => ({ id, data: () => col[id] }));
+  const docsAll = Object.keys(col).map(id => ({ id, data: () => col[id], ref: { __collection: collectionName, id } }));
 
   if (constraints && constraints.length) {
-    const whereC = constraints.find((c: any) => c && c.__where);
-    if (whereC) {
-      const { field, op, value } = whereC.__where;
-      return { docs: docs.filter(d => {
-        const dv = (d.data() || {})[field];
-        if (op === '==') return dv === value;
-        return false;
-      }), size: docs.length, empty: docs.length === 0 };
+    let filtered = docsAll.slice();
+    for (const c of constraints) {
+      if (!c) continue;
+      if (c.__where) {
+        const { field, op, value } = c.__where;
+        filtered = filtered.filter(d => {
+          const dv = (d.data() || {})[field];
+          if (op === '==') return dv === value;
+          if (op === '>=') {
+            if (dv === undefined || dv === null) return false;
+            const left = (dv instanceof Date) ? dv.getTime() : Number(dv);
+            const right = (value instanceof Date) ? value.getTime() : Number(value);
+            return left >= right;
+          }
+          if (op === '<') {
+            if (dv === undefined || dv === null) return false;
+            const left = (dv instanceof Date) ? dv.getTime() : Number(dv);
+            const right = (value instanceof Date) ? value.getTime() : Number(value);
+            return left < right;
+          }
+          return false;
+        });
+      }
+      if (c.__limit) {
+        filtered = filtered.slice(0, c.__limit);
+      }
+      // ignore orderBy for now (it affects ordering only)
     }
+    return { docs: filtered, size: filtered.length, empty: filtered.length === 0 };
   }
 
-  return { docs, size: docs.length, empty: docs.length === 0 };
+  return { docs: docsAll, size: docsAll.length, empty: docsAll.length === 0 };
 }
 
 export async function getDoc(docRef: any) {
@@ -144,6 +176,10 @@ export async function deleteDoc(docRef: any) {
 }
 
 export const limit = (n: number) => ({ __limit: n });
+
+export function orderBy(field: string, dir?: 'asc' | 'desc') {
+  return { __orderBy: { field, dir: dir || 'asc' } };
+}
 
 // exports required so vitest's mock factory can return this module
 export default {
