@@ -11,14 +11,14 @@ Los cambios están implementados correctamente, pero necesitas reiniciar el serv
    - Presiona `Ctrl + C` (Windows/Linux) o `Cmd + C` (Mac)
 
 2. **Limpia el caché de Next.js:**
-   ```bash
-   npm run dev
-   ```
-   O si tienes problemas:
-   ```bash
-   rm -rf .next
-   npm run dev
-   ```
+```bash
+npm run dev
+```
+O si tienes problemas:
+```bash
+rm -rf .next
+npm run dev
+```
 
 3. **Abre la aplicación en el navegador:**
    - Ve a `http://localhost:3000` (o el puerto que uses)
@@ -34,29 +34,20 @@ Los cambios están implementados correctamente, pero necesitas reiniciar el serv
 ### Opción 2: Build de Producción (Si opción 1 no funciona)
 
 1. **Construye la aplicación:**
-   ```bash
-   npm run build
-   ```
+```bash
+npm run build
+```
 
 2. **Ejecuta la versión de producción:**
-   ```bash
-   npm start
-   ```
+```bash
+npm start
+```
 
 3. **Abre en el navegador y prueba**
 
 ---
 
 ## 🎨 Cómo Deberían Verse las Notificaciones:
-
-### Modo Oscuro (ANTES - Problema):
-```
-┌─────────────────────────────────────────┐
-│ ✓ Inicio de Sesión Exitoso             │ ← Texto gris (NO SE VE)
-│ ¡Bienvenido de nuevo!                   │ ← Texto gris (NO SE VE)
-└─────────────────────────────────────────┘
-  ↑ Fondo verde muy claro (casi blanco)
-```
 
 ### Modo Oscuro (DESPUÉS - Correcto):
 ```
@@ -88,8 +79,6 @@ Ejemplo en `src/hooks/useAuth.ts` línea 256:
 toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo!`, variant: "success" as any });
 ```
 
-Si ves `className:` en lugar de `variant:`, entonces el cambio no se aplicó.
-
 ---
 
 ## 🔍 Debugging:
@@ -105,8 +94,6 @@ Deberías ver algo como:
 ```html
 <div class="... bg-green-900 text-green-100 ...">
 ```
-
-Si ves `bg-green-100` sin `dark:bg-green-900`, entonces hay un problema de compilación.
 
 ---
 

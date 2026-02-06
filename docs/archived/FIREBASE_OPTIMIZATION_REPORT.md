@@ -88,12 +88,6 @@ Se han implementado optimizaciones de **CERO RIESGO** que reducirán el uso de F
 - `saveBulkReportsToFirestore()` en `src/lib/reportService.ts`
 - Usa `writeBatch()` de Firestore para operaciones atómicas
 
-**Ejemplo real:**
-- Descargas 10 cajas chicas en lote × 20 veces/mes:
-  - **ANTES**: 11 escrituras × 20 = 220 escrituras/mes
-  - **DESPUÉS**: 2 escrituras × 20 = 40 escrituras/mes
-  - **Ahorro: 180 escrituras/mes** (82%)
-
 ---
 
 ### 5. **Timeline en Vivo - Carga Opcional** 🎯 **OPTIMIZACIÓN MÁS IMPORTANTE**
@@ -116,13 +110,6 @@ Se han implementado optimizaciones de **CERO RIESGO** que reducirán el uso de F
 **Archivos modificados:**
 - `src/app/(main)/page.tsx` - Botón de activación/desactivación
 - `src/components/LiveTimeline.tsx` - Prop `isActive` para controlar carga de datos
-
-**Ejemplo real - Escenario pestaña abierta 8 horas:**
-- **ANTES (automático)**: 19,200 lecturas/día × 30 días = **576,000 lecturas/mes** = **$3.45/mes**
-- **DESPUÉS (opcional)**: 0 lecturas si no activas el timeline = **$0.00/mes**
-- **AHORRO: 100%** de costos del timeline (si solo lo usas ocasionalmente)
-
-**Nota importante:** Esta era la **fuente principal de costos potenciales** si dejabas pestañas abiertas.
 
 ---
 
@@ -166,94 +153,6 @@ Este query usa **un solo campo** (`generationDate`), por lo que Firebase usa su 
 | **Costo mensual** | $0.50 | $0.03-0.05 | **90-94%** ⬇️ |
 | **Funcionalidad** | ✅ 100% | ✅ 100% | Sin cambios |
 
-### Escenario 2: **Con Pestaña Abierta Todo el Día** (antes de optimización)
-
-| Concepto | Antes (Timeline automático) | Después (Timeline opcional) | Ahorro |
-|---------|---------------------------|---------------------------|--------|
-| **Lecturas/mes** | ~640,000 | ~9,000 | **98.6%** ⬇️ |
-| **Costo mensual** | **$3.95** | **$0.03-0.05** | **98.7%** ⬇️ |
-
-**🎯 El timeline opcional es la optimización más importante para evitar costos inesperados.**
-
----
-
-## 🎯 Funcionalidad Garantizada
-
-### ✅ Todo sigue funcionando EXACTAMENTE igual:
-
-1. **Selectores y Buscadores**: Los dropdowns de guías, hoteles, choferes, etc. siguen cargando TODAS las opciones
-2. **Generación Automática**: La lógica de órdenes y cajas chicas no cambia
-3. **Búsqueda de Órdenes**: Funciona en las órdenes cargadas en memoria
-4. **Reglas de Negocio**: Todas las reglas siguen activas
-5. **Permisos**: Los permisos de admin/usuario no cambian
-
-### 🔄 Lo único que cambió:
-
-- **Antes**: Después de cada operación → recarga TODO desde Firebase
-- **Después**: Después de cada operación → actualiza solo lo necesario en memoria
-
----
-
-## 🧪 Testing Recomendado
-
-Prueba estas funcionalidades para asegurarte de que todo funciona:
-
-### Página de Órdenes de Servicio:
-- [ ] Crear nueva orden → verificar que aparece en la lista
-- [ ] Editar orden → verificar que los cambios se reflejan
-- [ ] Eliminar orden → verificar que cambia el estado a "Eliminado"
-- [ ] Descargar Excel → verificar que el estado cambia a "Excel"
-- [ ] Imprimir PDF → verificar que el estado cambia a "Impreso"
-
-### Página de Admin - Data:
-- [ ] Agregar un guía → verificar que aparece en la lista inmediatamente
-- [ ] Eliminar un hotel → verificar que desaparece inmediatamente
-- [ ] Subir lista Excel → verificar que se cargan todos los items
-- [ ] Eliminación masiva → verificar que desaparecen todos los seleccionados
-
-### Página de Admin - Users:
-- [ ] Abrir la página → verificar que muestra estadísticas correctas
-- [ ] Verificar que los totales por mes son correctos
-
-### Timeline en Vivo (Página Principal):
-- [ ] Al cargar la página → verificar que el timeline NO se carga automáticamente
-- [ ] Presionar "Activar Timeline" → verificar que se carga correctamente
-- [ ] Verificar que muestra las órdenes activas
-- [ ] Presionar "Desactivar Timeline" → verificar que se cierra
-- [ ] Volver a activar → verificar que se recarga correctamente
-
----
-
-## 🔧 Rollback (Por si algo sale mal)
-
-Si encuentras algún problema, estos son los archivos modificados:
-
-1. `src/app/(main)/service-order/page.tsx`
-2. `src/app/(main)/admin/data/page.tsx`
-3. `src/app/(main)/admin/users/page.tsx`
-4. `src/lib/reportService.ts`
-
-Puedes revertir los cambios con:
-```bash
-git checkout HEAD -- [archivo]
-```
-
-O simplemente usar el historial de git para volver al commit anterior.
-
----
-
-## 📝 Notas Adicionales
-
-### Limitación Actual en Admin - Users:
-La página de usuarios ahora solo muestra estadísticas de los **últimos 12 meses**. Si necesitas ver estadísticas más antiguas, puedes:
-
-1. Aumentar el parámetro en `admin/users/page.tsx` línea 49:
-   ```typescript
-   getRecentReportsFromFirestore(24) // Para 24 meses
-   ```
-
-2. O volver a usar `getAllReportsFromFirestore()` si realmente necesitas todos los históricos (pero aumentará las lecturas)
-
 ---
 
 ## ✅ Conclusión
@@ -265,15 +164,6 @@ La página de usuarios ahora solo muestra estadísticas de los **últimos 12 mes
 - ✅ Sin índices compuestos necesarios
 - ✅ Funcionalidad 100% preservada
 - ✅ Ahorro de costos: **~90-94%**
-
-### Resumen de Optimizaciones:
-1. **Órdenes de Servicio**: Actualización de estado local (no recargas innecesarias)
-2. **Admin - Data**: Actualización de estado local (no recargas innecesarias)
-3. **Admin - Users**: Solo carga últimos 12 meses de reportes
-4. **Cajas Chicas (lote)**: Batch writes en lugar de escrituras individuales
-5. **Timeline en Vivo**: 🎯 **Carga opcional** + intervalo aumentado a 30 min (la más importante)
-
-**Puedes probar la aplicación normalmente y verificar que todo funciona correctamente.**
 
 ---
 
