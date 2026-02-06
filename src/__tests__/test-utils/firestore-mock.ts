@@ -148,6 +148,19 @@ export function increment(amount: number) {
   return { __op: 'increment', amount };
 }
 
+// Mock Timestamp class for testing
+export class Timestamp {
+  constructor(public date: Date) {}
+  
+  static fromDate(date: Date): Timestamp {
+    return new Timestamp(date);
+  }
+  
+  toDate(): Date {
+    return this.date;
+  }
+}
+
 export function serverTimestamp() {
   return Date.now();
 }
@@ -199,5 +212,7 @@ export default {
   runTransaction,
   addDoc,
   deleteDoc,
-  limit
+  limit,
+  documentId: () => '__name__',
+  Timestamp,
 };

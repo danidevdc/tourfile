@@ -8,7 +8,7 @@ import { StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { ServiceOrderData, ServiceItem, ServiceOrderGuide, Activity, Driver, PredefinedFlight, Hotel, Bus, recordActivityTimeUsage, getSuggestedTimeForActivity } from "@/lib/serviceOrderService";
 import { cn } from "@/lib/utils";
 
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -255,6 +255,9 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
       <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[1300px] w-full p-0 overflow-hidden flex flex-col max-h-[95vh]">
         <DialogHeader className="mobile-padding border-b">
           <DialogTitle className="mobile-text-lg">Editando Orden: {order.orderName.replace(/_/g, ' ')}</DialogTitle>
+          <DialogDescription>
+            Modifica los detalles y servicios de esta orden de servicio
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-grow overflow-y-auto overflow-x-hidden mobile-padding space-y-4">
@@ -332,7 +335,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-left"><Combobox options={activityOptions} value={s.servicio || ''} onSelect={(value) => handleServiceChange(originalIndex, 'servicio', value)} placeholder="Actividad..." className="h-8 text-xs" triggerClassName="bg-background" /></TableCell>
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Combobox options={flights.map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})` }))} value={s.vuelo || ''} onSelect={(value) => handleServiceChange(originalIndex, 'vuelo', value)} placeholder="Vuelo..." className="h-8 text-xs" triggerClassName="bg-background" disabled={!isTransfer} /></TableCell>
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium"><Select value={s.guia || editableOrderData.guia || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'guia', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="Guía..." /></SelectTrigger><SelectContent>{serviceGuideOptions.map(g => <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>)}</SelectContent></Select></TableCell>
-                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Select value={s.bus || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="..." /></SelectTrigger><SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent></Select></TableCell>
+                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Select value={s.bus || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="..." /></SelectTrigger><SelectContent>{finalBusOptions.map((t, idx) => <SelectItem key={`${t.value}-${idx}`} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent></Select></TableCell>
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Select value={s.chofer || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'chofer', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="Chofer..." /></SelectTrigger><SelectContent>{serviceDriverOptions.map(d => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}</SelectContent></Select></TableCell>
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Input value={s.tarifa || ''} onChange={(e) => handleServiceChange(originalIndex, 'tarifa', e.target.value)} placeholder="" className="h-8 text-xs bg-background text-center" /></TableCell>
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-left"><Input value={s.observaciones || ''} onChange={(e) => handleServiceChange(originalIndex, 'observaciones', e.target.value)} className="h-8 text-xs bg-background" /></TableCell>

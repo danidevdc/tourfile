@@ -1,7 +1,8 @@
 // src/lib/report-generator.ts
 import * as XLSX from 'xlsx';
-import { format } from 'date-fns';
 import { getExpenseRulesFromFirestore, type ExpenseRule } from './ruleService';
+import { formatDateDDMMYYYY } from './formatters';
+import { isNumericString, isValidPaxFormat } from './validators-server';
 
 export type FileSearchStatus = "idle" | "searching" | "found" | "not_found" | "error";
 
@@ -35,7 +36,7 @@ export interface FileDataProps {
 
 // Helper function to parse PAX count, handling formats like "16+1"
 export function parsePaxCount(paxString: string): number {
-  if (!paxString) return 0;
+  if (!paxString || !isValidPaxFormat(paxString)) return 0;
 
   const trimmedPax = paxString.trim();
   if (trimmedPax.includes('+')) {
@@ -54,7 +55,7 @@ export function parsePaxCount(paxString: string): number {
 
 export function resolveQuantity(quantityStr: string, paxNumber: number): number {
   if (paxNumber === 0 && quantityStr.toUpperCase().includes("$G$3")) return 0;
-  if (!isNaN(Number(quantityStr))) {
+  if (isNumericString(quantityStr)) {
     return Number(quantityStr);
   }
 
@@ -113,7 +114,11 @@ export async function generateExpenseDetails(
 
     if (parsedDateObj && !isNaN(parsedDateObj.valueOf())) {
       tourStartDateRaw = parsedDateObj;
-      tourStartDate = format(tourStartDateRaw, 'dd/MM/yy');
+      // Format as dd/MM/yy
+      const day = String(parsedDateObj.getUTCDate()).padStart(2, '0');
+      const month = String(parsedDateObj.getUTCMonth() + 1).padStart(2, '0');
+      const year = String(parsedDateObj.getUTCFullYear()).slice(-2);
+      tourStartDate = `${day}/${month}/${year}`;
       break;
     }
   }

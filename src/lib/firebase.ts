@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getAuth, type Auth, browserSessionPersistence, setPersistence } from 'firebase/auth'; // Import persistence functions
@@ -24,16 +23,14 @@ const requiredConfigKeys: (keyof typeof firebaseConfig)[] = ['apiKey', 'authDoma
 const missingKeys = requiredConfigKeys.filter(key => !firebaseConfig[key]);
 
 if (missingKeys.length > 0) {
-  console.error(`Firebase initialization failed: Missing config values for ${missingKeys.join(', ')}. Please check your .env.local file and ensure all NEXT_PUBLIC_FIREBASE_ variables are set.`);
-  // If critical keys are missing, app and db will remain undefined.
+  throw new Error(`Firebase initialization failed: Missing config values for ${missingKeys.join(', ')}. Please check your .env.local file and ensure all NEXT_PUBLIC_FIREBASE_ variables are set.`);
 } else {
   if (!getApps().length) {
     try {
       app = initializeApp(firebaseConfig);
       console.log("Firebase app initialized successfully.");
     } catch (error: any) {
-      console.error("Firebase app initialization error:", error.message, error.code);
-      // app will remain undefined if initialization fails
+      throw new Error(`Firebase app initialization error: ${error.message}`);
     }
   } else {
     app = getApps()[0];
@@ -68,4 +65,3 @@ if (missingKeys.length > 0) {
 
 export { db, auth, app }; // Export auth
 
-    

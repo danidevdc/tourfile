@@ -2,9 +2,11 @@
 "use client";
 
 import * as XLSX from 'xlsx';
-import { format } from 'date-fns';
 import type { ServiceOrderRule } from './serviceOrderRuleService';
 import type { Activity, PredefinedFlight, ServiceItem } from './serviceOrderService';
+import { normalizeExcelCell, getExcelColumn } from './excel-utils';
+import { getValidDateFromExcelCell, isValidTime } from './validators';
+import { formatDateDDMMYYYY, normalizeTime } from './formatters';
 
 /**
  * Normalizes a string for comparison by removing spaces and slashes and converting to uppercase.
@@ -21,22 +23,7 @@ const normalizeComparisonString = (str: string): string => {
  * @returns The Date object if it's a valid date, otherwise null.
  */
 const getValidDateFromCell = (cellValue: any): Date | null => {
-    if (!cellValue) return null;
-
-    if (cellValue instanceof Date && !isNaN(cellValue.valueOf())) {
-        return cellValue;
-    }
-    
-    // Check for Excel's serial date format (numbers generally > 25569 for dates after 1970)
-    if (typeof cellValue === 'number' && cellValue > 25569) {
-        const parsed = XLSX.SSF.parse_date_code(cellValue);
-        if (parsed && parsed.y >= 2000) { // Basic validation for year
-            // Construct a UTC date to avoid timezone shifts from the server's locale
-            return new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0));
-        }
-    }
-    
-    return null;
+    return getValidDateFromExcelCell(cellValue);
 };
 
 
@@ -77,7 +64,7 @@ export function generateServicesFromExcelColumn(
     const dateCell = row[0];
     const validDate = getValidDateFromCell(dateCell);
     if (validDate) {
-        currentDate = format(validDate, 'dd/MM/yyyy');
+        currentDate = formatDateDDMMYYYY(validDate);
     }
 
     // --- Step 2: Check for activities in the file's column ---

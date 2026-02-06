@@ -3,14 +3,14 @@
 
 import { useMemo, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { parse } from "date-fns";
+import { parseDateDDMMYYYY } from "@/lib/formatters";
 import { FaWhatsapp } from "react-icons/fa";
 
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
 import { copiarVistaPreviaAlClipboard } from "@/lib/copyPreview";
 
-import { Dialog, DialogContent, DialogFooter, DialogClose, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogClose, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
@@ -49,8 +49,8 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
 
     const sortedServices = [...(data.services || [])].sort((a, b) => {
       try {
-        const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
-        const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
+        const dateA = parseDateDDMMYYYY(a.fecha)?.getTime() ?? new Date().getTime();
+        const dateB = parseDateDDMMYYYY(b.fecha)?.getTime() ?? new Date().getTime();
         if (dateA !== dateB) return dateA - dateB;
       } catch { }
 
@@ -95,6 +95,7 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
         <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[1250px] w-full flex flex-col max-h-[95vh] p-0">
           <DialogHeader className="mobile-padding border-b flex-shrink-0">
             <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
+            <DialogDescription className="sr-only">Vista previa de la orden de servicio con detalles completos</DialogDescription>
           </DialogHeader>
 
           <div className="overflow-auto min-h-0 mobile-padding">

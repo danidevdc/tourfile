@@ -23,8 +23,7 @@ import {
     QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { type ServiceOrderData } from './serviceOrderGenerator';
-import { format, parse } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatOrderName, parseDateDDMMYYYY } from './formatters';
 import { childNameFrom, getBaseName } from './serviceOrderFamily';
 
 // --- Caching Configuration for Search/Timeline ---
@@ -63,24 +62,20 @@ function getFirstDateFromServices(services: ServiceOrderData['services']): Date 
     }
     const sortedServices = [...services].sort((a, b) => {
         try {
-            const dateA = parse(a.fecha, 'dd/MM/yyyy', new Date()).getTime();
-            const dateB = parse(b.fecha, 'dd/MM/yyyy', new Date()).getTime();
+            const dateA = parseDateDDMMYYYY(a.fecha)?.getTime() ?? new Date().getTime();
+            const dateB = parseDateDDMMYYYY(b.fecha)?.getTime() ?? new Date().getTime();
             if (dateA !== dateB) return dateA - dateB;
         } catch { }
         return a.hora.localeCompare(b.hora);
     });
     try {
         const firstServiceDate = sortedServices[0].fecha;
-        return parse(firstServiceDate, 'dd/MM/yyyy', new Date());
+        const parsed = parseDateDDMMYYYY(firstServiceDate);
+        return parsed || new Date();
     } catch (e) {
         console.error("Could not parse date from service, falling back to today.", e);
         return new Date();
     }
-}
-
-function formatOrderName(date: Date, fileNumber: string): string {
-    const datePart = format(date, 'dd_MMMM_yyyy', { locale: es }).toUpperCase();
-    return `ODS_${datePart}_${fileNumber.replace(/[\s/]/g, '_')}`;
 }
 
 export async function saveServiceOrder(orderData: ServiceOrderData, createdByEmail: string, orderName?: string, splitFromId?: string): Promise<string> {

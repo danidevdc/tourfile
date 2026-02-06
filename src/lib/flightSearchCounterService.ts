@@ -3,8 +3,8 @@
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc, runTransaction, DocumentReference } from 'firebase/firestore';
-import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
+import { formatISO } from '@/lib/formatters';
 
 // Interface for the data we'll show in the chart
 export interface FlightSearchStat {
@@ -35,7 +35,7 @@ export async function incrementFlightSearchCount(): Promise<void> {
   const zonedDate = toZonedTime(nowUtc, TIME_ZONE);
   
   // Use the date and hour from the converted time
-  const dateKey = format(zonedDate, 'yyyy-MM-dd'); // e.g., "2024-08-01"
+  const dateKey = formatISO(zonedDate); // e.g., "2024-08-01"
   const hourKey = zonedDate.getHours(); // 0-23 in GMT-4
 
   const statDocRef: DocumentReference<DailyStats> = doc(db, 'flightSearchStats', dateKey) as DocumentReference<DailyStats>;

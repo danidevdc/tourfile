@@ -2,7 +2,7 @@
 
 "use client";
 
-import { parse } from "date-fns";
+import { parseDateDDMMYYYY } from "./formatters";
 import type { StoredServiceOrder } from "./serviceOrderStorage";
 import { copiarVistaPreviaAlClipboard } from "./copyPreview";
 
@@ -37,8 +37,8 @@ const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
 
     const sortedServices = [...(services || [])].sort((a, b) => {
         try {
-            const dateA = parse(a.fecha, "dd/MM/yyyy", new Date()).getTime();
-            const dateB = parse(b.fecha, "dd/MM/yyyy", new Date()).getTime();
+            const dateA = parseDateDDMMYYYY(a.fecha)?.getTime() ?? new Date().getTime();
+            const dateB = parseDateDDMMYYYY(b.fecha)?.getTime() ?? new Date().getTime();
             if (dateA !== dateB) return dateA - dateB;
         } catch {}
         const hasTimeA = a.hora && a.hora.trim() !== '';

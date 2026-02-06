@@ -5,7 +5,8 @@
  *
  * - findFlight - The exported server action to find flight details.
  */
-import { addDays, format, parseISO, subHours } from 'date-fns';
+import { addDays, parseISO, subHours } from 'date-fns';
+import { formatTime, formatISO } from '@/lib/formatters';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
 
 
@@ -53,15 +54,15 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
   
   const flight = laPazFlight;
 
-  const formatTime = (dateStr: string | null | undefined): string | undefined => {
+  const formatTimeWithTimezone = (dateStr: string | null | undefined): string | undefined => {
     if (!dateStr) return undefined;
     try {
       // The API returns ISO 8601 strings (UTC). Parse it.
       const utcDate = parseISO(dateStr);
       // Subtract 4 hours to adjust from UTC to GMT-4.
       const adjustedDate = subHours(utcDate, 4);
-      // Format the adjusted date.
-      return format(adjustedDate, 'HH:mm');
+      // Format the adjusted date using the centralized formatter
+      return formatTime(adjustedDate);
     } catch (e) {
       console.error(`Error formatting date: ${dateStr}`, e);
       return undefined;
@@ -78,7 +79,7 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
         city: flight.origin?.city,
       },
       time: {
-        scheduled: formatTime(flight.scheduled_out)!,
+        scheduled: formatTimeWithTimezone(flight.scheduled_out)!,
       },
     },
     arrival: {
@@ -88,7 +89,7 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
         city: flight.destination?.city,
       },
       time: {
-        scheduled: formatTime(flight.scheduled_in)!,
+        scheduled: formatTimeWithTimezone(flight.scheduled_in)!,
       },
     },
     flightSegment: `${flight.origin?.code_iata}/${flight.destination?.code_iata}`,
@@ -110,8 +111,8 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
     // The API expects a range. For a single day, we use the day itself as start
     // and the next day as the end (since 'end' is exclusive).
     const targetDate = parseISO(input.date);
-    const startDate = format(targetDate, "yyyy-MM-dd");
-    const endDate = format(addDays(targetDate, 1), "yyyy-MM-dd");
+    const startDate = formatISO(targetDate);
+    const endDate = formatISO(addDays(targetDate, 1));
 
 
     // Step 3: Call the API endpoint with date filters
