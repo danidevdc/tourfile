@@ -23,6 +23,7 @@ import {
   getAllServiceOrders,
   runMigrateRoots,
 } from '@/lib/serviceOrderStorage';
+import { smartSearch } from '@/lib/serviceOrderSearch';
 import { checkDatabaseConnection } from "@/lib/dbConnectionCheck";
 import { getIntermediateUserEmails } from "@/lib/appConfigService";
 import { type QueryDocumentSnapshot } from 'firebase/firestore';
@@ -206,10 +207,17 @@ export default function ServiceOrderListPage() {
     setIsLoading(true);
     try {
       if (activeSearchTerm.trim().length > 0) {
-        // Global Search Mode: Fetch all to filter locally as Firestore doesn't support 'contains'
-        const allOrders = await getAllServiceOrders();
-        setOrders(allOrders);
+        // Smart Search Mode: Use optimized field-specific queries
+        console.log(`🔍 Smart Search: "${activeSearchTerm}"`);
+        const searchResults = await smartSearch(activeSearchTerm);
+        setOrders(searchResults.results);
         setHasMore(false); // Not used in search mode as we have the full list
+        
+        // Show search efficiency in console
+        const estimatedReads = searchResults.results.length;
+        const savedReads = 3000 - estimatedReads; // 3000 is approx total orders
+        console.log(`✅ Smart Search completed: ${estimatedReads} reads (saved ~${savedReads} reads, ${Math.round(savedReads/3000*100)}% reduction)`);
+        console.log(`📊 Search method: ${searchResults.searchType}`);
       } else {
         // Paginated Mode: Fetch only one page
         const cursor = lastDocs[page - 1];

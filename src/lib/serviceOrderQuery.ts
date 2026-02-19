@@ -11,17 +11,23 @@ export interface OrderHeader {
 
 // Fetches ALL order names to parse dates from strings (as requested by user)
 // This is necessary because Firestore can't filter substring "MONTH_YEAR" efficiently
-export async function getAllOrderHeaders(): Promise<OrderHeader[]> {
+// OPTIMIZACIÓN: Solo descarga documentos de los últimos 12 meses para reportes
+export async function getAllOrderHeaders(monthsBack: number = 12): Promise<OrderHeader[]> {
     if (!db) throw new Error("Firestore not initialized.");
     const ordersRef = collection(db, 'serviceOrders');
 
-    // We fetch all. In a massive DB this should be paginated or edge-functioned, 
-    // but for <10k records this is acceptable for an admin report tool.
-    // We assume 'orderName' is small.
-    const q = query(ordersRef, orderBy('createdAt', 'desc'));
+    // Fetch only recent orders (last N months) for reporting
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
+
+    const q = query(
+        ordersRef, 
+        where('createdAt', '>=', startDate),
+        orderBy('createdAt', 'desc')
+    );
     const snapshot = await getDocs(q);
 
-    console.log(`📊 getAllOrderHeaders() - Read ${snapshot.size} documents (${snapshot.size} reads) for report mapping`);
+    console.log(`📊 getAllOrderHeaders() - Read ${snapshot.size} documents (${snapshot.size} reads) for report mapping (últimos ${monthsBack} meses)`);
 
     return snapshot.docs.map(doc => ({
         id: doc.id,

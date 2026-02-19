@@ -78,6 +78,33 @@ function getFirstDateFromServices(services: ServiceOrderData['services']): Date 
     }
 }
 
+/**
+ * OPTIMIZACIÓN: Extrae todos los responsables únicos de una orden (guías y choferes)
+ * Esto permite búsqueda eficiente por responsable con array-contains
+ */
+function extractAllResponsibles(orderData: ServiceOrderData): string[] {
+    const responsibles = new Set<string>();
+    
+    // Agregar guía principal
+    if (orderData.guia && orderData.guia.trim() && orderData.guia.toUpperCase() !== 'NONE') {
+        responsibles.add(orderData.guia.trim().toUpperCase());
+    }
+    
+    // Agregar guías y choferes de servicios
+    if (orderData.services && Array.isArray(orderData.services)) {
+        orderData.services.forEach(service => {
+            if (service.guia && service.guia.trim() && service.guia.toUpperCase() !== 'NONE') {
+                responsibles.add(service.guia.trim().toUpperCase());
+            }
+            if (service.chofer && service.chofer.trim() && service.chofer.toUpperCase() !== 'NONE') {
+                responsibles.add(service.chofer.trim().toUpperCase());
+            }
+        });
+    }
+    
+    return Array.from(responsibles).sort();
+}
+
 export async function saveServiceOrder(orderData: ServiceOrderData, createdByEmail: string, orderName?: string, splitFromId?: string): Promise<string> {
     if (!db) throw new Error("Firestore not initialized.");
 
@@ -90,6 +117,7 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
         status: 'creado',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        allResponsibles: extractAllResponsibles(orderData), // OPTIMIZACIÓN: Para búsqueda rápida
     };
 
     if (splitFromId) {
@@ -123,6 +151,7 @@ export async function saveServiceOrderInSplitMode(orderData: ServiceOrderData, c
         status: 'creado',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        allResponsibles: extractAllResponsibles(orderData),
     });
 
     // Create child order for the guide (with all services)
@@ -135,7 +164,8 @@ export async function saveServiceOrderInSplitMode(orderData: ServiceOrderData, c
         createdBy: createdByEmail,
         createdAt: serverTimestamp(),
         status: 'creado',
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        allResponsibles: extractAllResponsibles(orderData),
     });
 
     // Create child order for the driver (with all services)
@@ -150,7 +180,8 @@ export async function saveServiceOrderInSplitMode(orderData: ServiceOrderData, c
         createdBy: createdByEmail,
         createdAt: serverTimestamp(),
         status: 'creado',
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        allResponsibles: extractAllResponsibles(orderData),
     });
 
     await batch.commit();
@@ -197,6 +228,7 @@ export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, cre
             isRoot: true,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
+            allResponsibles: extractAllResponsibles(orderData),
         };
         const docRef = doc(collection(db, 'serviceOrders'));
         batch.set(docRef, newOrderPayload);
@@ -214,6 +246,7 @@ export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, cre
             isRoot: true,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
+            allResponsibles: extractAllResponsibles(orderData),
         });
 
         // Create child orders for each guide
@@ -224,6 +257,7 @@ export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, cre
             batch.set(childRef, {
                 data: childDataPayload,
                 orderName: childName,
+                allResponsibles: extractAllResponsibles(childDataPayload),
                 splitFrom: parentId,
                 createdBy: createdByEmail,
                 createdAt: serverTimestamp(),
@@ -247,6 +281,7 @@ export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, cre
             batch.set(childRef, {
                 data: childDataPayload,
                 orderName: childName,
+                allResponsibles: extractAllResponsibles(childDataPayload),
                 splitFrom: parentId,
                 createdBy: createdByEmail,
                 createdAt: serverTimestamp(),
@@ -275,6 +310,7 @@ export async function saveEditedServiceOrder(
         const childRef = doc(db, 'serviceOrders', originalOrder.id);
         await updateDoc(childRef, {
             data: updatedData,
+            allResponsibles: extractAllResponsibles(updatedData),
             status: 'editado',
             updatedAt: serverTimestamp()
         });
@@ -319,6 +355,7 @@ export async function saveEditedServiceOrder(
             // If no split is needed, just update the main order and ensure it's not marked as a split parent.
             batch.update(parentRef, {
                 data: { ...updatedData, isSplitParent: false, isSplitSeparated: false }, // Explicitly set flags to false
+                allResponsibles: extractAllResponsibles(updatedData),
                 status: 'editado',
                 updatedAt: serverTimestamp()
             });
@@ -331,9 +368,11 @@ export async function saveEditedServiceOrder(
             // Create child order for the guide (with all services)
             const guideChildName = childNameFrom(parentBaseName, guide, null);
             const guideChildRef = doc(collection(db, 'serviceOrders'));
+            const guideChildData = { ...updatedData, isSplitSeparated: true };
             batch.set(guideChildRef, {
-                data: { ...updatedData, isSplitSeparated: true },
+                data: guideChildData,
                 orderName: guideChildName,
+                allResponsibles: extractAllResponsibles(guideChildData),
                 splitFrom: parentId,
                 createdBy: originalOrder.createdBy,
                 createdAt: Timestamp.fromDate(originalOrder.createdAt),
@@ -344,9 +383,11 @@ export async function saveEditedServiceOrder(
             // Create child order for the driver (with all services)
             const driverChildName = childNameFrom(parentBaseName, null, driver);
             const driverChildRef = doc(collection(db, 'serviceOrders'));
+            const driverChildData = { ...updatedData, isSplitSeparated: true };
             batch.set(driverChildRef, {
-                data: { ...updatedData, isSplitSeparated: true },
+                data: driverChildData,
                 orderName: driverChildName,
+                allResponsibles: extractAllResponsibles(driverChildData),
                 splitFrom: parentId,
                 createdBy: originalOrder.createdBy,
                 createdAt: Timestamp.fromDate(originalOrder.createdAt),
@@ -355,8 +396,10 @@ export async function saveEditedServiceOrder(
             });
 
             // Update the parent order to mark it as split separated
+            const parentData = { ...updatedData, isSplitParent: true, isSplitSeparated: true };
             batch.update(parentRef, {
-                data: { ...updatedData, isSplitParent: true, isSplitSeparated: true },
+                data: parentData,
+                allResponsibles: extractAllResponsibles(parentData),
                 status: 'editado',
                 updatedAt: serverTimestamp()
             });
@@ -370,6 +413,7 @@ export async function saveEditedServiceOrder(
                 batch.set(newDocRef, {
                     data: childDataPayload,
                     orderName: childName,
+                    allResponsibles: extractAllResponsibles(childDataPayload),
                     splitFrom: parentId,
                     createdBy: originalOrder.createdBy,
                     createdAt: Timestamp.fromDate(originalOrder.createdAt), // Carry over original creation data
@@ -392,6 +436,7 @@ export async function saveEditedServiceOrder(
                 batch.set(newDocRef, {
                     data: childDataPayload,
                     orderName: childName,
+                    allResponsibles: extractAllResponsibles(childDataPayload),
                     splitFrom: parentId,
                     createdBy: originalOrder.createdBy,
                     createdAt: Timestamp.fromDate(originalOrder.createdAt), // Carry over original creation data
@@ -401,8 +446,10 @@ export async function saveEditedServiceOrder(
             }
 
             // Update the parent order to mark it as a split parent (but not split separated)
+            const parentData = { ...updatedData, isSplitParent: true, isSplitSeparated: false };
             batch.update(parentRef, {
-                data: { ...updatedData, isSplitParent: true, isSplitSeparated: false }, // Set the flag on the parent's data
+                data: parentData, // Set the flag on the parent's data
+                allResponsibles: extractAllResponsibles(parentData),
                 status: 'editado',
                 updatedAt: serverTimestamp()
             });
@@ -576,54 +623,44 @@ export async function getServiceOrdersPaginated(
 
     const ordersRef = collection(db, 'serviceOrders');
     let parents: StoredServiceOrder[] = [];
-    let currentLastDoc: QueryDocumentSnapshot | null = lastVisible;
-    let iterations = 0;
-    const MAX_ITERATIONS = 3; // Basic safety
 
-    while (parents.length < pageSize && iterations < MAX_ITERATIONS) {
-        iterations++;
+    // OPTIMIZADO: Filtra en servidor usando isRoot (reduce reads a la mitad)
+    // Antes: cargaba pageSize * 2 y filtraba en cliente
+    // Ahora: carga solo pageSize con filtro en servidor
+    let q = query(
+        ordersRef,
+        where('isRoot', '==', true),
+        orderBy('createdAt', 'desc'),
+        limit(pageSize)
+    );
 
-        let q = query(
-            ordersRef,
-            orderBy('createdAt', 'desc'),
-            limit(pageSize * 2)
-        );
-
-        if (currentLastDoc) {
-            q = query(q, startAfter(currentLastDoc));
-        }
-
-        const snapshot = await getDocs(q);
-        console.log(`📊 getServiceOrdersPaginated (Batch ${iterations}) - Read ${snapshot.size} documents`);
-
-        if (snapshot.empty) break;
-
-        for (const docSnap of snapshot.docs) {
-            const data = docSnap.data();
-
-            // It's a root/parent if it has no splitFrom
-            if (!data.splitFrom) {
-                const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
-                const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
-
-                parents.push({
-                    id: docSnap.id,
-                    ...data,
-                    createdAt,
-                    updatedAt,
-                    status: data.status || 'creado'
-                } as StoredServiceOrder);
-
-                if (parents.length === pageSize) {
-                    currentLastDoc = docSnap;
-                    break;
-                }
-            }
-            currentLastDoc = docSnap;
-        }
-
-        if (snapshot.size < pageSize * 2) break; // End of collection
+    if (lastVisible) {
+        q = query(q, startAfter(lastVisible));
     }
+
+    const snapshot = await getDocs(q);
+    console.log(`📊 getServiceOrdersPaginated - Read ${snapshot.size} documents (optimizado con isRoot)`);
+
+    if (snapshot.empty) {
+        return { orders: [], lastDoc: null };
+    }
+
+    // Obtener parents
+    snapshot.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
+        const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
+
+        parents.push({
+            id: docSnap.id,
+            ...data,
+            createdAt,
+            updatedAt,
+            status: data.status || 'creado'
+        } as StoredServiceOrder);
+    });
+
+    const currentLastDoc = snapshot.docs[snapshot.docs.length - 1];
 
     if (parents.length === 0) return { orders: [], lastDoc: null };
 

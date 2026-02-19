@@ -8,14 +8,27 @@ service cloud.firestore {
     function isAuth() {
       return request.auth != null;
     }
+    
+    // OPTIMIZADO: Usa Custom Claims del token JWT (0 lecturas adicionales)
+    // Para migrar a Custom Claims, ejecuta en Cloud Functions:
+    // admin.auth().setCustomUserClaims(uid, { isAdmin: true })
     function isAdmin() {
-      return isAuth() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+      return isAuth() && (
+        request.auth.token.isAdmin == true || 
+        // Fallback temporal: Si no tiene custom claim, verifica el documento (1 lectura)
+        get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true
+      );
     }
+    
     function isOwner(email) {
       return isAuth() && request.auth.token.email == email;
     }
+    
+    // OPTIMIZADO: Usa Custom Claims cuando sea posible
     function isIntermediateUser() {
       return isAuth() && (
+        request.auth.token.isIntermediate == true ||
+        // Fallback: Verifica documento appConfig
         request.auth.token.email == get(/databases/$(database)/documents/appConfig/specialRoles).data.intermediateUserEmail ||
         request.auth.token.email in get(/databases/$(database)/documents/appConfig/specialRoles).data.allowedEditors
       );
