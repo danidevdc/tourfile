@@ -13,76 +13,42 @@ import { collection, query, where, orderBy, limit, getDocs, Timestamp } from 'fi
 import { StoredServiceOrder } from './serviceOrderStorage';
 
 /**
- * Busca órdenes por nombre de orden (prefijo o contiene)
+ * Busca órdenes por nombre de orden (substring matching)
  * Ejemplos que funcionan:
  * - "ODS 23" → encuentra "ODS 23 FEBRERO 2026 CTFI110489"
  * - "CTFI110489" → encuentra órdenes con ese código de file
- * - "23 FEBRERO" → encuentra "ODS 23 FEBRERO 2026"
+ * - "23 FEBRERO" → encuentra "ODS_23_FEBRERO_2026"
+ * - "11 FEBRERO" → encuentra "ODS_11_FEBRERO_2026"
  */
-export async function searchOrdersByName(searchTerm: string, maxResults: number = 100): Promise<StoredServiceOrder[]> {
+export async function searchOrdersByName(searchTerm: string): Promise<StoredServiceOrder[]> {
   if (!db) throw new Error("Firestore not initialized.");
   if (searchTerm.length < 3) return [];
 
   const ordersRef = collection(db, 'serviceOrders');
   const termUpper = searchTerm.toUpperCase().trim();
   
-  // Estrategia 1: Búsqueda por prefijo en orderName (más precisa)
-  const prefixEnd = termUpper.slice(0, -1) + String.fromCharCode(termUpper.charCodeAt(termUpper.length - 1) + 1);
+  // Descargar todas las órdenes del último año (cubre todo el historial del sistema)
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
   
   const q = query(
     ordersRef,
-    where('orderName', '>=', termUpper),
-    where('orderName', '<', prefixEnd),
-    orderBy('orderName'),
-    limit(maxResults)
+    where('isRoot', '==', true),
+    where('createdAt', '>=', twelveMonthsAgo),
+    orderBy('createdAt', 'desc')
+    // Sin límite: la ventana temporal hace el trabajo
   );
 
   const snapshot = await getDocs(q);
   console.log(`🔍 Búsqueda por nombre "${searchTerm}" - ${snapshot.size} reads`);
 
-  return snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined,
-    } as StoredServiceOrder;
-  });
-}
-
-/**
- * Busca órdenes por nombre de guía o chofer (responsables)
- * Usa el campo allResponsibles para búsqueda eficiente en:
- * - Guía principal
- * - Guías en servicios individuales
- * - Choferes en servicios
- * - Órdenes hijas (splits)
- * 
- * Con allResponsibles, encuentra TODAS las órdenes donde aparece el responsable,
- * incluyendo órdenes divididas y órdenes hijas.
- */
-export async function searchOrdersByResponsible(responsibleName: string, maxResults: number = 100): Promise<StoredServiceOrder[]> {
-  if (!db) throw new Error("Firestore not initialized.");
-  if (responsibleName.length < 2) return [];
-
-  const ordersRef = collection(db, 'serviceOrders');
-  const nameUpper = responsibleName.toUpperCase().trim();
-
-  try {
-    // Buscar usando array-contains en el campo allResponsibles
-    // Esto encuentra TODAS las órdenes (padres e hijas) donde aparece el responsable
-    const q = query(
-      ordersRef,
-      where('allResponsibles', 'array-contains', nameUpper),
-      limit(maxResults)
-    );
-    
-    const snapshot = await getDocs(q);
-    console.log(`🔍 Búsqueda por responsable "${responsibleName}" - ${snapshot.size} reads`);
-    console.log(`   ✅ Incluye órdenes principales, divididas y órdenes hijas`);
-    
-    return snapshot.docs.map(doc => {
+  // Filtrar client-side con substring match
+  const filtered = snapshot.docs
+    .filter(doc => {
+      const data = doc.data();
+      return data.orderName?.toUpperCase().includes(termUpper);
+    })
+    .map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -91,6 +57,89 @@ export async function searchOrdersByResponsible(responsibleName: string, maxResu
         updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined,
       } as StoredServiceOrder;
     });
+
+  console.log(`✅ ${filtered.length} órdenes encontradas con "${searchTerm}"`);
+  
+  return filtered;
+}
+
+/**
+ * Busca órdenes por nombre de guía o chofer (responsables)
+ * Usa el campo allResponsibles con filtrado client-side para búsqueda de substring
+ * - Guía principal
+ * - Guías en servicios individuales
+ * - Choferes en servicios
+ * - Órdenes hijas (splits)
+ * 
+ * NOTA: array-contains solo funciona con coincidencias exactas, por lo que
+ * descargamos órdenes recientes (últimos 6 meses) y filtramos por substring.
+ * Esto permite buscar "IVAR" y encontrar "IVAR LOPEZ".
+ */
+export async function searchOrdersByResponsible(responsibleName: string): Promise<StoredServiceOrder[]> {
+  if (!db) throw new Error("Firestore not initialized.");
+  if (responsibleName.length < 2) return [];
+
+  const ordersRef = collection(db, 'serviceOrders');
+  const nameUpper = responsibleName.toUpperCase().trim();
+
+  try {
+    // Descargar todas las órdenes de los últimos 12 meses (cubre todo el historial)
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    
+    const q = query(
+      ordersRef,
+      where('createdAt', '>=', twelveMonthsAgo),
+      orderBy('createdAt', 'desc')
+      // Sin límite: obtiene todas las órdenes del periodo
+    );
+    
+    const snapshot = await getDocs(q);
+    console.log(`🔍 Búsqueda por responsable "${responsibleName}" - ${snapshot.size} reads (últimos 12 meses)`);
+    
+    // Filtrar client-side: buscar substring en responsables
+    const filtered = snapshot.docs
+      .filter(doc => {
+        const data = doc.data();
+        let responsibles = data.allResponsibles || [];
+        
+        // FALLBACK: Si allResponsibles no existe, extraerlos on-the-fly
+        if (!responsibles || responsibles.length === 0) {
+          const names = new Set<string>();
+          const orderData = data.data;
+          
+          if (orderData?.guia) names.add(orderData.guia.toUpperCase());
+          if (orderData?.services && Array.isArray(orderData.services)) {
+            orderData.services.forEach((service: any) => {
+              if (service.guia) names.add(service.guia.toUpperCase());
+              if (service.chofer) names.add(service.chofer.toUpperCase());
+            });
+          }
+          
+          responsibles = Array.from(names).sort();
+        }
+        
+        // Buscar si algún responsable contiene el substring
+        return responsibles.some((resp: string) => resp.includes(nameUpper));
+      })
+      .map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
+          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined,
+        } as StoredServiceOrder;
+      });
+    
+    console.log(`   ✅ ${filtered.length} órdenes encontradas con "${responsibleName}"`);
+    
+    // Advertencia si no existe el campo en producción
+    if (filtered.length > 0 && !snapshot.docs[0].data().allResponsibles) {
+      console.warn(`   ⚠️ IMPORTANTE: Campo allResponsibles no existe. Ejecuta la migración: npm run migrate:responsibles`);
+    }
+    
+    return filtered;
   } catch (error) {
     console.error('❌ Error en búsqueda por responsable:', error);
     console.warn('   Asegúrate de haber ejecutado el script de migración: npm run migrate:responsibles');
@@ -128,8 +177,8 @@ export async function searchOrdersByDateRange(monthYear: string): Promise<Stored
     ordersRef,
     where('createdAt', '>=', startDate),
     where('createdAt', '<=', endDate),
-    orderBy('createdAt', 'desc'),
-    limit(500) // Límite razonable para un mes
+    orderBy('createdAt', 'desc')
+    // Sin límite: devuelve todas las órdenes del mes
   );
 
   const snapshot = await getDocs(q);
@@ -160,8 +209,8 @@ export async function searchRecentOrdersByFileCode(fileCode: string, daysBack: n
   const q = query(
     ordersRef,
     where('createdAt', '>=', startDate),
-    orderBy('createdAt', 'desc'),
-    limit(500)
+    orderBy('createdAt', 'desc')
+    // Sin límite: obtiene todas las órdenes del periodo
   );
 
   const snapshot = await getDocs(q);
@@ -228,10 +277,11 @@ export async function searchRecentOrders(searchTerm: string, daysBack: number = 
  * BÚSQUEDA PRINCIPAL - Optimizada para tu caso de uso real
  * 
  * Detecta automáticamente si buscas por:
- * 1. Código de archivo (CTFI110489, CTFI, etc.)
- * 2. Nombre de orden (ODS 23 FEBRERO, etc.)
- * 3. Nombre de responsable (JUAN PEREZ, PEDRO, etc.)
- * 4. Mes/año (FEBRERO 2026)
+ * 1. Día + mes (23 FEBRERO, 12 de enero)
+ * 2. Mes/año (FEBRERO 2026, ENERO)
+ * 3. Nombre de orden (ODS 23 FEBRERO, ODS 23)
+ * 4. Código de archivo (CTFI110489, CTFI)
+ * 5. Nombre de responsable (JUAN PEREZ, PEDRO, MARIA)
  */
 export async function smartSearch(searchTerm: string): Promise<{ 
   results: StoredServiceOrder[]; 
@@ -247,7 +297,34 @@ export async function smartSearch(searchTerm: string): Promise<{
 
   const termUpper = trimmed.toUpperCase();
 
-  // CASO 1: Búsqueda por mes/año (ej: "FEBRERO 2026", "ENERO")
+  // CASO 1: Búsqueda por día + mes (ej: "23 FEBRERO", "12 DE ENERO", "23 febrero 2026")
+  // Busca en el orderName que tiene formato: "ODS_23_FEBRERO_2026_CTFI110489"
+  const dayMonthPattern = /(\d{1,2})\s+(?:DE\s+)?(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)(?:\s+(\d{4}))?/i;
+  const dayMonthMatch = termUpper.match(dayMonthPattern);
+  
+  if (dayMonthMatch) {
+    const day = dayMonthMatch[1];
+    const month = dayMonthMatch[2];
+    const year = dayMonthMatch[3];
+    
+    // Construir el término de búsqueda que coincida con el formato del orderName
+    // "23 FEBRERO" → buscar "23_FEBRERO"
+    // "23 FEBRERO 2026" → buscar "23_FEBRERO_2026"
+    let searchPattern = `${day}_${month}`;
+    if (year) {
+      searchPattern += `_${year}`;
+    }
+    
+    const results = await searchOrdersByName(searchPattern);
+    return {
+      results,
+      method: 'day-month',
+      reads: results.length,
+      tip: `Búsqueda por día/mes: ${results.length} órdenes encontradas con "${day} ${month}${year ? ' ' + year : ''}"`
+    };
+  }
+
+  // CASO 2: Búsqueda por mes/año (ej: "FEBRERO 2026", "ENERO")
   const monthPattern = /(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)(\s+\d{4})?/i;
   const monthMatch = termUpper.match(monthPattern);
   
@@ -261,11 +338,24 @@ export async function smartSearch(searchTerm: string): Promise<{
     };
   }
 
-  // CASO 2: Código de archivo (ej: "CTFI110489", "CTFI")
-  // Los códigos suelen ser alfanuméricos sin espacios
-  const isFileCode = /^[A-Z0-9]+$/i.test(trimmed) && trimmed.length >= 4;
+  // CASO 3: Nombre de orden (ej: "ODS 23", "ODS 23 FEBRERO")
+  // Órdenes siempre empiezan con "ODS" o contienen estructura similar
+  if (termUpper.startsWith('ODS') || termUpper.includes('ODS')) {
+    const results = await searchOrdersByName(termUpper);
+    return {
+      results,
+      method: 'order-name',
+      reads: results.length,
+      tip: `Búsqueda por nombre: ${results.length} órdenes encontradas`
+    };
+  }
+
+  // CASO 4: Código de archivo con números (ej: "CTFI110489")
+  // Solo si tiene números (para no confundir con nombres)
+  const hasNumbers = /\d/.test(trimmed);
+  const isLikelyFileCode = /^[A-Z0-9]+$/i.test(trimmed) && trimmed.length >= 4 && hasNumbers;
   
-  if (isFileCode) {
+  if (isLikelyFileCode) {
     // Buscar órdenes recientes que contengan este código en orderName o data.file
     const results = await searchRecentOrdersByFileCode(trimmed, 60);
     
@@ -279,42 +369,43 @@ export async function smartSearch(searchTerm: string): Promise<{
     }
   }
 
-  // CASO 3: Nombre de orden (ej: "ODS 23", "ODS 23 FEBRERO")
-  // Órdenes siempre empiezan con "ODS" o contienen estructura similar
-  if (termUpper.startsWith('ODS') || termUpper.includes('ODS')) {
-    const results = await searchOrdersByName(termUpper, 100);
+  // CASO 5: Nombre de responsable (guía o chofer) - PRIORIDAD
+  // Cualquier búsqueda que no sea fecha, ODS o código numérico
+  const results = await searchOrdersByResponsible(trimmed);
+  
+  if (results.length > 0) {
     return {
       results,
-      method: 'order-name',
+      method: 'responsible',
       reads: results.length,
-      tip: `Búsqueda por nombre: ${results.length} órdenes encontradas`
+      tip: `Responsable: ${results.length} órdenes encontradas`
     };
   }
 
-  // CASO 4: Nombre de responsable (guía o chofer)
-  // Si tiene espacios o es un nombre común
-  if (trimmed.includes(' ') || trimmed.length <= 15) {
-    const results = await searchOrdersByResponsible(trimmed, 100);
+  // CASO 6: Código de archivo SIN números como último recurso (ej: "CTFI")
+  const isFileCode = /^[A-Z]+$/i.test(trimmed) && trimmed.length >= 4;
+  if (isFileCode) {
+    const codeResults = await searchRecentOrdersByFileCode(trimmed, 60);
     
-    if (results.length > 0) {
+    if (codeResults.length > 0) {
       return {
-        results,
-        method: 'responsible',
-        reads: results.length,
-        tip: `Responsable: ${results.length} órdenes encontradas`
+        results: codeResults,
+        method: 'file-code',
+        reads: codeResults.length,
+        tip: `Código de archivo: ${codeResults.length} órdenes encontradas`
       };
     }
   }
 
-  // CASO 5: Búsqueda general en órdenes recientes (fallback)
-  const results = await searchRecentOrders(trimmed, 30);
+  // CASO 7: Búsqueda general en órdenes recientes (fallback)
+  const fallbackResults = await searchRecentOrders(trimmed, 30);
   return {
-    results,
+    results: fallbackResults,
     method: 'recent-general',
-    reads: Math.max(results.length, 500),
-    tip: results.length === 0 
+    reads: Math.max(fallbackResults.length, 500),
+    tip: fallbackResults.length === 0 
       ? 'No se encontraron resultados en los últimos 30 días'
-      : `Búsqueda general: ${results.length} órdenes encontradas`
+      : `Búsqueda general: ${fallbackResults.length} órdenes encontradas`
   };
 }
 

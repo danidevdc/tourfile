@@ -98,6 +98,8 @@ export default function ServiceOrderListPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [totalRootOrders, setTotalRootOrders] = useState<number | null>(null);
   const [expandedFamilies, setExpandedFamilies] = useState<Set<string>>(new Set());
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -197,6 +199,7 @@ export default function ServiceOrderListPage() {
 
   const displayedFamilies = useMemo(() => {
     if (activeSearchTerm.trim().length > 0) {
+      // Paginate search results (10 per page) for consistent UI
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
       return families.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     }
@@ -213,11 +216,21 @@ export default function ServiceOrderListPage() {
         setOrders(searchResults.results);
         setHasMore(false); // Not used in search mode as we have the full list
         
-        // Show search efficiency in console
-        const estimatedReads = searchResults.results.length;
-        const savedReads = 3000 - estimatedReads; // 3000 is approx total orders
-        console.log(`✅ Smart Search completed: ${estimatedReads} reads (saved ~${savedReads} reads, ${Math.round(savedReads/3000*100)}% reduction)`);
-        console.log(`📊 Search method: ${searchResults.searchType}`);
+        // Show REAL search efficiency based on actual system data
+        const actualReads = searchResults.results.length;
+        
+        if (totalRootOrders !== null) {
+          // Calcular ahorro real comparado con descargar todo
+          const savedReads = totalRootOrders - actualReads;
+          const reductionPercent = totalRootOrders > 0 ? Math.round((savedReads / totalRootOrders) * 100) : 0;
+          
+          console.log(`✅ Smart Search completed: ${actualReads} reads`);
+          console.log(`   💰 Ahorro real: ${savedReads} lecturas (${reductionPercent}% vs descargar todas las ${totalRootOrders} órdenes)`);
+          console.log(`   📊 Método: ${searchResults.searchType}`);
+        } else {
+          console.log(`✅ Smart Search completed: ${actualReads} reads`);
+          console.log(`   📊 Método: ${searchResults.searchType}`);
+        }
       } else {
         // Paginated Mode: Fetch only one page
         const cursor = lastDocs[page - 1];
@@ -250,6 +263,14 @@ export default function ServiceOrderListPage() {
         setCurrentPage(1);
         setLastDocs([null]);
         fetchOrders(1);
+        
+        // Recargar total de páginas y total de órdenes root
+        getTotalServiceOrdersCount().then(count => {
+          setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
+          setTotalRootOrders(count); // Actualizar con el valor real
+        }).catch(err => {
+          console.error('Error obteniendo total de páginas:', err);
+        });
       } else {
         // Fetch all for global search
         setCurrentPage(1);
@@ -317,6 +338,17 @@ export default function ServiceOrderListPage() {
     if (!authLoading) {
       fetchInitialData(); // Cargar guías, hoteles, etc.
       fetchOrders(1); // Cargar primera página de órdenes
+      
+      // Cargar total de páginas Y total de órdenes root (para métricas de ahorro)
+      if (activeSearchTerm.trim().length === 0) {
+        getTotalServiceOrdersCount().then(count => {
+          setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
+          setTotalRootOrders(count); // Almacenar el total real de órdenes root
+          console.log(`📊 Sistema tiene ${count} órdenes root actualmente`);
+        }).catch(err => {
+          console.error('Error obteniendo total de páginas:', err);
+        });
+      }
     }
   }, [isCurrentUserAdmin, authLoading]);
 
@@ -419,6 +451,69 @@ export default function ServiceOrderListPage() {
     if (activeSearchTerm.trim().length === 0) {
       fetchOrders(newPage);
     }
+  };
+
+  // Genera los números de página a mostrar con puntos suspensivos
+  const getPageNumbers = (): (number | 'ellipsis')[] => {
+    // En modo búsqueda: mostrar todas las páginas (datos completos en cliente)
+    if (activeSearchTerm.trim().length > 0) {
+      const maxPages = searchTotalPages;
+      if (maxPages === 0) return [];
+      
+      const pages: (number | 'ellipsis')[] = [];
+      const showEllipsis = maxPages > 7;
+      
+      if (!showEllipsis) {
+        for (let i = 1; i <= maxPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        
+        if (currentPage <= 3) {
+          pages.push(2, 3, 4);
+          pages.push('ellipsis');
+        } else if (currentPage >= maxPages - 2) {
+          pages.push('ellipsis');
+          pages.push(maxPages - 3, maxPages - 2, maxPages - 1);
+        } else {
+          pages.push('ellipsis');
+          pages.push(currentPage - 1, currentPage, currentPage + 1);
+          pages.push('ellipsis');
+        }
+        
+        pages.push(maxPages);
+      }
+      
+      return pages;
+    }
+    
+    // En modo paginación server-side: solo mostrar páginas accesibles
+    // Con cursor pagination, solo puedes ir a la siguiente página consecutiva
+    const pages: (number | 'ellipsis')[] = [];
+    
+    // Mostrar solo hasta la página siguiente a la última visitada
+    const maxAccessiblePage = lastDocs.length; // lastDocs tiene cursores hasta esta página
+    
+    if (maxAccessiblePage <= 1) {
+      // Primera carga, solo mostrar página 1
+      pages.push(1);
+    } else {
+      // Mostrar páginas 1 hasta la máxima accesible
+      for (let i = 1; i <= Math.min(maxAccessiblePage, currentPage + 1); i++) {
+        pages.push(i);
+      }
+      
+      // Mostrar indicador de más páginas si hay
+      if (hasMore && maxAccessiblePage < totalPages) {
+        pages.push('ellipsis');
+        if (totalPages > 0) {
+          pages.push(totalPages);
+        }
+      }
+    }
+    
+    return pages;
   };
 
 
@@ -922,46 +1017,89 @@ export default function ServiceOrderListPage() {
 
             {/* Pagination */}
             {showPagination && (
-              <div className="flex items-center justify-between sm:justify-end gap-3 py-4 border-t border-border/40 mt-4">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1 || isLoading}
-                    className="h-9 px-3 gap-1 hover:bg-primary/5 transition-colors"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    <span className="hidden sm:inline">Anterior</span>
-                  </Button>
+              <div className="flex items-center justify-center gap-2 py-4 border-t border-border/40 mt-4">
+                {/* Botón Anterior */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1 || isLoading}
+                  className="h-9 w-9 p-0 hover:bg-primary/5 transition-colors"
+                  title="Página anterior"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
 
-                  <div className="flex items-center px-3 h-9 rounded-md border border-border/40 bg-muted/30">
-                    <span className="text-sm font-medium">
-                      {activeSearchTerm.trim().length > 0 ? (
-                        <>Resultados: {currentPage} <span className="text-muted-foreground mx-1">/</span> {searchTotalPages}</>
-                      ) : (
-                        <>Página {currentPage}</>
-                      )}
-                    </span>
-                  </div>
+                {/* Números de página */}
+                <div className="flex items-center gap-1">
+                  {getPageNumbers().map((pageNum, idx) => {
+                    if (pageNum === 'ellipsis') {
+                      return (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">
+                          ...
+                        </span>
+                      );
+                    }
+                    
+                    const isActive = pageNum === currentPage;
+                    
+                    // En modo sin búsqueda (cursor pagination): solo permitir páginas secuenciales
+                    // Solo se puede ir a páginas ya visitadas (con cursor) o la siguiente
+                    const isAccessible = activeSearchTerm.trim().length > 0 
+                      ? true  // En búsqueda, todas las páginas son accesibles
+                      : pageNum <= lastDocs.length; // Sin búsqueda, solo páginas con cursor
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={isActive ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => isAccessible && handlePageChange(pageNum)}
+                        disabled={isLoading || !isAccessible}
+                        className={cn(
+                          "h-9 w-9 p-0 transition-colors",
+                          isActive 
+                            ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                            : isAccessible 
+                              ? "hover:bg-primary/5" 
+                              : "opacity-40 cursor-not-allowed"
+                        )}
+                        title={
+                          !isAccessible 
+                            ? "Usa las flechas para navegar secuencialmente" 
+                            : `Ir a página ${pageNum}`
+                        }
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (activeSearchTerm.trim().length > 0) {
-                        if (currentPage < searchTotalPages) handlePageChange(currentPage + 1);
-                      } else {
+                {/* Botón Siguiente */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (activeSearchTerm.trim().length > 0) {
+                      if (currentPage < searchTotalPages) {
                         handlePageChange(currentPage + 1);
                       }
-                    }}
-                    disabled={isLoading || (activeSearchTerm.trim().length > 0 ? currentPage >= searchTotalPages : !hasMore)}
-                    className="h-9 px-3 gap-1 hover:bg-primary/5 transition-colors"
-                  >
-                    <span className="hidden sm:inline">Siguiente</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
+                    } else {
+                      handlePageChange(currentPage + 1);
+                    }
+                  }}
+                  disabled={
+                    isLoading || 
+                    (activeSearchTerm.trim().length > 0 
+                      ? currentPage >= searchTotalPages 
+                      : (totalPages > 0 ? currentPage >= totalPages : !hasMore))
+                  }
+                  className="h-9 w-9 p-0 hover:bg-primary/5 transition-colors"
+                  title="Página siguiente"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
             )}
           </CardContent>

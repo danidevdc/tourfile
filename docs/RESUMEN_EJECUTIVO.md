@@ -163,11 +163,16 @@ firebase deploy --only hosting
 ## 🎯 Tipos de Búsqueda Soportados
 
 ```
-CTFI110489              → Búsqueda por nombre de orden
-ODS 23 FEBRERO 2026     → Búsqueda por nombre de orden
+CTFI110489              → Búsqueda por código de archivo
+ODS 23 FEBRERO 2026     → Búsqueda por nombre de orden completo
+ODS 23 FEBRERO          → Búsqueda por nombre de orden parcial
+23 FEBRERO              → Búsqueda por día + mes (todas las órdenes del 23 de febrero)
+23 de febrero           → Búsqueda por día + mes (con "de")
+23 febrero 2026         → Búsqueda por día + mes + año específico
 Juan Pérez              → Búsqueda por responsable (guía/chofer)
-2024-02                 → Búsqueda por fecha (año-mes)
-febrero 2024            → Búsqueda por fecha (mes año)
+MARIA                   → Búsqueda por nombre de responsable
+FEBRERO 2026            → Búsqueda por mes completo (órdenes creadas ese mes)
+febrero                 → Búsqueda por mes del año actual
 ```
 
 ---
