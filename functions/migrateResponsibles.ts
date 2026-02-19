@@ -83,17 +83,24 @@ async function migrateAllResponsibles() {
   const ordersRef = db.collection('serviceOrders');
   
   try {
-    // Query all orders that don't have the allResponsibles field yet
-    const snapshot = await ordersRef
-      .where('allResponsibles', '==', null)
-      .get();
+    // Get ALL orders (can't query for non-existent fields in Firestore)
+    console.log('📥 Fetching all service orders...');
+    const snapshot = await ordersRef.get();
 
-    if (snapshot.empty) {
+    console.log(`📊 Found ${snapshot.size} total orders.\n`);
+
+    // Filter documents that are missing the allResponsibles field
+    const docsToMigrate = snapshot.docs.filter(doc => {
+      const data = doc.data();
+      return !data.allResponsibles || !Array.isArray(data.allResponsibles);
+    });
+
+    if (docsToMigrate.length === 0) {
       console.log('✅ All orders already have the allResponsibles field. Nothing to migrate.');
       return;
     }
 
-    console.log(`📊 Found ${snapshot.size} orders to migrate.\n`);
+    console.log(`📊 Found ${docsToMigrate.length} orders to migrate (${snapshot.size - docsToMigrate.length} already have the field).\n`);
 
     let processedCount = 0;
     let errorCount = 0;
@@ -101,7 +108,7 @@ async function migrateAllResponsibles() {
     let batch = db.batch();
     let batchCount = 0;
 
-    for (const docSnap of snapshot.docs) {
+    for (const docSnap of docsToMigrate) {
       try {
         const data = docSnap.data();
         const orderData = data.data;
@@ -143,7 +150,7 @@ async function migrateAllResponsibles() {
     if (errorCount > 0) {
       console.log(`   ❌ Errors: ${errorCount} orders`);
     }
-    console.log(`   💰 Cost: ~${processedCount} reads + ${processedCount} writes = ~$${((processedCount * 2) / 1000000 * 0.18).toFixed(4)}`);
+    console.log(`   💰 Cost: ~${docsToMigrate.length} reads + ${processedCount} writes = ~$${((docsToMigrate.length + processedCount) / 1000000 * 0.18).toFixed(4)}`);
     console.log('\n✅ Migration completed!');
 
   } catch (error) {
@@ -161,19 +168,19 @@ async function verifyMigration() {
   const ordersRef = db.collection('serviceOrders');
   
   try {
-    // Count all orders
-    const allOrdersSnapshot = await ordersRef.count().get();
-    const totalOrders = allOrdersSnapshot.data().count;
-
-    // Count orders without allResponsibles
-    const missingSnapshot = await ordersRef
-      .where('allResponsibles', '==', null)
-      .count()
-      .get();
-    const missingCount = missingSnapshot.data().count;
+    // Get all orders and check for allResponsibles field
+    const snapshot = await ordersRef.get();
+    const totalOrders = snapshot.size;
+    
+    const ordersWithField = snapshot.docs.filter(doc => {
+      const data = doc.data();
+      return data.allResponsibles && Array.isArray(data.allResponsibles);
+    }).length;
+    
+    const missingCount = totalOrders - ordersWithField;
 
     console.log(`📊 Total orders: ${totalOrders}`);
-    console.log(`📊 Orders with allResponsibles: ${totalOrders - missingCount}`);
+    console.log(`📊 Orders with allResponsibles: ${ordersWithField}`);
     console.log(`📊 Orders missing allResponsibles: ${missingCount}`);
 
     if (missingCount === 0) {
