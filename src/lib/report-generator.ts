@@ -95,34 +95,6 @@ export async function generateExpenseDetails(
   const columnIndex = fileData.columnIndex;
   const fileIdRowIndex = fileData.fileIdRowIndex;
 
-  let tourStartDateRaw: Date | null = null;
-  let tourStartDate = "N/A";
-
-  for (let i = fileIdRowIndex; i < excelData.length; i++) {
-    const cellValue = excelData[i]?.[columnIndex];
-    if (!cellValue) continue;
-
-    let parsedDateObj: Date | null = null;
-    if (cellValue instanceof Date) {
-      parsedDateObj = cellValue;
-    } else if (typeof cellValue === 'number' && cellValue > 25569) {
-      const parsed = XLSX.SSF.parse_date_code(cellValue);
-      if (parsed) {
-        parsedDateObj = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0));
-      }
-    }
-
-    if (parsedDateObj && !isNaN(parsedDateObj.valueOf())) {
-      tourStartDateRaw = parsedDateObj;
-      // Format as dd/MM/yy
-      const day = String(parsedDateObj.getUTCDate()).padStart(2, '0');
-      const month = String(parsedDateObj.getUTCMonth() + 1).padStart(2, '0');
-      const year = String(parsedDateObj.getUTCFullYear()).slice(-2);
-      tourStartDate = `${day}/${month}/${year}`;
-      break;
-    }
-  }
-
   const paxNum = parsePaxCount(paxCountString);
   if (paxNum === 0) {
     console.error("Número de PAX no válido o no encontrado:", paxCountString);
@@ -145,20 +117,83 @@ export async function generateExpenseDetails(
   // CRITICAL FIX: Ensure only active rules are used for generation.
   const activeRules = rules.filter(r => r.isActive).sort((a, b) => a.order - b.order);
 
-  // Prepare column data for searching. Convert to lower case once for efficiency.
-  const columnData = excelData.map(row => String(row[columnIndex] || '').toLowerCase());
-  const contiene = (keyword: string) => columnData.some(cell => cell.includes(keyword.toLowerCase()));
-
-  // --- Apply Rules to Generate Expenses ---
-  for (const rule of activeRules) { // Iterate over ACTIVE rules only
-    if (contiene(rule.keyword)) {
-      // Handle special case for 'AM' which also requires 'City Tour'
-      if (rule.keyword.toLowerCase() === 'am' && !contiene('city tour')) {
-        continue;
+  // Helper function to parse date from cell
+  const parseDateFromCell = (cellValue: any): string | null => {
+    if (!cellValue) return null;
+    
+    let parsedDateObj: Date | null = null;
+    if (cellValue instanceof Date) {
+      parsedDateObj = cellValue;
+    } else if (typeof cellValue === 'number' && cellValue > 25569) {
+      const parsed = XLSX.SSF.parse_date_code(cellValue);
+      if (parsed) {
+        parsedDateObj = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0));
       }
+    }
+
+    if (parsedDateObj && !isNaN(parsedDateObj.valueOf())) {
+      const day = String(parsedDateObj.getUTCDate()).padStart(2, '0');
+      const month = String(parsedDateObj.getUTCMonth() + 1).padStart(2, '0');
+      const year = String(parsedDateObj.getUTCFullYear()).slice(-2);
+      return `${day}/${month}/${year}`;
+    }
+    
+    return null;
+  };
+
+  // Track current date and matched rules as we iterate (similar to service generator)
+  let currentDate = "N/A";
+  let firstDateFound = "N/A"; // For tourStartDate return value
+  const matchedRules = new Map<string, string>(); // keyword (lowercase) -> date when first found
+
+  // Iterate row by row to detect dates and keywords together
+  for (let i = fileIdRowIndex; i < excelData.length; i++) {
+    const row = excelData[i];
+    if (!row) continue;
+
+    // Check Column A (index 0) for date updates (like service generator)
+    const dateCell = row[0];
+    const parsedDate = parseDateFromCell(dateCell);
+    if (parsedDate) {
+      currentDate = parsedDate;
+      if (firstDateFound === "N/A") {
+        firstDateFound = parsedDate;
+      }
+    }
+
+    // Check program column for keywords
+    const cellValue = row[columnIndex];
+    if (!cellValue) continue;
+
+    const cellText = String(cellValue).toLowerCase();
+
+    // Check each active rule - mark first occurrence with current date
+    for (const rule of activeRules) {
+      const keywordLower = rule.keyword.toLowerCase();
+      // Skip if already matched (only want first occurrence)
+      if (matchedRules.has(keywordLower)) continue;
+
+      // Use word boundary regex to match keyword as complete word (not as part of another word)
+      // e.g., "am" matches "AM" but not "FAMILY" or "PROGRAM"
+      const regex = new RegExp(`\\b${keywordLower}\\b`, 'i');
+      if (regex.test(cellText)) {
+        // Record this keyword was found at current date (store in lowercase for consistency)
+        matchedRules.set(keywordLower, currentDate);
+      }
+    }
+  }
+
+  // --- Generate Expense Items for Matched Rules ---
+  for (const rule of activeRules) {
+    const keywordLower = rule.keyword.toLowerCase();
+    const matchedDate = matchedRules.get(keywordLower);
+    
+    if (matchedDate) {
+      // AGUAS items should not have a date
+      const itemDate = rule.detail === 'AGUAS' ? '' : matchedDate;
 
       const newItem: ExpenseItem = {
-        date: tourStartDate,
+        date: itemDate,
         quantity: rule.quantityFormula,
         detail: rule.detail,
         unitPrice: rule.unitPrice,
@@ -169,5 +204,30 @@ export async function generateExpenseDetails(
     }
   }
 
-  return { expenses: expenseItems, tourStartDate };
+  // Helper to convert dd/MM/yy to comparable Date object
+  const parseDisplayDate = (dateStr: string): Date | null => {
+    if (!dateStr || dateStr === 'N/A') return null;
+    const [day, month, year] = dateStr.split('/').map(Number);
+    if (!day || !month || !year) return null;
+    // Assume 20xx for 2-digit year
+    const fullYear = year < 100 ? 2000 + year : year;
+    return new Date(fullYear, month - 1, day);
+  };
+
+  // Sort expense items by date (ascending - oldest first)
+  // Items without dates (like AGUAS) go to the end
+  expenseItems.sort((a, b) => {
+    const dateA = parseDisplayDate(a.date);
+    const dateB = parseDisplayDate(b.date);
+    
+    // Items without dates go to the end
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    
+    // Sort ascending (oldest first)
+    return dateA.getTime() - dateB.getTime();
+  });
+
+  return { expenses: expenseItems, tourStartDate: firstDateFound };
 }
