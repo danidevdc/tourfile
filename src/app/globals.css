@@ -3,6 +3,39 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   VIEW TRANSITIONS - Smooth Theme Switching
+   ============================================ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.5s;
+}
+
+::view-transition-old(root) {
+  animation-name: fade-out;
+}
+
+::view-transition-new(root) {
+  animation-name: fade-in;
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Fallback for browsers without View Transitions */
+@supports not (view-transition-name: root) {
+  :root {
+    transition: background-color 0.5s ease-in-out, color 0.5s ease-in-out;
+  }
+}
+
 body {
   font-family: 'Roboto', Arial, Helvetica, sans-serif;
 }
@@ -108,6 +141,16 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+  }
+  
+  /* Smooth transitions for theme-aware elements */
+  body,
+  [class*="bg-"],
+  [class*="text-"],
+  [class*="border-"] {
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 400ms;
   }
 }
 
