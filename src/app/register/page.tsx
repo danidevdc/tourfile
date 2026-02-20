@@ -4,7 +4,7 @@ import { UserRoundPlus } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Registrar Usuario - TourFile Generator',
+  title: 'TourFile',
   description: 'Crea una nueva cuenta para usar el generador de reportes.',
 };
 

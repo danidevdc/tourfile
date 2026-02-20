@@ -2,7 +2,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Imprimir Orden de Servicio',
+  title: 'TourFile',
   description: 'Vista de impresión para la Orden de Servicio.',
 };
 

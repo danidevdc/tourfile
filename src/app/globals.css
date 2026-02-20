@@ -206,3 +206,25 @@ body {
       display: none !important;
   }
 }
+
+/* ============================================
+   BOAT SPINNER - Lake Animation
+   ============================================ */
+@keyframes boatBob {
+  0%, 100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(4deg);
+  }
+}
+
+@keyframes waterFlow1 {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes waterFlow2 {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(200%); }
+}

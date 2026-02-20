@@ -4,7 +4,7 @@
 import Header from '@/components/layout/header';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2 } from 'lucide-react';
+import { PlaneSpinner } from '@/components/ui/plane-spinner';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
@@ -37,7 +37,7 @@ export default function MainAppLayout({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <PlaneSpinner className="h-12 w-12" />
       </div>
     );
   }
@@ -47,7 +47,7 @@ export default function MainAppLayout({
   if (!isAuthenticated && !PUBLIC_PATHS.includes(pathname)) {
       return (
         <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <PlaneSpinner className="h-12 w-12" />
         </div>
       );
   }

@@ -2,8 +2,9 @@
 "use client";
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Home, LogOut, FileSpreadsheet, UserCircle2, Menu } from 'lucide-react';
+import { Home, LogOut, UserCircle2, Menu } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -43,9 +44,16 @@ export default function Header() {
       {/* Logo - Always visible */}
       <div className="flex items-center gap-2">
         <Link href="/" passHref>
-          <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity touch-target">
-            <FileSpreadsheet className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-            <h1 className="mobile-text-xl font-bold text-primary">
+          <div className="flex items-center gap-0 cursor-pointer hover:opacity-90 transition-all duration-200 touch-target group">
+            <Image
+              src="/logo.png"
+              alt="TourFile Logo"
+              width={40}
+              height={40}
+              className="h-8 w-8 sm:h-10 sm:w-10 object-contain dark:brightness-110 dark:contrast-110 transition-transform duration-200 group-hover:scale-105"
+              priority
+            />
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight transition-all duration-200 group-hover:tracking-normal translate-y-0.5 -ml-1" style={{ color: '#42a5fe' }}>
               TourFile
             </h1>
           </div>
@@ -118,9 +126,15 @@ export default function Header() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[280px] sm:w-[350px]">
               <SheetHeader>
-                <SheetTitle className="text-left flex items-center gap-2">
-                  <FileSpreadsheet className="h-5 w-5 text-primary" />
-                  <span className="text-primary">TourFile</span>
+                <SheetTitle className="text-left flex items-center gap-0">
+                  <Image 
+                    src="/logo.png" 
+                    alt="TourFile Logo" 
+                    width={28} 
+                    height={28} 
+                    className="h-7 w-7 object-contain dark:brightness-110 dark:contrast-110"
+                  />
+                  <span className="text-xl font-bold translate-y-0.5 -ml-1" style={{ color: '#42a5fe' }}>TourFile</span>
                 </SheetTitle>
               </SheetHeader>
 

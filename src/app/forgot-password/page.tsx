@@ -4,7 +4,7 @@ import { KeyRound } from 'lucide-react'; // Using KeyRound icon
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Recuperar Contraseña - TourFile Generator',
+  title: 'TourFile',
   description: 'Restablece tu contraseña para acceder al sistema.',
 };
 

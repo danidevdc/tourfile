@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserPlus, Eye, EyeOff, AlertTriangle, Loader2, Mail } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, AlertTriangle, Mail } from 'lucide-react';
+import { PlaneSpinner } from '@/components/ui/plane-spinner';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 
@@ -182,7 +183,7 @@ export default function RegistrationForm() {
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" 
             disabled={!isFormValid || isLoading}
           >
-            {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <UserPlus className="mr-2 h-5 w-5" />}
+            {isLoading ? <PlaneSpinner className="mr-2 h-5 w-5" /> : <UserPlus className="mr-2 h-5 w-5" />}
             {isLoading ? 'Registrando...' : 'Crear Cuenta'}
           </Button>
         </form>

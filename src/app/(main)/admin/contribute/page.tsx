@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, ArrowLeft, PlusCircle, Hotel as HotelIcon, Car, ListChecks, UserSquare, Plane, Trash2, Search, Edit, Save, Bus as BusIcon, XCircle } from 'lucide-react';
+import { PlaneSpinner } from '@/components/ui/plane-spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -454,7 +455,7 @@ export default function ContributeDataPage() {
   };
 
   if (authLoading || isLoading) {
-    return <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+    return <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"><PlaneSpinner className="w-16 h-16" /></div>;
   }
 
   return (
