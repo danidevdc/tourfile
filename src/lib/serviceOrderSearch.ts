@@ -196,25 +196,28 @@ export async function searchOrdersByDateRange(monthYear: string): Promise<Stored
 }
 
 /**
- * Busca órdenes recientes por código de archivo (CTFI, CTFI110489, etc.)
+ * Busca órdenes por código de archivo (CTFI, CTFI110489, etc.)
  * Filtra en orderName (que contiene el código) y data.file
+ * Usa ventana de 12 meses para cubrir todo el historial del sistema
  */
-export async function searchRecentOrdersByFileCode(fileCode: string, daysBack: number = 60): Promise<StoredServiceOrder[]> {
+export async function searchRecentOrdersByFileCode(fileCode: string): Promise<StoredServiceOrder[]> {
   if (!db) throw new Error("Firestore not initialized.");
   
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - daysBack);
+  // Buscar en los últimos 12 meses (cubre todo el historial del sistema)
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
   const ordersRef = collection(db, 'serviceOrders');
   const q = query(
     ordersRef,
-    where('createdAt', '>=', startDate),
+    where('isRoot', '==', true),
+    where('createdAt', '>=', twelveMonthsAgo),
     orderBy('createdAt', 'desc')
     // Sin límite: obtiene todas las órdenes del periodo
   );
 
   const snapshot = await getDocs(q);
-  console.log(`🔍 Búsqueda por código "${fileCode}" en últimos ${daysBack} días - ${snapshot.size} reads`);
+  console.log(`🔍 Búsqueda por código "${fileCode}" - ${snapshot.size} reads (últimos 12 meses)`);
 
   const codeUpper = fileCode.toUpperCase();
   return snapshot.docs
@@ -356,8 +359,8 @@ export async function smartSearch(searchTerm: string): Promise<{
   const isLikelyFileCode = /^[A-Z0-9]+$/i.test(trimmed) && trimmed.length >= 4 && hasNumbers;
   
   if (isLikelyFileCode) {
-    // Buscar órdenes recientes que contengan este código en orderName o data.file
-    const results = await searchRecentOrdersByFileCode(trimmed, 60);
+    // Buscar órdenes que contengan este código en orderName o data.file
+    const results = await searchRecentOrdersByFileCode(trimmed);
     
     if (results.length > 0) {
       return {
@@ -385,7 +388,7 @@ export async function smartSearch(searchTerm: string): Promise<{
   // CASO 6: Código de archivo SIN números como último recurso (ej: "CTFI")
   const isFileCode = /^[A-Z]+$/i.test(trimmed) && trimmed.length >= 4;
   if (isFileCode) {
-    const codeResults = await searchRecentOrdersByFileCode(trimmed, 60);
+    const codeResults = await searchRecentOrdersByFileCode(trimmed);
     
     if (codeResults.length > 0) {
       return {
