@@ -8,8 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Send, Mail, CheckCircle2 } from 'lucide-react'; // UserSearch, ArrowRight removed
-import { PlaneSpinner } from '@/components/ui/plane-spinner';
+import { Send, Mail, CheckCircle2, Loader2 } from 'lucide-react'; // UserSearch, ArrowRight removed
 import { useToast } from '@/hooks/use-toast';
 
 type ForgotPasswordStep = "enterEmail" | "confirmation"; // Renamed step
@@ -74,7 +73,7 @@ export default function ForgotPasswordForm() {
                 />
               </div>
               <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isSendingEmail || !emailToReset.trim()}>
-                {isSendingEmail ? <PlaneSpinner className="mr-2 h-5 w-5" /> : <Send className="mr-2 h-5 w-5" />}
+                {isSendingEmail ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
                 {isSendingEmail ? 'Enviando...' : 'Enviar Enlace de Recuperación'}
               </Button>
             </form>

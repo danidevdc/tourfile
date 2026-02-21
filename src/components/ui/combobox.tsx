@@ -51,7 +51,7 @@ export function Combobox({ options, value, onSelect, placeholder, notFoundMessag
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between font-normal", !value && "text-muted-foreground", className, triggerClassName)}
+          className={cn("w-full justify-between font-normal dark:hover:text-foreground dark:hover:bg-slate-800/90 dark:hover:border-slate-500", !value && "text-muted-foreground", className, triggerClassName)}
           disabled={disabled}
         >
           <span className="truncate">

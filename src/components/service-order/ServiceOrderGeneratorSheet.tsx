@@ -568,8 +568,8 @@ export function ServiceOrderGeneratorSheet({
                                         value={orderData.hotel}
                                         onSelect={(val) => handleSelectChange('hotel', val)}
                                         placeholder="Buscar hotel..."
-                                        className="mt-1 bg-card"
-                                        triggerClassName={cn(orderData.hotel && "border-green-500 font-medium")}
+                                        className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
+                                        triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", orderData.hotel && "border-green-500 font-medium")}
                                     />
                                 </div>
                             </div>
@@ -581,14 +581,14 @@ export function ServiceOrderGeneratorSheet({
                                         value={orderData.guia}
                                         onSelect={(val) => handleSelectChange('guide', val)}
                                         placeholder="Buscar guía..."
-                                        className="mt-1 bg-card"
-                                        triggerClassName={cn(orderData.guia && "border-green-500 font-medium")}
+                                        className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
+                                        triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", orderData.guia && "border-green-500 font-medium")}
                                     />
                                 </div>
                                 <div className="sm:col-span-2">
                                     <Label>Bus/Tipo Chofer*</Label>
                                     <Select value={busTypeSelection} onValueChange={setBusTypeSelection}>
-                                        <SelectTrigger className={cn("mt-1 bg-card", busTypeSelection && "border-green-500 font-medium")}>
+                                        <SelectTrigger className={cn("mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600", busTypeSelection && "border-green-500 font-medium")}>
                                             <SelectValue placeholder="Seleccionar..." />
                                         </SelectTrigger>
                                         <SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
@@ -601,8 +601,8 @@ export function ServiceOrderGeneratorSheet({
                                         value={choferSelection}
                                         onSelect={setChoferSelection}
                                         placeholder="Seleccionar chofer..."
-                                        className="mt-1 bg-card"
-                                        triggerClassName={cn(choferSelection && "border-green-500 font-medium")}
+                                        className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
+                                        triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", choferSelection && "border-green-500 font-medium")}
                                         disabled={!busTypeSelection}
                                     />
                                 </div>
@@ -631,7 +631,7 @@ export function ServiceOrderGeneratorSheet({
                                             }}
                                             placeholder="Añadir otro guía..."
                                             className="h-9 mt-1"
-                                            triggerClassName="bg-background"
+                                            triggerClassName="bg-background dark:bg-slate-800/80 dark:border-slate-600"
                                         />
                                     </div>
                                 </div>
@@ -664,7 +664,7 @@ export function ServiceOrderGeneratorSheet({
                                             }}
                                             placeholder="Añadir otro chofer..."
                                             className="h-9 mt-1"
-                                            triggerClassName="bg-background"
+                                            triggerClassName="bg-background dark:bg-slate-800/80 dark:border-slate-600"
                                         />
                                     </div>
                                 </div>
@@ -700,8 +700,8 @@ export function ServiceOrderGeneratorSheet({
                                         value={newService.servicio}
                                         onSelect={handleActivitySelect}
                                         placeholder="Buscar actividad..."
-                                        className="mt-1 bg-card"
-                                        triggerClassName={cn(newService.servicio && "border-green-500 font-medium")}
+                                        className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
+                                        triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", newService.servicio && "border-green-500 font-medium")}
                                     />
                                 </div>
                                 <div className="flex-grow" style={{ minWidth: '200px' }}>
@@ -711,8 +711,8 @@ export function ServiceOrderGeneratorSheet({
                                         value={newService.vuelo || ''}
                                         onSelect={handleFlightSelect}
                                         placeholder="Seleccionar vuelo..."
-                                        className="mt-1 bg-card"
-                                        triggerClassName={cn(newService.vuelo && "border-green-500 font-medium")}
+                                        className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
+                                        triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", newService.vuelo && "border-green-500 font-medium")}
                                         disabled={!newService.servicio?.toUpperCase().includes('TRF')}
                                     />
                                 </div>
@@ -776,10 +776,10 @@ export function ServiceOrderGeneratorSheet({
                                                             />
                                                         </TableCell>
                                                         <TableCell className="p-1 border-r border-primary/20">
-                                                            <Input type="date" value={s.fecha ? format(parse(s.fecha, 'dd/MM/yyyy', new Date()), 'yyyy-MM-dd') : ''} onChange={(e) => handleServiceSummaryChange(originalIndex, 'fecha', e.target.value ? format(parse(e.target.value, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '')} className="h-8 text-xs bg-card/80" />
+                                            <Input type="date" value={s.fecha ? format(parse(s.fecha, 'dd/MM/yyyy', new Date()), 'yyyy-MM-dd') : ''} onChange={(e) => handleServiceSummaryChange(originalIndex, 'fecha', e.target.value ? format(parse(e.target.value, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '')} className="h-8 text-xs bg-card/80 dark:bg-slate-800/90 dark:border-slate-600" />
                                                         </TableCell>
                                                         <TableCell className="p-1 border-r border-primary/20">
-                                                            <Input value={s.hora} onChange={(e) => handleSummaryTimeChange(originalIndex, e.target.value)} onBlur={(e) => handleSummaryTimeBlur(originalIndex, e.target.value)} placeholder="HH:mm" maxLength={5} className="h-8 text-xs bg-card/80" />
+                                            <Input value={s.hora} onChange={(e) => handleSummaryTimeChange(originalIndex, e.target.value)} onBlur={(e) => handleSummaryTimeBlur(originalIndex, e.target.value)} placeholder="HH:mm" maxLength={5} className="h-8 text-xs bg-card/80 dark:bg-slate-800/90 dark:border-slate-600" />
                                                         </TableCell>
                                                         <TableCell className="p-1 border-r border-primary/20">
                                                             <Combobox
@@ -788,7 +788,7 @@ export function ServiceOrderGeneratorSheet({
                                                                 onSelect={(value) => handleServiceSummaryChange(originalIndex, 'servicio', value)}
                                                                 placeholder="Actividad..."
                                                                 className="h-8 text-xs"
-                                                                triggerClassName="bg-card/80"
+                                                                triggerClassName="bg-card/80 dark:bg-slate-800/90 dark:border-slate-600"
                                                             />
                                                         </TableCell>
                                                         <TableCell className="p-1 border-r border-primary/20">
@@ -797,7 +797,7 @@ export function ServiceOrderGeneratorSheet({
                                                                 value={s.vuelo || ''}
                                                                 onSelect={(val) => handleServiceSummaryChange(originalIndex, 'vuelo', val)}
                                                                 placeholder="Vuelo..."
-                                                                className="h-8 text-xs" triggerClassName="bg-card/80"
+                                                                className="h-8 text-xs" triggerClassName="bg-card/80 dark:bg-slate-800/90 dark:border-slate-600"
                                                                 disabled={!isTransfer}
                                                             />
                                                         </TableCell>
@@ -821,7 +821,7 @@ export function ServiceOrderGeneratorSheet({
                                                                 value={s.bus || 'NONE'}
                                                                 onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'bus', value === 'NONE' ? '' : value)}
                                                             >
-                                                                <SelectTrigger className="h-8 text-xs bg-card/80">
+                                                                <SelectTrigger className="h-8 text-xs bg-card/80 dark:bg-slate-800/90 dark:border-slate-600">
                                                                     <SelectValue placeholder="Bus..." />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
@@ -839,7 +839,7 @@ export function ServiceOrderGeneratorSheet({
                                                                 value={s.chofer || 'NONE'}
                                                                 onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'chofer', value === 'NONE' ? '' : value)}
                                                             >
-                                                                <SelectTrigger className="h-8 text-xs bg-card/80">
+                                                                <SelectTrigger className="h-8 text-xs bg-card/80 dark:bg-slate-800/90 dark:border-slate-600">
                                                                     <SelectValue placeholder="Chofer..." />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
@@ -853,7 +853,7 @@ export function ServiceOrderGeneratorSheet({
                                                             <Input
                                                                 value={s.observaciones || ''}
                                                                 onChange={(e) => handleServiceSummaryChange(originalIndex, 'observaciones', e.target.value)}
-                                                                className="h-8 text-xs bg-card/80"
+                                                                className="h-8 text-xs bg-card/80 dark:bg-slate-800/90 dark:border-slate-600"
                                                             />
                                                         </TableCell>
                                                         <TableCell className="p-1 text-center">

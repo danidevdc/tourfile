@@ -8,8 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogIn, Eye, EyeOff, Mail } from 'lucide-react'; // Changed User to Mail icon
-import { PlaneSpinner } from '@/components/ui/plane-spinner';
+import { LogIn, Eye, EyeOff, Mail, Loader2 } from 'lucide-react'; // Changed User to Mail icon
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginForm() {
@@ -80,7 +79,7 @@ export default function LoginForm() {
             </div>
           </div>
           <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
-            {isLoading ? <PlaneSpinner className="mr-2 h-5 w-5" /> : <LogIn className="mr-2 h-5 w-5" />}
+            {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <LogIn className="mr-2 h-5 w-5" />}
             {isLoading ? 'Verificando...' : 'Ingresar'}
           </Button>
         </form>

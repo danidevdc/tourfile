@@ -114,7 +114,7 @@ body {
     --destructive-foreground: 0 0% 98%;
 
     --border: 204 40% 25%;
-    --input: 204 40% 22%; /* Input border color for dark theme */
+    --input: 217 91% 18%; /* Azul oscuro elegante para inputs en dark theme */
     --ring: 187 79% 65%; /* Usando el acento para los anillos */
     
     --chart-1: 204 92% 60%;
