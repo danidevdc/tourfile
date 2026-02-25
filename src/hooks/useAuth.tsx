@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 import { db, auth } from '@/lib/firebase';
 import {
   type User as FirebaseUser,
@@ -25,6 +26,7 @@ import {
   getDocs,
   deleteDoc,
   increment,
+  onSnapshot,
 } from 'firebase/firestore';
 
 export interface UserProfile {
@@ -90,9 +92,9 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       }
       router.push('/login');
       if (!isSilent) {
-        toast({ title: "Sesión Cerrada", description: "Has cerrado sesión exitosamente.", variant: "success" as any });
+        sonnerToast.success('Sesión Cerrada', { description: 'Has cerrado sesión exitosamente.' });
       } else {
-        toast({ title: "Sesión Expirada", description: message || "Tu sesión ha expirado.", duration: 5000 });
+        sonnerToast.warning('Sesión Expirada', { description: message || 'Tu sesión ha expirado.', duration: 5000 });
       }
     } catch (error) {
       console.error("Logout error:", error);
@@ -178,6 +180,26 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [fetchUserProfile, handleLogout, toast]);
 
+  // Real-time session monitoring
+  useEffect(() => {
+    if (!currentUser?.uid || !db) return;
+
+    const localSessionId = sessionStorage.getItem(SESSION_ID_KEY);
+    if (!localSessionId) return;
+
+    const userProfileDocRef = doc(db, 'userProfiles', currentUser.uid);
+    const unsubscribe = onSnapshot(userProfileDocRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const profile = docSnapshot.data();
+        if (profile.activeSessionId && profile.activeSessionId !== localSessionId) {
+          handleLogout(true, 'Tu sesión se ha cerrado porque iniciaste sesión en otro dispositivo.');
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [currentUser?.uid, handleLogout]);
+
   const login = useCallback(async (emailInput?: string, passwordInput?: string) => {
     setIsLoading(true);
     if (!auth || !db || !emailInput || !passwordInput) {
@@ -194,7 +216,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       await updateDoc(userProfileDocRef, { activeSessionId: newSessionId, lastSignInTime: serverTimestamp() });
       const profile = await fetchUserProfile(firebaseUser.uid);
       setCurrentUser({ ...firebaseUser, profile });
-      toast({ title: "Inicio de Sesión Exitoso", description: `¡Bienvenido de nuevo, ${profile?.email || "Usuario"}!`, variant: "success" as any });
+      sonnerToast.success('Inicio de Sesión Exitoso', { description: `¡Bienvenido de nuevo, ${profile?.email || "Usuario"}!` });
       router.push('/');
     } catch (error: any) {
       let message = "Correo electrónico o contraseña incorrectos.";
