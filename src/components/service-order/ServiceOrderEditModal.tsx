@@ -294,12 +294,12 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
           {/* Add New Service Form */}
           <div className="pt-2 space-y-2 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
             <Label className="font-semibold mobile-text-base">Añadir Nuevo Servicio</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              <div className="w-full"><Label className="text-xs font-semibold">Fecha</Label><Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 h-8 text-xs bg-background" /></div>
-              <div className="w-full"><Label className="text-xs font-semibold">Actividad</Label><Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 h-8 text-xs" triggerClassName="bg-background" /></div>
-              <div className="w-full"><Label className="text-xs font-semibold">Vuelo</Label><Combobox options={filteredFlightOptions} value={newService.vuelo || ''} onSelect={handleFlightSelect} placeholder="Seleccionar vuelo..." className="mt-1 h-8 text-xs" triggerClassName="bg-background" disabled={!newService.servicio?.toUpperCase().includes('TRF')} /></div>
+            <div className="flex flex-wrap gap-2 items-end">
+              <div style={{ width: '145px' }}><Label className="text-xs font-semibold">Fecha</Label><Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 h-8 text-xs bg-background" /></div>
+              <div className="flex-1 min-w-[200px]"><Label className="text-xs font-semibold">Actividad</Label><Combobox options={activityOptions} value={newService.servicio} onSelect={handleActivitySelect} placeholder="Buscar actividad..." className="mt-1 h-8 text-xs" triggerClassName="bg-background" /></div>
+              <div className="flex-1 min-w-[180px]"><Label className="text-xs font-semibold">Vuelo</Label><Combobox options={filteredFlightOptions} value={newService.vuelo || ''} onSelect={handleFlightSelect} placeholder="Seleccionar vuelo..." className="mt-1 h-8 text-xs" triggerClassName="bg-background" disabled={!(newService.servicio?.toUpperCase().includes('TRF') || newService.servicio?.toUpperCase().includes('APTO'))} /></div>
               <div style={{ width: '90px' }}><Label className="text-xs font-semibold">Hora</Label><Input value={newService.hora} onChange={handleNewServiceTimeChange} onBlur={(e) => handleTimeBlur(-1, e.target.value)} placeholder="HH:mm" maxLength={5} className="mt-1 h-8 text-xs bg-background" /></div>
-              <div><Button onClick={addNewServiceRow} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isAddServiceDisabled}><PlusCircle className="mr-2 h-4 w-4" />Añadir</Button></div>
+              <div><Button onClick={addNewServiceRow} variant="outline" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white h-8" disabled={isAddServiceDisabled}><PlusCircle className="mr-2 h-4 w-4" />Añadir</Button></div>
             </div>
           </div>
 
@@ -319,7 +319,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                     const originalIndex = index;
 
                     const canDelete = editableOrderData.services.length > 1;
-                    const isTransfer = s.servicio?.toUpperCase().includes('TRF');
+                    const isTransfer = s.servicio?.toUpperCase().includes('TRF') || s.servicio?.toUpperCase().includes('APTO');
 
                     return (
                       <TableRow key={s.id || originalIndex} className={cn("break-words align-middle h-8", rowBgClass)} style={{ fontSize: '11px' }}>
@@ -343,7 +343,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                       </TableRow>
                     );
                   })}
-                  <TableRow className="bg-zinc-50 dark:bg-zinc-800 border-t-2 border-primary">
+                  <TableRow className="border-t-2 border-primary/50 bg-background">
                     <TableCell className="p-1 align-middle border-r border-primary/10"></TableCell>
                     <TableCell className="p-1 align-middle border-r border-primary/10"></TableCell>
                     <TableCell className="p-1 align-middle border-r border-primary/10"></TableCell>

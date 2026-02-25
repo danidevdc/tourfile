@@ -713,7 +713,7 @@ export function ServiceOrderGeneratorSheet({
                                         placeholder="Seleccionar vuelo..."
                                         className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
                                         triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", newService.vuelo && "border-green-500 font-medium")}
-                                        disabled={!newService.servicio?.toUpperCase().includes('TRF')}
+                                        disabled={!(newService.servicio?.toUpperCase().includes('TRF') || newService.servicio?.toUpperCase().includes('APTO'))}
                                     />
                                 </div>
                                 <div style={{ width: '100px' }}>
@@ -765,7 +765,7 @@ export function ServiceOrderGeneratorSheet({
                                                 const originalIndex = i;
                                                 const guiaFirstName = (s.guia || "").split(" ")[0];
                                                 const choferName = (s.chofer || "").replace(/^CONT\s/i, '');
-                                                const isTransfer = s.servicio?.toUpperCase().includes('TRF');
+                                                const isTransfer = s.servicio?.toUpperCase().includes('TRF') || s.servicio?.toUpperCase().includes('APTO');
 
                                                 return (
                                                     <TableRow key={s.id || i} className="font-mono border-b-primary/20">
