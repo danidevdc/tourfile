@@ -103,25 +103,10 @@ export async function fetchWithCache<T>(
   fetchFn: () => Promise<T[]>,
   forceRefresh: boolean = false
 ): Promise<T[]> {
-  const remoteVersion = await getRemoteVersion();
-  const localVersion = getLocalVersion();
-
-  if (!forceRefresh && remoteVersion === localVersion && localVersion > 0) {
-    const cached = getCachedData<T>(key);
-    if (cached) {
-      console.log(`✅ Usando caché para ${key} (version ${localVersion})`);
-      return cached;
-    }
-  }
-
-  console.log(
-    `📊 Descargando ${key} desde Firebase... (remote: v${remoteVersion}, local: v${localVersion})`
-  );
+  // SIEMPRE descarga datos frescos desde Firebase (sin cache)
+  // Esto garantiza que los usuarios siempre vean datos actualizados
+  console.log(`📊 Descargando ${key} desde Firebase (sin caché, siempre actualizado)`);
   const data = await fetchFn();
-
-  setCachedData(key, data);
-  if (remoteVersion > 0) setLocalVersion(remoteVersion);
-
   return data;
 }
 

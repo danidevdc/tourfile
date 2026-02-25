@@ -617,79 +617,213 @@ export async function runMigrateRoots(): Promise<number> {
 
 export async function getServiceOrdersPaginated(
     pageSize: number = 10,
+    lastVisible: QueryDocumentSnapshot | null = null,
+    excludeDeleted: boolean = true
+): Promise<{ orders: StoredServiceOrder[], lastDoc: QueryDocumentSnapshot | null }> {
+    if (!db) throw new Error("Firestore not initialized.");
+
+    const ordersRef = collection(db, 'serviceOrders');
+    const parents: StoredServiceOrder[] = [];
+    let currentCursor = lastVisible;
+    let currentLastDoc: QueryDocumentSnapshot | null = null;
+
+    // Strategy: Keep fetching batches of parent orders (isRoot=true) until we have pageSize parents
+    // This handles cases where some orders don't have isRoot field yet
+    while (parents.length < pageSize) {
+        let q = query(
+            ordersRef,
+            where('isRoot', '==', true),
+            orderBy('createdAt', 'desc'),
+            limit(pageSize * 3) // Load extra to ensure we get enough after filtering
+        );
+
+        if (currentCursor) {
+            q = query(q, startAfter(currentCursor));
+        }
+
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            // No more documents
+            break;
+        }
+
+        // Process this batch
+        snapshot.docs.forEach(docSnap => {
+            if (parents.length < pageSize) {
+                const data = docSnap.data();
+                const orderStatus = data.status || 'creado';
+                
+                // Si excludeDeleted=true, saltar órdenes eliminadas/canceladas
+                if (excludeDeleted && (orderStatus === 'eliminado' || orderStatus === 'cancelado')) {
+                    return; // Skip esta orden
+                }
+                
+                const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
+                const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
+
+                parents.push({
+                    id: docSnap.id,
+                    ...data,
+                    createdAt,
+                    updatedAt,
+                    status: orderStatus
+                } as StoredServiceOrder);
+            }
+        });
+
+        currentLastDoc = snapshot.docs[snapshot.docs.length - 1];
+        
+        // If we have enough parents, use the last parent as cursor
+        if (parents.length >= pageSize) {
+            const lastParentIndex = snapshot.docs.findIndex(doc => doc.id === parents[parents.length - 1].id);
+            if (lastParentIndex >= 0) {
+                currentLastDoc = snapshot.docs[lastParentIndex];
+            }
+            break;
+        }
+
+        currentCursor = currentLastDoc;
+    }
+
+    console.log(`📊 getServiceOrdersPaginated - Found ${parents.length} parents with isRoot (excludeDeleted: ${excludeDeleted})`);
+
+    if (parents.length === 0) {
+        return { orders: [], lastDoc: null };
+    }
+
+    // Now fetch ALL children for these parents
+    const parentIds = parents.map(p => p.id);
+    const allChildren: StoredServiceOrder[] = [];
+
+    if (parentIds.length > 0) {
+        // Firestore 'in' queries support up to 10 items, so batch if needed
+        for (let i = 0; i < parentIds.length; i += 10) {
+            const batchIds = parentIds.slice(i, i + 10);
+            const childrenQ = query(ordersRef, where('splitFrom', 'in', batchIds));
+            const childrenSnap = await getDocs(childrenQ);
+            console.log(`📊 getServiceOrdersPaginated - Read ${childrenSnap.size} children for batch ${i / 10 + 1}`);
+
+            childrenSnap.forEach(docSnap => {
+                const data = docSnap.data();
+                const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
+                const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
+
+                allChildren.push({
+                    id: docSnap.id,
+                    ...data,
+                    createdAt,
+                    updatedAt,
+                    status: data.status || 'creado'
+                } as StoredServiceOrder);
+            });
+        }
+    }
+
+    return {
+        orders: [...parents, ...allChildren],
+        lastDoc: currentLastDoc
+    };
+}
+
+/**
+ * Get paginated deleted orders (only for admin)
+ * Fetches only orders with status='eliminado'
+ */
+export async function getDeletedOrdersPaginated(
+    pageSize: number = 10,
     lastVisible: QueryDocumentSnapshot | null = null
 ): Promise<{ orders: StoredServiceOrder[], lastDoc: QueryDocumentSnapshot | null }> {
     if (!db) throw new Error("Firestore not initialized.");
 
     const ordersRef = collection(db, 'serviceOrders');
-    let parents: StoredServiceOrder[] = [];
+    const parents: StoredServiceOrder[] = [];
+    let currentCursor = lastVisible;
+    let currentLastDoc: QueryDocumentSnapshot | null = null;
 
-    // OPTIMIZADO: Filtra en servidor usando isRoot (reduce reads a la mitad)
-    // Antes: cargaba pageSize * 2 y filtraba en cliente
-    // Ahora: carga solo pageSize con filtro en servidor
-    let q = query(
-        ordersRef,
-        where('isRoot', '==', true),
-        orderBy('createdAt', 'desc'),
-        limit(pageSize)
-    );
+    // Fetch only deleted parent orders
+    while (parents.length < pageSize) {
+        let q = query(
+            ordersRef,
+            where('isRoot', '==', true),
+            where('status', '==', 'eliminado'),
+            orderBy('createdAt', 'desc'),
+            limit(pageSize * 2)
+        );
 
-    if (lastVisible) {
-        q = query(q, startAfter(lastVisible));
+        if (currentCursor) {
+            q = query(q, startAfter(currentCursor));
+        }
+
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            break;
+        }
+
+        snapshot.docs.forEach(docSnap => {
+            if (parents.length < pageSize) {
+                const data = docSnap.data();
+                const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
+                const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
+
+                parents.push({
+                    id: docSnap.id,
+                    ...data,
+                    createdAt,
+                    updatedAt,
+                    status: data.status || 'creado'
+                } as StoredServiceOrder);
+            }
+        });
+
+        currentLastDoc = snapshot.docs[snapshot.docs.length - 1];
+        
+        if (parents.length >= pageSize) {
+            const lastParentIndex = snapshot.docs.findIndex(doc => doc.id === parents[parents.length - 1].id);
+            if (lastParentIndex >= 0) {
+                currentLastDoc = snapshot.docs[lastParentIndex];
+            }
+            break;
+        }
+
+        currentCursor = currentLastDoc;
     }
 
-    const snapshot = await getDocs(q);
-    console.log(`📊 getServiceOrdersPaginated - Read ${snapshot.size} documents (optimizado con isRoot)`);
+    console.log(`📊 getDeletedOrdersPaginated - Found ${parents.length} deleted parents`);
 
-    if (snapshot.empty) {
+    if (parents.length === 0) {
         return { orders: [], lastDoc: null };
     }
 
-    // Obtener parents
-    snapshot.docs.forEach(docSnap => {
-        const data = docSnap.data();
-        const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
-        const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
-
-        parents.push({
-            id: docSnap.id,
-            ...data,
-            createdAt,
-            updatedAt,
-            status: data.status || 'creado'
-        } as StoredServiceOrder);
-    });
-
-    const currentLastDoc = snapshot.docs[snapshot.docs.length - 1];
-
-    if (parents.length === 0) return { orders: [], lastDoc: null };
-
-    // Fetch children for these parents
+    // Fetch children for these deleted parents
     const parentIds = parents.map(p => p.id);
-    const children: StoredServiceOrder[] = [];
+    const allChildren: StoredServiceOrder[] = [];
 
     if (parentIds.length > 0) {
-        const childrenQ = query(ordersRef, where('splitFrom', 'in', parentIds));
-        const childrenSnap = await getDocs(childrenQ);
-        console.log(`📊 getServiceOrdersPaginated (Children) - Read ${childrenSnap.size} children`);
+        for (let i = 0; i < parentIds.length; i += 10) {
+            const batchIds = parentIds.slice(i, i + 10);
+            const childrenQ = query(ordersRef, where('splitFrom', 'in', batchIds));
+            const childrenSnap = await getDocs(childrenQ);
 
-        childrenSnap.forEach(docSnap => {
-            const data = docSnap.data();
-            const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
-            const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
+            childrenSnap.forEach(docSnap => {
+                const data = docSnap.data();
+                const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
+                const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined;
 
-            children.push({
-                id: docSnap.id,
-                ...data,
-                createdAt,
-                updatedAt,
-                status: data.status || 'creado'
-            } as StoredServiceOrder);
-        });
+                allChildren.push({
+                    id: docSnap.id,
+                    ...data,
+                    createdAt,
+                    updatedAt,
+                    status: data.status || 'creado'
+                } as StoredServiceOrder);
+            });
+        }
     }
 
     return {
-        orders: [...parents, ...children],
+        orders: [...parents, ...allChildren],
         lastDoc: currentLastDoc
     };
 }

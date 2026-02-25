@@ -165,11 +165,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       setIsLoading(true);
       if (firebaseUser) {
         const profile = await fetchUserProfile(firebaseUser.uid);
-        const localSessionId = sessionStorage.getItem(SESSION_ID_KEY);
-        if (profile && profile.activeSessionId && localSessionId !== profile.activeSessionId) {
-          handleLogout(true, 'Tu sesión se ha cerrado porque iniciaste sesión en otro dispositivo.');
-          return;
-        }
+        // Ya NO validamos activeSessionId (permitir múltiples sesiones)
         setCurrentUser({ ...firebaseUser, profile: profile || undefined });
       } else {
         setCurrentUser(null);
@@ -180,25 +176,12 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [fetchUserProfile, handleLogout, toast]);
 
-  // Real-time session monitoring
+  // Real-time session monitoring - DESACTIVADO
+  // Ya NO monitoreamos sesiones en tiempo real (permitir múltiples dispositivos)
   useEffect(() => {
-    if (!currentUser?.uid || !db) return;
-
-    const localSessionId = sessionStorage.getItem(SESSION_ID_KEY);
-    if (!localSessionId) return;
-
-    const userProfileDocRef = doc(db, 'userProfiles', currentUser.uid);
-    const unsubscribe = onSnapshot(userProfileDocRef, (docSnapshot) => {
-      if (docSnapshot.exists()) {
-        const profile = docSnapshot.data();
-        if (profile.activeSessionId && profile.activeSessionId !== localSessionId) {
-          handleLogout(true, 'Tu sesión se ha cerrado porque iniciaste sesión en otro dispositivo.');
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, [currentUser?.uid, handleLogout]);
+    // Código desactivado - se permite inicio de sesión en múltiples dispositivos
+    return () => {};
+  }, [currentUser?.uid]);
 
   const login = useCallback(async (emailInput?: string, passwordInput?: string) => {
     setIsLoading(true);
@@ -208,12 +191,26 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       return;
     }
     try {
+      // Validar conexión a base de datos ANTES de permitir login
+      const { checkDatabaseConnection } = await import('@/lib/dbConnectionCheck');
+      const isConnected = await checkDatabaseConnection();
+      if (!isConnected) {
+        toast({ 
+          title: "Error de Conexión", 
+          description: "No se puede conectar a la base de datos. Por favor, verifica tu conexión e intenta de nuevo.", 
+          variant: "destructive" 
+        });
+        setIsLoading(false);
+        return;
+      }
+
       const userCredential = await signInWithEmailAndPassword(auth, emailInput.trim().toLowerCase(), passwordInput);
       const firebaseUser = userCredential.user;
       const newSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       sessionStorage.setItem(SESSION_ID_KEY, newSessionId);
       const userProfileDocRef = doc(db, 'userProfiles', firebaseUser.uid);
-      await updateDoc(userProfileDocRef, { activeSessionId: newSessionId, lastSignInTime: serverTimestamp() });
+      // Ya NO actualizamos activeSessionId (permitir múltiples sesiones)
+      await updateDoc(userProfileDocRef, { lastSignInTime: serverTimestamp() });
       const profile = await fetchUserProfile(firebaseUser.uid);
       setCurrentUser({ ...firebaseUser, profile });
       sonnerToast.success('Inicio de Sesión Exitoso', { description: `¡Bienvenido de nuevo, ${profile?.email || "Usuario"}!` });
@@ -245,7 +242,6 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
         createdAt: serverTimestamp(),
         activityLog: [],
         generatedReportsCount: 0,
-        activeSessionId: '',
       });
       toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}. Por favor, inicia sesión.`, variant: "success" as any });
       if (auth.currentUser) await signOut(auth);

@@ -35,7 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown, ChevronLeft, ChevronRight, Image, Split, User, Car, CheckCircle2, XCircle, RefreshCw, Database, Loader2 } from "lucide-react";
+import { ArrowLeft, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown, ChevronLeft, ChevronRight, Image, Split, User, Car, CheckCircle2, XCircle, RefreshCw, Database, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { PlaneSpinner } from "@/components/ui/plane-spinner";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -118,6 +118,12 @@ export default function ServiceOrderListPage() {
 
   // Pagination states
   const [lastDocs, setLastDocs] = useState<(QueryDocumentSnapshot | null)[]>([null]);
+
+  // Sorting states
+  type SortField = 'orderName' | 'status' | 'createdBy' | 'createdAt';
+  type SortDirection = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [hasMore, setHasMore] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
@@ -131,9 +137,8 @@ export default function ServiceOrderListPage() {
 
     const orderIsVisible = (order: StoredServiceOrder) => {
       if (currentFilter === 'all') return true;
+      // Para 'active': excluir eliminadas y canceladas
       const isInactive = order.status === 'eliminado' || order.status === 'cancelado';
-      if (currentFilter === 'deleted') return order.status === 'eliminado';
-      if (currentFilter === 'active') return !isInactive;
       return !isInactive;
     };
 
@@ -189,14 +194,38 @@ export default function ServiceOrderListPage() {
       }
     }
 
-    return Array.from(familyGroups.values())
+    const sortedFamilies = Array.from(familyGroups.values())
       .map(group => ({
         ...group,
         children: group.children.sort((a, b) => a.orderName.localeCompare(b.orderName))
-      }))
-      .sort((a, b) => b.parent.createdAt.getTime() - a.parent.createdAt.getTime());
+      }));
 
-  }, [orders, filterState, activeSearchTerm, isCurrentUserAdmin]);
+    // Apply sorting based on sortField and sortDirection
+    sortedFamilies.sort((a, b) => {
+      let compareResult = 0;
+      
+      switch (sortField) {
+        case 'orderName':
+          compareResult = a.parent.orderName.localeCompare(b.parent.orderName);
+          break;
+        case 'status':
+          compareResult = (a.parent.status || '').localeCompare(b.parent.status || '');
+          break;
+        case 'createdBy':
+          compareResult = (a.parent.createdBy || '').localeCompare(b.parent.createdBy || '');
+          break;
+        case 'createdAt':
+        default:
+          compareResult = a.parent.createdAt.getTime() - b.parent.createdAt.getTime();
+          break;
+      }
+      
+      return sortDirection === 'asc' ? compareResult : -compareResult;
+    });
+
+    return sortedFamilies;
+
+  }, [orders, filterState, activeSearchTerm, isCurrentUserAdmin, sortField, sortDirection]);
 
   const displayedFamilies = useMemo(() => {
     if (activeSearchTerm.trim().length > 0) {
@@ -236,7 +265,8 @@ export default function ServiceOrderListPage() {
         // Paginated Mode: Fetch only one page
         const cursor = lastDocs[page - 1];
         console.log(`Paging: Page ${page}, using cursor index ${page - 1}`, cursor);
-        const { orders: fetchedOrders, lastDoc } = await getServiceOrdersPaginated(ITEMS_PER_PAGE, cursor);
+        // Excluir órdenes eliminadas/canceladas para todos los usuarios (admin usa filtros en UI)
+        const { orders: fetchedOrders, lastDoc } = await getServiceOrdersPaginated(ITEMS_PER_PAGE, cursor, true);
         setOrders(fetchedOrders);
 
         // Record the cursor for the NEXT page (index 'page')
@@ -667,6 +697,26 @@ export default function ServiceOrderListPage() {
     });
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if clicking the same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="ml-1 h-4 w-4 inline opacity-50" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="ml-1 h-4 w-4 inline" />
+      : <ArrowDown className="ml-1 h-4 w-4 inline" />;
+  };
+
   const toggleFamilyExpansion = (familyId: string) => {
     setExpandedFamilies(prev => {
       const newSet = new Set(prev);
@@ -815,6 +865,16 @@ export default function ServiceOrderListPage() {
               </div>
               <div className="flex w-full sm:w-auto items-center gap-2">
                 {isCurrentUserAdmin && <ServiceOrderDeletionFilter value={filterState} onValueChange={setFilterState} />}
+                {isCurrentUserAdmin && (
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push('/deleted-orders')}
+                    className="gap-2 border-red-200 hover:bg-red-50 text-red-700 dark:border-red-800 dark:hover:bg-red-950 dark:text-red-400"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Ver Eliminadas</span>
+                  </Button>
+                )}
                 <div className="relative w-full sm:w-auto flex-grow flex gap-2">
                   <div className="relative flex-grow">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -922,12 +982,20 @@ export default function ServiceOrderListPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {isCurrentUserAdmin && <TableHead className="w-12 border-r border-border/40"><Checkbox checked={isAllSelected} onCheckedChange={(checked) => handleSelectAll(!!checked)} aria-label="Seleccionar todas" disabled={filterState === 'deleted'} /></TableHead>}
-                    <TableHead className="border-r border-border/40">Nombre de la Orden</TableHead>
+                    {isCurrentUserAdmin && <TableHead className="w-12 border-r border-border/40"><Checkbox checked={isAllSelected} onCheckedChange={(checked) => handleSelectAll(!!checked)} aria-label="Seleccionar todas" disabled={false} /></TableHead>}
+                    <TableHead className="border-r border-border/40 cursor-pointer hover:bg-muted/50" onClick={() => handleSort('orderName')}>
+                      Nombre de la Orden{getSortIcon('orderName')}
+                    </TableHead>
                     <TableHead className="border-r border-border/40">Responsable(s)</TableHead>
-                    <TableHead className="border-r border-border/40">Estado</TableHead>
-                    {isCurrentUserAdmin && <TableHead className="border-r border-border/40">Creado Por</TableHead>}
-                    {isCurrentUserAdmin && <TableHead className="w-[120px] border-r border-border/40">Fecha de registro</TableHead>}
+                    <TableHead className="border-r border-border/40 cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status')}>
+                      Estado{getSortIcon('status')}
+                    </TableHead>
+                    {isCurrentUserAdmin && <TableHead className="border-r border-border/40 cursor-pointer hover:bg-muted/50" onClick={() => handleSort('createdBy')}>
+                      Creado Por{getSortIcon('createdBy')}
+                    </TableHead>}
+                    {isCurrentUserAdmin && <TableHead className="w-[120px] border-r border-border/40 cursor-pointer hover:bg-muted/50" onClick={() => handleSort('createdAt')}>
+                      Fecha de registro{getSortIcon('createdAt')}
+                    </TableHead>}
                     <TableHead className="text-left">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
