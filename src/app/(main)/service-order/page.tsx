@@ -55,7 +55,6 @@ import { ServiceOrderEditModal } from "@/components/service-order/ServiceOrderEd
 import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPreviewModal";
 import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, getBusesFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity, type PredefinedFlight, type Bus } from "@/lib/serviceOrderService";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ServiceOrderDeletionFilter, type FilterState } from "@/components/service-order/ServiceOrderDeletionFilter";
 import { ServiceOrderMobileCard } from "@/components/service-order/ServiceOrderMobileCard";
 
 
@@ -93,7 +92,6 @@ export default function ServiceOrderListPage() {
   const [buses, setBuses] = useState<Bus[]>([]);
 
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
-  const [filterState, setFilterState] = useState<FilterState>('active');
 
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -133,11 +131,8 @@ export default function ServiceOrderListPage() {
   const [activeSearchTerm, setActiveSearchTerm] = useState(""); // This is the term actually being searched
 
   const families = useMemo(() => {
-    const currentFilter = isCurrentUserAdmin ? filterState : 'active';
-
+    // Siempre mostrar solo órdenes activas (excluir eliminadas y canceladas)
     const orderIsVisible = (order: StoredServiceOrder) => {
-      if (currentFilter === 'all') return true;
-      // Para 'active': excluir eliminadas y canceladas
       const isInactive = order.status === 'eliminado' || order.status === 'cancelado';
       return !isInactive;
     };
@@ -225,7 +220,7 @@ export default function ServiceOrderListPage() {
 
     return sortedFamilies;
 
-  }, [orders, filterState, activeSearchTerm, isCurrentUserAdmin, sortField, sortDirection]);
+  }, [orders, activeSearchTerm, isCurrentUserAdmin, sortField, sortDirection]);
 
   const displayedFamilies = useMemo(() => {
     if (activeSearchTerm.trim().length > 0) {
@@ -309,7 +304,7 @@ export default function ServiceOrderListPage() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSearchTerm, filterState, authLoading]);
+  }, [activeSearchTerm, authLoading]);
 
   const handleExecuteSearch = () => {
     setActiveSearchTerm(searchTerm);
@@ -418,10 +413,10 @@ export default function ServiceOrderListPage() {
   }, [orders, families]);
 
   useEffect(() => {
-    // Reset to page 1 when search or filter changes
+    // Reset to page 1 when search changes
     setCurrentPage(1);
     setSelectedOrderIds(new Set());
-  }, [searchTerm, filterState]);
+  }, [searchTerm]);
 
 
   const handleNewOrderClick = () => {
@@ -446,19 +441,21 @@ export default function ServiceOrderListPage() {
   };
 
   const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
-    if (!orderToEdit || !currentUser?.email) return;
+    if (!orderToEdit || !currentUser?.email || isSaving) return;
 
+    setIsSaving(true);
     try {
       await saveEditedServiceOrder(orderToEdit, updatedOrderData, currentUser.email);
       toast({ title: "Éxito", description: "La orden ha sido actualizada y/o dividida exitosamente.", variant: "success" as any });
+      await fetchOrders(); // Wait for orders to load before closing modal
+      setIsEditModalOpen(false);
+      setOrderToEdit(null);
     } catch (error: any) {
       console.error("Error saving/splitting order:", error);
       toast({ title: "Error al Guardar", description: error.message || "No se pudo guardar la orden.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
     }
-
-    await fetchOrders(); // Wait for orders to load before closing modal
-    setIsEditModalOpen(false);
-    setOrderToEdit(null);
   };
 
 
@@ -864,7 +861,6 @@ export default function ServiceOrderListPage() {
                 <CardTitle className="text-2xl font-headline text-primary">Órdenes de Servicio</CardTitle>
               </div>
               <div className="flex w-full sm:w-auto items-center gap-2">
-                {isCurrentUserAdmin && <ServiceOrderDeletionFilter value={filterState} onValueChange={setFilterState} />}
                 {isCurrentUserAdmin && (
                   <Button
                     variant="outline"
@@ -912,7 +908,7 @@ export default function ServiceOrderListPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {numSelected > 0 && filterState !== 'deleted' && (
+            {numSelected > 0 && (
               <div className="p-3 mb-4 bg-muted/50 flex justify-between items-center rounded-lg">
                 <span className="text-sm font-medium">{numSelected} seleccionado(s)</span>
                 <AlertDialog>
@@ -1179,6 +1175,7 @@ export default function ServiceOrderListPage() {
             order={orderToEdit} guides={guides} activities={activities} drivers={drivers} flights={flights} hotels={hotels} buses={buses}
             onSave={handleSaveFromEditModal}
             onClose={() => { setIsEditModalOpen(false); setOrderToEdit(null); }}
+            isSaving={isSaving}
           />
         )}
 

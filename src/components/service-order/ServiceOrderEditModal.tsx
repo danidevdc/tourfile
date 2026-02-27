@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Combobox, ComboboxOption } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, X, XCircle, PlusCircle, UserPlus, Car } from "lucide-react";
+import { Save, X, XCircle, PlusCircle, UserPlus, Car, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "../ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -30,6 +30,7 @@ interface ServiceOrderEditModalProps {
   buses: Bus[];
   onSave: (updatedOrderData: ServiceOrderData) => void;
   onClose: () => void;
+  isSaving?: boolean;
 }
 
 const initialNewServiceState: ServiceItem = {
@@ -37,7 +38,7 @@ const initialNewServiceState: ServiceItem = {
 };
 
 
-export function ServiceOrderEditModal({ order, guides, activities, drivers, flights, hotels, buses, onSave, onClose }: ServiceOrderEditModalProps) {
+export function ServiceOrderEditModal({ order, guides, activities, drivers, flights, hotels, buses, onSave, onClose, isSaving = false }: ServiceOrderEditModalProps) {
   const [editableOrderData, setEditableOrderData] = useState<ServiceOrderData>(JSON.parse(JSON.stringify(order.data)));
   const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
 
@@ -368,8 +369,14 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
         </div>
 
         <DialogFooter className="p-4 border-t bg-background">
-          <Button variant="outline" onClick={onClose}><X className="mr-2 h-4 w-4" />Cerrar</Button>
-          <Button onClick={handleSaveClick}><Save className="mr-2 h-4 w-4" />Guardar Cambios</Button>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}><X className="mr-2 h-4 w-4" />Cerrar</Button>
+          <Button onClick={handleSaveClick} disabled={isSaving}>
+            {isSaving ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
+            ) : (
+              <><Save className="mr-2 h-4 w-4" />Guardar Cambios</>
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,73 +1,345 @@
-# TourFile Generator
+<div align="center">
 
-TourFile Generator es una aplicación web integral diseñada para optimizar las operaciones de agencias de turismo. Simplifica la creación de reportes de caja chica y la gestión de órdenes de servicio, todo integrado con un robusto sistema de autenticación y administración basado en Firebase.
+# 🗂️ TourFile Generator
 
-## Características Principales
+**Gestión Inteligente de Operaciones Turísticas**
 
-- **Generador de Cajas Chicas:** Procesa automáticamente archivos de programa (`.xlsx`) para generar reportes de gastos detallados, aplicando reglas de negocio personalizables.
-- **Gestión de Órdenes de Servicio:** Crea, edita, visualiza e imprime órdenes de servicio. Incluye un generador automatizado que interpreta itinerarios desde archivos Excel.
-- **Panel de Administración:** Una sección centralizada para que los administradores gestionen todos los aspectos de la aplicación.
-- **Autenticación Segura:** Sistema completo de registro, inicio de sesión y recuperación de contraseña utilizando Firebase Authentication.
-- **Base de Datos Centralizada:** Utiliza Firestore para almacenar y gestionar datos maestros como guías, hoteles, choferes, actividades y vuelos.
-- **Interfaz Moderna y Adaptable:** Construida con Next.js, React y ShadCN UI, ofreciendo una experiencia de usuario fluida en escritorio y dispositivos móviles.
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![Firebase](https://img.shields.io/badge/Firebase-10.0-orange?style=flat-square&logo=firebase)](https://firebase.google.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.0-38bdf8?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-Private-red?style=flat-square)](LICENSE)
 
----
+Aplicación web integral para optimizar las operaciones de agencias de turismo, simplificando la creación de reportes de caja chica y la gestión de órdenes de servicio.
 
-## Guía de Uso
+[📖 Documentación](#guía-de-uso) • [🚀 Inicio Rápido](#instalación-y-configuración) • [💡 Características](#-características-principales)
 
-### 1. Cajas Chicas
-
-Esta funcionalidad permite generar reportes de gastos de manera rápida a partir de un archivo de programa.
-
-1.  **Ir a Cajas Chicas:** Desde la página principal, selecciona la opción "Cajas Chicas" y luego la ciudad (ej. La Paz).
-2.  **Subir Archivo:** Sube el archivo de programa mensual en formato `.xlsx`.
-3.  **Buscar File:** Ingresa el número de "File" que deseas procesar y haz clic en el botón de búsqueda. La aplicación encontrará el grupo y el número de pasajeros (PAX).
-4.  **Ingresar Guía:** Escribe el nombre del guía responsable.
-5.  **Generar Reporte:** Haz clic en "Generar". El reporte aparecerá en una lista en la parte inferior.
-6.  **Visualizar y Descargar:** Puedes visualizar los detalles del reporte o descargarlo directamente en formato Excel. También puedes descargar múltiples reportes en un archivo `.zip`.
-
-### 2. Órdenes de Servicio
-
-Crea y gestiona las órdenes de servicio para los guías y choferes.
-
-1.  **Ir a Órdenes de Servicio:** Desde la página principal, selecciona la opción "Órdenes de Servicio".
-2.  **Crear una Nueva Orden:**
-    - **Modo Automatizado:** Sube un archivo de programa, busca el "File" y la aplicación generará automáticamente los servicios basándose en las reglas predefinidas.
-    - **Modo Manual:** Completa los datos generales (File, Guía, Hotel, etc.) y añade cada servicio manualmente.
-3.  **Guardar Orden:** Una vez completada, guarda la orden. Aparecerá en la lista principal.
-4.  **Gestionar Órdenes:** En la lista, puedes:
-    - **Visualizar:** Obtener una vista previa para copiar como imagen a WhatsApp.
-    - **Editar:** Modificar el itinerario o los datos generales. La lógica de edición permite dividir la orden si hay múltiples guías o choferes.
-    - **Descargar Excel:** Generar un archivo `.xlsx` de la orden.
-    - **Imprimir PDF:** Generar una vista de impresión en formato PDF.
-    - **Eliminar:** Marcar una orden como eliminada.
+</div>
 
 ---
 
-## Panel de Administración
+## ✨ Características Principales
 
-El panel de administración ofrece control total sobre los datos y la lógica de la aplicación.
+### 💰 Generador de Cajas Chicas
+Procesa automáticamente archivos de programa (`.xlsx`) para generar reportes de gastos detallados, aplicando reglas de negocio personalizables.
 
--   **Dashboard:** Ofrece una vista general y acceso a todas las secciones de administración. Muestra estadísticas de uso, como reportes generados por mes y por guía.
--   **Administrar Datos Maestros:** Permite a los administradores añadir, editar y eliminar registros de guías, hoteles, choferes, actividades y vuelos predefinidos. También soporta la carga masiva de datos desde archivos Excel.
--   **Editar Lógica de Caja Chica:** Personaliza las reglas que se usan para calcular los gastos automáticos en los reportes de caja chica (ej. "si el itinerario contiene 'Tiwanaku', añadir un gasto de 100 BOB por pasajero").
--   **Editar Lógica de Órdenes:** Define las reglas que el generador automático de órdenes de servicio utiliza para asociar palabras clave del itinerario (ej. "CITY TOUR") con actividades específicas de la base de datos.
--   **Administrar Usuarios:** Visualiza una lista de todos los usuarios registrados, sus roles (admin/usuario), y su actividad (número de reportes generados).
+### 📋 Gestión de Órdenes de Servicio
+- Creación automatizada desde archivos Excel
+- División inteligente por guías y choferes
+- Exportación a PDF y Excel
+- Vista previa optimizada para WhatsApp
+
+### 👥 Panel de Administración
+- Dashboard con estadísticas en tiempo real
+- Gestión de datos maestros (guías, hoteles, choferes, actividades, vuelos)
+- Configuración de reglas de negocio
+- Administración de usuarios y roles
+
+### 🔐 Autenticación Segura
+Sistema completo con Firebase Authentication:
+- 🔑 Registro y login
+- 📧 Recuperación de contraseña
+- 🛡️ Validación de base de datos antes del login
+- 📱 Multi-dispositivo simultáneo
+
+### 💾 Base de Datos Centralizada
+Firestore para almacenamiento escalable y sincronización en tiempo real.
+
+### 🎨 Interfaz Moderna
+- Diseño responsivo (desktop y mobile)
+- Tema claro/oscuro
+- Componentes UI con ShadCN
+- Experiencia de usuario fluida
 
 ---
 
-## Pila Tecnológica (Tech Stack)
+## 🚀 Instalación y Configuración
 
--   **Framework:** Next.js (con App Router)
--   **Lenguaje:** TypeScript
--   **Backend y Base de Datos:** Firebase (Authentication, Firestore)
--   **Estilos:** Tailwind CSS
--   **Componentes UI:** ShadCN UI
--   **Generación de Archivos:**
-    -   `xlsx` para leer archivos de programa.
-    -   `exceljs` para generar los reportes de Excel.
-    -   `html2canvas` para la captura de imágenes para WhatsApp.
--   **Gestión de Formularios:** React Hook Form con Zod para validación.
+### Prerrequisitos
 
+- Node.js 18+ 
+- npm o yarn
+- Cuenta de Firebase con proyecto configurado
 
-hola mundo
+### Configuración Inicial
+
+1. **Clonar el repositorio**
+   ```bash
+   git clone <repository-url>
+   cd tourfile
+   ```
+
+2. **Instalar dependencias**
+   ```bash
+   npm install
+   ```
+
+3. **Configurar variables de entorno**
+   
+   Crear archivo `.env.local` en la raíz del proyecto:
+   ```env
+   NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+   NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+   ```
+
+4. **Iniciar servidor de desarrollo**
+   ```bash
+   npm run dev
+   ```
+
+5. **Abrir en navegador**
+   ```
+   http://localhost:9003
+   ```
+
+### Scripts Disponibles
+
+| Comando | Descripción |
+|---------|-------------|
+| `npm run dev` | Inicia servidor de desarrollo (puerto 9003) |
+| `npm run build` | Genera build de producción |
+| `npm start` | Inicia servidor de producción |
+| `npm test` | Ejecuta tests unitarios |
+| `npm run test:ui` | Ejecuta tests con interfaz visual |
+| `npm run lint` | Verifica código con ESLint |
+| `npm run typecheck` | Verifica tipos de TypeScript |
+
+---
+
+## 📖 Guía de Uso
+
+### 💰 Cajas Chicas
+
+Genera reportes de gastos automáticamente desde archivos de programa.
+
+1. **Acceder al módulo:** Página principal → "Cajas Chicas" → Seleccionar ciudad
+2. **Subir archivo:** Cargar programa mensual (`.xlsx`)
+3. **Buscar File:** Ingresar número de File → Buscar
+4. **Configurar:** Seleccionar guía responsable
+5. **Generar:** Clic en "Generar" → Reporte aparece en lista
+6. **Exportar:** 
+   - 👁️ Visualizar detalles
+   - 📥 Descargar Excel individual
+   - 📦 Descargar múltiples en ZIP
+
+### 📋 Órdenes de Servicio
+
+Crea y gestiona órdenes para guías y choferes.
+
+#### Crear Nueva Orden
+
+**🤖 Modo Automatizado:**
+1. Subir archivo de programa
+2. Buscar por File
+3. Sistema genera servicios automáticamente basado en reglas
+
+**✍️ Modo Manual:**
+1. Completar datos generales (File, Guía, Hotel)
+2. Añadir servicios uno por uno
+3. Configurar horarios y responsables
+
+#### Gestionar Órdenes
+
+- **👁️ Visualizar:** Vista previa optimizada para WhatsApp
+- **✏️ Editar:** Modificar itinerario y datos
+  - División automática si hay múltiples guías/choferes
+  - Protección contra ediciones duplicadas
+- **📥 Descargar Excel:** Exportar a `.xlsx`
+- **🖨️ Imprimir PDF:** Vista de impresión profesional
+- **🗑️ Eliminar:** Mover a archivo de eliminadas (solo admin)
+
+#### Filtros (Admin)
+
+- **Activas:** Órdenes en uso
+- **Todas:** Ver todas las órdenes activas
+- **Ver Eliminadas:** Página separada con órdenes archivadas
+  - Función de restauración disponible
+
+---
+
+## 👑 Panel de Administración
+
+Control total sobre datos y lógica de la aplicación.
+
+### 📊 Dashboard
+- Vista general del sistema
+- Estadísticas de uso en tiempo real
+- Reportes por mes y por guía
+- Acceso rápido a todas las secciones
+
+### 🗃️ Datos Maestros
+
+Gestión centralizada de:
+- 👤 **Guías:** Registro completo con nombre y apellido
+- 🏨 **Hoteles:** Base de datos de alojamientos
+- 🚗 **Choferes:** Conductores asignados
+- 🎯 **Actividades:** Servicios con tiempos sugeridos
+- ✈️ **Vuelos:** Vuelos predefinidos con horarios
+- 🚌 **Buses:** Flota de vehículos disponibles
+
+**Funcionalidades:**
+- ✏️ CRUD completo (Crear, Leer, Actualizar, Eliminar)
+- 📤 Carga masiva desde archivos Excel
+- 🔍 Búsqueda y filtrado
+- 📝 Validación de datos
+
+### ⚙️ Configuración de Lógica
+
+**Reglas de Caja Chica:**
+```
+Ejemplo: "Si itinerario contiene 'Tiwanaku'
+         → Añadir gasto de 100 BOB por pasajero"
+```
+
+**Reglas de Órdenes de Servicio:**
+```
+Ejemplo: "CITY TOUR" → Actividad "City Tour La Paz"
+         Tiempo sugerido: 03:00 horas
+```
+
+### 👥 Gestión de Usuarios
+
+- Lista completa de usuarios registrados
+- Asignación de roles (Admin/Usuario)
+- Métricas de actividad
+- Historial de reportes generados
+
+---
+
+## 🛠️ Tecnologías Utilizadas
+
+### Core
+- **⚡ Next.js 14** - Framework React con App Router
+- **📘 TypeScript 5** - Tipado estático y type-safety
+- **🔥 Firebase** - Backend as a Service
+  - Authentication (autenticación de usuarios)
+  - Firestore (base de datos NoSQL)
+  - Hosting (despliegue de aplicación)
+
+### Frontend
+- **🎨 Tailwind CSS** - Estilos utility-first
+- **🧩 ShadCN UI** - Componentes accesibles y personalizables
+- **📝 React Hook Form** - Manejo eficiente de formularios
+- **✅ Zod** - Validación de esquemas TypeScript-first
+- **📅 date-fns** - Manipulación de fechas
+
+### Generación de Archivos
+- **📊 xlsx** - Lectura de archivos Excel
+- **📈 exceljs** - Generación de reportes Excel
+- **📸 html2canvas** - Captura de imágenes para compartir
+- **🖨️ jsPDF** - Generación de PDFs
+
+### Testing
+- **🧪 Vitest** - Framework de testing rápido
+- **🎭 Playwright** - Testing E2E
+
+### Desarrollo
+- **🔧 ESLint** - Linter para calidad de código
+- **💅 Prettier** - Formateo de código (implícito)
+- **🚀 Turbopack** - Bundler de desarrollo rápido
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+tourfile/
+├── src/
+│   ├── app/              # App Router de Next.js
+│   │   ├── (main)/       # Rutas principales
+│   │   ├── api/          # API routes
+│   │   ├── login/        # Autenticación
+│   │   └── layout.tsx    # Layout raíz
+│   ├── components/       # Componentes React
+│   │   ├── ui/           # Componentes UI base (ShadCN)
+│   │   ├── auth/         # Componentes de autenticación
+│   │   ├── layout/       # Layouts y navegación
+│   │   └── service-order/ # Componentes de órdenes
+│   ├── lib/              # Lógica de negocio
+│   │   ├── firebase.ts           # Configuración Firebase
+│   │   ├── serviceOrderStorage.ts # CRUD de órdenes
+│   │   ├── reportService.ts       # Generación de reportes
+│   │   └── validators.ts          # Validaciones Zod
+│   ├── hooks/            # Custom React hooks
+│   ├── types/            # Definiciones TypeScript
+│   └── __tests__/        # Tests unitarios y E2E
+├── public/               # Archivos estáticos
+├── docs/                 # Documentación del proyecto
+├── functions/            # Cloud Functions (Firebase)
+└── tests/                # Tests Playwright
+```
+
+---
+
+## 🔒 Seguridad y Mejores Prácticas
+
+### Protecciones Implementadas
+
+✅ **Prevención de duplicados:** Lock mechanism en guardado de órdenes  
+✅ **Validación de DB:** Verificación de conexión antes de login  
+✅ **Type-safety:** TypeScript en todo el código  
+✅ **Validación de entrada:** Zod schemas en formularios  
+✅ **Multi-dispositivo:** Sesiones concurrentes permitidas  
+✅ **Paginación optimizada:** Cursor-based para grandes datasets  
+
+### Recomendaciones
+
+📋 **Ver [BEST_PRACTICES.md](./BEST_PRACTICES.md)** para guía completa sobre:
+- Cómo hacer cambios seguros
+- Patrones a seguir
+- Debugging y testing
+- Deployment
+
+---
+
+## 📊 Versiones
+
+### v3.1.0 (Actual)
+- ✨ Nueva página de órdenes eliminadas para admin
+- ✨ Paginación mejorada con filtro de estado
+- ✨ Ordenamiento por columnas (4 campos)
+- ✨ Multi-dispositivo simultáneo
+- ✨ Validación de DB antes de login
+- ✨ Protección contra guardados duplicados
+- ⚡ Cache deshabilitado (datos siempre frescos)
+- 🐛 Fix: Paginación mostrando cantidad incorrecta
+- 🧪 131 tests unitarios pasando
+
+---
+
+## 🤝 Contribución
+
+Este es un proyecto privado. Para contribuir:
+
+1. Revisar [BEST_PRACTICES.md](./BEST_PRACTICES.md)
+2. Crear branch desde `main`
+3. Hacer cambios con commits descriptivos
+4. Ejecutar tests: `npm test`
+5. Verificar no hay errores: `npm run typecheck`
+6. Crear Pull Request con descripción detallada
+
+---
+
+## 📝 Licencia
+
+Este proyecto es privado y propietario. Todos los derechos reservados.
+
+---
+
+## 📞 Soporte
+
+Para reportar problemas o solicitar funcionalidades, contactar al equipo de desarrollo.
+
+---
+
+<div align="center">
+
+**Hecho con ❤️ para optimizar operaciones turísticas**
+
+[⬆ Volver arriba](#-tourfile-generator)
+
+</div>

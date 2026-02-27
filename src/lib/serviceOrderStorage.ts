@@ -30,6 +30,9 @@ import { childNameFrom, getBaseName } from './serviceOrderFamily';
 const SEARCH_CACHE_KEY = 'tourfile_orders_cache';
 const SEARCH_SYNC_KEY = 'tourfile_orders_last_sync';
 
+// Lock mechanism to prevent duplicate saves from concurrent edits
+const saveLocks = new Set<string>();
+
 /**
  * Clear the search cache - useful after significant changes or to force a full refresh.
  */
@@ -295,6 +298,28 @@ export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, cre
 }
 
 export async function saveEditedServiceOrder(
+    originalOrder: StoredServiceOrder,
+    updatedData: ServiceOrderData,
+    userEmail: string
+): Promise<void> {
+    if (!db) throw new Error("Firestore not initialized.");
+
+    // --- PROTECTION: Prevent concurrent saves of the same order ---
+    const lockKey = `edit-${originalOrder.id}`;
+    if (saveLocks.has(lockKey)) {
+        console.warn(`⚠️ Guardado duplicado bloqueado para orden ${originalOrder.orderName}`);
+        throw new Error("Esta orden ya se está guardando. Por favor espera unos segundos.");
+    }
+
+    saveLocks.add(lockKey);
+    try {
+        await _performSaveEditedServiceOrder(originalOrder, updatedData, userEmail);
+    } finally {
+        saveLocks.delete(lockKey);
+    }
+}
+
+async function _performSaveEditedServiceOrder(
     originalOrder: StoredServiceOrder,
     updatedData: ServiceOrderData,
     userEmail: string

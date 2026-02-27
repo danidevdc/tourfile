@@ -73,13 +73,19 @@ export async function getDocs(refOrQuery: any) {
           if (op === '==') return dv === value;
           if (op === '>=') {
             if (dv === undefined || dv === null) return false;
-            const left = (dv instanceof Date) ? dv.getTime() : Number(dv);
+            // Handle Timestamp objects
+            const left = (dv instanceof Date) ? dv.getTime() : 
+                         (dv && dv.toDate && typeof dv.toDate === 'function') ? dv.toDate().getTime() :
+                         Number(dv);
             const right = (value instanceof Date) ? value.getTime() : Number(value);
             return left >= right;
           }
           if (op === '<') {
             if (dv === undefined || dv === null) return false;
-            const left = (dv instanceof Date) ? dv.getTime() : Number(dv);
+            // Handle Timestamp objects
+            const left = (dv instanceof Date) ? dv.getTime() : 
+                         (dv && dv.toDate && typeof dv.toDate === 'function') ? dv.toDate().getTime() :
+                         Number(dv);
             const right = (value instanceof Date) ? value.getTime() : Number(value);
             return left < right;
           }
