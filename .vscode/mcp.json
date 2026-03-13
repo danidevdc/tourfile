@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "cocoindex-code": {
+      "type": "stdio",
+      "command": "C:\\Users\\danii\\.local\\bin\\cocoindex-code.exe"
+    }
+  }
+}

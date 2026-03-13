@@ -251,7 +251,17 @@ export function ServiceOrderGeneratorSheet({
             for (let i = 0; i < excelData.length; i++) {
                 const cellText = String(excelData[i]?.[fileColumnIndex] || "");
                 if (hotelRegex.test(cellText)) {
-                    const foundHotel = hotels.find(h => cellText.toUpperCase().includes(h.name.toUpperCase()));
+                    // Busca exacta primero, luego la coincidencia más larga
+                    const cellUpper = cellText.toUpperCase();
+                    let foundHotel = hotels.find(h => cellUpper === h.name.toUpperCase());
+                    
+                    if (!foundHotel) {
+                        // Si no es exacta, busca la coincidencia más larga (para "CASA GRANDE SUITES" antes de "CASA GRANDE")
+                        foundHotel = hotels
+                            .filter(h => cellUpper.includes(h.name.toUpperCase()))
+                            .sort((a, b) => b.name.length - a.name.length)[0];
+                    }
+                    
                     if (foundHotel) {
                         hotelName = foundHotel.name;
                         break;
