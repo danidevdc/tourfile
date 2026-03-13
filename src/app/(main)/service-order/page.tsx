@@ -105,6 +105,7 @@ export default function ServiceOrderListPage() {
   const [isAutomatedMode, setIsAutomatedMode] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [orderToEdit, setOrderToEdit] = useState<StoredServiceOrder | null>(null);
   const [orderToPreview, setOrderToPreview] = useState<StoredServiceOrder | null>(null);
