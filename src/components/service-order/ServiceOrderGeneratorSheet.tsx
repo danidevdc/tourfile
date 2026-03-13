@@ -247,26 +247,27 @@ export function ServiceOrderGeneratorSheet({
             }
 
             let hotelName = "";
-            const hotelRegex = /hotel/i;
+            // Busca SOLO en la columna del file, acumulando todos los hoteles encontrados
+            const allFoundHotels = new Set<string>();
+            
             for (let i = 0; i < excelData.length; i++) {
-                const cellText = String(excelData[i]?.[fileColumnIndex] || "");
-                if (hotelRegex.test(cellText)) {
-                    // Busca exacta primero, luego la coincidencia más larga
-                    const cellUpper = cellText.toUpperCase();
-                    let foundHotel = hotels.find(h => cellUpper === h.name.toUpperCase());
-                    
-                    if (!foundHotel) {
-                        // Si no es exacta, busca la coincidencia más larga (para "CASA GRANDE SUITES" antes de "CASA GRANDE")
-                        foundHotel = hotels
-                            .filter(h => cellUpper.includes(h.name.toUpperCase()))
-                            .sort((a, b) => b.name.length - a.name.length)[0];
+                const cellText = String(excelData[i]?.[fileColumnIndex] || "").toUpperCase().trim();
+                
+                // Busca todos los hoteles de la BD en esta celda
+                hotels.forEach(h => {
+                    if (cellText.includes(h.name.toUpperCase())) {
+                        allFoundHotels.add(h.name);
                     }
-                    
-                    if (foundHotel) {
-                        hotelName = foundHotel.name;
-                        break;
-                    }
-                }
+                });
+            }
+            
+            if (allFoundHotels.size > 0) {
+                // Priorizar no-POSADA
+                const nonPosadaHotels = Array.from(allFoundHotels).filter(h => h.toUpperCase() !== 'POSADA');
+                const hotelsToPick = nonPosadaHotels.length > 0 ? nonPosadaHotels : Array.from(allFoundHotels);
+                
+                // Entre los hoteles a seleccionar, escoger el más largo (más específico)
+                hotelName = hotelsToPick.sort((a, b) => b.length - a.length)[0];
             }
 
             setOrderData((prev: ServiceOrderData) => ({ ...prev, ref: groupName, nPax: pax, hotel: hotelName, services: [] }));
