@@ -3,6 +3,22 @@ run: npm run start
 env:
   - variable: BROWSER_ARGS
     value: '--no-sandbox'
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: 'AIzaSyA7-dUW_OfpO7qBlivFUvMlRmSgKRCgbg8'
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: 'tourfileprocessor.firebaseapp.com'
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: 'tourfileprocessor'
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: 'tourfileprocessor.firebasestorage.app'
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: '57786849791'
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: '1:57786849791:web:2e2b0ce1cff49212d52fca'
+  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: 'G-84YTFWL6VQ'
+  - variable: NEXT_PUBLIC_DOWNLOAD_PIN
+    value: '020725'
 build:
   require-buildpacks:
     - google.nodejs.npm
