@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import {
   Eye, FilePenLine, FileDown, Printer, Trash2, Loader2,
-  ChevronDown, User, Car, Calendar, MoreVertical
+  ChevronDown, User, Car, Calendar, MoreVertical, Receipt
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -52,6 +52,7 @@ interface ServiceOrderMobileCardProps {
   onDownload: (order: StoredServiceOrder) => void;
   onPrint: (order: StoredServiceOrder) => void;
   onDelete: (order: StoredServiceOrder) => void;
+  onViewLiquidation?: (fileNumber: string) => void;
   getStatusBadge: (order: StoredServiceOrder, childCount?: number) => React.ReactNode;
   getDeletionDescription: (order: StoredServiceOrder) => string;
 }
@@ -74,6 +75,7 @@ export function ServiceOrderMobileCard({
   onDownload,
   onPrint,
   onDelete,
+  onViewLiquidation,
   getStatusBadge,
   getDeletionDescription,
 }: ServiceOrderMobileCardProps) {
@@ -252,6 +254,19 @@ export function ServiceOrderMobileCard({
                 ) : (
                   <Printer className="h-5 w-5" />
                 )}
+              </Button>
+            )}
+
+            {/* Ver Liquidación */}
+            {order.hasLiquidation && order.data?.file && onViewLiquidation && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => onViewLiquidation(order.data.file)}
+                className="h-10 w-10 touch-target text-cyan-600 border-cyan-500/50 hover:bg-cyan-100/80 dark:text-cyan-400 dark:border-cyan-400/50 dark:hover:bg-cyan-950/40"
+                title="Ver Liquidación"
+              >
+                <Receipt className="h-5 w-5" />
               </Button>
             )}
 

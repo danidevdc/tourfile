@@ -56,6 +56,7 @@ export interface StoredServiceOrder {
     status: OrderStatus;
     deletedBy?: string;
     splitFrom?: string;
+    hasLiquidation?: boolean;
 }
 
 
@@ -492,6 +493,34 @@ export async function updateServiceOrder(orderId: string, status: OrderStatus): 
         status: status,
         updatedAt: serverTimestamp()
     });
+}
+
+/**
+ * Marks all service orders matching the given IDs with hasLiquidation=true.
+ * Called after saving a liquidation so the flag is embedded in the order document.
+ */
+export async function markOrdersWithLiquidation(orderIds: string[]): Promise<void> {
+    if (!db) throw new Error("Firestore not initialized.");
+    const batch = writeBatch(db);
+    for (const id of orderIds) {
+        batch.update(doc(db, 'serviceOrders', id), { hasLiquidation: true });
+    }
+    await batch.commit();
+    clearServiceOrdersSearchCache();
+}
+
+/**
+ * Clears hasLiquidation flag from service orders when all liquidations for a file are deleted.
+ * Only unmarks if no remaining liquidations reference those order IDs.
+ */
+export async function unmarkOrdersWithLiquidation(orderIds: string[]): Promise<void> {
+    if (!db) throw new Error("Firestore not initialized.");
+    const batch = writeBatch(db);
+    for (const id of orderIds) {
+        batch.update(doc(db, 'serviceOrders', id), { hasLiquidation: false });
+    }
+    await batch.commit();
+    clearServiceOrdersSearchCache();
 }
 
 /**

@@ -1,39 +1,28 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // --- Helper Functions ---
     function isAuth() {
       return request.auth != null;
     }
-    
-    // OPTIMIZADO: Usa Custom Claims del token JWT (0 lecturas adicionales)
-    // Para migrar a Custom Claims, ejecuta en Cloud Functions:
-    // admin.auth().setCustomUserClaims(uid, { isAdmin: true })
     function isAdmin() {
       return isAuth() && (
-        request.auth.token.isAdmin == true || 
-        // Fallback temporal: Si no tiene custom claim, verifica el documento (1 lectura)
-        get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true
+        request.auth.token.isAdmin == true || // JWT token (0 lecturas)
+        get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true // Fallback
       );
     }
-    
     function isOwner(email) {
       return isAuth() && request.auth.token.email == email;
     }
-    
-    // OPTIMIZADO: Usa Custom Claims cuando sea posible
     function isIntermediateUser() {
       return isAuth() && (
-        request.auth.token.isIntermediate == true ||
-        // Fallback: Verifica documento appConfig
         request.auth.token.email == get(/databases/$(database)/documents/appConfig/specialRoles).data.intermediateUserEmail ||
         request.auth.token.email in get(/databases/$(database)/documents/appConfig/specialRoles).data.allowedEditors
       );
     }
-    
+
     // --- User Profiles ---
     // Users can only read/update their own profile. Admins have special access.
     match /userProfiles/{userId} {
@@ -70,14 +59,14 @@ service cloud.firestore {
     match /buses/{busId} {
       allow read, write, update, delete: if isAuth();
     }
-    
+
     // --- Business Logic Rules ---
     // Anyone logged in can read to generate reports. Only admins can modify them.
     match /expenseRules/{ruleId} {
         allow get, list: if isAuth(); // This rule allows any authenticated user to read the list of rules.
         allow write: if isAdmin();
     }
-    
+
     // --- App Configuration (Special Roles) ---
     // Only admins can write to this document.
     // Any authenticated user can read it to check for special permissions.
@@ -91,32 +80,45 @@ service cloud.firestore {
     match /appConfig/{docId} {
       allow read, write: if isAuth();
     }
-    
+
     // ADDED THIS BLOCK: Rules for the new Service Order Logic editor
     match /serviceOrderRules/{ruleId} {
       allow read: if request.auth != null;
       allow write: if isAdmin() || isIntermediateUser();
     }
-    
+
     // --- Generated Report Logging (For Admin Panel) ---
     // Any authenticated user can create a report log entry. Only admins can read them.
     match /generatedReports/{reportId} {
       allow create: if request.auth != null;
       allow read: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
-    
+
     // --- Flight Search Counter ---
     // Any authenticated user can create or update a counter document for flight searches.
     match /flightSearchStats/{day} {
       allow read, write: if request.auth != null;
     }
-    
+
     // --- Service Orders ---
     // Any authenticated user can read and create orders.
-    // Only the owner, an admin, or an intermediate user can update or delete an order.
+    // Update: owner, admin, intermediate, OR any auth user updating only the hasLiquidation flag.
+    // Delete: owner, admin, or intermediate only.
     match /serviceOrders/{orderId} {
       allow read, create: if isAuth();
-      allow update, delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin() || isIntermediateUser());
+      allow update: if isAuth() && (
+        isOwner(resource.data.createdBy) || isAdmin() || isIntermediateUser() ||
+        // Allow any authenticated user to set hasLiquidation flag (set by saveLiquidation)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hasLiquidation'])
+      );
+      allow delete: if isAuth() && (isOwner(resource.data.createdBy) || isAdmin() || isIntermediateUser());
+    }
+
+    // --- Guide Liquidations ---
+    // Any authenticated user can read, create, and delete liquidations.
+    match /guideLiquidations/{liquidationId} {
+      allow read, create, delete: if isAuth();
+      allow update: if isAuth() && (isAdmin() || isIntermediateUser());
     }
 
     // --- Learning Data for AI/Suggestions ---

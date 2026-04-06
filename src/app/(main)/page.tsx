@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileSpreadsheet, ArrowRight, ArrowLeft, ClipboardList, Settings, Plane, Database, ClipboardEdit, Calendar, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { FileSpreadsheet, ArrowRight, ArrowLeft, ClipboardList, Settings, Plane, Database, ClipboardEdit, Calendar, CheckCircle2, XCircle, RefreshCw, Wallet } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { version } from '../../../package.json';
 import { useEffect, useState } from "react";
@@ -189,6 +189,23 @@ export default function HomePage() {
                     </span>
                   </div>
                   <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                </Button>
+              </Link>
+            )}
+
+            {isAuthenticated && (
+              <Link href="/guide-liquidation" passHref>
+                <Button
+                  variant="outline"
+                  className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:bg-transparent hover:text-cyan-700 dark:hover:text-cyan-300"
+                >
+                  <Wallet className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 transition-transform duration-300 group-hover:scale-105 shrink-0" />
+                  <div className="text-left flex-grow">
+                    <span className="block text-xl sm:text-2xl font-bold">
+                      Liquidación de Guías
+                    </span>
+                  </div>
+                  <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-cyan-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
                 </Button>
               </Link>
             )}
