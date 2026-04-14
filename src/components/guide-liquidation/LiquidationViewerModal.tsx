@@ -118,8 +118,8 @@ export function LiquidationViewerModal({ fileNumber, open, onClose, onLastDelete
                     size="icon"
                     className="h-8 w-8 text-primary border-primary/50 hover:bg-primary/10"
                     title="Vista previa PDF"
-                    onClick={() => {
-                      const url = buildLiquidationPDFUrl(liq);
+                    onClick={async () => {
+                      const url = await buildLiquidationPDFUrl(liq);
                       const fileName = `Liquidacion-${liq.liquidationNumber}-${liq.guideName.replace(/\s+/g, '_')}.pdf`;
                       setPdfPreview({ url, fileName });
                     }}

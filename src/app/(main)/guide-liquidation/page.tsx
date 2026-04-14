@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Hash } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -151,7 +151,7 @@ export default function GuideLiquidationPage() {
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (items.length === 0) return;
     const liq: GuideLiquidation = savedLiquidation ?? {
       id: "",
@@ -167,7 +167,7 @@ export default function GuideLiquidationPage() {
       createdAt: new Date(),
       items,
     };
-    const url = buildLiquidationPDFUrl(liq);
+    const url = await buildLiquidationPDFUrl(liq);
     const fileName = `Liquidacion-${liq.liquidationNumber}-${liq.guideName.replace(/\s+/g, '_')}.pdf`;
     setPdfPreview({ url, fileName });
   };
@@ -181,41 +181,88 @@ export default function GuideLiquidationPage() {
     setFormKey((k) => k + 1);
   };
 
-  const statusColor =
-    pageStatus === "saved"
-      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-      : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
-
   const statusLabel = pageStatus === "saved" ? "Liquidado" : "Sin Liquidar";
   const currentLiqNumber = savedLiquidation?.liquidationNumber ?? liquidationNumber;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <div className="flex flex-col gap-4 p-7 max-w-7xl mx-auto w-full">
+      <div className="flex flex-col gap-5 p-7 max-w-7xl mx-auto w-full">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
+            {/* Back button — círculo Nothing style */}
+            <button
               onClick={() => router.push("/")}
-              className="h-9 w-9"
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                border: "1px solid hsl(var(--border))",
+                background: "hsl(var(--card))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "border-color 150ms ease-out",
+                flexShrink: 0,
+              }}
+              className="text-muted-foreground hover:text-foreground hover:border-foreground/40"
             >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <h1
+                style={{
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: "22px",
+                  fontWeight: 700,
+                  letterSpacing: "-0.01em",
+                  lineHeight: 1.2,
+                }}
+                className="text-foreground"
+              >
                 Liquidación de Guías
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p
+                style={{
+                  fontFamily: "'Space Mono', monospace",
+                  fontSize: "11px",
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                }}
+                className="text-muted-foreground"
+              >
                 Generá y gestioná liquidaciones por guía y file
               </p>
             </div>
           </div>
-          <Button className="gap-2" onClick={() => pageStatus === "searched" && items.length > 0 ? setShowNewConfirm(true) : handleClear()}>
-            <Plus className="h-4 w-4" />
+
+          {/* Nueva Liquidación */}
+          <button
+            onClick={() => pageStatus === "searched" && items.length > 0 ? setShowNewConfirm(true) : handleClear()}
+            style={{
+              height: "36px",
+              padding: "0 18px",
+              borderRadius: "999px",
+              fontFamily: "'Space Mono', monospace",
+              fontSize: "11px",
+              fontWeight: 400,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              transition: "all 150ms ease-out",
+              border: "1px solid hsl(var(--border))",
+              color: "hsl(var(--muted-foreground))",
+              background: "transparent",
+              cursor: "pointer",
+            }}
+            className="hover:border-foreground/40 hover:text-foreground"
+          >
+            <Plus className="h-3.5 w-3.5" />
             Nueva Liquidación
-          </Button>
+          </button>
         </div>
 
         {/* Form */}
@@ -227,18 +274,80 @@ export default function GuideLiquidationPage() {
         />
 
         {/* Status row — solo visible cuando hay resultados */}
-        {pageStatus !== "idle" && <div className="flex items-center gap-3">
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${statusColor}`}
-          >
-            <span className="h-2 w-2 rounded-full bg-current" />
-            {statusLabel}
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-semibold text-foreground">
-            <Hash className="h-3 w-3 text-primary shrink-0" />
-            {currentLiqNumber}
-          </span>
-        </div>}
+        {pageStatus !== "idle" && (
+          <div className="flex items-center gap-3">
+            {/* Estado */}
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "7px",
+                padding: "6px 14px",
+                borderRadius: "6px",
+                border: pageStatus === "saved"
+                  ? "1px solid #16a34a88"
+                  : "1px solid hsl(var(--destructive) / 0.5)",
+                backgroundColor: pageStatus === "saved"
+                  ? "#16a34a14"
+                  : "hsl(var(--destructive) / 0.08)",
+              }}
+            >
+              <span
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  backgroundColor: pageStatus === "saved" ? "#16a34a" : "hsl(var(--destructive))",
+                  display: "inline-block",
+                  flexShrink: 0,
+                  animation: pageStatus === "saved" ? "nd-pulse 2.4s ease-in-out infinite" : "none",
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: "'Space Mono', monospace",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: pageStatus === "saved" ? "#16a34a" : "hsl(var(--destructive))",
+                }}
+              >
+                {statusLabel}
+              </span>
+            </div>
+            <style>{`
+              @keyframes nd-pulse {
+                0%, 100% { opacity: 1; }
+                50%       { opacity: 0.3; }
+              }
+            `}</style>
+
+            {/* Número de liquidación */}
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "4px 10px",
+                borderRadius: "4px",
+                border: "1px solid hsl(var(--border))",
+                backgroundColor: "hsl(var(--muted) / 0.4)",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "'Space Mono', monospace",
+                  fontSize: "11px",
+                  fontWeight: 400,
+                  letterSpacing: "0.06em",
+                  color: "hsl(var(--muted-foreground))",
+                }}
+              >
+                {currentLiqNumber}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Table */}
         <GuideLiquidationTable

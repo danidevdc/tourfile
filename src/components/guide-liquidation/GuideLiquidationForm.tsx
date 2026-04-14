@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Folder, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Search, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -30,7 +27,6 @@ export function GuideLiquidationForm({
   const [selectedGuide, setSelectedGuide] = useState("");
   const [guides, setGuides] = useState<string[]>([]);
   const [isLoadingGuides, setIsLoadingGuides] = useState(false);
-  // fileLookedUp: true cuando el usuario ya apretó la lupa para este file
   const [fileLookedUp, setFileLookedUp] = useState(false);
 
   const lookupFile = async () => {
@@ -44,10 +40,14 @@ export function GuideLiquidationForm({
       const found = await getGuidesByFileNumber(trimmed);
       setGuides(found);
       setFileLookedUp(true);
-      if (found.length === 1) setSelectedGuide(found[0]);
+      if (found.length === 1) {
+        setSelectedGuide(found[0]);
+        // Auto-buscar servicios si hay exactamente 1 guía
+        onSearch(trimmed.toUpperCase(), found[0], found[0]);
+      }
       if (found.length > 0) {
         toast.success(`File ${trimmed.toUpperCase()} encontrado`, {
-          description: `${found.length} guía${found.length !== 1 ? "s" : ""} encontrado${found.length !== 1 ? "s" : ""}.`,
+          description: `${found.length} guía${found.length !== 1 ? "s" : ""} encontrada${found.length !== 1 ? "s" : ""}.`,
         });
       } else {
         toast.error(`Sin guías en el file ${trimmed.toUpperCase()}`, {
@@ -59,7 +59,6 @@ export function GuideLiquidationForm({
     }
   };
 
-  // Al cambiar el file manualmente, resetear estado de búsqueda
   const handleFileChange = (val: string) => {
     setFileNumber(val);
     setFileLookedUp(false);
@@ -77,40 +76,63 @@ export function GuideLiquidationForm({
   const searchDisabled = !fileLookedUp || !selectedGuide || isSearching;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="flex flex-wrap items-end gap-4">
+    <div
+      className="border border-border bg-card"
+      style={{ borderRadius: "8px", padding: "20px 24px" }}
+    >
+      <div className="flex flex-wrap items-end gap-6">
 
-        {/* FILE + botón lupa */}
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+        {/* FILE */}
+        <div className="flex flex-col gap-2">
+          <label
+            style={{
+              fontFamily: "'Space Mono', monospace",
+              fontSize: "11px",
+              fontWeight: 400,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+            className="text-muted-foreground"
+          >
             File
-          </Label>
-          <div className="flex items-center gap-1.5">
-            <div className="relative w-36">
-              <Folder
-                className={`absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 transition-colors pointer-events-none ${
-                  hasResults ? "text-green-500" : "text-primary"
-                }`}
-              />
-              <Input
-                className={`pl-8 h-10 text-sm bg-background transition-all ${
-                  hasResults
-                    ? "border-green-500 ring-2 ring-green-500/30 focus-visible:ring-green-500/40"
-                    : ""
-                }`}
-                placeholder="Ej. 0089"
-                value={fileNumber}
-                onChange={(e) => handleFileChange(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && lookupFile()}
-              />
-            </div>
-            {/* Botón lupa cuadrado */}
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-10 w-10 shrink-0 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Ej. 0089"
+              value={fileNumber}
+              onChange={(e) => handleFileChange(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && lookupFile()}
+              style={{
+                fontFamily: "'Space Mono', monospace",
+                fontSize: "14px",
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                width: "128px",
+                height: "40px",
+                padding: "0 12px",
+                borderRadius: "4px",
+                outline: "none",
+                textTransform: "uppercase",
+              }}
+              className={`bg-background border transition-all duration-150 text-foreground placeholder:text-muted-foreground/50 focus:border-primary ${
+                hasResults ? "border-primary" : "border-border"
+              }`}
+            />
+            <button
               onClick={lookupFile}
               disabled={!fileReady || isLoadingGuides}
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "4px",
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 150ms ease-out",
+              }}
+              className="border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
               title="Buscar file"
             >
               {isLoadingGuides ? (
@@ -118,22 +140,60 @@ export function GuideLiquidationForm({
               ) : (
                 <Search className="h-4 w-4" />
               )}
-            </Button>
+            </button>
           </div>
         </div>
 
-        {/* GUÍA — solo visible después de buscar el file */}
+        {/* DIVISOR */}
         {fileLookedUp && (
-          <div className="flex flex-col gap-1.5 flex-1 min-w-48">
-            <Label className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+          <div className="self-stretch w-px bg-border" style={{ marginBottom: "0px" }} />
+        )}
+
+        {/* GUÍA */}
+        {fileLookedUp && (
+          <div className="flex flex-col gap-2 flex-1" style={{ minWidth: "180px" }}>
+            <label
+              style={{
+                fontFamily: "'Space Mono', monospace",
+                fontSize: "11px",
+                fontWeight: 400,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+              className="text-muted-foreground"
+            >
               Guía
-            </Label>
+            </label>
             {guides.length === 0 ? (
-              <div className="h-10 flex items-center px-3 rounded-md border border-border bg-muted/40 text-sm text-muted-foreground">
-                Sin guías en este file
+              <div
+                style={{
+                  height: "40px",
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "0 12px",
+                  borderRadius: "4px",
+                  fontFamily: "'Space Mono', monospace",
+                  fontSize: "11px",
+                  letterSpacing: "0.04em",
+                }}
+                className="border border-border bg-muted/40 text-muted-foreground"
+              >
+                SIN GUÍAS
               </div>
             ) : guides.length === 1 ? (
-              <div className="h-10 flex items-center px-3 rounded-md border border-green-500 bg-green-50 dark:bg-green-900/20 text-sm font-semibold text-green-700 dark:text-green-400">
+              <div
+                style={{
+                  height: "40px",
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "0 12px",
+                  borderRadius: "4px",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                }}
+                className="border border-primary bg-primary/5 text-foreground"
+              >
                 {selectedGuide}
               </div>
             ) : (
@@ -142,12 +202,22 @@ export function GuideLiquidationForm({
                 onValueChange={setSelectedGuide}
                 disabled={guideSelectDisabled}
               >
-                <SelectTrigger className="h-10 text-sm bg-background">
+                <SelectTrigger
+                  style={{
+                    height: "40px",
+                    borderRadius: "4px",
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: "14px",
+                  }}
+                  className="bg-background border-border"
+                >
                   <SelectValue placeholder="Seleccionar guía..." />
                 </SelectTrigger>
                 <SelectContent>
                   {guides.map((g) => (
-                    <SelectItem key={g} value={g}>
+                    <SelectItem key={g} value={g}
+                      style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                    >
                       {g}
                     </SelectItem>
                   ))}
@@ -157,17 +227,35 @@ export function GuideLiquidationForm({
           </div>
         )}
 
-        {/* BUSCAR SERVICIOS — solo visible después de buscar el file */}
+        {/* BUSCAR SERVICIOS */}
         {fileLookedUp && guides.length > 0 && (
-          <Button
-            variant="outline"
-            className="h-10 border-primary text-primary hover:bg-primary hover:text-primary-foreground gap-2"
+          <button
             onClick={handleSearchServices}
             disabled={searchDisabled}
+            style={{
+              height: "40px",
+              padding: "0 20px",
+              borderRadius: "999px",
+              fontFamily: "'Space Mono', monospace",
+              fontSize: "12px",
+              fontWeight: 400,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              transition: "all 150ms ease-out",
+              flexShrink: 0,
+            }}
+            className="border border-primary text-primary bg-transparent hover:bg-primary hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <Search className="h-4 w-4" />
+            {isSearching ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Search className="h-3.5 w-3.5" />
+            )}
             {isSearching ? "Buscando..." : "Buscar Servicios"}
-          </Button>
+          </button>
         )}
 
       </div>
