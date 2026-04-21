@@ -116,9 +116,23 @@ service cloud.firestore {
 
     // --- Guide Liquidations ---
     // Any authenticated user can read, create, and delete liquidations.
+    // Update allowed to any auth user (edit items/amounts) — not just admin.
     match /guideLiquidations/{liquidationId} {
       allow read, create, delete: if isAuth();
-      allow update: if isAuth() && (isAdmin() || isIntermediateUser());
+      allow update: if isAuth();
+    }
+
+    // --- Guide Liquidation Criteria (price rules) ---
+    // Any authenticated user can read. Write restricted to admin/intermediate.
+    match /guideLiquidationCriteria/{ruleId} {
+      allow read: if isAuth();
+      allow write: if isAuth() && (isAdmin() || isIntermediateUser());
+    }
+
+    // --- Guide Language Memory (learning system) ---
+    // Any authenticated user can read and write (auto-learning on save).
+    match /guideLiquidationGuideLanguage/{guideId} {
+      allow read, write: if isAuth();
     }
 
     // --- Learning Data for AI/Suggestions ---
