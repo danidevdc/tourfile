@@ -123,10 +123,9 @@ service cloud.firestore {
     }
 
     // --- Guide Liquidation Criteria (price rules) ---
-    // Any authenticated user can read. Write restricted to admin/intermediate.
+    // Any authenticated user can read and write (module still in development).
     match /guideLiquidationCriteria/{ruleId} {
-      allow read: if isAuth();
-      allow write: if isAuth() && (isAdmin() || isIntermediateUser());
+      allow read, write: if isAuth();
     }
 
     // --- Guide Language Memory (learning system) ---
