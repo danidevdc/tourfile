@@ -84,7 +84,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const ADMIN_EMAIL = 'daniish77@gmail.com';
-const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000;
+const INACTIVITY_TIMEOUT_MS = 4 * 60 * 60 * 1000;
 const SESSION_ID_KEY = 'app_session_id';
 
 function AuthProviderInternal({ children }: { children: ReactNode }) {
@@ -153,10 +153,12 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       }, INACTIVITY_TIMEOUT_MS);
     };
     const handleUserActivity = () => resetInactivityTimer();
+    const handleVisibility = () => { if (document.visibilityState === 'visible') resetInactivityTimer(); };
     window.addEventListener('mousemove', handleUserActivity);
     window.addEventListener('keydown', handleUserActivity);
     window.addEventListener('click', handleUserActivity);
     window.addEventListener('scroll', handleUserActivity);
+    document.addEventListener('visibilitychange', handleVisibility);
     resetInactivityTimer();
     return () => {
       clearTimeout(inactivityTimer);
@@ -164,6 +166,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       window.removeEventListener('keydown', handleUserActivity);
       window.removeEventListener('click', handleUserActivity);
       window.removeEventListener('scroll', handleUserActivity);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [currentUser, handleLogout]);
 
