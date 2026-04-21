@@ -100,6 +100,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       await signOut(auth);
       if (typeof window !== 'undefined') {
         sessionStorage.clear();
+        localStorage.removeItem(SESSION_ID_KEY);
       }
       router.push('/login');
       if (!isSilent) {
@@ -180,12 +181,12 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       setIsLoading(true);
       if (firebaseUser) {
         const profile = await fetchUserProfile(firebaseUser.uid);
-        const localSessionId = typeof window !== 'undefined' ? sessionStorage.getItem(SESSION_ID_KEY) : null;
+        const localSessionId = typeof window !== 'undefined' ? localStorage.getItem(SESSION_ID_KEY) : null;
         if (!localSessionId) {
-          // Page reload or tab restore: Firebase kept the auth cookie but sessionStorage is gone.
-          // Treat this as a fresh login for this browser — claim the session.
+          // No local ID yet (first load on this device after clearing storage).
+          // Claim the session so this device is recognized.
           const restoredSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-          sessionStorage.setItem(SESSION_ID_KEY, restoredSessionId);
+          localStorage.setItem(SESSION_ID_KEY, restoredSessionId);
           if (db) await updateDoc(doc(db, 'userProfiles', firebaseUser.uid), { activeSessionId: restoredSessionId });
         } else if (profile?.activeSessionId && profile.activeSessionId !== localSessionId) {
           await signOut(auth!);
@@ -199,7 +200,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
         setCurrentUser({ ...firebaseUser, profile: updatedProfile || undefined });
       } else {
         setCurrentUser(null);
-        sessionStorage.removeItem(SESSION_ID_KEY);
+        localStorage.removeItem(SESSION_ID_KEY);
       }
       setIsLoading(false);
     });
@@ -209,7 +210,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
   // Real-time session monitoring — kicks out any prior session when a new login occurs
   useEffect(() => {
     if (!db || !currentUser?.uid) return;
-    const localSessionId = typeof window !== 'undefined' ? sessionStorage.getItem(SESSION_ID_KEY) : null;
+    const localSessionId = typeof window !== 'undefined' ? localStorage.getItem(SESSION_ID_KEY) : null;
     if (!localSessionId) return;
 
     const unsubscribe = onSnapshot(doc(db, 'userProfiles', currentUser.uid), (snap) => {
@@ -246,7 +247,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       const userCredential = await signInWithEmailAndPassword(auth, emailInput.trim().toLowerCase(), passwordInput);
       const firebaseUser = userCredential.user;
       const newSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      sessionStorage.setItem(SESSION_ID_KEY, newSessionId);
+      localStorage.setItem(SESSION_ID_KEY, newSessionId);
       const userProfileDocRef = doc(db, 'userProfiles', firebaseUser.uid);
       await updateDoc(userProfileDocRef, { lastSignInTime: serverTimestamp(), activeSessionId: newSessionId });
       const profile = await fetchUserProfile(firebaseUser.uid);
