@@ -29,6 +29,16 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 
+export type AppModule =
+  | 'cajas-chicas'
+  | 'ordenes'
+  | 'liquidacion'
+  | 'aportar-datos'
+  | 'reportes'
+  | 'timeline'
+  | 'editar-logica'
+  | 'vuelos';
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -41,6 +51,7 @@ export interface UserProfile {
   username?: string;
   generatedReportsCount?: number;
   activeSessionId?: string;
+  modules?: AppModule[];
 }
 
 export interface ActivityLogEntry {
@@ -121,6 +132,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
           lastName: data.lastName || '',
           username: data.username || '',
           generatedReportsCount: data.generatedReportsCount || 0,
+          modules: data.modules || [],
         } as UserProfile;
       }
       return null;
@@ -165,7 +177,15 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       setIsLoading(true);
       if (firebaseUser) {
         const profile = await fetchUserProfile(firebaseUser.uid);
-        // Ya NO validamos activeSessionId (permitir múltiples sesiones)
+        const localSessionId = typeof window !== 'undefined' ? sessionStorage.getItem(SESSION_ID_KEY) : null;
+        if (profile?.activeSessionId && localSessionId && profile.activeSessionId !== localSessionId) {
+          await signOut(auth!);
+          setCurrentUser(null);
+          setIsLoading(false);
+          sonnerToast.warning('Sesión Cerrada', { description: 'Tu cuenta fue iniciada en otro dispositivo.', duration: 6000 });
+          router.push('/login');
+          return;
+        }
         setCurrentUser({ ...firebaseUser, profile: profile || undefined });
       } else {
         setCurrentUser(null);
@@ -176,12 +196,21 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [fetchUserProfile, handleLogout, toast]);
 
-  // Real-time session monitoring - DESACTIVADO
-  // Ya NO monitoreamos sesiones en tiempo real (permitir múltiples dispositivos)
+  // Real-time session monitoring — kicks out any prior session when a new login occurs
   useEffect(() => {
-    // Código desactivado - se permite inicio de sesión en múltiples dispositivos
-    return () => {};
-  }, [currentUser?.uid]);
+    if (!db || !currentUser?.uid) return;
+    const localSessionId = typeof window !== 'undefined' ? sessionStorage.getItem(SESSION_ID_KEY) : null;
+    if (!localSessionId) return;
+
+    const unsubscribe = onSnapshot(doc(db, 'userProfiles', currentUser.uid), (snap) => {
+      if (!snap.exists()) return;
+      const remoteSessionId = snap.data()?.activeSessionId;
+      if (remoteSessionId && remoteSessionId !== localSessionId) {
+        handleLogout(true, 'Tu cuenta fue iniciada en otro dispositivo.');
+      }
+    });
+    return () => unsubscribe();
+  }, [currentUser?.uid, handleLogout]);
 
   const login = useCallback(async (emailInput?: string, passwordInput?: string) => {
     setIsLoading(true);
@@ -209,8 +238,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       const newSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       sessionStorage.setItem(SESSION_ID_KEY, newSessionId);
       const userProfileDocRef = doc(db, 'userProfiles', firebaseUser.uid);
-      // Ya NO actualizamos activeSessionId (permitir múltiples sesiones)
-      await updateDoc(userProfileDocRef, { lastSignInTime: serverTimestamp() });
+      await updateDoc(userProfileDocRef, { lastSignInTime: serverTimestamp(), activeSessionId: newSessionId });
       const profile = await fetchUserProfile(firebaseUser.uid);
       setCurrentUser({ ...firebaseUser, profile });
       sonnerToast.success('Inicio de Sesión Exitoso', { description: `¡Bienvenido de nuevo, ${profile?.email || "Usuario"}!` });
