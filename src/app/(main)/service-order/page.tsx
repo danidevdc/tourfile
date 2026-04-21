@@ -25,7 +25,6 @@ import {
 } from '@/lib/serviceOrderStorage';
 import { smartSearch } from '@/lib/serviceOrderSearch';
 import { checkDatabaseConnection } from "@/lib/dbConnectionCheck";
-import { getIntermediateUserEmails } from "@/lib/appConfigService";
 import { type QueryDocumentSnapshot } from 'firebase/firestore';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { getFamilyId, childNameFrom, getBaseName, shortPerson } from "@/lib/serviceOrderFamily";
@@ -114,7 +113,6 @@ export default function ServiceOrderListPage() {
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
   const [isPrintingPdfId, setIsPrintingPdfId] = useState<string | null>(null);
-  const [isIntermediateEditor, setIsIntermediateEditor] = useState(false);
   const [liquidationViewerFile, setLiquidationViewerFile] = useState<string | null>(null);
 
   // Pagination states
@@ -165,8 +163,8 @@ export default function ServiceOrderListPage() {
           (order.data.file && order.data.file.toLowerCase().includes(lowercasedFilter)) ||
           Array.from(allGuidsInOrder).some(g => shortPerson(g).toLowerCase().includes(lowercasedFilter)) ||
           Array.from(allDriversInOrder).some(d => shortPerson(d).toLowerCase().includes(lowercasedFilter)) ||
-          (isCurrentUserAdmin && order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
-          (isCurrentUserAdmin && date.toLowerCase().includes(lowercasedFilter))
+          (order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
+          date.toLowerCase().includes(lowercasedFilter)
         );
       })
       : visibleOrders;
@@ -337,11 +335,6 @@ export default function ServiceOrderListPage() {
       setFlights(fetchedFlights);
       setBuses(fetchedBuses);
 
-      // Check for intermediate permissions
-      if (currentUser?.email) {
-        const allowedEmails = await getIntermediateUserEmails();
-        setIsIntermediateEditor(allowedEmails.includes(currentUser.email));
-      }
     } catch (error) {
       console.error("Error fetching metadata:", error);
     }
@@ -775,8 +768,8 @@ export default function ServiceOrderListPage() {
   const isAllSelected = numInPage > 0 && numSelected === numInPage;
 
   const renderOrderActions = (order: StoredServiceOrder) => {
-    const canEdit = isCurrentUserAdmin || isIntermediateEditor || currentUser?.email === order.createdBy;
-    const canDelete = isCurrentUserAdmin || currentUser?.email === order.createdBy;
+    const canEdit = !!currentUser;
+    const canDelete = !!currentUser;
     const isDeleted = order.status === 'eliminado' || order.status === 'cancelado';
 
     return (
@@ -943,8 +936,8 @@ export default function ServiceOrderListPage() {
             <div className="mobile-card-view space-y-3">
               {displayedFamilies.length > 0 ? displayedFamilies.map(({ parent, children }) => {
                 const parentName = getBaseName(parent.orderName);
-                const canEdit = isCurrentUserAdmin || isIntermediateEditor || currentUser?.email === parent.createdBy;
-                const canDelete = isCurrentUserAdmin || currentUser?.email === parent.createdBy;
+                const canEdit = !!currentUser;
+                const canDelete = !!currentUser;
 
                 return (
                   <ServiceOrderMobileCard
@@ -991,12 +984,12 @@ export default function ServiceOrderListPage() {
                     <TableHead className="border-r border-border/40 cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status')}>
                       Estado{getSortIcon('status')}
                     </TableHead>
-                    {isCurrentUserAdmin && <TableHead className="border-r border-border/40 cursor-pointer hover:bg-muted/50" onClick={() => handleSort('createdBy')}>
+                    <TableHead className="border-r border-border/40 cursor-pointer hover:bg-muted/50" onClick={() => handleSort('createdBy')}>
                       Creado Por{getSortIcon('createdBy')}
-                    </TableHead>}
-                    {isCurrentUserAdmin && <TableHead className="w-[120px] border-r border-border/40 cursor-pointer hover:bg-muted/50" onClick={() => handleSort('createdAt')}>
+                    </TableHead>
+                    <TableHead className="w-[120px] border-r border-border/40 cursor-pointer hover:bg-muted/50" onClick={() => handleSort('createdAt')}>
                       Fecha de registro{getSortIcon('createdAt')}
-                    </TableHead>}
+                    </TableHead>
                     <TableHead className="text-left">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1045,8 +1038,8 @@ export default function ServiceOrderListPage() {
                             </div>
                           </TableCell>
                           <TableCell className="border-r border-border/40">{getStatusBadge(parent, childCount)}</TableCell>
-                          {isCurrentUserAdmin && <TableCell className="border-r border-border/40">{parent.createdBy}</TableCell>}
-                          {isCurrentUserAdmin && <TableCell className="border-r border-border/40">{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>}
+                          <TableCell className="border-r border-border/40">{parent.createdBy}</TableCell>
+                          <TableCell className="border-r border-border/40">{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
                           <TableCell>{renderOrderActions(parent)}</TableCell>
                         </TableRow>
 
@@ -1070,8 +1063,8 @@ export default function ServiceOrderListPage() {
                                 </div>
                               </TableCell>
                               <TableCell className="border-r border-border/40">{getStatusBadge(child)}</TableCell>
-                              {isCurrentUserAdmin && <TableCell className="border-r border-border/40">{child.createdBy}</TableCell>}
-                              {isCurrentUserAdmin && <TableCell className="border-r border-border/40">{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>}
+                              <TableCell className="border-r border-border/40">{child.createdBy}</TableCell>
+                              <TableCell className="border-r border-border/40">{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
                               <TableCell>{renderOrderActions(child)}</TableCell>
                             </TableRow>
                           );
