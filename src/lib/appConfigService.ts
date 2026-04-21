@@ -2,7 +2,8 @@
 "use client";
 
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import type { AppModule } from '@/hooks/useAuth';
 
 const CONFIG_COLLECTION = 'appConfig';
 const SPECIAL_ROLES_DOC_ID = 'specialRoles';
@@ -55,6 +56,22 @@ export async function getIntermediateUserEmails(): Promise<string[]> {
     return [];
   } catch (error) {
     console.warn("Silent error getting special roles (likely permission/session):", error);
+    return [];
+  }
+}
+
+export async function setUserModules(uid: string, modules: AppModule[]): Promise<void> {
+  if (!db) throw new Error("Firestore is not initialized.");
+  await updateDoc(doc(db, 'userProfiles', uid), { modules });
+}
+
+export async function getUserModules(uid: string): Promise<AppModule[]> {
+  if (!db) return [];
+  try {
+    const snap = await getDoc(doc(db, 'userProfiles', uid));
+    if (snap.exists()) return (snap.data().modules as AppModule[]) || [];
+    return [];
+  } catch {
     return [];
   }
 }

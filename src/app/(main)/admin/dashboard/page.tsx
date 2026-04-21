@@ -5,26 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart, Save, Mail } from "lucide-react";
-import { useAuth, type UserProfile } from "@/hooks/useAuth";
+import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart, Save, LayoutGrid } from "lucide-react";
+import { useAuth, type UserProfile, type AppModule } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { getAllReportsFromFirestore } from '@/lib/reportService';
-import { getIntermediateUserEmails, setIntermediateUserEmail } from '@/lib/appConfigService';
+import { setUserModules } from '@/lib/appConfigService';
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
 import {
   BarChart,
   Bar,
@@ -86,9 +77,20 @@ export default function AdminDashboardPage() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [guideUsage, setGuideUsage] = useState<GuideUsageData[]>([]);
   const [monthlyReports, setMonthlyReports] = useState<MonthlyReportData[]>([]);
-  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
-  const [isSavingEmail, setIsSavingEmail] = useState(false);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [userModules, setUserModules_state] = useState<Record<string, AppModule[]>>({});
+  const [savingUid, setSavingUid] = useState<string | null>(null);
+
+  const ALL_MODULES: { key: AppModule; label: string }[] = [
+    { key: 'cajas-chicas', label: 'Cajas Chicas' },
+    { key: 'ordenes', label: 'Órdenes de Servicio' },
+    { key: 'liquidacion', label: 'Liquidación de Guías' },
+    { key: 'aportar-datos', label: 'Aportar Datos' },
+    { key: 'reportes', label: 'Reportes Mensuales' },
+    { key: 'timeline', label: 'Timeline de Órdenes' },
+    { key: 'editar-logica', label: 'Editar Lógica' },
+    { key: 'vuelos', label: 'Buscador de Vuelos' },
+  ];
 
 
   useEffect(() => {
@@ -105,14 +107,21 @@ export default function AdminDashboardPage() {
           setIsLoadingData(true);
           try {
             // Fetch all data in parallel
-            const [reports, currentIntermediateEmails, userProfiles] = await Promise.all([
+            const [reports, userProfiles] = await Promise.all([
               getAllReportsFromFirestore(),
-              getIntermediateUserEmails(),
               getAllUserProfiles(),
             ]);
 
-            setSelectedEmails(currentIntermediateEmails);
-            setAllUsers(userProfiles.filter((u: UserProfile) => u.email).sort((a: UserProfile, b: UserProfile) => (a.email || "").localeCompare(b.email || "")));
+            const nonAdminUsers = userProfiles
+              .filter((u: UserProfile) => u.email && !u.isAdmin)
+              .sort((a: UserProfile, b: UserProfile) => (a.email || "").localeCompare(b.email || ""));
+            setAllUsers(nonAdminUsers);
+
+            const modulesMap: Record<string, AppModule[]> = {};
+            nonAdminUsers.forEach((u: UserProfile) => {
+              modulesMap[u.uid] = (u.modules as AppModule[]) || [];
+            });
+            setUserModules_state(modulesMap);
 
             if (reports.length > 0) {
               // Process guide usage data
@@ -165,28 +174,26 @@ export default function AdminDashboardPage() {
     }
   }, [authLoading, isCurrentUserAdmin, router, toast, getAllUserProfiles]);
 
-  const handleSaveIntermediateEmails = async () => {
-    setIsSavingEmail(true);
-    try {
-      await setIntermediateUserEmail(selectedEmails);
-      toast({
-        title: "Éxito",
-        description: "Los permisos de rol intermedio han sido actualizados.",
-        variant: "success" as any,
-      });
-    } catch (error) {
-      toast({ title: "Error", description: "No se pudieron guardar los permisos.", variant: "destructive" });
-    } finally {
-      setIsSavingEmail(false);
-    }
+  const toggleModule = (uid: string, mod: AppModule) => {
+    setUserModules_state(prev => {
+      const current = prev[uid] || [];
+      const updated = current.includes(mod)
+        ? current.filter(m => m !== mod)
+        : [...current, mod];
+      return { ...prev, [uid]: updated };
+    });
   };
 
-  const toggleUserEmail = (email: string) => {
-    setSelectedEmails(prev =>
-      prev.includes(email)
-        ? prev.filter(e => e !== email)
-        : [...prev, email]
-    );
+  const handleSaveUserModules = async (uid: string) => {
+    setSavingUid(uid);
+    try {
+      await setUserModules(uid, userModules[uid] || []);
+      toast({ title: "Módulos guardados", variant: "success" as any });
+    } catch {
+      toast({ title: "Error", description: "No se pudieron guardar los módulos.", variant: "destructive" });
+    } finally {
+      setSavingUid(null);
+    }
   };
 
   if (authLoading || (!isCurrentUserAdmin && !authLoading)) {
@@ -250,67 +257,62 @@ export default function AdminDashboardPage() {
       <div className="w-full max-w-6xl grid grid-cols-1 gap-6">
         <Card className="shadow-lg">
           <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <CardTitle className="text-xl flex items-center gap-2">
-                  <Mail className="text-primary" /> Gestionar Roles Intermedios
-                </CardTitle>
-                <CardDescription>
-                  Selecciona a los usuarios que tendrán permiso para editar la lógica de órdenes y ver el panel de control.
-                </CardDescription>
-              </div>
-              <Button onClick={handleSaveIntermediateEmails} disabled={isSavingEmail} className="shrink-0">
-                {isSavingEmail ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Guardar Permisos
-              </Button>
-            </div>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <LayoutGrid className="text-primary" /> Asignar Módulos por Usuario
+            </CardTitle>
+            <CardDescription>
+              Activa o desactiva los módulos que cada usuario puede ver en el menú principal.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 border rounded-xl p-4 bg-muted/20 max-h-[400px] overflow-y-auto">
-              {allUsers.length > 0 ? allUsers.map(user => (
-                user.email && (
-                  <div
-                    key={user.uid}
-                    className={cn(
-                      "flex items-center space-x-3 p-3 rounded-lg border transition-all cursor-pointer hover:bg-muted/50",
-                      selectedEmails.includes(user.email) ? "border-primary bg-primary/5" : "border-border bg-background"
-                    )}
-                    onClick={() => toggleUserEmail(user.email!)}
-                  >
-                    <Checkbox
-                      id={`user-${user.uid}`}
-                      checked={selectedEmails.includes(user.email)}
-                      onCheckedChange={() => toggleUserEmail(user.email!)}
-                    />
-                    <div className="flex flex-col min-w-0">
-                      <Label
-                        htmlFor={`user-${user.uid}`}
-                        className="text-sm font-medium leading-none cursor-pointer truncate"
+            {allUsers.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">No hay usuarios registrados.</div>
+            ) : (
+              <div className="space-y-4">
+                {allUsers.map(user => (
+                  <div key={user.uid} className="border rounded-xl p-4 bg-muted/10 space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-sm font-semibold truncate">{user.email}</span>
+                      <Button
+                        size="sm"
+                        onClick={() => handleSaveUserModules(user.uid)}
+                        disabled={savingUid === user.uid}
+                        className="shrink-0"
                       >
-                        {user.email}
-                      </Label>
-                      {user.isAdmin && (
-                        <Badge variant="secondary" className="w-fit mt-1 text-[10px] h-4">Admin</Badge>
-                      )}
+                        {savingUid === user.uid
+                          ? <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          : <Save className="h-4 w-4 mr-1" />}
+                        Guardar
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                      {ALL_MODULES.map(mod => {
+                        const active = (userModules[user.uid] || []).includes(mod.key);
+                        return (
+                          <div
+                            key={mod.key}
+                            onClick={() => toggleModule(user.uid, mod.key)}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-xs font-medium transition-all select-none",
+                              active
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border bg-background text-muted-foreground hover:bg-muted/40"
+                            )}
+                          >
+                            <Checkbox
+                              checked={active}
+                              onCheckedChange={() => toggleModule(user.uid, mod.key)}
+                              className="pointer-events-none"
+                            />
+                            {mod.label}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                )
-              )) : (
-                <div className="col-span-full py-8 text-center text-muted-foreground">
-                  No se encontraron usuarios registrados.
-                </div>
-              )}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <span className="text-xs text-muted-foreground w-full mb-1">Usuarios seleccionados:</span>
-              {selectedEmails.length > 0 ? selectedEmails.map(email => (
-                <Badge key={email} variant="outline" className="bg-primary/10 border-primary/20 text-primary">
-                  {email}
-                </Badge>
-              )) : (
-                <span className="text-xs italic text-muted-foreground">Ninguno seleccionado</span>
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

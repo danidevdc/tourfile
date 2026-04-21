@@ -30,7 +30,6 @@ import {
   type ServiceOrderRule,
 } from '@/lib/serviceOrderRuleService';
 import { getActivitiesFromFirestore, type Activity } from '@/lib/serviceOrderService';
-import { getIntermediateUserEmails } from '@/lib/appConfigService';
 import { Switch } from '@/components/ui/switch';
 
 
@@ -48,35 +47,17 @@ export default function EditServiceOrderLogicPage() {
   const [isCheckingPermission, setIsCheckingPermission] = useState(true);
 
   useEffect(() => {
-    async function checkPermissions() {
-      if (authLoading) return;
-
-      setIsCheckingPermission(true);
-      if (isCurrentUserAdmin) {
-        setHasPermission(true);
-        setIsCheckingPermission(false);
-        return;
-      }
-
-      try {
-        const allowedEmails = await getIntermediateUserEmails();
-        if (currentUser?.email && allowedEmails.includes(currentUser.email)) {
-          setHasPermission(true);
-        } else {
-          setHasPermission(false);
-          toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
-          router.replace('/');
-        }
-      } catch (error) {
-        console.error("Permission check failed:", error);
-        setHasPermission(false);
-        toast({ title: "Error de Permisos", description: "No se pudo verificar tu nivel de acceso.", variant: "destructive" });
-        router.replace('/');
-      } finally {
-        setIsCheckingPermission(false);
-      }
+    if (authLoading) return;
+    setIsCheckingPermission(true);
+    const modules: string[] = currentUser?.profile?.modules || [];
+    const allowed = isCurrentUserAdmin || modules.includes('editar-logica');
+    if (allowed) {
+      setHasPermission(true);
+    } else {
+      toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
+      router.replace('/');
     }
-    checkPermissions();
+    setIsCheckingPermission(false);
   }, [authLoading, isCurrentUserAdmin, currentUser, router, toast]);
 
   useEffect(() => {
