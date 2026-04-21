@@ -101,7 +101,7 @@ export async function generateLiquidationPDF(liquidation: GuideLiquidation): Pro
   const url = await buildLiquidationPDFUrl(liquidation);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Liquidacion-${liquidation.liquidationNumber}-${liquidation.guideName.replace(/\s+/g, '_')}.pdf`;
+  a.download = `Liquidacion-${liquidation.liquidationNumber}-${liquidation.fileNumber}-${liquidation.guideName.replace(/\s+/g, '_')}.pdf`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }

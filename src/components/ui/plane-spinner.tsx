@@ -32,19 +32,11 @@ export function PlaneSpinner({ className }: PlaneSpinnerProps) {
         />
       </div>
 
-      {/* Lago / Agua animada (Olas frontales) */}
-      <div className="absolute bottom-[20%] left-[10%] right-[10%] h-[4px] rounded-full bg-[#42a5fe]/20 overflow-hidden z-20">
-        <div 
+      {/* Ola única */}
+      <div className="absolute bottom-[18%] left-[8%] right-[8%] h-[4px] rounded-full bg-[#42a5fe]/20 overflow-hidden z-20">
+        <div
           className="w-1/2 h-full bg-[#42a5fe] rounded-full"
           style={{ animation: 'waterFlow1 1.5s ease-in-out infinite alternate' }}
-        />
-      </div>
-      
-      {/* Lago / Agua animada (Olas traseras) */}
-      <div className="absolute bottom-[32%] left-[20%] right-[20%] h-[3px] rounded-full bg-[#42a5fe]/10 overflow-hidden z-0">
-        <div 
-          className="w-1/3 h-full bg-[#42a5fe]/60 rounded-full"
-          style={{ animation: 'waterFlow2 2s ease-in-out infinite alternate-reverse' }}
         />
       </div>
     </div>
