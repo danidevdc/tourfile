@@ -86,7 +86,7 @@ export default function Header() {
         ) : isAuthenticated ? (
           <>
             {userDisplayName && (
-              <div className="flex items-center gap-1.5 bg-primary text-primary-foreground rounded-md px-3 py-1.5 shadow-sm transition-all duration-200 ease-in-out hover:bg-primary/90 hover:shadow-md">
+              <div className="flex items-center gap-1.5 border border-primary/50 text-primary rounded-md px-3 py-1.5 transition-all duration-200 ease-in-out hover:border-primary hover:bg-primary/5" style={{ fontFamily: "'Roboto', sans-serif" }}>
                 <UserCircle2 className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm truncate max-w-[150px] lg:max-w-[200px] font-medium">{userDisplayName}</span>
               </div>
@@ -141,7 +141,7 @@ export default function Header() {
               <div className="flex flex-col gap-4 mt-6">
                 {/* User info */}
                 {userDisplayName && (
-                  <div className="flex items-center gap-2 bg-primary text-primary-foreground rounded-md px-4 py-3 shadow-sm">
+                  <div className="flex items-center gap-2 border border-primary/50 text-primary rounded-md px-4 py-3" style={{ fontFamily: "'Roboto', sans-serif" }}>
                     <UserCircle2 className="h-5 w-5 flex-shrink-0" />
                     <span className="text-sm font-medium truncate">{userDisplayName}</span>
                   </div>

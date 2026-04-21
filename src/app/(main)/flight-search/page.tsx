@@ -10,7 +10,7 @@ import { Loader2, Plane, Search, AlertTriangle, ArrowLeft, PlaneTakeoff, PlaneLa
 import { Input } from "@/components/ui/input";
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import type { FindFlightOutput, FindFlightInput } from "@/ai/flows/flight-types";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, type AppModule } from "@/hooks/useAuth";
 import { Label } from "@/components/ui/label";
 import { incrementFlightSearchCount, getTodaysFlightSearchStats, type FlightSearchStat } from "@/lib/flightSearchCounterService";
 import { createFlight, type PredefinedFlight } from "@/lib/serviceOrderService";
@@ -252,8 +252,14 @@ function FlightSearchCard() {
 
 export default function FlightSearchPage() {
     const router = useRouter();
-    const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
-    
+    const { isCurrentUserAdmin, isLoading: authLoading, isAuthenticated, currentUser } = useAuth();
+
+    const hasModule = (mod: AppModule): boolean => {
+      if (!isAuthenticated) return false;
+      if (isCurrentUserAdmin) return true;
+      return (currentUser?.profile?.modules || []).includes(mod);
+    };
+
     if (authLoading) {
         return (
             <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -261,14 +267,12 @@ export default function FlightSearchPage() {
             </div>
         );
     }
-    
-    // Redirect non-admins away
-    if (!isCurrentUserAdmin) {
+
+    if (!hasModule('vuelos')) {
         router.replace('/');
         return (
             <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
-                <p>Redirigiendo...</p>
-                <Loader2 className="h-12 w-12 animate-spin text-primary ml-4" />
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
             </div>
         );
     }
