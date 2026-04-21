@@ -287,6 +287,48 @@ export async function saveLiquidation(payload: {
 }
 
 /**
+ * Get a single liquidation by ID.
+ */
+export async function getLiquidationById(id: string): Promise<GuideLiquidation | null> {
+  if (!db) throw new Error('Firestore not initialized.');
+  const { getDoc } = await import('firebase/firestore');
+  const snap = await getDoc(doc(db, 'guideLiquidations', id));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  return {
+    id: snap.id,
+    liquidationNumber: data.liquidationNumber ?? '',
+    fileNumber: data.fileNumber ?? '',
+    guideId: data.guideId ?? '',
+    guideName: data.guideName ?? '',
+    paxName: data.paxName ?? '',
+    paxCount: data.paxCount ?? 0,
+    status: data.status ?? 'Sin Liquidar',
+    total: data.total ?? 0,
+    createdBy: data.createdBy ?? '',
+    createdAt: timestampToDate(data.createdAt),
+    items: data.items ?? [],
+  };
+}
+
+/**
+ * Update items and total of an existing liquidation.
+ */
+export async function updateLiquidation(
+  id: string,
+  payload: { items: LiquidationItem[]; paxName: string; paxCount: number }
+): Promise<void> {
+  if (!db) throw new Error('Firestore not initialized.');
+  const total = payload.items.reduce((sum, item) => sum + (item.monto || 0), 0);
+  await updateDoc(doc(db, 'guideLiquidations', id), {
+    items: payload.items,
+    paxName: payload.paxName,
+    paxCount: payload.paxCount,
+    total,
+  });
+}
+
+/**
  * Update the status of an existing liquidation.
  */
 export async function updateLiquidationStatus(
@@ -295,6 +337,35 @@ export async function updateLiquidationStatus(
 ): Promise<void> {
   if (!db) throw new Error('Firestore not initialized.');
   await updateDoc(doc(db, 'guideLiquidations', id), { status });
+}
+
+export interface LiquidationDashboardStats {
+  total: number;
+  montoTotal: number;
+  esteMes: number;
+  guiasUnicas: number;
+  recientes: GuideLiquidation[];
+}
+
+/**
+ * Compute dashboard stats from the guideLiquidations collection.
+ */
+export async function getDashboardStats(): Promise<LiquidationDashboardStats> {
+  const all = await getAllLiquidations();
+  const now = new Date();
+  const montoTotal = all.reduce((sum, l) => sum + (l.total || 0), 0);
+  const esteMes = all.filter((l) => {
+    const d = l.createdAt instanceof Date ? l.createdAt : new Date(l.createdAt);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+  const guiasUnicas = new Set(all.map((l) => l.guideName.trim().toUpperCase()).filter(Boolean)).size;
+  return {
+    total: all.length,
+    montoTotal,
+    esteMes,
+    guiasUnicas,
+    recientes: all.slice(0, 8),
+  };
 }
 
 /**

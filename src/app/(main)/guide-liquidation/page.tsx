@@ -1,429 +1,401 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-import { GuideLiquidationForm } from "@/components/guide-liquidation/GuideLiquidationForm";
-import { GuideLiquidationTable } from "@/components/guide-liquidation/GuideLiquidationTable";
-import { GuideLiquidationFooter } from "@/components/guide-liquidation/GuideLiquidationFooter";
-import {
-  getServiceOrdersByFileAndGuide,
-  getLiquidationsByFile,
-  saveLiquidation,
-  type LiquidationItem,
-  type GuideLiquidation,
-} from "@/lib/guideLiquidationService";
+import { ArrowLeft, Plus, FileText, TrendingUp, Calendar, Users, Printer, History, Settings2, Pencil } from "lucide-react";
+import { getDashboardStats, type LiquidationDashboardStats, type GuideLiquidation } from "@/lib/guideLiquidationService";
 import { buildLiquidationPDFUrl } from "@/lib/guideLiquidationPDF";
 import { LiquidationPDFPreviewModal } from "@/components/guide-liquidation/LiquidationPDFPreviewModal";
 
-type PageStatus = "idle" | "searched" | "saved";
+const TOKEN = {
+  blue: "#0991ea",
+  cyan: "#78e3f0",
+  green: "#16a34a",
+  amber: "#f59e0b",
+};
 
-export default function GuideLiquidationPage() {
+// All surface/text colors use CSS variables so they respond to dark mode
+const CSS = {
+  bg:            "hsl(var(--background))",
+  card:          "hsl(var(--card))",
+  cardFg:        "hsl(var(--card-foreground))",
+  border:        "hsl(var(--border))",
+  muted:         "hsl(var(--muted))",
+  mutedFg:       "hsl(var(--muted-foreground))",
+  fg:            "hsl(var(--foreground))",
+  subtleBg:      "hsl(var(--muted) / 0.4)",
+};
+
+function StatCard({
+  icon: Icon, label, value, sub, accent,
+}: {
+  icon: React.ElementType; label: string; value: string; sub?: string; accent: string;
+}) {
+  return (
+    <div style={{
+      background: CSS.card,
+      border: `1px solid ${CSS.border}`,
+      borderRadius: "10px",
+      padding: "20px 22px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "10px",
+      flex: "1 1 180px",
+      minWidth: 0,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div style={{
+          width: "30px", height: "30px", borderRadius: "8px",
+          background: `${accent}22`,
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>
+          <Icon size={15} color={accent} />
+        </div>
+        <span style={{
+          fontFamily: "'Space Mono', monospace", fontSize: "10px",
+          letterSpacing: "0.08em", textTransform: "uppercase" as const,
+          color: CSS.mutedFg,
+        }}>{label}</span>
+      </div>
+      <div>
+        <span style={{
+          fontFamily: "'Space Grotesk', sans-serif", fontSize: "28px",
+          fontWeight: 700, letterSpacing: "-0.02em", color: accent, lineHeight: 1,
+        }}>{value}</span>
+        {sub && <p style={{
+          fontFamily: "'Space Mono', monospace", fontSize: "10px",
+          letterSpacing: "0.04em", color: CSS.mutedFg, marginTop: "4px",
+        }}>{sub}</p>}
+      </div>
+    </div>
+  );
+}
+
+function ActionCard({
+  icon: Icon, title, description, accent, onClick, primary,
+}: {
+  icon: React.ElementType; title: string; description: string;
+  accent: string; onClick: () => void; primary?: boolean;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        flex: "1 1 220px",
+        background: primary
+          ? (hovered ? `${accent}22` : `${accent}14`)
+          : (hovered ? `${accent}18` : `${accent}0e`),
+        border: `1.5px solid ${accent}${hovered ? "77" : "33"}`,
+        borderRadius: "10px",
+        padding: "20px 24px",
+        display: "flex",
+        alignItems: "center",
+        gap: "16px",
+        cursor: "pointer",
+        transition: "all 150ms ease-out",
+        textAlign: "left" as const,
+        minWidth: 0,
+      }}
+    >
+      <div style={{
+        width: "44px", height: "44px", borderRadius: "10px",
+        background: `${accent}28`,
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}>
+        <Icon size={20} color={accent} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{
+          fontFamily: "'Space Grotesk', sans-serif", fontSize: "15px",
+          fontWeight: 700, color: accent, marginBottom: "3px",
+        }}>{title}</p>
+        <p style={{
+          fontFamily: "'Space Mono', monospace", fontSize: "10px",
+          letterSpacing: "0.04em", color: CSS.mutedFg,
+          whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis",
+        }}>{description}</p>
+      </div>
+    </button>
+  );
+}
+
+function StatusBadge({ status }: { status: GuideLiquidation["status"] }) {
+  const ok = status === "Liquidado";
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: "5px",
+      padding: "3px 10px", borderRadius: "4px",
+      border: ok ? "1px solid #16a34a55" : "1px solid #ef444455",
+      background: ok ? "#16a34a14" : "#ef444414",
+      fontFamily: "'Space Mono', monospace", fontSize: "9px",
+      fontWeight: 700, letterSpacing: "0.08em",
+      textTransform: "uppercase" as const,
+      color: ok ? "#16a34a" : "#ef4444",
+      whiteSpace: "nowrap" as const,
+    }}>
+      <span style={{
+        width: "5px", height: "5px", borderRadius: "50%",
+        background: ok ? "#16a34a" : "#ef4444",
+        display: "inline-block", flexShrink: 0,
+        animation: ok ? "nd-pulse 2.4s ease-in-out infinite" : "none",
+      }} />
+      {status}
+    </span>
+  );
+}
+
+function PrintButton({ liq, printingId, onPrint }: {
+  liq: GuideLiquidation;
+  printingId: string | null;
+  onPrint: (liq: GuideLiquidation) => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const busy = printingId === liq.id;
+
+  return (
+    <button
+      onClick={() => onPrint(liq)}
+      disabled={busy}
+      title="Imprimir PDF"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: "34px", height: "34px", borderRadius: "8px",
+        border: `1px solid ${TOKEN.blue}${hovered ? "66" : "28"}`,
+        background: busy
+          ? CSS.muted
+          : hovered
+            ? `${TOKEN.blue}18`
+            : `${TOKEN.blue}0d`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        cursor: busy ? "wait" : "pointer",
+        transition: "all 150ms ease-out",
+        color: busy ? CSS.mutedFg : TOKEN.blue,
+        flexShrink: 0,
+      }}
+    >
+      <Printer size={14} style={{ opacity: busy ? 0.4 : 1, transition: "opacity 150ms" }} />
+    </button>
+  );
+}
+
+export default function GuideLiquidationDashboardPage() {
   const router = useRouter();
-  const { currentUser } = useAuth();
-  const { toast } = useToast();
-
-  const [liquidationNumber, setLiquidationNumber] = useState("LIQ-01");
-  const [items, setItems] = useState<LiquidationItem[]>([]);
-  const [savedLiquidation, setSavedLiquidation] = useState<GuideLiquidation | null>(null);
-  const [pageStatus, setPageStatus] = useState<PageStatus>("idle");
-  const [isSearching, setIsSearching] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
-  const [formKey, setFormKey] = useState(0);
-
-  const [currentFile, setCurrentFile] = useState("");
-  const [currentGuideName, setCurrentGuideName] = useState("");
+  const [stats, setStats] = useState<LiquidationDashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
-  const [showNewConfirm, setShowNewConfirm] = useState(false);
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchNextNumber().then(setLiquidationNumber);
+    getDashboardStats().then(setStats).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  async function fetchNextNumber(): Promise<string> {
-    // TODO: remove this when going live — fixed number for testing on develop
-    return "LIQ-000";
-  }
-
-  const handleSearch = useCallback(
-    async (fileNumber: string, _guideId: string, guideName: string) => {
-      setIsSearching(true);
-      setCurrentFile(fileNumber);
-      setCurrentGuideName(guideName);
-      try {
-        // Check for existing liquidation for this file+guide combo
-        const [results, existing] = await Promise.all([
-          getServiceOrdersByFileAndGuide(fileNumber, guideName),
-          getLiquidationsByFile(fileNumber),
-        ]);
-
-        if (results.length === 0) {
-          toast({
-            title: "Sin resultados",
-            description: `No se encontraron servicios para "${guideName}" en el file "${fileNumber}".`,
-            variant: "destructive",
-          });
-          setPageStatus("idle");
-          return;
-        }
-
-        // Find existing liquidation for this specific guide
-        const normalizedGuide = guideName.trim().toUpperCase();
-        const existingLiq = existing.find(
-          (l) => l.guideName.trim().toUpperCase() === normalizedGuide
-        ) ?? null;
-
-        setItems(results);
-        setSavedLiquidation(existingLiq);
-        setPageStatus(existingLiq ? "saved" : "searched");
-
-        if (existingLiq) {
-          toast({
-            title: "Ya existe una liquidación",
-            description: `${existingLiq.liquidationNumber} — Bs. ${existingLiq.total.toFixed(2)}. Podés imprimir o crear una nueva.`,
-          });
-        }
-      } catch (err) {
-        console.error(err);
-        toast({ title: "Error al buscar servicios", variant: "destructive" });
-      } finally {
-        setIsSearching(false);
-      }
-    },
-    [toast]
-  );
-
-  const handleItemChange = useCallback(
-    (index: number, field: "monto" | "checked", value: number | boolean) => {
-      setItems((prev) =>
-        prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
-      );
-    },
-    []
-  );
-
-  const total = savedLiquidation
-    ? savedLiquidation.total
-    : items.reduce((sum, item) => sum + (item.checked ? (item.monto || 0) : 0), 0);
-  const paxName = items[0]?.paxName ?? "";
-  const paxCount = items[0]?.paxCount ?? 0;
-
-  const doSave = async () => {
-    if (!currentUser || items.length === 0) return;
-    setIsSaving(true);
+  const handlePrint = async (liq: GuideLiquidation) => {
+    setPrintingId(liq.id);
     try {
-      const saved = await saveLiquidation({
-        fileNumber: currentFile,
-        guideId: currentGuideName,
-        guideName: currentGuideName,
-        paxName,
-        paxCount,
-        items,
-        createdBy: currentUser.email ?? currentUser.uid,
-      });
-      setSavedLiquidation(saved);
-      setPageStatus("saved");
-      const nextNum = await fetchNextNumber();
-      setLiquidationNumber(nextNum);
-      toast({
-        title: "Liquidación guardada",
-        description: `${saved.liquidationNumber} — Total: Bs. ${saved.total.toFixed(2)}`,
-      });
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Error al guardar", variant: "destructive" });
+      const url = await buildLiquidationPDFUrl(liq);
+      const fileName = `Liquidacion-${liq.liquidationNumber}-${liq.fileNumber}-${liq.guideName.replace(/\s+/g, "_")}.pdf`;
+      setPdfPreview({ url, fileName });
+    } catch (e) {
+      console.error(e);
     } finally {
-      setIsSaving(false);
+      setPrintingId(null);
     }
   };
 
-  const handlePrint = async () => {
-    if (items.length === 0) return;
-    const liq: GuideLiquidation = savedLiquidation ?? {
-      id: "",
-      liquidationNumber,
-      fileNumber: currentFile,
-      guideId: currentGuideName,
-      guideName: currentGuideName,
-      paxName,
-      paxCount,
-      status: "Sin Liquidar",
-      total,
-      createdBy: currentUser?.email ?? "",
-      createdAt: new Date(),
-      items,
-    };
-    const url = await buildLiquidationPDFUrl(liq);
-    const fileName = `Liquidacion-${liq.liquidationNumber}-${liq.guideName.replace(/\s+/g, '_')}.pdf`;
-    setPdfPreview({ url, fileName });
-  };
+  const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const handleClear = () => {
-    setItems([]);
-    setCurrentFile("");
-    setCurrentGuideName("");
-    setSavedLiquidation(null);
-    setPageStatus("idle");
-    setFormKey((k) => k + 1);
-  };
-
-  const statusLabel = pageStatus === "saved" ? "Liquidado" : "Sin Liquidar";
-  const currentLiqNumber = savedLiquidation?.liquidationNumber ?? liquidationNumber;
+  const COL_HEADERS = ["N°", "Guía", "File", "Total", "Estado", ""];
+  const GRID = "90px 1fr 120px 110px 120px 84px";
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <div className="flex flex-col gap-5 p-7 max-w-7xl mx-auto w-full">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {/* Back button — círculo Nothing style */}
+    <div style={{ minHeight: "100vh", background: CSS.bg, fontFamily: "'Space Grotesk', sans-serif" }}>
+      <style>{`
+        @keyframes nd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+      `}</style>
+
+      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "28px 28px 48px", display: "flex", flexDirection: "column", gap: "24px" }}>
+
+        {/* ── Header ── */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <button
               onClick={() => router.push("/")}
               style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                border: "1px solid hsl(var(--border))",
-                background: "hsl(var(--card))",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                transition: "border-color 150ms ease-out",
-                flexShrink: 0,
+                width: "40px", height: "40px", borderRadius: "50%",
+                border: `1px solid ${CSS.border}`,
+                background: CSS.card,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", flexShrink: 0,
+                color: CSS.mutedFg, transition: "border-color 150ms",
               }}
-              className="text-muted-foreground hover:text-foreground hover:border-foreground/40"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft size={16} />
             </button>
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-              <h1
-                style={{
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontSize: "22px",
-                  fontWeight: 700,
-                  letterSpacing: "-0.01em",
-                  lineHeight: 1.2,
-                }}
-                className="text-foreground"
-              >
+            <div>
+              <h1 style={{
+                fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px",
+                fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.2,
+                color: CSS.fg,
+              }}>
                 Liquidación de Guías
               </h1>
-              <p
-                style={{
-                  fontFamily: "'Space Mono', monospace",
-                  fontSize: "11px",
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                }}
-                className="text-muted-foreground"
-              >
-                Generá y gestioná liquidaciones por guía y file
+              <p style={{
+                fontFamily: "'Space Mono', monospace", fontSize: "11px",
+                letterSpacing: "0.06em", textTransform: "uppercase",
+                color: CSS.mutedFg, marginTop: "2px",
+              }}>
+                Dashboard · resumen y acciones
               </p>
             </div>
           </div>
-
-          {/* Nueva Liquidación */}
           <button
-            onClick={() => pageStatus === "searched" && items.length > 0 ? setShowNewConfirm(true) : handleClear()}
+            onClick={() => router.push("/guide-liquidation/new")}
             style={{
-              height: "36px",
-              padding: "0 18px",
-              borderRadius: "999px",
-              fontFamily: "'Space Mono', monospace",
-              fontSize: "11px",
-              fontWeight: 400,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
+              height: "36px", padding: "0 18px", borderRadius: "999px",
+              fontFamily: "'Space Mono', monospace", fontSize: "11px",
+              letterSpacing: "0.06em", textTransform: "uppercase",
+              display: "flex", alignItems: "center", gap: "6px",
+              border: `1px solid ${TOKEN.blue}44`,
+              background: `${TOKEN.blue}14`,
+              color: TOKEN.blue, cursor: "pointer",
               transition: "all 150ms ease-out",
-              border: "1px solid hsl(var(--border))",
-              color: "hsl(var(--muted-foreground))",
-              background: "transparent",
-              cursor: "pointer",
             }}
-            className="hover:border-foreground/40 hover:text-foreground"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus size={13} />
             Nueva Liquidación
           </button>
         </div>
 
-        {/* Form */}
-        <GuideLiquidationForm
-          key={formKey}
-          isSearching={isSearching}
-          hasResults={pageStatus !== "idle"}
-          onSearch={handleSearch}
-        />
+        {/* ── Stat cards ── */}
+        <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
+          <StatCard icon={FileText} label="Total Liquidaciones" value={loading ? "—" : String(stats?.total ?? 0)} sub="todas las liquidaciones" accent={TOKEN.blue} />
+          <StatCard icon={TrendingUp} label="Monto Total" value={loading ? "—" : `Bs. ${fmt(stats?.montoTotal ?? 0)}`} sub="suma de liquidaciones" accent="#7c3aed" />
+          <StatCard icon={Calendar} label="Este Mes" value={loading ? "—" : String(stats?.esteMes ?? 0)} sub="liquidaciones del mes" accent={TOKEN.amber} />
+          <StatCard icon={Users} label="Guías Liquidados" value={loading ? "—" : String(stats?.guiasUnicas ?? 0)} sub="guías únicos" accent={TOKEN.green} />
+        </div>
 
-        {/* Status row — solo visible cuando hay resultados */}
-        {pageStatus !== "idle" && (
-          <div className="flex items-center gap-3">
-            {/* Estado */}
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "7px",
-                padding: "6px 14px",
-                borderRadius: "6px",
-                border: pageStatus === "saved"
-                  ? "1px solid #16a34a88"
-                  : "1px solid hsl(var(--destructive) / 0.5)",
-                backgroundColor: pageStatus === "saved"
-                  ? "#16a34a14"
-                  : "hsl(var(--destructive) / 0.08)",
-              }}
-            >
-              <span
+        {/* ── Action cards ── */}
+        <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
+          <ActionCard icon={Plus} title="Generar Liquidación" description="Buscá por file y guía, ingresá montos y guardá" accent={TOKEN.green} primary onClick={() => router.push("/guide-liquidation/new")} />
+          <ActionCard icon={History} title="Historial de Liquidaciones" description="Consultá y filtrá todas las liquidaciones guardadas" accent={TOKEN.amber} onClick={() => router.push("/guide-liquidation/history")} />
+          <ActionCard icon={Settings2} title="Motor de Criterios" description="Configurá precios automáticos por servicio, hora e idioma" accent={TOKEN.blue} onClick={() => router.push("/guide-liquidation/criteria")} />
+        </div>
+
+        {/* ── Recent table ── */}
+        <div style={{
+          background: CSS.card,
+          border: `1px solid ${CSS.border}`,
+          borderRadius: "10px", overflow: "hidden",
+        }}>
+          {/* Table title bar */}
+          <div style={{
+            background: CSS.subtleBg,
+            borderBottom: `1px solid ${CSS.border}`,
+            padding: "14px 20px",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            <span style={{
+              fontFamily: "'Space Mono', monospace", fontSize: "11px",
+              letterSpacing: "0.08em", textTransform: "uppercase",
+              color: TOKEN.blue, fontWeight: 700,
+            }}>
+              Liquidaciones Recientes
+            </span>
+            {stats && stats.total > 8 && (
+              <button
+                onClick={() => router.push("/guide-liquidation/history")}
                 style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "50%",
-                  backgroundColor: pageStatus === "saved" ? "#16a34a" : "hsl(var(--destructive))",
-                  display: "inline-block",
-                  flexShrink: 0,
-                  animation: pageStatus === "saved" ? "nd-pulse 2.4s ease-in-out infinite" : "none",
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: "'Space Mono', monospace",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: pageStatus === "saved" ? "#16a34a" : "hsl(var(--destructive))",
+                  fontFamily: "'Space Mono', monospace", fontSize: "10px",
+                  color: TOKEN.blue, letterSpacing: "0.04em",
+                  background: "none", border: "none", cursor: "pointer",
+                  textDecoration: "underline",
                 }}
               >
-                {statusLabel}
-              </span>
-            </div>
-            <style>{`
-              @keyframes nd-pulse {
-                0%, 100% { opacity: 1; }
-                50%       { opacity: 0.3; }
-              }
-            `}</style>
-
-            {/* Número de liquidación */}
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                padding: "4px 10px",
-                borderRadius: "4px",
-                border: "1px solid hsl(var(--border))",
-                backgroundColor: "hsl(var(--muted) / 0.4)",
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "'Space Mono', monospace",
-                  fontSize: "11px",
-                  fontWeight: 400,
-                  letterSpacing: "0.06em",
-                  color: "hsl(var(--muted-foreground))",
-                }}
-              >
-                {currentLiqNumber}
-              </span>
-            </div>
+                Ver todas ({stats.total}) →
+              </button>
+            )}
           </div>
-        )}
 
-        {/* Table */}
-        <GuideLiquidationTable
-          items={savedLiquidation ? savedLiquidation.items : items}
-          onItemChange={handleItemChange}
-          readOnly={pageStatus === "saved"}
-        />
+          {/* Column headers */}
+          <div style={{
+            display: "grid", gridTemplateColumns: GRID,
+            padding: "10px 20px",
+            borderBottom: `1px solid ${CSS.border}`,
+            background: CSS.subtleBg,
+          }}>
+            {COL_HEADERS.map((col) => (
+              <span key={col} style={{
+                fontFamily: "'Space Mono', monospace", fontSize: "9px",
+                letterSpacing: "0.1em", textTransform: "uppercase" as const,
+                color: CSS.mutedFg,
+              }}>{col}</span>
+            ))}
+          </div>
 
-        {/* Footer */}
-        <GuideLiquidationFooter
-          total={total}
-          isSaving={isSaving}
-          hasItems={items.length > 0}
-          isSaved={pageStatus === "saved"}
-          onClear={handleClear}
-          onSave={() => setShowSaveConfirm(true)}
-          onPrint={handlePrint}
-        />
+          {/* Rows */}
+          {loading ? (
+            <div style={{ padding: "32px 20px", textAlign: "center" }}>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg }}>Cargando...</span>
+            </div>
+          ) : !stats || stats.recientes.length === 0 ? (
+            <div style={{ padding: "40px 20px", textAlign: "center" }}>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg }}>No hay liquidaciones registradas todavía</span>
+            </div>
+          ) : (
+            stats.recientes.map((liq, i) => (
+              <div
+                key={liq.id}
+                style={{
+                  display: "grid", gridTemplateColumns: GRID,
+                  padding: "13px 20px",
+                  borderBottom: i < stats.recientes.length - 1 ? `1px solid ${CSS.border}` : "none",
+                  alignItems: "center",
+                  gap: "0px",
+                }}
+              >
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: TOKEN.blue, letterSpacing: "0.04em" }}>
+                  {liq.liquidationNumber}
+                </span>
+                <div>
+                  <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 600, color: CSS.fg }}>{liq.guideName}</p>
+                  <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", color: CSS.mutedFg, letterSpacing: "0.04em", marginTop: "2px" }}>{liq.paxName || "—"}</p>
+                </div>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.fg, letterSpacing: "0.04em" }}>
+                  {liq.fileNumber}
+                </span>
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 700, color: CSS.fg }}>
+                  Bs. {fmt(liq.total)}
+                </span>
+                {/* Estado + gap visual antes del botón */}
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  <StatusBadge status={liq.status} />
+                </div>
+                {/* Acciones: editar + imprimir */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px" }}>
+                  <button
+                    onClick={() => router.push(`/guide-liquidation/edit/${liq.id}`)}
+                    title="Editar liquidación"
+                    style={{ width: "34px", height: "34px", borderRadius: "8px", border: `1px solid ${TOKEN.amber}28`, background: `${TOKEN.amber}0d`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms ease-out", color: TOKEN.amber, flexShrink: 0 }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `${TOKEN.amber}18`; (e.currentTarget as HTMLButtonElement).style.borderColor = `${TOKEN.amber}66`; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `${TOKEN.amber}0d`; (e.currentTarget as HTMLButtonElement).style.borderColor = `${TOKEN.amber}28`; }}
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <PrintButton liq={liq} printingId={printingId} onPrint={handlePrint} />
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
-      {/* Confirm save dialog */}
-      <AlertDialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Guardar liquidación?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Se guardará la liquidación <strong>{currentLiqNumber}</strong> para el guía{" "}
-              <strong>{currentGuideName}</strong>, file <strong>{currentFile}</strong>.
-              <br />
-              Total a liquidar: <strong>Bs. {total.toFixed(2)}</strong>.
-              <br />
-              El estado cambiará a <strong>Liquidado</strong>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setShowSaveConfirm(false);
-                doSave();
-              }}
-            >
-              Sí, guardar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Confirm nueva liquidación sobre una existente */}
-      <AlertDialog open={showNewConfirm} onOpenChange={setShowNewConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Descartar cambios?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tenés servicios cargados para <strong>{currentGuideName}</strong> — file{" "}
-              <strong>{currentFile}</strong> que todavía no fueron guardados.
-              <br /><br />
-              Si continuás se perderán los montos ingresados.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowNewConfirm(false); handleClear(); }}>
-              Sí, nueva liquidación
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* PDF Preview Modal */}
       <LiquidationPDFPreviewModal
         open={!!pdfPreview}
-        onClose={() => {
-          if (pdfPreview) URL.revokeObjectURL(pdfPreview.url);
-          setPdfPreview(null);
-        }}
+        onClose={() => { if (pdfPreview) URL.revokeObjectURL(pdfPreview.url); setPdfPreview(null); }}
         blobUrl={pdfPreview?.url ?? null}
         fileName={pdfPreview?.fileName ?? ""}
       />
