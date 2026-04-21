@@ -178,7 +178,13 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         const profile = await fetchUserProfile(firebaseUser.uid);
         const localSessionId = typeof window !== 'undefined' ? sessionStorage.getItem(SESSION_ID_KEY) : null;
-        if (profile?.activeSessionId && localSessionId && profile.activeSessionId !== localSessionId) {
+        if (!localSessionId) {
+          // Page reload or tab restore: Firebase kept the auth cookie but sessionStorage is gone.
+          // Treat this as a fresh login for this browser — claim the session.
+          const restoredSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+          sessionStorage.setItem(SESSION_ID_KEY, restoredSessionId);
+          if (db) await updateDoc(doc(db, 'userProfiles', firebaseUser.uid), { activeSessionId: restoredSessionId });
+        } else if (profile?.activeSessionId && profile.activeSessionId !== localSessionId) {
           await signOut(auth!);
           setCurrentUser(null);
           setIsLoading(false);
@@ -186,7 +192,8 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
           router.push('/login');
           return;
         }
-        setCurrentUser({ ...firebaseUser, profile: profile || undefined });
+        const updatedProfile = await fetchUserProfile(firebaseUser.uid);
+        setCurrentUser({ ...firebaseUser, profile: updatedProfile || undefined });
       } else {
         setCurrentUser(null);
         sessionStorage.removeItem(SESSION_ID_KEY);
