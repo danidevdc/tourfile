@@ -195,7 +195,7 @@ export async function buildLiquidationPDFUrl(liquidation: GuideLiquidation): Pro
     { label: 'Nombre Pax',        value: liquidation.paxName },
     { label: 'Nro. Pax',          value: String(liquidation.paxCount) },
     { label: 'Fecha de Emisión',  value: dateStr },
-    { label: 'Estado',            value: liquidation.status ?? 'Liquidado' },
+    { label: 'Estado',            value: liquidation.paymentDate ? 'PAGADO' : 'SOLICITADO' },
   ];
 
   // Draw 2-col grid (3 rows × 2 cols)

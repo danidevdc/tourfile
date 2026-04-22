@@ -2,13 +2,25 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Printer, Pencil, CheckCircle2, Loader2, Search } from "lucide-react";
+import { ArrowLeft, Printer, Pencil, CheckCircle2, Loader2, Search, Receipt, X, Save } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   getAllGuideNames,
   getOrdersByGuideAndMonth,
   getLiquidationsByGuide,
+  getLiquidationById,
+  getServiceOrdersByFileAndGuide,
   payLiquidation,
+  saveLiquidation,
+  updateLiquidation,
   type GuideLiquidation,
+  type GuideFileRow,
+  type LiquidationItem,
 } from "@/lib/guideLiquidationService";
 import {
   getLiquidationCriteria,
@@ -17,27 +29,26 @@ import {
   IDIOMAS, IDIOMA_LABELS, IDIOMA_COLORS,
   type Idioma, type LiquidationCriteriaRule,
 } from "@/lib/guideLiquidationCriteriaService";
-import { saveLiquidation } from "@/lib/guideLiquidationService";
 import { buildLiquidationPDFUrl } from "@/lib/guideLiquidationPDF";
+import { GuideLiquidationTable } from "@/components/guide-liquidation/GuideLiquidationTable";
 import { LiquidationPDFPreviewModal } from "@/components/guide-liquidation/LiquidationPDFPreviewModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles } from "lucide-react";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const CSS = {
-  bg:       "hsl(var(--background))",
-  card:     "hsl(var(--card))",
-  border:   "hsl(var(--border))",
-  muted:    "hsl(var(--muted))",
-  mutedFg:  "hsl(var(--muted-foreground))",
-  fg:       "hsl(var(--foreground))",
-  subtle:   "hsl(var(--muted) / 0.4)",
+  bg:      "hsl(var(--background))",
+  card:    "hsl(var(--card))",
+  border:  "hsl(var(--border))",
+  muted:   "hsl(var(--muted))",
+  mutedFg: "hsl(var(--muted-foreground))",
+  fg:      "hsl(var(--foreground))",
+  subtle:  "hsl(var(--muted) / 0.4)",
 };
-const BLUE   = "#0991ea";
-const GREEN  = "#16a34a";
-const AMBER  = "#f59e0b";
-const RED    = "#ef4444";
+const BLUE  = "#0991ea";
+const GREEN = "#16a34a";
+const AMBER = "#f59e0b";
+const RED   = "#ef4444";
 
 const MONTHS = [
   "Enero","Febrero","Marzo","Abril","Mayo","Junio",
@@ -45,88 +56,346 @@ const MONTHS = [
 ];
 const YEARS = [2025, 2026];
 
-type OrderRow = {
-  orderId: string;
-  fileNumber: string;
-  orderName: string;
-  fecha: string;
-  hora: string;
-  servicio: string;
-  paxName: string;
-  paxCount: number;
-  hasLiquidation: boolean;
-};
-
 type LiqStatus = 'SIN LIQUIDAR' | 'SOLICITADO' | 'PAGADO';
-
-type EnrichedRow = OrderRow & {
-  liqStatus: LiqStatus;
-  liq?: GuideLiquidation;
-};
+type EnrichedFileRow = GuideFileRow & { liqStatus: LiqStatus; liq?: GuideLiquidation };
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: LiqStatus }) {
   const color = status === 'PAGADO' ? GREEN : status === 'SOLICITADO' ? AMBER : RED;
+  const dotAnim   = status === 'SIN LIQUIDAR' ? "nd-pulse 2s ease-in-out infinite" : "none";
+  const badgeAnim = status === 'PAGADO'       ? "nd-halo 2.4s ease-in-out infinite" : "none";
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: "5px",
       padding: "3px 10px", borderRadius: "4px",
-      border: `1px solid ${color}55`,
-      background: `${color}14`,
+      border: `1px solid ${color}55`, background: `${color}14`,
       fontFamily: "'Space Mono', monospace", fontSize: "9px",
       fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const,
       color, whiteSpace: "nowrap" as const,
+      animation: badgeAnim,
     }}>
       <span style={{
-        width: "5px", height: "5px", borderRadius: "50%",
-        background: color, display: "inline-block", flexShrink: 0,
-        animation: status === 'SOLICITADO' ? "nd-pulse 2.4s ease-in-out infinite" : "none",
+        width: "5px", height: "5px", borderRadius: "50%", background: color,
+        display: "inline-block", flexShrink: 0,
+        animation: dotAnim,
       }} />
       {status}
     </span>
   );
 }
 
-// ── Idioma selector ───────────────────────────────────────────────────────────
-function IdiomaSelector({ value, onChange, suggested, disabled }: {
-  value: Idioma | ""; onChange: (v: Idioma) => void; suggested: Idioma | null; disabled?: boolean;
+// ── Icon button helper ────────────────────────────────────────────────────────
+function IconBtn({ onClick, title, color, disabled, children }: {
+  onClick: () => void; title: string; color: string; disabled?: boolean; children: React.ReactNode;
+}) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button onClick={onClick} disabled={disabled} title={title}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{ width: "32px", height: "32px", borderRadius: "6px", border: `1px solid ${color}${hov ? "66" : "33"}`, background: hov ? `${color}1a` : `${color}0d`, color, display: "flex", alignItems: "center", justifyContent: "center", cursor: disabled ? "not-allowed" : "pointer", transition: "all 150ms", opacity: disabled ? 0.5 : 1, flexShrink: 0 }}>
+      {children}
+    </button>
+  );
+}
+
+// ── Idioma pill selector ──────────────────────────────────────────────────────
+function IdiomaPills({ value, onChange, suggested }: {
+  value: Idioma | ""; onChange: (v: Idioma) => void; suggested: Idioma | null;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>
+        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>
           Idioma del guía
         </span>
         {suggested && !value && (
-          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", color: IDIOMA_COLORS[suggested], letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: "4px" }}>
-            <Sparkles size={10} /> sugerido: {IDIOMA_LABELS[suggested]}
+          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", color: IDIOMA_COLORS[suggested], display: "flex", alignItems: "center", gap: "3px" }}>
+            <Sparkles size={9} /> sugerido: {IDIOMA_LABELS[suggested]}
           </span>
         )}
       </div>
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" as const }}>
-        {IDIOMAS.map((idioma) => {
+        {IDIOMAS.map(idioma => {
           const color = IDIOMA_COLORS[idioma];
-          const isSelected = value === idioma;
-          const isSuggested = suggested === idioma && !value;
+          const sel = value === idioma;
+          const sug = suggested === idioma && !value;
           return (
-            <button key={idioma} type="button" disabled={disabled} onClick={() => onChange(idioma)} style={{
-              padding: "5px 12px", borderRadius: "999px",
-              border: `1.5px solid ${isSelected ? color : isSuggested ? `${color}88` : CSS.border}`,
-              background: isSelected ? `${color}18` : isSuggested ? `${color}08` : "transparent",
-              color: isSelected ? color : isSuggested ? color : CSS.mutedFg,
+            <button key={idioma} onClick={() => onChange(idioma)} style={{
+              padding: "6px 14px", borderRadius: "999px",
+              border: `1.5px solid ${sel ? color : sug ? `${color}88` : CSS.border}`,
+              background: sel ? `${color}18` : sug ? `${color}08` : "transparent",
+              color: sel ? color : sug ? color : CSS.mutedFg,
               fontFamily: "'Space Mono', monospace", fontSize: "10px",
-              fontWeight: isSelected ? 700 : 400, letterSpacing: "0.06em",
-              cursor: disabled ? "not-allowed" : "pointer",
-              transition: "all 150ms ease-out", opacity: disabled ? 0.5 : 1,
-              display: "flex", alignItems: "center", gap: "5px",
+              fontWeight: sel ? 700 : 400, letterSpacing: "0.06em",
+              cursor: "pointer", transition: "all 150ms",
+              display: "flex", alignItems: "center", gap: "4px",
             }}>
-              {isSuggested && <Sparkles size={9} />}
+              {sug && <Sparkles size={9} />}
               {IDIOMA_LABELS[idioma]}
             </button>
           );
         })}
       </div>
     </div>
+  );
+}
+
+// ── Info card (shared between both modals) ────────────────────────────────────
+function InfoCard({ fields }: { fields: { label: string; value: React.ReactNode; accent?: string }[] }) {
+  return (
+    <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "10px", padding: "16px 20px", display: "flex", gap: "32px", flexWrap: "wrap" as const }}>
+      {fields.map(({ label, value, accent }) => (
+        <div key={label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>{label}</span>
+          <span style={{ fontFamily: accent ? "'Space Grotesk', sans-serif" : "'Space Mono', monospace", fontSize: accent ? "14px" : "13px", fontWeight: accent ? 700 : 400, color: accent ?? CSS.fg }}>{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Generate liquidation modal ────────────────────────────────────────────────
+function GenerateLiqModal({ fileRow, guideName, suggested, criteriaRules, onSave, onCancel, saving }: {
+  fileRow: EnrichedFileRow; guideName: string;
+  suggested: Idioma | null; criteriaRules: LiquidationCriteriaRule[];
+  onSave: (items: LiquidationItem[], idioma: Idioma) => void;
+  onCancel: () => void; saving: boolean;
+}) {
+  const [idioma, setIdioma] = useState<Idioma | "">(suggested ?? "");
+  const [items, setItems] = useState<LiquidationItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!idioma) { setItems([]); return; }
+    setLoadingItems(true);
+    getServiceOrdersByFileAndGuide(fileRow.fileNumber, guideName)
+      .then(raw => {
+        setItems(raw.map(item => ({
+          ...item,
+          monto: applyBestCriteriaRule(criteriaRules, { servicio: item.servicio, hora: item.hora, paxCount: item.paxCount }, idioma as Idioma) ?? 0,
+          checked: true,
+        })));
+      })
+      .catch(() => toast({ title: "Error al cargar servicios", variant: "destructive" }))
+      .finally(() => setLoadingItems(false));
+  }, [idioma]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleChange = useCallback((i: number, field: "monto" | "checked", val: number | boolean) => {
+    setItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: val } : item));
+  }, []);
+
+  const total = items.reduce((s, it) => s + (it.checked ? (it.monto || 0) : 0), 0);
+  const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.55)", padding: "20px" }}>
+      <div style={{ background: CSS.bg, border: `1px solid ${CSS.border}`, borderRadius: "14px", width: "100%", maxWidth: "900px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        {/* Modal header */}
+        <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${CSS.border}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0, background: CSS.card }}>
+          <div>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "18px", fontWeight: 700, color: CSS.fg, marginBottom: "3px" }}>
+              Generar liquidación
+            </p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, letterSpacing: "0.04em", textTransform: "uppercase" as const }}>
+              nueva liquidación · {guideName}
+            </p>
+          </div>
+          <button onClick={onCancel} style={{ width: "32px", height: "32px", borderRadius: "6px", border: "1px solid #ef444433", background: "#ef44440d", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms" }}>
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Static body — no scroll here, table scrolls internally */}
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+
+          {/* Info card */}
+          <InfoCard fields={[
+            { label: "Guía", value: guideName, accent: CSS.fg },
+            { label: "File", value: fileRow.fileNumber },
+            { label: "Pasajero", value: fileRow.paxName || "—" },
+            { label: "N° Pax", value: fileRow.paxCount || "—" },
+            { label: "Total", value: `Bs. ${fmt(total)}`, accent: GREEN },
+          ]} />
+
+          {/* Idioma selector */}
+          <IdiomaPills value={idioma} onChange={setIdioma} suggested={suggested} />
+
+          {criteriaRules.length === 0 && (
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", color: AMBER, letterSpacing: "0.04em" }}>
+              ⚠ Sin reglas de criterios configuradas — los montos quedarán en 0.
+            </p>
+          )}
+
+          {/* Items table — scrollable, fills remaining viewport */}
+          {loadingItems ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "32px", gap: "10px" }}>
+              <Loader2 size={18} color={BLUE} style={{ animation: "spin 1s linear infinite" }} />
+              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg }}>Cargando servicios...</span>
+            </div>
+          ) : idioma && items.length > 0 ? (
+            <GuideLiquidationTable items={items} onItemChange={handleChange} readOnly={false} hideColumns={["file", "paxName"]} maxHeight="calc(100vh - 420px)" />
+          ) : idioma && items.length === 0 && !loadingItems ? (
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, textAlign: "center", padding: "24px 0" }}>
+              Sin servicios encontrados para este file y guía.
+            </p>
+          ) : (
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, textAlign: "center", padding: "24px 0" }}>
+              Seleccioná el idioma del guía para ver los servicios y precios.
+            </p>
+          )}
+        </div>
+
+        {/* Footer total + actions */}
+        <div style={{ padding: "16px 24px", borderTop: `1px solid ${CSS.border}`, background: CSS.card, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.06em", color: CSS.mutedFg, textTransform: "uppercase" as const }}>Total a pagar</span>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: GREEN }}>
+              Bs. {fmt(total)}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button onClick={onCancel} disabled={saving}
+              style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: `1px solid ${CSS.border}`, background: "transparent", color: CSS.mutedFg, fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>
+              Cancelar
+            </button>
+            <button
+              onClick={() => idioma && items.length > 0 && onSave(items, idioma as Idioma)}
+              disabled={saving || !idioma || items.length === 0}
+              style={{ height: "36px", padding: "0 22px", borderRadius: "8px", border: "none", background: (!idioma || items.length === 0) ? CSS.muted : GREEN, color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.06em", cursor: (saving || !idioma || items.length === 0) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: "7px", transition: "all 150ms" }}>
+              {saving && <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />}
+              Guardar liquidación
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Edit liquidation modal ────────────────────────────────────────────────────
+function EditLiqModal({ liqId, onSaved, onCancel }: {
+  liqId: string; onSaved: () => void; onCancel: () => void;
+}) {
+  const { toast } = useToast();
+  const [liq, setLiq]           = useState<GuideLiquidation | null>(null);
+  const [items, setItems]       = useState<LiquidationItem[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  useEffect(() => {
+    getLiquidationById(liqId)
+      .then(data => {
+        if (!data) { toast({ title: "Liquidación no encontrada", variant: "destructive" }); onCancel(); return; }
+        setLiq(data);
+        setItems(data.items.map(i => ({ ...i, checked: true })));
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [liqId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleChange = useCallback((i: number, field: "monto" | "checked", val: number | boolean) => {
+    setItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: val } : item));
+  }, []);
+
+  const total = items.reduce((s, i) => s + (i.checked ? (i.monto || 0) : 0), 0);
+  const fmt   = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
+
+  const doSave = async () => {
+    if (!liq) return;
+    setSaving(true);
+    try {
+      await updateLiquidation(liq.id, { items, paxName: liq.paxName, paxCount: liq.paxCount });
+      toast({ title: "Liquidación actualizada", description: `${liq.liquidationNumber} — Total: Bs. ${total.toFixed(2)}` });
+      onSaved();
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Error al guardar", variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <>
+      <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.55)", padding: "20px" }}>
+        <div style={{ background: CSS.bg, border: `1px solid ${CSS.border}`, borderRadius: "14px", width: "100%", maxWidth: "960px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+          {/* Header */}
+          <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${CSS.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, background: CSS.card }}>
+            <div>
+              <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "18px", fontWeight: 700, color: CSS.fg, marginBottom: "3px" }}>
+                Editar liquidación
+              </p>
+              <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, letterSpacing: "0.04em", textTransform: "uppercase" as const }}>
+                {liq ? `Modificando ${liq.liquidationNumber}` : "Cargando..."}
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <button onClick={() => setShowConfirm(true)} disabled={saving || loading || !liq}
+                style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: "none", background: GREEN, color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.06em", cursor: saving ? "wait" : "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: (saving || loading) ? 0.7 : 1 }}>
+                {saving ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Save size={13} />}
+                Guardar cambios
+              </button>
+              <button onClick={onCancel} style={{ width: "32px", height: "32px", borderRadius: "6px", border: "1px solid #ef444433", background: "#ef44440d", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms" }}>
+                <X size={15} />
+              </button>
+            </div>
+          </div>
+
+          {/* Body — static, no scroll; table scrolls internally */}
+          <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+            {loading ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px", gap: "10px" }}>
+                <Loader2 size={22} color={BLUE} style={{ animation: "spin 1s linear infinite" }} />
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", color: CSS.mutedFg }}>Cargando liquidación...</span>
+              </div>
+            ) : liq ? (
+              <>
+                <InfoCard fields={[
+                  { label: "N° Liquidación", value: liq.liquidationNumber, accent: BLUE },
+                  { label: "Guía", value: liq.guideName, accent: CSS.fg },
+                  { label: "File", value: liq.fileNumber },
+                  { label: "Pasajero", value: liq.paxName || "—" },
+                  { label: "Total actual", value: `Bs. ${fmt(total)}`, accent: GREEN },
+                ]} />
+                <GuideLiquidationTable items={items} onItemChange={handleChange} readOnly={false} hideColumns={["file", "paxName"]} maxHeight="calc(100vh - 380px)" />
+              </>
+            ) : null}
+          </div>
+
+          {/* Footer */}
+          {liq && (
+            <div style={{ padding: "16px 24px", borderTop: `1px solid ${CSS.border}`, background: CSS.card, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.06em", color: CSS.mutedFg, textTransform: "uppercase" as const }}>Total a pagar</span>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "24px", fontWeight: 700, color: GREEN }}>
+                Bs. {fmt(total)}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Confirm dialog */}
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Guardar cambios?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se actualizarán los montos de <strong>{liq?.liquidationNumber}</strong> — guía <strong>{liq?.guideName}</strong>.
+              <br />Nuevo total: <strong>Bs. {total.toFixed(2)}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowConfirm(false); doSave(); }}>
+              Sí, guardar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+    </>
   );
 }
 
@@ -137,75 +406,36 @@ function PayModal({ liq, onConfirm, onCancel, loading }: {
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
   const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
       <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "12px", padding: "28px 32px", width: "360px", display: "flex", flexDirection: "column", gap: "20px" }}>
-        <div>
-          <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: CSS.fg, marginBottom: "6px" }}>
-            Confirmar pago
-          </p>
-          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, letterSpacing: "0.04em" }}>
-            {liq.guideName} · {liq.liquidationNumber}
-          </p>
-          <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: GREEN, marginTop: "10px" }}>
-            Bs. {fmt(liq.total)}
-          </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: CSS.fg, marginBottom: "6px" }}>Confirmar pago</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, letterSpacing: "0.04em" }}>
+              {liq.guideName} · {liq.liquidationNumber}
+            </p>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: GREEN, marginTop: "10px" }}>
+              Bs. {fmt(liq.total)}
+            </p>
+          </div>
+          <button onClick={onCancel} style={{ width: "30px", height: "30px", borderRadius: "6px", border: "1px solid #ef444433", background: "#ef44440d", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms" }}>
+            <X size={14} />
+          </button>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <label style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>
-            Fecha de pago
-          </label>
-          <input
-            type="date"
-            value={payDate}
-            onChange={e => setPayDate(e.target.value)}
-            style={{ padding: "8px 12px", borderRadius: "6px", border: `1px solid ${CSS.border}`, background: CSS.bg, color: CSS.fg, fontFamily: "'Space Mono', monospace", fontSize: "13px", outline: "none" }}
-          />
+          <label style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>Fecha de pago</label>
+          <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
+            style={{ padding: "8px 12px", borderRadius: "6px", border: `1px solid ${CSS.border}`, background: CSS.bg, color: CSS.fg, fontFamily: "'Space Mono', monospace", fontSize: "13px", outline: "none" }} />
         </div>
         <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-          <button onClick={onCancel} disabled={loading} style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: `1px solid ${CSS.border}`, background: "transparent", color: CSS.mutedFg, fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>
+          <button onClick={onCancel} disabled={loading}
+            style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: `1px solid ${CSS.border}`, background: "transparent", color: CSS.mutedFg, fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>
             Cancelar
           </button>
-          <button onClick={() => onConfirm(payDate)} disabled={loading || !payDate} style={{ height: "36px", padding: "0 20px", borderRadius: "8px", border: "none", background: GREEN, color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: loading ? "wait" : "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: loading ? 0.7 : 1 }}>
+          <button onClick={() => onConfirm(payDate)} disabled={loading || !payDate}
+            style={{ height: "36px", padding: "0 20px", borderRadius: "8px", border: "none", background: GREEN, color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: loading ? "wait" : "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: loading ? 0.7 : 1 }}>
             {loading && <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />}
             Confirmar pago
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── New liquidation modal (idioma picker + confirm) ───────────────────────────
-function NewLiqModal({ guideName, fileNumber, month, year, onConfirm, onCancel, loading, suggested, criteriaRules }: {
-  guideName: string; fileNumber: string; month: number; year: number;
-  onConfirm: (idioma: Idioma) => void; onCancel: () => void; loading: boolean;
-  suggested: Idioma | null; criteriaRules: LiquidationCriteriaRule[];
-}) {
-  const [idioma, setIdioma] = useState<Idioma | "">(suggested ?? "");
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
-      <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "12px", padding: "28px 32px", width: "480px", display: "flex", flexDirection: "column", gap: "20px" }}>
-        <div>
-          <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: CSS.fg, marginBottom: "4px" }}>
-            Generar liquidación
-          </p>
-          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, letterSpacing: "0.04em" }}>
-            {guideName} · File {fileNumber} · {MONTHS[month - 1]} {year}
-          </p>
-        </div>
-        <IdiomaSelector value={idioma} onChange={setIdioma} suggested={suggested} />
-        {criteriaRules.length === 0 && (
-          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", color: AMBER, letterSpacing: "0.04em" }}>
-            ⚠ Sin reglas de criterios — los montos quedarán en 0. Configurá el Motor de Criterios primero.
-          </p>
-        )}
-        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-          <button onClick={onCancel} disabled={loading} style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: `1px solid ${CSS.border}`, background: "transparent", color: CSS.mutedFg, fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>
-            Cancelar
-          </button>
-          <button onClick={() => idioma && onConfirm(idioma as Idioma)} disabled={loading || !idioma} style={{ height: "36px", padding: "0 20px", borderRadius: "8px", border: "none", background: !idioma ? CSS.muted : GREEN, color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: (loading || !idioma) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: loading ? 0.7 : 1 }}>
-            {loading && <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />}
-            Generar
           </button>
         </div>
       </div>
@@ -225,20 +455,19 @@ export default function LiquidationByGuidePage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  const [rows, setRows] = useState<EnrichedRow[]>([]);
+  const [rows, setRows] = useState<EnrichedFileRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
   const [criteriaRules, setCriteriaRules] = useState<LiquidationCriteriaRule[]>([]);
   const [suggestedIdioma, setSuggestedIdioma] = useState<Idioma | null>(null);
 
-  // Modals
   const [payTarget, setPayTarget] = useState<GuideLiquidation | null>(null);
   const [paying, setPaying] = useState(false);
-  const [newLiqTarget, setNewLiqTarget] = useState<{ fileNumber: string } | null>(null);
+  const [liqTarget, setLiqTarget] = useState<EnrichedFileRow | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [editLiqId, setEditLiqId] = useState<string | null>(null);
 
-  // PDF preview
   const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
 
@@ -252,36 +481,26 @@ export default function LiquidationByGuidePage() {
     getSuggestedIdioma(selectedGuide).then(setSuggestedIdioma).catch(console.error);
   }, [selectedGuide]);
 
-  const filteredGuides = guideSearch
+  const filteredGuides = guideSearch && !selectedGuide
     ? guides.filter(g => g.toLowerCase().includes(guideSearch.toLowerCase()))
-    : guides;
+    : [];
 
-  const handleSearch = useCallback(async () => {
+  const doSearch = useCallback(async () => {
     if (!selectedGuide) return;
     setLoading(true);
     setSearched(false);
     try {
-      const [orderRows, liqList] = await Promise.all([
+      const [fileRows, liqList] = await Promise.all([
         getOrdersByGuideAndMonth(selectedGuide, selectedMonth, selectedYear),
         getLiquidationsByGuide(selectedGuide),
       ]);
-
-      const enriched: EnrichedRow[] = orderRows.map(row => {
-        // Find a liquidation that covers this order's file
-        const liq = liqList.find(l =>
-          l.fileNumber.replace(/^CTF/i, '').trim() === row.fileNumber.replace(/^CTF/i, '').trim()
-        );
+      const enriched: EnrichedFileRow[] = fileRows.map(row => {
+        const norm = (s: string) => s.replace(/^CTF/i, '').trim();
+        const liq = liqList.find(l => norm(l.fileNumber) === norm(row.fileNumber));
         let liqStatus: LiqStatus = 'SIN LIQUIDAR';
-        if (liq) {
-          if (liq.status === 'Liquidado' && (liq as any).paymentDate) {
-            liqStatus = 'PAGADO';
-          } else if (liq.status === 'Liquidado') {
-            liqStatus = 'SOLICITADO';
-          }
-        }
+        if (liq) liqStatus = liq.paymentDate ? 'PAGADO' : 'SOLICITADO';
         return { ...row, liqStatus, liq };
       });
-
       setRows(enriched);
       setSearched(true);
     } catch (e) {
@@ -309,65 +528,45 @@ export default function LiquidationByGuidePage() {
       await payLiquidation(payTarget.id, date);
       toast({ title: "Pago registrado", description: `${payTarget.guideName} · ${payTarget.liquidationNumber}`, variant: "success" as any });
       setPayTarget(null);
-      await handleSearch();
+      await doSearch();
     } catch (e) {
       toast({ title: "Error al registrar pago", variant: "destructive" });
-    } finally {
-      setPaying(false);
-    }
+    } finally { setPaying(false); }
   };
 
-  const handleGenerateLiq = async (idioma: Idioma) => {
-    if (!newLiqTarget || !currentUser) return;
+  const handleSaveLiq = async (items: LiquidationItem[], idioma: Idioma) => {
+    if (!liqTarget || !currentUser) return;
     setGenerating(true);
     try {
-      // Get all order rows for this file
-      const fileRows = rows.filter(r => r.fileNumber.replace(/^CTF/i, '').trim() === newLiqTarget.fileNumber.replace(/^CTF/i, '').trim());
-      const items = fileRows.map(r => ({
-        serviceOrderId: r.orderId,
-        fileNumber: r.fileNumber,
-        fecha: r.fecha,
-        hora: r.hora,
-        servicio: r.servicio,
-        paxName: r.paxName,
-        paxCount: r.paxCount,
-        monto: applyBestCriteriaRule(criteriaRules, { servicio: r.servicio, hora: r.hora, paxCount: r.paxCount }, idioma) ?? 0,
-        checked: true,
-      }));
-
       await saveLiquidation({
-        fileNumber: newLiqTarget.fileNumber,
+        fileNumber: liqTarget.fileNumber,
         guideId: selectedGuide,
         guideName: selectedGuide,
-        paxName: fileRows[0]?.paxName ?? '',
-        paxCount: fileRows[0]?.paxCount ?? 0,
+        paxName: liqTarget.paxName,
+        paxCount: liqTarget.paxCount,
         items,
         createdBy: currentUser.email ?? currentUser.uid,
       });
-
-      toast({ title: "Liquidación generada", description: `File ${newLiqTarget.fileNumber} · ${IDIOMA_LABELS[idioma]}`, variant: "success" as any });
-      setNewLiqTarget(null);
-      await handleSearch();
+      toast({ title: "Liquidación guardada", description: `File ${liqTarget.fileNumber} · ${IDIOMA_LABELS[idioma]}`, variant: "success" as any });
+      setLiqTarget(null);
+      await doSearch();
     } catch (e) {
       console.error(e);
-      toast({ title: "Error al generar liquidación", variant: "destructive" });
-    } finally {
-      setGenerating(false);
-    }
+      toast({ title: "Error al guardar liquidación", variant: "destructive" });
+    } finally { setGenerating(false); }
   };
 
   const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
-  const COL_HEADERS = ["FECHA", "FILE", "SERVICIO", "PAX", "TOTAL", "ESTADO", "ACCIONES"];
-  const GRID = "90px 90px 1fr 60px 110px 120px 120px";
 
   return (
     <div style={{ minHeight: "100vh", background: CSS.bg, fontFamily: "'Space Grotesk', sans-serif" }}>
       <style>{`
         @keyframes nd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes nd-halo  { 0%, 100% { box-shadow: 0 0 0 0px #16a34a00; } 50% { box-shadow: 0 0 0 3px #16a34a44; } }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
-      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "28px 28px 60px", display: "flex", flexDirection: "column", gap: "24px" }}>
+      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "28px 28px 60px", display: "flex", flexDirection: "column", gap: "24px" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
@@ -379,7 +578,7 @@ export default function LiquidationByGuidePage() {
               Liquidaciones por Guía
             </h1>
             <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.06em", textTransform: "uppercase", color: CSS.mutedFg, marginTop: "2px" }}>
-              Servicios del mes · estado de liquidación · pagos
+              Files del mes · estado · pagos
             </p>
           </div>
         </div>
@@ -387,22 +586,21 @@ export default function LiquidationByGuidePage() {
         {/* Filters */}
         <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "10px", padding: "20px 24px", display: "flex", flexWrap: "wrap", gap: "20px", alignItems: "flex-end" }}>
 
-          {/* Guide selector */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", flex: "1 1 220px", minWidth: "200px" }}>
+          {/* Guide search */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", flex: "1 1 220px", minWidth: "200px", position: "relative" as const }}>
             <label style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>Guía</label>
             <div style={{ position: "relative" as const }}>
               <Search size={13} color={CSS.mutedFg} style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
-              <input
-                placeholder="Buscar guía..."
-                value={guideSearch}
-                onChange={e => { setGuideSearch(e.target.value); setSelectedGuide(""); }}
-                style={{ width: "100%", paddingLeft: "32px", paddingRight: "10px", paddingTop: "8px", paddingBottom: "8px", fontFamily: "'Space Mono', monospace", fontSize: "12px", borderRadius: "6px", border: `1px solid ${CSS.border}`, background: CSS.bg, color: CSS.fg, outline: "none", boxSizing: "border-box" as const }}
+              <input placeholder="Buscar guía..." value={guideSearch}
+                onChange={e => { setGuideSearch(e.target.value); setSelectedGuide(""); setSearched(false); }}
+                style={{ width: "100%", paddingLeft: "32px", paddingRight: "10px", paddingTop: "8px", paddingBottom: "8px", fontFamily: "'Space Mono', monospace", fontSize: "12px", borderRadius: "6px", border: `1px solid ${selectedGuide ? BLUE : CSS.border}`, background: CSS.bg, color: CSS.fg, outline: "none", boxSizing: "border-box" as const }}
               />
             </div>
-            {guideSearch && filteredGuides.length > 0 && !selectedGuide && (
-              <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "8px", maxHeight: "180px", overflowY: "auto", boxShadow: "0 4px 16px rgba(0,0,0,0.1)" }}>
+            {filteredGuides.length > 0 && (
+              <div style={{ position: "absolute" as const, top: "100%", left: 0, right: 0, zIndex: 50, background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "8px", maxHeight: "200px", overflowY: "auto", boxShadow: "0 4px 16px rgba(0,0,0,0.12)", marginTop: "2px" }}>
                 {filteredGuides.map(g => (
-                  <button key={g} onClick={() => { setSelectedGuide(g); setGuideSearch(g); }} style={{ width: "100%", textAlign: "left" as const, padding: "8px 12px", border: "none", background: "transparent", cursor: "pointer", fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", color: CSS.fg }}
+                  <button key={g} onClick={() => { setSelectedGuide(g); setGuideSearch(g); }}
+                    style={{ width: "100%", textAlign: "left" as const, padding: "9px 14px", border: "none", background: "transparent", cursor: "pointer", fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", color: CSS.fg }}
                     onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = `${BLUE}0a`}
                     onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "transparent"}
                   >{g}</button>
@@ -410,8 +608,8 @@ export default function LiquidationByGuidePage() {
               </div>
             )}
             {selectedGuide && (
-              <div style={{ padding: "6px 10px", borderRadius: "6px", border: `1px solid ${BLUE}44`, background: `${BLUE}0e`, fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 600, color: BLUE }}>
-                {selectedGuide}
+              <div style={{ padding: "5px 10px", borderRadius: "6px", border: `1px solid ${BLUE}44`, background: `${BLUE}0e`, fontFamily: "'Space Mono', monospace", fontSize: "11px", fontWeight: 700, color: BLUE, letterSpacing: "0.04em" }}>
+                ✓ {selectedGuide}
               </div>
             )}
           </div>
@@ -419,7 +617,8 @@ export default function LiquidationByGuidePage() {
           {/* Month */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>Mes</label>
-            <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} style={{ padding: "8px 12px", borderRadius: "6px", border: `1px solid ${CSS.border}`, background: CSS.bg, color: CSS.fg, fontFamily: "'Space Mono', monospace", fontSize: "12px", outline: "none", cursor: "pointer" }}>
+            <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}
+              style={{ padding: "8px 12px", borderRadius: "6px", border: `1px solid ${CSS.border}`, background: CSS.bg, color: CSS.fg, fontFamily: "'Space Mono', monospace", fontSize: "12px", outline: "none", cursor: "pointer" }}>
               {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
             </select>
           </div>
@@ -427,23 +626,20 @@ export default function LiquidationByGuidePage() {
           {/* Year */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>Año</label>
-            <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: "8px 12px", borderRadius: "6px", border: `1px solid ${CSS.border}`, background: CSS.bg, color: CSS.fg, fontFamily: "'Space Mono', monospace", fontSize: "12px", outline: "none", cursor: "pointer" }}>
+            <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}
+              style={{ padding: "8px 12px", borderRadius: "6px", border: `1px solid ${CSS.border}`, background: CSS.bg, color: CSS.fg, fontFamily: "'Space Mono', monospace", fontSize: "12px", outline: "none", cursor: "pointer" }}>
               {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
 
-          {/* Search button */}
-          <button
-            onClick={handleSearch}
-            disabled={!selectedGuide || loading}
-            style={{ height: "38px", padding: "0 22px", borderRadius: "8px", border: "none", background: !selectedGuide || loading ? CSS.muted : BLUE, color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.06em", cursor: (!selectedGuide || loading) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: "8px", transition: "all 150ms" }}
-          >
+          <button onClick={doSearch} disabled={!selectedGuide || loading}
+            style={{ height: "38px", padding: "0 22px", borderRadius: "8px", border: "none", background: (!selectedGuide || loading) ? CSS.muted : BLUE, color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.06em", cursor: (!selectedGuide || loading) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: "8px", transition: "all 150ms" }}>
             {loading ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Search size={13} />}
             {loading ? "Buscando..." : "Buscar"}
           </button>
         </div>
 
-        {/* Results table */}
+        {/* Results */}
         {searched && (
           <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "10px", overflow: "hidden" }}>
             {/* Title bar */}
@@ -452,116 +648,106 @@ export default function LiquidationByGuidePage() {
                 {selectedGuide} · {MONTHS[selectedMonth - 1]} {selectedYear}
               </span>
               <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", color: CSS.mutedFg }}>
-                {rows.length} servicio{rows.length !== 1 ? "s" : ""}
+                {rows.length} file{rows.length !== 1 ? "s" : ""}
               </span>
             </div>
 
             {/* Column headers */}
-            <div style={{ display: "grid", gridTemplateColumns: GRID, padding: "10px 20px", borderBottom: `1px solid ${CSS.border}`, background: CSS.subtle }}>
-              {COL_HEADERS.map(h => (
-                <span key={h} style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>
-                  {h}
-                </span>
+            <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 70px 130px 140px 120px", padding: "10px 20px", borderBottom: `1px solid ${CSS.border}`, background: CSS.subtle }}>
+              {["N° FILE", "NOMBRE PAX", "N° PAX", "TOTAL", "ESTADO", "ACCIONES"].map(h => (
+                <span key={h} style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>{h}</span>
               ))}
             </div>
 
-            {/* Rows */}
             {rows.length === 0 ? (
               <div style={{ padding: "40px 20px", textAlign: "center" }}>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg }}>
-                  Sin servicios para {selectedGuide} en {MONTHS[selectedMonth - 1]} {selectedYear}
+                  Sin files para {selectedGuide} en {MONTHS[selectedMonth - 1]} {selectedYear}
                 </span>
               </div>
-            ) : (
-              rows.map((row, i) => {
-                const liq = row.liq;
-                const total = liq ? liq.total : 0;
-                return (
-                  <div key={`${row.orderId}-${i}`} style={{ display: "grid", gridTemplateColumns: GRID, padding: "12px 20px", borderBottom: i < rows.length - 1 ? `1px solid ${CSS.border}` : "none", alignItems: "center" }}>
-                    {/* Fecha */}
-                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.fg, letterSpacing: "0.04em" }}>{row.fecha}</span>
+            ) : rows.map((row, i) => {
+              const liq = row.liq;
+              return (
+                <div key={row.fileNumber} style={{ display: "grid", gridTemplateColumns: "130px 1fr 70px 130px 140px 120px", padding: "14px 20px", borderBottom: i < rows.length - 1 ? `1px solid ${CSS.border}` : "none", alignItems: "center" }}>
 
-                    {/* File */}
-                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: BLUE, letterSpacing: "0.04em" }}>{row.fileNumber}</span>
+                  {/* N° File */}
+                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "14px", fontWeight: 700, color: CSS.fg }}>
+                    {row.fileNumber}
+                  </span>
 
-                    {/* Servicio */}
-                    <div>
-                      <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 600, color: CSS.fg }}>{row.servicio}</p>
-                      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", color: CSS.mutedFg, letterSpacing: "0.03em", marginTop: "1px" }}>{row.hora || "—"}</p>
-                    </div>
+                  {/* Nombre Pax */}
+                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", color: CSS.fg }}>
+                    {row.paxName || "—"}
+                  </span>
 
-                    {/* Pax */}
-                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.fg }}>{row.paxCount}</span>
+                  {/* N° Pax */}
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", color: CSS.fg }}>
+                    {row.paxCount || "—"}
+                  </span>
 
-                    {/* Total */}
-                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 700, color: liq ? CSS.fg : CSS.mutedFg }}>
-                      {liq ? `Bs. ${fmt(total)}` : "—"}
-                    </span>
+                  {/* Total */}
+                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 700, color: liq ? GREEN : CSS.mutedFg }}>
+                    {liq ? `Bs. ${fmt(liq.total)}` : "—"}
+                  </span>
 
-                    {/* Status */}
-                    <StatusBadge status={row.liqStatus} />
+                  {/* Status */}
+                  <div><StatusBadge status={row.liqStatus} /></div>
 
-                    {/* Actions */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      {row.liqStatus === 'SIN LIQUIDAR' && (
-                        <button
-                          onClick={() => setNewLiqTarget({ fileNumber: row.fileNumber })}
-                          title="Generar liquidación"
-                          style={{ height: "32px", padding: "0 12px", borderRadius: "6px", border: `1px solid ${GREEN}44`, background: `${GREEN}0d`, color: GREEN, fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.04em", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", transition: "all 150ms", whiteSpace: "nowrap" as const }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${GREEN}20`; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = `${GREEN}0d`; }}
-                        >
-                          Bs.
-                        </button>
-                      )}
-                      {(row.liqStatus === 'SOLICITADO' || row.liqStatus === 'PAGADO') && liq && (
-                        <>
-                          <button onClick={() => router.push(`/guide-liquidation/edit/${liq.id}`)} title="Editar" style={{ width: "32px", height: "32px", borderRadius: "6px", border: `1px solid ${AMBER}28`, background: `${AMBER}0d`, color: AMBER, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms" }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${AMBER}20`; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = `${AMBER}0d`; }}
-                          ><Pencil size={13} /></button>
-                          <button onClick={() => handlePrint(liq)} disabled={printingId === liq.id} title="Imprimir PDF" style={{ width: "32px", height: "32px", borderRadius: "6px", border: `1px solid ${BLUE}28`, background: `${BLUE}0d`, color: BLUE, display: "flex", alignItems: "center", justifyContent: "center", cursor: printingId === liq.id ? "wait" : "pointer", transition: "all 150ms" }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${BLUE}20`; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = `${BLUE}0d`; }}
-                          >{printingId === liq.id ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Printer size={13} />}</button>
-                        </>
-                      )}
-                      {row.liqStatus === 'SOLICITADO' && liq && (
-                        <button onClick={() => setPayTarget(liq)} title="Marcar como pagado" style={{ width: "32px", height: "32px", borderRadius: "6px", border: `1px solid ${GREEN}44`, background: `${GREEN}0d`, color: GREEN, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms" }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${GREEN}20`; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = `${GREEN}0d`; }}
-                        ><CheckCircle2 size={14} /></button>
-                      )}
-                    </div>
+                  {/* Actions */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {row.liqStatus === 'SIN LIQUIDAR' && (
+                      <IconBtn onClick={() => setLiqTarget(row)} title="Generar liquidación" color={GREEN}>
+                        <Receipt size={14} />
+                      </IconBtn>
+                    )}
+                    {(row.liqStatus === 'SOLICITADO' || row.liqStatus === 'PAGADO') && liq && (
+                      <>
+                        <IconBtn onClick={() => setEditLiqId(liq.id)} title="Editar" color={AMBER}>
+                          <Pencil size={13} />
+                        </IconBtn>
+                        <IconBtn onClick={() => handlePrint(liq)} title="Imprimir PDF" color={BLUE} disabled={printingId === liq.id}>
+                          {printingId === liq.id ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Printer size={13} />}
+                        </IconBtn>
+                      </>
+                    )}
+                    {row.liqStatus === 'SOLICITADO' && liq && (
+                      <IconBtn onClick={() => setPayTarget(liq)} title="Marcar como pagado" color={GREEN}>
+                        <CheckCircle2 size={14} />
+                      </IconBtn>
+                    )}
                   </div>
-                );
-              })
-            )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Modals */}
-      {payTarget && (
-        <PayModal
-          liq={payTarget}
-          onConfirm={handlePay}
-          onCancel={() => setPayTarget(null)}
-          loading={paying}
-        />
-      )}
-      {newLiqTarget && (
-        <NewLiqModal
+      {/* Generate modal */}
+      {liqTarget && (
+        <GenerateLiqModal
+          fileRow={liqTarget}
           guideName={selectedGuide}
-          fileNumber={newLiqTarget.fileNumber}
-          month={selectedMonth}
-          year={selectedYear}
-          onConfirm={handleGenerateLiq}
-          onCancel={() => setNewLiqTarget(null)}
-          loading={generating}
           suggested={suggestedIdioma}
           criteriaRules={criteriaRules}
+          onSave={handleSaveLiq}
+          onCancel={() => setLiqTarget(null)}
+          saving={generating}
         />
+      )}
+
+      {/* Edit modal */}
+      {editLiqId && (
+        <EditLiqModal
+          liqId={editLiqId}
+          onSaved={() => { setEditLiqId(null); doSearch(); }}
+          onCancel={() => setEditLiqId(null)}
+        />
+      )}
+
+      {/* Pay modal */}
+      {payTarget && (
+        <PayModal liq={payTarget} onConfirm={handlePay} onCancel={() => setPayTarget(null)} loading={paying} />
       )}
 
       <LiquidationPDFPreviewModal

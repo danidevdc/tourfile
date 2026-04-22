@@ -15,6 +15,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { getAllServiceOrders, markOrdersWithLiquidation, unmarkOrdersWithLiquidation } from '@/lib/serviceOrderStorage';
+import { getGuidesFromFirestore } from '@/lib/serviceOrderMasterData';
 
 // --- Types ---
 
@@ -48,6 +49,7 @@ export interface GuideLiquidation {
   createdBy: string;
   createdAt: Date;
   paidAt?: Date;
+  paymentDate?: string;
   items: LiquidationItem[];
 }
 
@@ -206,6 +208,8 @@ export async function getAllLiquidations(): Promise<GuideLiquidation[]> {
       total: data.total ?? 0,
       createdBy: data.createdBy ?? '',
       createdAt: timestampToDate(data.createdAt),
+      paidAt: data.paidAt ? timestampToDate(data.paidAt) : undefined,
+      paymentDate: data.paymentDate ?? undefined,
       items: data.items ?? [],
     };
   });
@@ -237,6 +241,8 @@ export async function getLiquidationsByFile(fileNumber: string): Promise<GuideLi
         total: data.total ?? 0,
         createdBy: data.createdBy ?? '',
         createdAt: timestampToDate(data.createdAt),
+        paidAt: data.paidAt ? timestampToDate(data.paidAt) : undefined,
+        paymentDate: data.paymentDate ?? undefined,
         items: data.items ?? [],
       } as GuideLiquidation;
     })
@@ -373,32 +379,35 @@ export async function getDashboardStats(): Promise<LiquidationDashboardStats> {
 }
 
 /**
- * Get all unique guide names from all non-deleted service orders.
+ * Get all guide names from the guides master collection in Firestore.
  */
 export async function getAllGuideNames(): Promise<string[]> {
-  const allOrders = await getAllServiceOrders();
-  const guideSet = new Set<string>();
-  for (const order of allOrders) {
-    if (order.status === 'eliminado') continue;
-    if (!order.data) continue;
-    const guia = (order.data.guia ?? '').trim().toUpperCase();
-    if (guia) guideSet.add(guia);
-  }
-  return Array.from(guideSet).sort();
+  const guides = await getGuidesFromFirestore();
+  return guides.map(g => g.fullName).sort();
+}
+
+export interface GuideFileRow {
+  fileNumber: string;
+  paxName: string;
+  paxCount: number;
+  hasLiquidation: boolean;
+  orderIds: string[];
 }
 
 /**
- * Get service orders for a specific guide in a given month/year.
- * Returns orders sorted by date ascending.
+ * Get unique files worked by a guide in a given month/year, grouped by file number.
+ * Includes any order where data.guia matches — roots, G- children, shared orders.
  */
 export async function getOrdersByGuideAndMonth(
   guideName: string,
   month: number,
   year: number
-): Promise<Array<{ orderId: string; fileNumber: string; orderName: string; fecha: string; hora: string; servicio: string; paxName: string; paxCount: number; hasLiquidation: boolean; liquidationId?: string }>> {
+): Promise<GuideFileRow[]> {
   const allOrders = await getAllServiceOrders();
   const normalizedGuide = guideName.trim().toUpperCase();
-  const result: Array<{ orderId: string; fileNumber: string; orderName: string; fecha: string; hora: string; servicio: string; paxName: string; paxCount: number; hasLiquidation: boolean; liquidationId?: string }> = [];
+
+  // Map fileNumber → row
+  const fileMap = new Map<string, GuideFileRow>();
 
   for (const order of allOrders) {
     if (order.status === 'eliminado' || order.status === 'cancelado') continue;
@@ -406,36 +415,38 @@ export async function getOrdersByGuideAndMonth(
     const guia = (order.data.guia ?? '').trim().toUpperCase();
     if (guia !== normalizedGuide) continue;
 
+    // Check if any service falls in the requested month/year
     const services = order.data.services ?? [];
-    for (const svc of services) {
-      if (!svc.fecha) continue;
+    const hasServiceInMonth = services.some(svc => {
+      if (!svc.fecha) return false;
       const parts = svc.fecha.split('/').map(Number);
-      let [d, m, y] = parts;
+      let [, m, y] = parts;
       if (y < 100) y += 2000;
-      if (m !== month || y !== year) continue;
-      result.push({
-        orderId: order.id,
+      return m === month && y === year;
+    });
+    if (!hasServiceInMonth) continue;
+
+    const fileNum = normalizeFileNumber(order.data.file ?? '');
+    if (!fileNum) continue;
+
+    if (!fileMap.has(fileNum)) {
+      fileMap.set(fileNum, {
         fileNumber: order.data.file ?? '',
-        orderName: order.orderName,
-        fecha: svc.fecha,
-        hora: svc.hora ?? '',
-        servicio: svc.servicio ?? '',
         paxName: (order.data.ref ?? order.data.hotel ?? '').trim(),
         paxCount: parseInt(order.data.nPax ?? '0', 10) || 0,
         hasLiquidation: order.hasLiquidation ?? false,
+        orderIds: [order.id],
       });
+    } else {
+      const existing = fileMap.get(fileNum)!;
+      if (!existing.orderIds.includes(order.id)) existing.orderIds.push(order.id);
+      if (order.hasLiquidation) existing.hasLiquidation = true;
     }
   }
 
-  result.sort((a, b) => {
-    const parseDate = (s: string) => {
-      const [d, m, y] = s.split('/').map(Number);
-      return new Date(y < 100 ? y + 2000 : y, m - 1, d).getTime();
-    };
-    return parseDate(a.fecha) - parseDate(b.fecha);
-  });
-
-  return result;
+  return Array.from(fileMap.values()).sort((a, b) =>
+    normalizeFileNumber(a.fileNumber).localeCompare(normalizeFileNumber(b.fileNumber))
+  );
 }
 
 /**

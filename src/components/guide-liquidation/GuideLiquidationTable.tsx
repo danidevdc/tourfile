@@ -7,9 +7,13 @@ interface GuideLiquidationTableProps {
   items: LiquidationItem[];
   onItemChange: (index: number, field: "monto" | "checked", value: number | boolean) => void;
   readOnly?: boolean;
+  hideColumns?: Array<"file" | "paxName">;
+  maxHeight?: string;
 }
 
-export function GuideLiquidationTable({ items, onItemChange, readOnly = false }: GuideLiquidationTableProps) {
+export function GuideLiquidationTable({ items, onItemChange, readOnly = false, hideColumns = [], maxHeight = "420px" }: GuideLiquidationTableProps) {
+  const showFile    = !hideColumns.includes("file");
+  const showPaxName = !hideColumns.includes("paxName");
   if (items.length === 0) {
     return (
       <div
@@ -88,16 +92,16 @@ export function GuideLiquidationTable({ items, onItemChange, readOnly = false }:
         </div>
       )}
 
-      <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "420px" }}>
-        <table className="w-full table-fixed text-sm" style={{ minWidth: "700px" }}>
+      <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight }}>
+        <table className="w-full table-fixed text-sm" style={{ minWidth: showFile || showPaxName ? "700px" : "500px" }}>
           <colgroup>
-            <col style={{ width: "10%" }} />
+            <col style={{ width: "11%" }} />
+            <col style={{ width: "8%" }} />
+            {showFile    && <col style={{ width: "11%" }} />}
+            <col style={{ width: showFile && showPaxName ? "25%" : showFile || showPaxName ? "32%" : "42%" }} />
+            {showPaxName && <col style={{ width: "20%" }} />}
             <col style={{ width: "7%" }} />
-            <col style={{ width: "10%" }} />
-            <col style={{ width: "27%" }} />
-            <col style={{ width: "22%" }} />
-            <col style={{ width: "6%" }} />
-            <col style={{ width: "12%" }} />
+            <col style={{ width: "13%" }} />
             <col style={{ width: "6%" }} />
           </colgroup>
 
@@ -106,32 +110,44 @@ export function GuideLiquidationTable({ items, onItemChange, readOnly = false }:
               className="border-b border-border"
               style={{ height: "40px", backgroundColor: "hsl(var(--muted))" }}
             >
-              {["Fecha", "Hora", "File", "Servicio", "Nombre Pax", "Nro Pax", "Monto (Bs.)", ""].map((col, i) => (
-                <th
-                  key={i}
-                  className={`border-r border-border last:border-r-0 ${
-                    i === 6 ? "text-right pr-3 pl-2" :
-                    i === 5 ? "text-center px-2" :
-                    i === 7 ? "px-2" :
-                    i === 0 ? "text-left pl-4 pr-2" :
-                    "text-left px-2"
-                  }`}
-                  style={{
-                    fontFamily: "'Space Mono', monospace",
-                    fontSize: "10px",
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color: "hsl(var(--foreground))",
-                  }}
-                >
-                  {i === 7 ? (
-                    <div className="flex justify-center">
-                      <Checkbox disabled className="opacity-20 border-[#16a34a]/40" />
-                    </div>
-                  ) : col}
+              {/* Fecha */}
+              <th className="text-left pl-4 pr-2 border-r border-border" style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsl(var(--foreground))" }}>
+                Fecha
+              </th>
+              {/* Hora */}
+              <th className="text-left px-2 border-r border-border" style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsl(var(--foreground))" }}>
+                Hora
+              </th>
+              {/* File (opcional) */}
+              {showFile && (
+                <th className="text-left px-2 border-r border-border" style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsl(var(--foreground))" }}>
+                  File
                 </th>
-              ))}
+              )}
+              {/* Servicio */}
+              <th className="text-left px-2 border-r border-border" style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsl(var(--foreground))" }}>
+                Servicio
+              </th>
+              {/* Nombre Pax (opcional) */}
+              {showPaxName && (
+                <th className="text-left px-2 border-r border-border" style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsl(var(--foreground))" }}>
+                  Nombre Pax
+                </th>
+              )}
+              {/* Nro Pax */}
+              <th className="text-center px-2 border-r border-border" style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsl(var(--foreground))" }}>
+                Pax
+              </th>
+              {/* Monto */}
+              <th className="text-right pr-3 pl-2 border-r border-border" style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsl(var(--foreground))" }}>
+                Monto (Bs.)
+              </th>
+              {/* Checkbox */}
+              <th className="px-2">
+                <div className="flex justify-center">
+                  <Checkbox disabled className="opacity-20 border-[#16a34a]/40" />
+                </div>
+              </th>
             </tr>
           </thead>
 
@@ -157,66 +173,46 @@ export function GuideLiquidationTable({ items, onItemChange, readOnly = false }:
                 >
                   {/* Fecha */}
                   <td className="pl-4 pr-2 border-r border-dashed border-border overflow-hidden">
-                    <span
-                      className="block truncate"
-                      style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", color: "hsl(var(--foreground))" }}
-                    >
+                    <span className="block truncate" style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", color: "hsl(var(--foreground))" }}>
                       {item.fecha}
                     </span>
                   </td>
 
                   {/* Hora */}
                   <td className="px-2 border-r border-dashed border-border overflow-hidden">
-                    <span
-                      className="block truncate"
-                      style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", color: "hsl(var(--muted-foreground))" }}
-                    >
+                    <span className="block truncate" style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", color: "hsl(var(--muted-foreground))" }}>
                       {item.hora}
                     </span>
                   </td>
 
-                  {/* File */}
-                  <td className="px-2 border-r border-dashed border-border overflow-hidden">
-                    <span
-                      className="block truncate"
-                      style={{
-                        fontFamily: "'Space Grotesk', sans-serif",
-                        fontSize: "13px",
-                        fontWeight: 700,
-                        letterSpacing: "0.01em",
-                        textTransform: "uppercase",
-                        color: "hsl(var(--primary))",
-                      }}
-                    >
-                      {item.fileNumber}
-                    </span>
-                  </td>
+                  {/* File (opcional) */}
+                  {showFile && (
+                    <td className="px-2 border-r border-dashed border-border overflow-hidden">
+                      <span className="block truncate" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.01em", textTransform: "uppercase", color: "hsl(var(--primary))" }}>
+                        {item.fileNumber}
+                      </span>
+                    </td>
+                  )}
 
                   {/* Servicio */}
                   <td className="px-2 border-r border-dashed border-border overflow-hidden">
-                    <span
-                      className="block truncate"
-                      style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", color: "hsl(var(--foreground))" }}
-                    >
+                    <span className="block truncate" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", color: "hsl(var(--foreground))" }}>
                       {item.servicio}
                     </span>
                   </td>
 
-                  {/* Nombre Pax */}
-                  <td className="px-2 border-r border-dashed border-border overflow-hidden">
-                    <span
-                      className="block truncate"
-                      style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", color: "hsl(var(--muted-foreground))" }}
-                    >
-                      {item.paxName}
-                    </span>
-                  </td>
+                  {/* Nombre Pax (opcional) */}
+                  {showPaxName && (
+                    <td className="px-2 border-r border-dashed border-border overflow-hidden">
+                      <span className="block truncate" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", color: "hsl(var(--muted-foreground))" }}>
+                        {item.paxName}
+                      </span>
+                    </td>
+                  )}
 
                   {/* Nro Pax */}
                   <td className="px-2 text-center border-r border-dashed border-border">
-                    <span
-                      style={{ fontFamily: "'Space Mono', monospace", fontSize: "13px", fontWeight: 700, color: "hsl(var(--foreground))" }}
-                    >
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "13px", fontWeight: 700, color: "hsl(var(--foreground))" }}>
                       {item.paxCount}
                     </span>
                   </td>
@@ -224,49 +220,23 @@ export function GuideLiquidationTable({ items, onItemChange, readOnly = false }:
                   {/* Monto */}
                   <td className="pl-2 pr-2 border-r border-dashed border-border">
                     {readOnly ? (
-                      <span
-                        className="block text-right pr-1"
-                        style={{
-                          fontFamily: "'Space Grotesk', sans-serif",
-                          fontSize: "13px",
-                          fontWeight: 700,
-                          letterSpacing: "-0.01em",
-                          color: isChecked ? "#16a34a" : "hsl(var(--muted-foreground))",
-                        }}
-                      >
+                      <span className="block text-right pr-1" style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "-0.01em", color: isChecked ? "#16a34a" : "hsl(var(--muted-foreground))" }}>
                         {item.monto > 0 ? item.monto.toFixed(2) : "—"}
                       </span>
                     ) : (
-                      <div
-                        className="flex items-center border border-input bg-background overflow-hidden"
-                        style={{ height: "32px", borderRadius: "4px" }}
-                      >
+                      <div className="flex items-center border border-input bg-background overflow-hidden" style={{ height: "32px", borderRadius: "4px" }}>
                         <input
-                          type="text"
-                          inputMode="decimal"
-                          placeholder="0.00"
+                          type="text" inputMode="decimal" placeholder="0.00"
                           value={item.monto === 0 ? "" : item.monto}
                           onChange={(e) => handleMontoChange(i, e.target.value)}
                           className="flex-1 min-w-0 h-full bg-transparent outline-none text-right px-2"
-                          style={{
-                            fontFamily: "'Space Grotesk', sans-serif",
-                            fontSize: "13px",
-                            fontWeight: 700,
-                            letterSpacing: "-0.01em",
-                            color: "hsl(var(--foreground))",
-                          }}
+                          style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "-0.01em", color: "hsl(var(--foreground))" }}
                         />
                         <div className="flex flex-col border-l border-input shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => handleMontoChange(i, String(Math.round(((item.monto || 0) + 0.01) * 100) / 100))}
-                            className="flex items-center justify-center w-5 h-4 text-muted-foreground hover:bg-muted hover:text-foreground leading-none text-[10px]"
-                          >▲</button>
-                          <button
-                            type="button"
-                            onClick={() => handleMontoChange(i, String(Math.max(0, Math.round(((item.monto || 0) - 0.01) * 100) / 100)))}
-                            className="flex items-center justify-center w-5 h-4 text-muted-foreground hover:bg-muted hover:text-foreground border-t border-input leading-none text-[10px]"
-                          >▼</button>
+                          <button type="button" onClick={() => handleMontoChange(i, String(Math.round(((item.monto || 0) + 0.01) * 100) / 100))}
+                            className="flex items-center justify-center w-5 h-4 text-muted-foreground hover:bg-muted hover:text-foreground leading-none text-[10px]">▲</button>
+                          <button type="button" onClick={() => handleMontoChange(i, String(Math.max(0, Math.round(((item.monto || 0) - 0.01) * 100) / 100)))}
+                            className="flex items-center justify-center w-5 h-4 text-muted-foreground hover:bg-muted hover:text-foreground border-t border-input leading-none text-[10px]">▼</button>
                         </div>
                       </div>
                     )}

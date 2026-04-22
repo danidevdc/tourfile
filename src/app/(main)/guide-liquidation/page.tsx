@@ -9,7 +9,7 @@ import { LiquidationPDFPreviewModal } from "@/components/guide-liquidation/Liqui
 
 const TOKEN = {
   blue:   "#0991ea",
-  cyan:   "#78e3f0",
+  cyan:   "#0891b2",
   green:  "#16a34a",
   amber:  "#f59e0b",
   purple: "#7c3aed",
@@ -123,27 +123,31 @@ function ActionCard({
   );
 }
 
-function StatusBadge({ status }: { status: GuideLiquidation["status"] }) {
-  const ok = status === "Liquidado";
+function StatusBadge({ liq }: { liq: GuideLiquidation }) {
+  const label    = liq.paymentDate ? "PAGADO" : "SOLICITADO";
+  const color    = liq.paymentDate ? "#16a34a" : "#f59e0b";
+  const dotAnim  = "none";
+  const haloAnim = liq.paymentDate ? "nd-halo 2.4s ease-in-out infinite" : "none";
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: "5px",
       padding: "3px 10px", borderRadius: "4px",
-      border: ok ? "1px solid #16a34a55" : "1px solid #ef444455",
-      background: ok ? "#16a34a14" : "#ef444414",
+      border: `1px solid ${color}55`,
+      background: `${color}14`,
       fontFamily: "'Space Mono', monospace", fontSize: "9px",
       fontWeight: 700, letterSpacing: "0.08em",
       textTransform: "uppercase" as const,
-      color: ok ? "#16a34a" : "#ef4444",
+      color,
       whiteSpace: "nowrap" as const,
+      animation: haloAnim,
     }}>
       <span style={{
         width: "5px", height: "5px", borderRadius: "50%",
-        background: ok ? "#16a34a" : "#ef4444",
+        background: color,
         display: "inline-block", flexShrink: 0,
-        animation: ok ? "nd-pulse 2.4s ease-in-out infinite" : "none",
+        animation: dotAnim,
       }} />
-      {status}
+      {label}
     </span>
   );
 }
@@ -216,6 +220,7 @@ export default function GuideLiquidationDashboardPage() {
     <div style={{ minHeight: "100vh", background: CSS.bg, fontFamily: "'Space Grotesk', sans-serif" }}>
       <style>{`
         @keyframes nd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes nd-halo  { 0%, 100% { box-shadow: 0 0 0 0px #16a34a00; } 50% { box-shadow: 0 0 0 3px #16a34a44; } }
       `}</style>
 
       <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "28px 28px 48px", display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -374,19 +379,21 @@ export default function GuideLiquidationDashboardPage() {
                 </span>
                 {/* Estado + gap visual antes del botón */}
                 <div style={{ display: "flex", alignItems: "center" }}>
-                  <StatusBadge status={liq.status} />
+                  <StatusBadge liq={liq} />
                 </div>
                 {/* Acciones: editar + imprimir */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px" }}>
-                  <button
-                    onClick={() => router.push(`/guide-liquidation/edit/${liq.id}`)}
-                    title="Editar liquidación"
-                    style={{ width: "34px", height: "34px", borderRadius: "8px", border: `1px solid ${TOKEN.amber}28`, background: `${TOKEN.amber}0d`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms ease-out", color: TOKEN.amber, flexShrink: 0 }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `${TOKEN.amber}18`; (e.currentTarget as HTMLButtonElement).style.borderColor = `${TOKEN.amber}66`; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `${TOKEN.amber}0d`; (e.currentTarget as HTMLButtonElement).style.borderColor = `${TOKEN.amber}28`; }}
-                  >
-                    <Pencil size={13} />
-                  </button>
+                  {!liq.paymentDate && (
+                    <button
+                      onClick={() => router.push(`/guide-liquidation/edit/${liq.id}`)}
+                      title="Editar liquidación"
+                      style={{ width: "34px", height: "34px", borderRadius: "8px", border: `1px solid ${TOKEN.amber}28`, background: `${TOKEN.amber}0d`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms ease-out", color: TOKEN.amber, flexShrink: 0 }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `${TOKEN.amber}18`; (e.currentTarget as HTMLButtonElement).style.borderColor = `${TOKEN.amber}66`; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `${TOKEN.amber}0d`; (e.currentTarget as HTMLButtonElement).style.borderColor = `${TOKEN.amber}28`; }}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                  )}
                   <PrintButton liq={liq} printingId={printingId} onPrint={handlePrint} />
                 </div>
               </div>
