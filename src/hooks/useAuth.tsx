@@ -207,13 +207,16 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [fetchUserProfile, handleLogout, toast]);
 
-  // Real-time session monitoring — kicks out any prior session when a new login occurs
+  // Real-time session monitoring — kicks out any prior session when a new login occurs.
+  // Skips the first snapshot because it always reflects the ID we just wrote ourselves.
   useEffect(() => {
     if (!db || !currentUser?.uid) return;
     const localSessionId = typeof window !== 'undefined' ? localStorage.getItem(SESSION_ID_KEY) : null;
     if (!localSessionId) return;
 
+    let initialized = false;
     const unsubscribe = onSnapshot(doc(db, 'userProfiles', currentUser.uid), (snap) => {
+      if (!initialized) { initialized = true; return; }
       if (!snap.exists()) return;
       const remoteSessionId = snap.data()?.activeSessionId;
       if (remoteSessionId && remoteSessionId !== localSessionId) {
