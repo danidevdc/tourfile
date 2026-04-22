@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, FileText, TrendingUp, Calendar, Users, Printer, History, Settings2, Pencil } from "lucide-react";
+import { ArrowLeft, Plus, FileText, TrendingUp, Calendar, Users, Printer, History, Settings2, Pencil, UserCheck } from "lucide-react";
 import { getDashboardStats, type LiquidationDashboardStats, type GuideLiquidation } from "@/lib/guideLiquidationService";
 import { buildLiquidationPDFUrl } from "@/lib/guideLiquidationPDF";
 import { LiquidationPDFPreviewModal } from "@/components/guide-liquidation/LiquidationPDFPreviewModal";
 
 const TOKEN = {
-  blue: "#0991ea",
-  cyan: "#78e3f0",
-  green: "#16a34a",
-  amber: "#f59e0b",
+  blue:   "#0991ea",
+  cyan:   "#78e3f0",
+  green:  "#16a34a",
+  amber:  "#f59e0b",
+  purple: "#7c3aed",
 };
 
 // All surface/text colors use CSS variables so they respond to dark mode
@@ -281,6 +282,7 @@ export default function GuideLiquidationDashboardPage() {
         {/* ── Action cards ── */}
         <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
           <ActionCard icon={Plus} title="Generar Liquidación" description="Buscá por file y guía, ingresá montos y guardá" accent={TOKEN.green} primary onClick={() => router.push("/guide-liquidation/new")} />
+          <ActionCard icon={UserCheck} title="Liquidaciones por Guía" description="Ver servicios del mes por guía · estado y pagos" accent={TOKEN.cyan} onClick={() => router.push("/guide-liquidation/by-guide")} />
           <ActionCard icon={History} title="Historial de Liquidaciones" description="Consultá y filtrá todas las liquidaciones guardadas" accent={TOKEN.amber} onClick={() => router.push("/guide-liquidation/history")} />
           <ActionCard icon={Settings2} title="Motor de Criterios" description="Configurá precios automáticos por servicio, hora e idioma" accent={TOKEN.blue} onClick={() => router.push("/guide-liquidation/criteria")} />
         </div>

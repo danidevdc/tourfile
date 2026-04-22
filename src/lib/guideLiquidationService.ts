@@ -20,6 +20,9 @@ import { getAllServiceOrders, markOrdersWithLiquidation, unmarkOrdersWithLiquida
 
 export type LiquidationStatus = 'Sin Liquidar' | 'Liquidado' | 'Anulado';
 
+/** Status used in the by-guide view */
+export type OrderLiqStatus = 'SIN LIQUIDAR' | 'SOLICITADO' | 'PAGADO';
+
 export interface LiquidationItem {
   serviceOrderId: string;
   fileNumber: string;
@@ -44,6 +47,7 @@ export interface GuideLiquidation {
   total: number;
   createdBy: string;
   createdAt: Date;
+  paidAt?: Date;
   items: LiquidationItem[];
 }
 
@@ -366,6 +370,94 @@ export async function getDashboardStats(): Promise<LiquidationDashboardStats> {
     guiasUnicas,
     recientes: all.slice(0, 8),
   };
+}
+
+/**
+ * Get all unique guide names from all non-deleted service orders.
+ */
+export async function getAllGuideNames(): Promise<string[]> {
+  const allOrders = await getAllServiceOrders();
+  const guideSet = new Set<string>();
+  for (const order of allOrders) {
+    if (order.status === 'eliminado') continue;
+    if (!order.data) continue;
+    const guia = (order.data.guia ?? '').trim().toUpperCase();
+    if (guia) guideSet.add(guia);
+  }
+  return Array.from(guideSet).sort();
+}
+
+/**
+ * Get service orders for a specific guide in a given month/year.
+ * Returns orders sorted by date ascending.
+ */
+export async function getOrdersByGuideAndMonth(
+  guideName: string,
+  month: number,
+  year: number
+): Promise<Array<{ orderId: string; fileNumber: string; orderName: string; fecha: string; hora: string; servicio: string; paxName: string; paxCount: number; hasLiquidation: boolean; liquidationId?: string }>> {
+  const allOrders = await getAllServiceOrders();
+  const normalizedGuide = guideName.trim().toUpperCase();
+  const result: Array<{ orderId: string; fileNumber: string; orderName: string; fecha: string; hora: string; servicio: string; paxName: string; paxCount: number; hasLiquidation: boolean; liquidationId?: string }> = [];
+
+  for (const order of allOrders) {
+    if (order.status === 'eliminado' || order.status === 'cancelado') continue;
+    if (!order.data) continue;
+    const guia = (order.data.guia ?? '').trim().toUpperCase();
+    if (guia !== normalizedGuide) continue;
+
+    const services = order.data.services ?? [];
+    for (const svc of services) {
+      if (!svc.fecha) continue;
+      const parts = svc.fecha.split('/').map(Number);
+      let [d, m, y] = parts;
+      if (y < 100) y += 2000;
+      if (m !== month || y !== year) continue;
+      result.push({
+        orderId: order.id,
+        fileNumber: order.data.file ?? '',
+        orderName: order.orderName,
+        fecha: svc.fecha,
+        hora: svc.hora ?? '',
+        servicio: svc.servicio ?? '',
+        paxName: (order.data.ref ?? order.data.hotel ?? '').trim(),
+        paxCount: parseInt(order.data.nPax ?? '0', 10) || 0,
+        hasLiquidation: order.hasLiquidation ?? false,
+      });
+    }
+  }
+
+  result.sort((a, b) => {
+    const parseDate = (s: string) => {
+      const [d, m, y] = s.split('/').map(Number);
+      return new Date(y < 100 ? y + 2000 : y, m - 1, d).getTime();
+    };
+    return parseDate(a.fecha) - parseDate(b.fecha);
+  });
+
+  return result;
+}
+
+/**
+ * Get all liquidations for a specific guide name, with their liquidationId attached to matching orders.
+ */
+export async function getLiquidationsByGuide(guideName: string): Promise<GuideLiquidation[]> {
+  if (!db) throw new Error('Firestore not initialized.');
+  const all = await getAllLiquidations();
+  const normalized = guideName.trim().toUpperCase();
+  return all.filter(l => l.guideName.trim().toUpperCase() === normalized);
+}
+
+/**
+ * Mark a liquidation as paid with the given payment date.
+ */
+export async function payLiquidation(id: string, paymentDate: string): Promise<void> {
+  if (!db) throw new Error('Firestore not initialized.');
+  await updateDoc(doc(db, 'guideLiquidations', id), {
+    status: 'Liquidado' as LiquidationStatus,
+    paidAt: serverTimestamp(),
+    paymentDate,
+  });
 }
 
 /**
