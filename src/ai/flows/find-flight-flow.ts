@@ -6,7 +6,7 @@
  * - findFlight - The exported server action to find flight details.
  */
 import { addDays, parseISO, subHours } from 'date-fns';
-import { formatTime, formatISO } from '@/lib/formatters';
+import { formatTime, formatISO } from '@/lib/date-utils';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
 
 
