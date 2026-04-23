@@ -7,6 +7,117 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.2.0] - 2026-04-23
+
+### ✨ Agregado
+
+- **Módulo "Liquidaciones por Guía"** - Feature principal
+  - Nueva sección dedicada para liquidación de servicios por guía
+  - Visualización por guía con filas agrupadas por mes
+  - Tabla interactiva con filtros y búsqueda avanzada
+  - Modal de visualización con detalles de cada liquidación
+  - Modal de edición con validaciones y guardado seguro
+  - Sistema de pago: modal de pago con fecha DD/MM/AAAA
+  - Marcar servicios como pagados en dashboard e historial
+  - Badge de estado con animación unificada (pendiente/pagado)
+  - PDF preview modal para visualización de reportes
+  - Footer con resumen de totales por guía
+
+- **Caché Firestore para filas por guía+mes**
+  - Optimización de queries: agrupa resultados por (guía, mes)
+  - Reduce lecturas en búsquedas repetidas del mismo mes
+  - Fix: Elimina problema de doble lectura de caché
+  - UX improvements en carga de datos
+
+- **Redesign del módulo de Vuelos - Nothing Style**
+  - Split-flap display para información de vuelos
+  - Avión más grande con mejor visibilidad
+  - Quitar fondo gris: fondo transparente/minimalista
+  - Animación de arco SVG con avión en movimiento
+  - Hora correcta con `toZonedTime` 
+  - Fix: bugs de runtime y build resueltos
+
+### ⚡ Cambiado
+
+- **Autenticación: Simplificación de gestión de sesiones**
+  - Cambio de `browserSessionPersistence` a `browserLocalPersistence`
+  - Refactor de lógica de sesión: eliminadas inicializaciones innecesarias
+  - Mejora en manejo de sesiones activas en múltiples dispositivos
+  - Skip del primer `onSnapshot` para prevenir self-logout en page reload
+  - localStorage ahora registra sessionId correctamente
+
+- **Mejora de habitabilidad en componentes de liquidación**
+  - Redesign de modals por-guía con mejor UX
+  - Fix en estado de pago: ahora persiste correctamente
+  - Unificación de animaciones de badges
+
+### 🐛 Corregido
+
+- **Auth: Self-logout en page reload**
+  - PROBLEMA: Usuario se deslogeaba automáticamente al recargar la página
+  - CAUSA: Múltiples `onSnapshot` listeners generaban conflictos
+  - SOLUCIÓN: Skip del primer snapshot para evitar cambios innecesarios
+
+- **Auth: Session ID perdido en navegación entre tabs**
+  - PROBLEMA: Tabs diferentes no reconocían la misma sesión
+  - CAUSA: sessionStorage se limpia por tab en ciertos navegadores
+  - SOLUCIÓN: Cambiar a localStorage con clave `SESSION_ID_KEY`
+
+- **Vuelos: Hora incorrecta en timezone**
+  - PROBLEMA: Horas mostradas no coincidían con zona horaria local
+  - SOLUCIÓN: Usar `toZonedTime` para conversión correcta
+
+- **Flight module: Acceso restringido**
+  - PROBLEMA: Usuarios sin permisos podían acceder a módulo de vuelos
+  - SOLUCIÓN: Agregar outline correcta en user chip y verificar módulo access
+
+- **UI: Double-bounce glitch en theme toggle**
+  - Removida animación duplicada en toggle de tema
+  - Transición más suave y fluida
+
+### 📚 Documentación
+
+- **Sección de liquidación por guía documentada** (en código)
+  - Componentes claramente nombrados: `LiquidationViewerModal`, `GuideLiquidationTable`, etc.
+  - Funciones de servicio documentadas en `guideLiquidationService.ts`
+  - PDF generation documentada en `guideLiquidationPDF.ts`
+
+### 🔧 Refactoring
+
+- **Simplificación en `useAuth.tsx`**
+  - Eliminada lógica redundante de sesión
+  - Removida llamada duplicada a `fetchUserProfile`
+  - Código más legible y performante
+
+- **Modernización del sistema de notificaciones**
+  - Unificación de sistema toast mediante Sonner
+  - Routing de `useToast` a través de wrapper Sonner
+
+### ⚠️ Breaking Changes
+
+Ninguno. Esta versión es 100% compatible con v3.1.0.
+
+### 🎯 Migración desde v3.1.x
+
+No se requiere migración. Los cambios son transparentes:
+- Datos existentes funcionan sin modificaciones
+- Nuevo módulo de liquidación es opcional (features adicionales)
+- Auth improvements son retrocompatibles
+
+### 📊 Impacto en Producción
+
+**IMPORTANTE PARA DEPLOYMENT:**
+- Módulo de liquidación agregará nuevas funcionalidades sin afectar módulos existentes
+- Auth refactoring podría mejorar estabilidad de sesiones en múltiples dispositivos
+- Vuelos módulo tendrá mejor visualización pero interfaz similar
+
+**Recomendación:** Antes de pasar a producción:
+1. Probar liquidación con conjunto de guías de producción
+2. Verificar persistencia de sesiones en múltiples dispositivos
+3. Validar que los vuelos muestren horas correctas para tu timezone
+
+---
+
 ## [3.1.0] - 2026-02-26
 
 ### ✨ Agregado
