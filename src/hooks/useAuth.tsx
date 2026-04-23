@@ -180,15 +180,9 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setIsLoading(true);
       if (firebaseUser) {
-        const profile = await fetchUserProfile(firebaseUser.uid);
         const localSessionId = typeof window !== 'undefined' ? localStorage.getItem(SESSION_ID_KEY) : null;
-        if (!localSessionId) {
-          // No local ID yet (first load on this device after clearing storage).
-          // Claim the session so this device is recognized.
-          const restoredSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-          localStorage.setItem(SESSION_ID_KEY, restoredSessionId);
-          if (db) await updateDoc(doc(db, 'userProfiles', firebaseUser.uid), { activeSessionId: restoredSessionId });
-        } else if (profile?.activeSessionId && profile.activeSessionId !== localSessionId) {
+        const profile = await fetchUserProfile(firebaseUser.uid);
+        if (localSessionId && profile?.activeSessionId && profile.activeSessionId !== localSessionId) {
           await signOut(auth!);
           setCurrentUser(null);
           setIsLoading(false);
@@ -196,8 +190,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
           router.push('/login');
           return;
         }
-        const updatedProfile = await fetchUserProfile(firebaseUser.uid);
-        setCurrentUser({ ...firebaseUser, profile: updatedProfile || undefined });
+        setCurrentUser({ ...firebaseUser, profile: profile || undefined });
       } else {
         setCurrentUser(null);
         localStorage.removeItem(SESSION_ID_KEY);

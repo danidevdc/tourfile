@@ -1,6 +1,6 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { getAuth, type Auth, browserSessionPersistence, setPersistence } from 'firebase/auth'; // Import persistence functions
+import { getAuth, type Auth, browserLocalPersistence, setPersistence } from 'firebase/auth';
 
 // Ensure environment variables are being loaded. You might need to restart your dev server
 // if you've recently created or modified the .env.local file.
@@ -47,7 +47,7 @@ if (missingKeys.length > 0) {
     try {
       auth = getAuth(app); // Initialize Auth
       // Set persistence to 'session'
-      setPersistence(auth, browserSessionPersistence)
+      setPersistence(auth, browserLocalPersistence)
         .then(() => {
           console.log("Firebase Auth persistence set to 'session'.");
         })
