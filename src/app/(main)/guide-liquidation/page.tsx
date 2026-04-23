@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, FileText, TrendingUp, Calendar, Users, Printer, History, Settings2, Pencil, UserCheck, CheckCircle2, Loader2, X } from "lucide-react";
-import { getDashboardStats, payLiquidation, type LiquidationDashboardStats, type GuideLiquidation } from "@/lib/guideLiquidationService";
+import { ArrowLeft, Plus, FileText, TrendingUp, Calendar, Users, Printer, History, Settings2, Pencil, UserCheck, CheckCircle2, Loader2, X, Trash2 } from "lucide-react";
+import { getDashboardStats, payLiquidation, deleteLiquidation, type LiquidationDashboardStats, type GuideLiquidation } from "@/lib/guideLiquidationService";
 import { buildLiquidationPDFUrl } from "@/lib/guideLiquidationPDF";
 import { LiquidationPDFPreviewModal } from "@/components/guide-liquidation/LiquidationPDFPreviewModal";
+import { useAuth } from "@/hooks/useAuth";
 
 const TOKEN = {
   blue:   "#0991ea",
@@ -164,6 +165,49 @@ function StatusBadge({ liq }: { liq: GuideLiquidation }) {
   );
 }
 
+function DeleteModal({ liq, onConfirm, onCancel, loading }: {
+  liq: GuideLiquidation; onConfirm: () => void; onCancel: () => void; loading: boolean;
+}) {
+  const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
+      <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "12px", padding: "28px 32px", width: "380px", display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: CSS.fg, marginBottom: "6px" }}>Eliminar liquidación</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, letterSpacing: "0.04em" }}>
+              {liq.guideName} · {liq.liquidationNumber}
+            </p>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: "#ef4444", marginTop: "10px" }}>
+              Bs. {fmt(liq.total)}
+            </p>
+          </div>
+          <button onClick={onCancel} style={{ width: "30px", height: "30px", borderRadius: "6px", border: "1px solid #ef444433", background: "#ef44440d", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms" }}>
+            <X size={14} />
+          </button>
+        </div>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", color: CSS.mutedFg, lineHeight: 1.5 }}>
+          ¿Estás seguro de que deseas eliminar esta liquidación? Esta acción no se puede deshacer.
+        </p>
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+          <button onClick={onCancel} disabled={loading}
+            style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: `1px solid ${CSS.border}`, background: "transparent", color: CSS.fg, fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer", transition: "all 150ms" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "#ef4444"; (e.currentTarget as HTMLButtonElement).style.color = "#ef4444"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = CSS.border; (e.currentTarget as HTMLButtonElement).style.color = CSS.fg; }}>
+            Cancelar
+          </button>
+          <button onClick={onConfirm} disabled={loading}
+            style={{ height: "36px", padding: "0 20px", borderRadius: "8px", border: "none", background: "#ef4444", color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: loading ? "wait" : "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: loading ? 0.7 : 1 }}>
+            {loading && <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />}
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PayModal({ liq, onConfirm, onCancel, loading }: {
   liq: GuideLiquidation; onConfirm: (date: string) => void; onCancel: () => void; loading: boolean;
 }) {
@@ -247,12 +291,15 @@ function PrintButton({ liq, printingId, onPrint }: {
 
 export default function GuideLiquidationDashboardPage() {
   const router = useRouter();
+  const { isCurrentUserAdmin } = useAuth();
   const [stats, setStats] = useState<LiquidationDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [payTarget, setPayTarget] = useState<GuideLiquidation | null>(null);
   const [paying, setPaying] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<GuideLiquidation | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     getDashboardStats().then(setStats).catch(console.error).finally(() => setLoading(false));
@@ -294,6 +341,29 @@ export default function GuideLiquidationDashboardPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteLiquidation(deleteTarget);
+      // Optimistic update: remove from local state
+      setStats(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          recientes: prev.recientes.filter(l => l.id !== deleteTarget.id),
+          total: Math.max(0, prev.total - 1),
+          montoTotal: prev.montoTotal - deleteTarget.total,
+        };
+      });
+      setDeleteTarget(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -307,7 +377,7 @@ export default function GuideLiquidationDashboardPage() {
   };
 
   const COL_HEADERS = ["N°", "Guía", "Mes", "File", "Total", "Estado", ""];
-  const GRID = "90px 1fr 80px 120px 110px 130px 120px";
+  const GRID = "90px 1fr 80px 120px 110px 130px 160px";
 
   return (
     <div style={{ minHeight: "100vh", background: CSS.bg, fontFamily: "'Space Grotesk', sans-serif" }}>
@@ -497,7 +567,7 @@ export default function GuideLiquidationDashboardPage() {
                 <div style={{ display: "flex", alignItems: "center" }}>
                   <StatusBadge liq={liq} />
                 </div>
-                {/* Acciones: pagar + editar + imprimir */}
+                {/* Acciones: pagar + editar + imprimir + eliminar */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px" }}>
                   {!liq.paymentDate && (
                     <button
@@ -522,6 +592,17 @@ export default function GuideLiquidationDashboardPage() {
                       <CheckCircle2 size={14} />
                     </button>
                   )}
+                  {isCurrentUserAdmin && (
+                    <button
+                      onClick={() => setDeleteTarget(liq)}
+                      title="Eliminar liquidación"
+                      style={{ width: "34px", height: "34px", borderRadius: "8px", border: `1px solid #ef444428`, background: `#ef44440d`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms ease-out", color: "#ef4444", flexShrink: 0 }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `#ef444418`; (e.currentTarget as HTMLButtonElement).style.borderColor = `#ef444466`; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `#ef44440d`; (e.currentTarget as HTMLButtonElement).style.borderColor = `#ef444428`; }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -538,6 +619,10 @@ export default function GuideLiquidationDashboardPage() {
 
       {payTarget && (
         <PayModal liq={payTarget} onConfirm={handlePay} onCancel={() => setPayTarget(null)} loading={paying} />
+      )}
+
+      {deleteTarget && (
+        <DeleteModal liq={deleteTarget} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleting} />
       )}
     </div>
   );

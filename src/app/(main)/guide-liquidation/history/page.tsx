@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Printer, Search, Pencil, X, CheckCircle2, Loader2 } from "lucide-react";
-import { getAllLiquidations, payLiquidation, type GuideLiquidation } from "@/lib/guideLiquidationService";
+import { ArrowLeft, Printer, Search, Pencil, X, CheckCircle2, Loader2, Trash2 } from "lucide-react";
+import { getAllLiquidations, payLiquidation, deleteLiquidation, type GuideLiquidation } from "@/lib/guideLiquidationService";
 import { buildLiquidationPDFUrl } from "@/lib/guideLiquidationPDF";
 import { LiquidationPDFPreviewModal } from "@/components/guide-liquidation/LiquidationPDFPreviewModal";
+import { useAuth } from "@/hooks/useAuth";
 
 const TOKEN = { blue: "#0991ea", amber: "#f59e0b", green: "#16a34a" };
 const CSS = {
@@ -101,8 +102,54 @@ const MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Ago
 
 type StatusFilter = "PAGADO" | "SOLICITADO" | null;
 
+function DeleteModal({ liq, onConfirm, onCancel, loading }: {
+  liq: GuideLiquidation; onConfirm: () => void; onCancel: () => void; loading: boolean;
+}) {
+  const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
+      <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "12px", padding: "28px 32px", width: "380px", display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: CSS.fg, marginBottom: "6px" }}>Eliminar liquidación</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, letterSpacing: "0.04em" }}>
+              {liq.guideName} · {liq.liquidationNumber}
+            </p>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: "#ef4444", marginTop: "10px" }}>
+              Bs. {fmt(liq.total)}
+            </p>
+          </div>
+          <button onClick={onCancel} style={{ width: "30px", height: "30px", borderRadius: "6px", border: "1px solid #ef444433", background: "#ef44440d", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms" }}>
+            <X size={14} />
+          </button>
+        </div>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", color: CSS.mutedFg, lineHeight: 1.5 }}>
+          ¿Estás seguro de que deseas eliminar esta liquidación? Esta acción no se puede deshacer.
+        </p>
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+          <button onClick={onCancel} disabled={loading}
+            style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: `1px solid ${CSS.border}`, background: "transparent", color: CSS.fg, fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer", transition: "all 150ms" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "#ef4444"; (e.currentTarget as HTMLButtonElement).style.color = "#ef4444"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = CSS.border; (e.currentTarget as HTMLButtonElement).style.color = CSS.fg; }}>
+            Cancelar
+          </button>
+          <button onClick={onConfirm} disabled={loading}
+            style={{ height: "36px", padding: "0 20px", borderRadius: "8px", border: "none", background: "#ef4444", color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: loading ? "wait" : "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: loading ? 0.7 : 1 }}>
+            {loading && <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />}
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type StatusFilter = "PAGADO" | "SOLICITADO" | null;
+
 export default function LiquidationHistoryPage() {
   const router = useRouter();
+  const { isCurrentUserAdmin } = useAuth();
   const [all, setAll] = useState<GuideLiquidation[]>([]);
   const [filtered, setFiltered] = useState<GuideLiquidation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,6 +159,8 @@ export default function LiquidationHistoryPage() {
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [payTarget, setPayTarget] = useState<GuideLiquidation | null>(null);
   const [paying, setPaying] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<GuideLiquidation | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     getAllLiquidations().then((data) => { setAll(data); setFiltered(data); }).catch(console.error).finally(() => setLoading(false));
@@ -176,6 +225,23 @@ export default function LiquidationHistoryPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteLiquidation(deleteTarget);
+      const update = (list: GuideLiquidation[]) =>
+        list.filter(l => l.id !== deleteTarget.id);
+      setAll(prev => update(prev));
+      setFiltered(prev => update(prev));
+      setDeleteTarget(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtDate = (d: Date) => {
     try { return new Date(d).toLocaleDateString("es-BO", { day: "2-digit", month: "2-digit", year: "2-digit" }); }
@@ -196,7 +262,7 @@ export default function LiquidationHistoryPage() {
     return `${MONTHS_ES[m - 1].slice(0, 3).toUpperCase()} ${y}`;
   };
 
-  const GRID = "80px 1fr 90px 130px 76px 76px 110px 120px 112px";
+  const GRID = "80px 1fr 90px 130px 76px 76px 110px 120px 140px";
 
   return (
     <div style={{ minHeight: "100vh", background: CSS.bg, fontFamily: "'Space Grotesk', sans-serif" }}>
@@ -352,6 +418,17 @@ export default function LiquidationHistoryPage() {
                       <CheckCircle2 size={14} />
                     </button>
                   )}
+                  {isCurrentUserAdmin && (
+                    <button
+                      onClick={() => setDeleteTarget(liq)}
+                      title="Eliminar liquidación"
+                      style={{ width: "32px", height: "32px", borderRadius: "8px", border: `1px solid #ef444428`, background: `#ef44440d`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms", color: "#ef4444", flexShrink: 0 }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `#ef444418`; (e.currentTarget as HTMLButtonElement).style.borderColor = `#ef444466`; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `#ef44440d`; (e.currentTarget as HTMLButtonElement).style.borderColor = `#ef444428`; }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -368,6 +445,10 @@ export default function LiquidationHistoryPage() {
 
       {payTarget && (
         <PayModal liq={payTarget} onConfirm={handlePay} onCancel={() => setPayTarget(null)} loading={paying} />
+      )}
+
+      {deleteTarget && (
+        <DeleteModal liq={deleteTarget} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleting} />
       )}
     </div>
   );
