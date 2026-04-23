@@ -5,7 +5,8 @@
  *
  * - findFlight - The exported server action to find flight details.
  */
-import { addDays, parseISO, subHours } from 'date-fns';
+import { addDays, parseISO } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 import { formatTime, formatISO } from '@/lib/date-utils';
 import type { FindFlightInput, FindFlightOutput } from './flight-types';
 
@@ -57,12 +58,11 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
   const formatTimeWithTimezone = (dateStr: string | null | undefined): string | undefined => {
     if (!dateStr) return undefined;
     try {
-      // The API returns ISO 8601 strings (UTC). Parse it.
+      // AeroAPI returns ISO 8601 with UTC offset (e.g. "2026-04-23T13:10:00Z").
+      // Convert to Bolivia local time (America/La_Paz = UTC-4, no DST).
       const utcDate = parseISO(dateStr);
-      // Subtract 4 hours to adjust from UTC to GMT-4.
-      const adjustedDate = subHours(utcDate, 4);
-      // Format the adjusted date using the centralized formatter
-      return formatTime(adjustedDate);
+      const localDate = toZonedTime(utcDate, 'America/La_Paz');
+      return formatTime(localDate);
     } catch (e) {
       console.error(`Error formatting date: ${dateStr}`, e);
       return undefined;

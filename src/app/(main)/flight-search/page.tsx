@@ -51,7 +51,7 @@ function HourlyBar({ data }: { data: FlightSearchStat[] }) {
   );
 }
 
-// ── FIDS horizontal result card ───────────────────────────────────────────────
+// ── FIDS horizontal result card with arc animation ────────────────────────────
 function FlightResultCard({
   flightNumber,
   departure,
@@ -61,43 +61,81 @@ function FlightResultCard({
   departure: { code: string; city: string; time: string };
   arrival:   { code: string; city: string; time: string };
 }) {
+  // SVG arc: quadratic bezier from (16,52) to (284,52) with apex at (150, 4)
+  // The plane follows this path via animateMotion
+  const arcPath = "M 16,52 Q 150,4 284,52";
+
   return (
     <div className="nd-fids-horizontal">
-      {/* ─ Departure (left) ─ */}
-      <div className="nd-fids-side nd-fids-left">
-        <div className="nd-fids-side-label">
-          <PlaneTakeoff size={14} strokeWidth={1.5} className="nd-icon-muted" />
-          <span className="nd-label nd-secondary">SALIDA</span>
-        </div>
-        <div className="nd-fids-code">{departure.code}</div>
-        <div className="nd-fids-time-hero">{departure.time}</div>
-        <div className="nd-label nd-disabled nd-city-label">{departure.city.toUpperCase()}</div>
-      </div>
 
-      {/* ─ Animated plane path (center) ─ */}
-      <div className="nd-fids-center">
-        <div className="nd-label nd-disabled nd-flight-num">{flightNumber}</div>
-        <div className="nd-track">
-          <div className="nd-track-dot nd-track-dot-left" />
-          <div className="nd-track-line" />
-          <div className="nd-track-plane">
-            <Plane size={18} strokeWidth={1.5} />
+      {/* ─ Airports row: left=departure, right=arrival ─ */}
+      <div className="nd-airports-row">
+        {/* Departure */}
+        <div className="nd-airport-block nd-airport-left">
+          <div className="nd-fids-side-label">
+            <PlaneTakeoff size={13} strokeWidth={1.5} className="nd-icon-muted" />
+            <span className="nd-label nd-secondary">SALIDA</span>
           </div>
-          <div className="nd-track-line" />
-          <div className="nd-track-dot nd-track-dot-right" />
+          <div className="nd-fids-code">{departure.code}</div>
+          <div className="nd-fids-time-hero">{departure.time}</div>
+          <div className="nd-label nd-disabled nd-city-label">{departure.city.toUpperCase()}</div>
+        </div>
+
+        {/* ─ Arc SVG animation (center) ─ */}
+        <div className="nd-arc-wrapper">
+          <div className="nd-label nd-disabled nd-flight-num-center">{flightNumber}</div>
+          <svg
+            viewBox="0 0 300 60"
+            className="nd-arc-svg"
+            aria-hidden="true"
+          >
+            {/* Dashed arc path */}
+            <path
+              d={arcPath}
+              fill="none"
+              className="nd-arc-path"
+              strokeDasharray="5 4"
+              strokeLinecap="round"
+            />
+            {/* Airport dots */}
+            <circle cx="16" cy="52" r="3" className="nd-arc-dot" />
+            <circle cx="284" cy="52" r="3" className="nd-arc-dot" />
+
+            {/* Animated plane along arc */}
+            <g className="nd-arc-plane">
+              <animateMotion
+                dur="3.2s"
+                repeatCount="indefinite"
+                path={arcPath}
+                rotate="auto"
+              />
+              {/* Plane icon as SVG path — Lucide Plane shape */}
+              <g transform="translate(-9,-9) scale(0.75)">
+                <path
+                  d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"
+                  className="nd-arc-plane-icon"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </g>
+            </g>
+          </svg>
+        </div>
+
+        {/* Arrival */}
+        <div className="nd-airport-block nd-airport-right">
+          <div className="nd-fids-side-label nd-fids-side-label-right">
+            <PlaneLanding size={13} strokeWidth={1.5} className="nd-icon-muted" />
+            <span className="nd-label nd-secondary">LLEGADA</span>
+          </div>
+          <div className="nd-fids-code">{arrival.code}</div>
+          <div className="nd-fids-time-hero">{arrival.time}</div>
+          <div className="nd-label nd-disabled nd-city-label">{arrival.city.toUpperCase()}</div>
         </div>
       </div>
 
-      {/* ─ Arrival (right) ─ */}
-      <div className="nd-fids-side nd-fids-right">
-        <div className="nd-fids-side-label">
-          <PlaneLanding size={14} strokeWidth={1.5} className="nd-icon-muted" />
-          <span className="nd-label nd-secondary">LLEGADA</span>
-        </div>
-        <div className="nd-fids-code">{arrival.code}</div>
-        <div className="nd-fids-time-hero">{arrival.time}</div>
-        <div className="nd-label nd-disabled nd-city-label">{arrival.city.toUpperCase()}</div>
-      </div>
     </div>
   );
 }
@@ -537,29 +575,32 @@ function FlightSearchCard() {
 
         /* ── FIDS horizontal layout ──────────────────────────────────── */
         .nd-fids-horizontal {
-          display: flex;
-          align-items: center;
-          gap: 8px;
           border-top: 1px solid hsl(var(--border));
-          padding-top: 20px;
+          padding-top: 16px;
         }
 
-        /* Left side: departure */
-        .nd-fids-side {
+        .nd-airports-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 0;
+        }
+
+        /* Airport blocks */
+        .nd-airport-block {
           flex: 1;
           display: flex;
           flex-direction: column;
         }
-        .nd-fids-left  { align-items: flex-start; }
-        .nd-fids-right { align-items: flex-end; text-align: right; }
+        .nd-airport-left  { align-items: flex-start; }
+        .nd-airport-right { align-items: flex-end; text-align: right; }
 
         .nd-fids-side-label {
           display: flex;
           align-items: center;
           gap: 5px;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
         }
-        .nd-fids-right .nd-fids-side-label {
+        .nd-fids-side-label-right {
           flex-direction: row-reverse;
         }
 
@@ -573,59 +614,41 @@ function FlightSearchCard() {
         }
         .nd-fids-time-hero {
           font-family: "Doto", "Space Mono", monospace;
-          font-size: 30px;
+          font-size: 28px;
           font-weight: 700;
           letter-spacing: -0.01em;
           color: hsl(var(--primary));
           line-height: 1;
           margin-top: 4px;
         }
-        .nd-city-label { margin-top: 6px; display: block; }
+        .nd-city-label { margin-top: 4px; display: block; }
 
-        /* Center: animated track */
-        .nd-fids-center {
+        /* Arc SVG center */
+        .nd-arc-wrapper {
           flex: 0 0 auto;
-          width: 80px;
+          width: 120px;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 8px;
+          padding-top: 2px;
         }
-        .nd-flight-num { text-align: center; }
-
-        .nd-track {
-          display: flex;
-          align-items: center;
+        .nd-flight-num-center {
+          text-align: center;
+          margin-bottom: 2px;
+        }
+        .nd-arc-svg {
           width: 100%;
-          position: relative;
-          gap: 0;
+          height: auto;
+          overflow: visible;
         }
-        .nd-track-dot-left,
-        .nd-track-dot-right {
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-          flex-shrink: 0;
-          background: hsl(var(--muted-foreground) / 0.5);
+        .nd-arc-path {
+          stroke: hsl(var(--muted-foreground) / 0.35);
         }
-        .nd-track-line {
-          flex: 1;
-          height: 1px;
-          background: hsl(var(--border));
+        .nd-arc-dot {
+          fill: hsl(var(--muted-foreground) / 0.5);
         }
-        .nd-track-plane {
-          position: absolute;
-          left: 0;
-          color: hsl(var(--primary));
-          display: flex;
-          align-items: center;
-          animation: nd-fly 2.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        @keyframes nd-fly {
-          0%   { left: 4px;    opacity: 0; transform: scale(0.7); }
-          8%   { opacity: 1;   transform: scale(1); }
-          85%  { opacity: 1;   transform: scale(1); }
-          100% { left: calc(100% - 22px); opacity: 0; transform: scale(0.7); }
+        .nd-arc-plane-icon {
+          stroke: hsl(var(--primary));
         }
 
         .nd-icon-muted    { color: hsl(var(--muted-foreground)); }
