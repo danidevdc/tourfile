@@ -94,20 +94,41 @@ export async function checkForMasterDataUpdates(): Promise<boolean> {
   return false;
 }
 
+// In-memory promise cache: prevents duplicate concurrent fetches for the same key
+const inflightRequests = new Map<string, Promise<unknown[]>>();
+
 /**
  * Generic fetch with caching logic.
- * Checks remote version vs local version and either returns cache or fetches fresh data.
+ * 1. Returns sessionStorage cache if available and forceRefresh is false.
+ * 2. Deduplicates concurrent calls: if a fetch is already in flight, returns same promise.
+ * 3. On completion stores result in sessionStorage for the rest of the session.
  */
 export async function fetchWithCache<T>(
   key: string,
   fetchFn: () => Promise<T[]>,
   forceRefresh: boolean = false
 ): Promise<T[]> {
-  // SIEMPRE descarga datos frescos desde Firebase (sin cache)
-  // Esto garantiza que los usuarios siempre vean datos actualizados
-  console.log(`📊 Descargando ${key} desde Firebase (sin caché, siempre actualizado)`);
-  const data = await fetchFn();
-  return data;
+  if (!forceRefresh) {
+    const cached = getCachedData<T>(key);
+    if (cached) return cached;
+  }
+
+  // Deduplicate: return existing in-flight promise if one exists
+  if (inflightRequests.has(key)) {
+    return inflightRequests.get(key) as Promise<T[]>;
+  }
+
+  const promise = fetchFn().then((data) => {
+    setCachedData(key, data);
+    inflightRequests.delete(key);
+    return data;
+  }).catch((err) => {
+    inflightRequests.delete(key);
+    throw err;
+  });
+
+  inflightRequests.set(key, promise as Promise<unknown[]>);
+  return promise;
 }
 
 /**

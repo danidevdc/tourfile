@@ -278,16 +278,13 @@ function GenerateLiqModal({ fileRow, guideName, suggested, criteriaRules, onSave
         </div>
 
         {/* Footer total + actions */}
-        <div style={{ padding: "16px 24px", borderTop: `1px solid ${CSS.border}`, background: CSS.card, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.06em", color: CSS.mutedFg, textTransform: "uppercase" as const }}>Total a pagar</span>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: GREEN }}>
-              Bs. {fmt(total)}
-            </span>
-          </div>
+        <div style={{ padding: "16px 24px", borderTop: `1px solid ${CSS.border}`, background: CSS.card, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "20px" }}>
+          {/* Botones */}
           <div style={{ display: "flex", gap: "10px" }}>
             <button onClick={onCancel} disabled={saving}
-              style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: `1px solid ${CSS.border}`, background: "transparent", color: CSS.mutedFg, fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>
+              style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: "1px solid #ef4444", background: "transparent", color: "#ef4444", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer", transition: "all 150ms" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#ef4444"; (e.currentTarget as HTMLButtonElement).style.color = "white"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "#ef4444"; }}>
               Cancelar
             </button>
             <button
@@ -297,6 +294,15 @@ function GenerateLiqModal({ fileRow, guideName, suggested, criteriaRules, onSave
               {saving && <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />}
               Guardar liquidación
             </button>
+          </div>
+          {/* Divisor */}
+          <div style={{ width: "1px", height: "36px", background: CSS.border, flexShrink: 0 }} />
+          {/* Total — extremo derecho */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "1px" }}>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", color: CSS.mutedFg, textTransform: "uppercase" as const }}>Total a pagar</span>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: GREEN, lineHeight: 1 }}>
+              Bs. {fmt(total)}
+            </span>
           </div>
         </div>
       </div>
@@ -460,7 +466,9 @@ function PayModal({ liq, onConfirm, onCancel, loading }: {
         </div>
         <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
           <button onClick={onCancel} disabled={loading}
-            style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: `1px solid ${CSS.border}`, background: "transparent", color: CSS.mutedFg, fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>
+            style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: "1px solid #ef4444", background: "transparent", color: "#ef4444", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer", transition: "all 150ms" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#ef4444"; (e.currentTarget as HTMLButtonElement).style.color = "white"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "#ef4444"; }}>
             Cancelar
           </button>
           <button onClick={() => onConfirm(payDate)} disabled={loading || !payDate}
@@ -589,6 +597,19 @@ export default function LiquidationByGuidePage() {
       setSelectedMonth(months.at(-1)!);
     }
   }, [selectedYear, availableMonths]);
+
+  // ── Enter key triggers search when guide + month + year are selected ─────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      if (!selectedGuide || loading) return;
+      // Don't trigger if focus is inside the guide combobox search input
+      if ((e.target as HTMLElement).closest?.("[data-guide-combo]")) return;
+      doSearch();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [selectedGuide, selectedMonth, selectedYear, loading]);
 
   // ── Core fetch — shared by full search and silent refresh ───────────────────
   const fetchRows = useCallback(async (): Promise<EnrichedFileRow[]> => {
@@ -814,7 +835,7 @@ export default function LiquidationByGuidePage() {
           {/* Month */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>Mes</label>
-            <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}
+            <select value={selectedMonth} onChange={e => { setSelectedMonth(Number(e.target.value)); setRows([]); setSearched(false); }}
               disabled={monthsForYear.length === 0}
               style={{ height: "36px", padding: "0 12px", borderRadius: "6px", border: `1px solid ${CSS.border}`, background: CSS.bg, color: monthsForYear.length === 0 ? CSS.mutedFg : CSS.fg, fontFamily: "'Space Mono', monospace", fontSize: "12px", outline: "none", cursor: monthsForYear.length === 0 ? "not-allowed" : "pointer" }}>
               {monthsForYear.length === 0
@@ -827,7 +848,7 @@ export default function LiquidationByGuidePage() {
           {/* Year */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>Año</label>
-            <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}
+            <select value={selectedYear} onChange={e => { setSelectedYear(Number(e.target.value)); setRows([]); setSearched(false); }}
               disabled={availableYears.length === 0}
               style={{ height: "36px", padding: "0 12px", borderRadius: "6px", border: `1px solid ${CSS.border}`, background: CSS.bg, color: availableYears.length === 0 ? CSS.mutedFg : CSS.fg, fontFamily: "'Space Mono', monospace", fontSize: "12px", outline: "none", cursor: availableYears.length === 0 ? "not-allowed" : "pointer" }}>
               {availableYears.length === 0

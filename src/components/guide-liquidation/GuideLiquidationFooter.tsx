@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2, Save, Printer, Loader2 } from "lucide-react";
+import { Save, Printer, Loader2 } from "lucide-react";
 
 interface GuideLiquidationFooterProps {
   total: number;
@@ -26,12 +26,12 @@ export function GuideLiquidationFooter({
       className="border border-border bg-card flex items-center justify-between"
       style={{ borderRadius: "8px", padding: "0 24px", minHeight: "80px" }}
     >
-      {/* IZQ — Limpiar */}
+      {/* IZQ — Cancelar */}
       <button
         onClick={onClear}
         style={{
           height: "36px",
-          padding: "0 16px",
+          padding: "0 20px",
           borderRadius: "999px",
           fontFamily: "'Space Mono', monospace",
           fontSize: "11px",
@@ -40,24 +40,22 @@ export function GuideLiquidationFooter({
           textTransform: "uppercase",
           display: "flex",
           alignItems: "center",
-          gap: "6px",
           transition: "all 150ms ease-out",
-          border: "1px solid hsl(var(--destructive) / 0.6)",
-          color: "hsl(var(--destructive))",
+          border: "1px solid #ef4444",
+          color: "#ef4444",
           background: "transparent",
           cursor: "pointer",
         }}
         onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.backgroundColor = "hsl(var(--destructive))";
+          (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#ef4444";
           (e.currentTarget as HTMLButtonElement).style.color = "white";
         }}
         onMouseLeave={(e) => {
           (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-          (e.currentTarget as HTMLButtonElement).style.color = "hsl(var(--destructive))";
+          (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
         }}
       >
-        <Trash2 className="h-3.5 w-3.5" />
-        Limpiar
+        Cancelar
       </button>
 
       {/* DER — Guardar + Imprimir | Total */}
