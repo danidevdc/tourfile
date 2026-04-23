@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Printer, Search, Pencil } from "lucide-react";
-import { getAllLiquidations, type GuideLiquidation } from "@/lib/guideLiquidationService";
+import { ArrowLeft, Printer, Search, Pencil, X, CheckCircle2, Loader2 } from "lucide-react";
+import { getAllLiquidations, payLiquidation, type GuideLiquidation } from "@/lib/guideLiquidationService";
 import { buildLiquidationPDFUrl } from "@/lib/guideLiquidationPDF";
 import { LiquidationPDFPreviewModal } from "@/components/guide-liquidation/LiquidationPDFPreviewModal";
 
@@ -18,17 +18,107 @@ const CSS = {
   subtleBg: "hsl(var(--muted) / 0.4)",
 };
 
-function StatusBadge({ liq }: { liq: GuideLiquidation }) {
-  const label    = liq.paymentDate ? "PAGADO" : "SOLICITADO";
-  const color    = liq.paymentDate ? "#16a34a" : "#f59e0b";
-  const haloAnim = liq.paymentDate ? "nd-halo 2.4s ease-in-out infinite" : "none";
+function PayModal({ liq, onConfirm, onCancel, loading }: {
+  liq: GuideLiquidation; onConfirm: (date: string) => void; onCancel: () => void; loading: boolean;
+}) {
+  const today = new Date();
+  const [dd, setDd] = useState(String(today.getDate()).padStart(2, "0"));
+  const [mm, setMm] = useState(String(today.getMonth() + 1).padStart(2, "0"));
+  const [yyyy, setYyyy] = useState(String(today.getFullYear()));
+
+  const isoDate = `${yyyy}-${mm}-${dd}`;
+  const isValid = /^\d{4}-\d{2}-\d{2}$/.test(isoDate) && !isNaN(new Date(isoDate).getTime());
+  const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
+
+  const inputStyle = {
+    padding: "8px 6px", borderRadius: "6px",
+    border: `1px solid ${CSS.border}`, background: CSS.bg, color: CSS.fg,
+    fontFamily: "'Space Mono', monospace", fontSize: "13px", outline: "none",
+    textAlign: "center" as const, width: "100%",
+  };
+
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 8px", borderRadius: "4px", border: `1px solid ${color}55`, background: `${color}12`, fontFamily: "'Space Mono', monospace", fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color, whiteSpace: "nowrap" as const, animation: haloAnim }}>
-      <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0 }} />
+    <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
+      <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "12px", padding: "28px 32px", width: "380px", display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: CSS.fg, marginBottom: "6px" }}>Confirmar pago</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, letterSpacing: "0.04em" }}>
+              {liq.guideName} · {liq.liquidationNumber}
+            </p>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: TOKEN.green, marginTop: "10px" }}>
+              Bs. {fmt(liq.total)}
+            </p>
+          </div>
+          <button onClick={onCancel} style={{ width: "30px", height: "30px", borderRadius: "6px", border: "1px solid #ef444433", background: "#ef44440d", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms" }}>
+            <X size={14} />
+          </button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <label style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>Fecha de pago</label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 10px 1fr 10px 1.6fr", alignItems: "center", gap: "4px" }}>
+            <input value={dd} onChange={e => setDd(e.target.value.slice(0, 2))} placeholder="DD" maxLength={2} style={inputStyle} />
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "13px", color: CSS.mutedFg, textAlign: "center" as const }}>/</span>
+            <input value={mm} onChange={e => setMm(e.target.value.slice(0, 2))} placeholder="MM" maxLength={2} style={inputStyle} />
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "13px", color: CSS.mutedFg, textAlign: "center" as const }}>/</span>
+            <input value={yyyy} onChange={e => setYyyy(e.target.value.slice(0, 4))} placeholder="AAAA" maxLength={4} style={inputStyle} />
+          </div>
+          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", color: CSS.mutedFg, letterSpacing: "0.06em" }}>
+            {isValid ? `→ ${dd}/${mm}/${yyyy}` : "Ingresá la fecha en formato DD/MM/AAAA"}
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+          <button onClick={onCancel} disabled={loading}
+            style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: `1px solid ${CSS.border}`, background: "transparent", color: CSS.mutedFg, fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>
+            Cancelar
+          </button>
+          <button onClick={() => isValid && onConfirm(isoDate)} disabled={loading || !isValid}
+            style={{ height: "36px", padding: "0 20px", borderRadius: "8px", border: "none", background: isValid ? TOKEN.green : CSS.muted, color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: (loading || !isValid) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: loading ? 0.7 : 1 }}>
+            {loading && <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />}
+            Confirmar pago
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ liq }: { liq: GuideLiquidation }) {
+  const isPagado = !!liq.paymentDate;
+  const label    = isPagado ? "PAGADO" : "SOLICITADO";
+  const color    = isPagado ? "#16a34a" : "#f59e0b";
+
+  if (isPagado) {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: "5px",
+        padding: "3px 8px", borderRadius: "4px",
+        border: "1px solid #16a34a44", background: "#16a34a0f",
+        whiteSpace: "nowrap" as const, flexShrink: 0,
+      }}>
+        <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#16a34a", display: "inline-block", flexShrink: 0 }} />
+        <span className="nd-shimmer-badge" style={{
+          fontFamily: "'Space Mono', monospace", fontSize: "9px",
+          fontWeight: 700, letterSpacing: "0.08em",
+          textTransform: "uppercase" as const,
+        }}>
+          PAGADO
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 8px", borderRadius: "4px", border: `1px solid ${color}55`, background: `${color}12`, fontFamily: "'Space Mono', monospace", fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color, whiteSpace: "nowrap" as const }}>
+      <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0, animation: "nd-pulse 2s ease-in-out infinite" }} />
       {label}
     </span>
   );
 }
+
+const MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+type StatusFilter = "PAGADO" | "SOLICITADO" | null;
 
 export default function LiquidationHistoryPage() {
   const router = useRouter();
@@ -36,8 +126,11 @@ export default function LiquidationHistoryPage() {
   const [filtered, setFiltered] = useState<GuideLiquidation[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
+  const [payTarget, setPayTarget] = useState<GuideLiquidation | null>(null);
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     getAllLiquidations().then((data) => { setAll(data); setFiltered(data); }).catch(console.error).finally(() => setLoading(false));
@@ -45,14 +138,32 @@ export default function LiquidationHistoryPage() {
 
   useEffect(() => {
     const q = search.trim().toUpperCase();
-    if (!q) { setFiltered(all); return; }
-    setFiltered(all.filter((l) =>
-      l.guideName.toUpperCase().includes(q) ||
-      l.fileNumber.toUpperCase().includes(q) ||
-      l.liquidationNumber.toUpperCase().includes(q) ||
-      l.paxName.toUpperCase().includes(q)
-    ));
-  }, [search, all]);
+    let result = all;
+
+    // Status chip filter
+    if (statusFilter === "PAGADO") result = result.filter(l => !!l.paymentDate);
+    if (statusFilter === "SOLICITADO") result = result.filter(l => !l.paymentDate);
+
+    // Text search — matches name, file, number, pax, month name, year
+    if (q) {
+      result = result.filter((l) => {
+        const d = new Date(l.createdAt);
+        const monthName = MONTHS_ES[d.getMonth()].toUpperCase();
+        const year = d.getFullYear().toString();
+        return (
+          l.guideName.toUpperCase().includes(q) ||
+          l.fileNumber.toUpperCase().includes(q) ||
+          l.liquidationNumber.toUpperCase().includes(q) ||
+          (l.paxName ?? "").toUpperCase().includes(q) ||
+          monthName.includes(q) ||
+          year.includes(q) ||
+          fmtServiceMonth(l).includes(q)
+        );
+      });
+    }
+
+    setFiltered(result);
+  }, [search, statusFilter, all]);
 
   const handlePrint = async (liq: GuideLiquidation) => {
     setPrintingId(liq.id);
@@ -67,19 +178,70 @@ export default function LiquidationHistoryPage() {
     }
   };
 
+  const handlePay = async (date: string) => {
+    if (!payTarget) return;
+    setPaying(true);
+    try {
+      await payLiquidation(payTarget.id, date);
+      const update = (list: GuideLiquidation[]) =>
+        list.map(l => l.id === payTarget.id ? { ...l, paymentDate: date } : l);
+      setAll(prev => update(prev));
+      setFiltered(prev => update(prev));
+      setPayTarget(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPaying(false);
+    }
+  };
+
   const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtDate = (d: Date) => {
     try { return new Date(d).toLocaleDateString("es-BO", { day: "2-digit", month: "2-digit", year: "2-digit" }); }
     catch { return "—"; }
   };
+  const fmtPaymentDate = (s: string) => {
+    // s is "YYYY-MM-DD" — parse directly to avoid UTC offset shifting the day
+    const [y, m, d] = s.split("-");
+    if (!y || !m || !d) return "—";
+    return `${d}/${m}/${y}`;
+  };
+  const fmtServiceMonth = (liq: GuideLiquidation): string => {
+    const first = liq.items?.[0]?.fecha;
+    if (!first) return "—";
+    const parts = first.split("/").map(Number);
+    let [, m, y] = parts;
+    if (y < 100) y += 2000;
+    return `${MONTHS_ES[m - 1].slice(0, 3).toUpperCase()} ${y}`;
+  };
 
-  const GRID = "90px 1fr 120px 80px 110px 110px 84px";
+  const GRID = "80px 1fr 90px 130px 76px 76px 110px 120px 112px";
 
   return (
     <div style={{ minHeight: "100vh", background: CSS.bg, fontFamily: "'Space Grotesk', sans-serif" }}>
       <style>{`
         @keyframes nd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        @keyframes nd-halo  { 0%, 100% { box-shadow: 0 0 0 0px #16a34a00; } 50% { box-shadow: 0 0 0 3px #16a34a44; } }
+        @keyframes nd-shimmer {
+          0%   { background-position: -200% center; }
+          100% { background-position:  200% center; }
+        }
+        .nd-shimmer-badge {
+          background: linear-gradient(
+            105deg,
+            #16a34a 0%,
+            #16a34a 35%,
+            #86efac 48%,
+            #fff    52%,
+            #86efac 56%,
+            #16a34a 65%,
+            #16a34a 100%
+          );
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: nd-shimmer 2.4s linear infinite;
+        }
       `}</style>
       <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "28px 28px 48px", display: "flex", flexDirection: "column", gap: "24px" }}>
 
@@ -97,23 +259,56 @@ export default function LiquidationHistoryPage() {
             </div>
           </div>
 
-          {/* Search */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", border: `1px solid ${CSS.border}`, borderRadius: "8px", padding: "0 12px", background: CSS.card, height: "36px", minWidth: "220px" }}>
-            <Search size={13} color={CSS.mutedFg} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar guía, file, N°..."
-              style={{ border: "none", outline: "none", fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.04em", color: CSS.fg, background: "transparent", width: "100%" }}
-            />
+          {/* Filters */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" as const }}>
+            {/* Status chips */}
+            {(["PAGADO", "SOLICITADO"] as StatusFilter[]).map(s => {
+              const active = statusFilter === s;
+              const color = s === "PAGADO" ? TOKEN.green : TOKEN.amber;
+              return (
+                <button key={s} onClick={() => setStatusFilter(active ? null : s)}
+                  style={{ height: "32px", padding: "0 12px", borderRadius: "999px", border: `1px solid ${active ? color : CSS.border}`, background: active ? `${color}14` : "transparent", fontFamily: "'Space Mono', monospace", fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", color: active ? color : CSS.mutedFg, cursor: "pointer", transition: "all 150ms", display: "flex", alignItems: "center", gap: "5px" }}>
+                  <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: active ? color : CSS.mutedFg, display: "inline-block", flexShrink: 0 }} />
+                  {s}
+                </button>
+              );
+            })}
+            {/* Search input */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", border: `1px solid ${CSS.border}`, borderRadius: "8px", padding: "0 12px", background: CSS.card, height: "36px", minWidth: "220px" }}>
+              <Search size={13} color={CSS.mutedFg} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Guía, file, mes, año..."
+                style={{ border: "none", outline: "none", fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.04em", color: CSS.fg, background: "transparent", width: "100%" }}
+              />
+              {search && (
+                <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", color: CSS.mutedFg, display: "flex", padding: 0 }}>
+                  <X size={12} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Table */}
         <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "10px", overflow: "hidden" }}>
           <div style={{ display: "grid", gridTemplateColumns: GRID, padding: "10px 20px", borderBottom: `1px solid ${CSS.border}`, background: CSS.subtleBg }}>
-            {["N°", "Guía", "File", "Fecha", "Total", "Estado", ""].map((col) => (
-              <span key={col} style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>{col}</span>
+            {[
+              { l1: "N°" },
+              { l1: "Guía" },
+              { l1: "Mes" },
+              { l1: "File" },
+              { l1: "Fecha", l2: "Solicitud" },
+              { l1: "Fecha", l2: "Pago" },
+              { l1: "Total" },
+              { l1: "Estado" },
+              { l1: "" },
+            ].map(({ l1, l2 }, idx) => (
+              <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>{l1}</span>
+                {l2 && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg, opacity: 0.6 }}>{l2}</span>}
+              </div>
             ))}
           </div>
 
@@ -124,7 +319,7 @@ export default function LiquidationHistoryPage() {
           ) : filtered.length === 0 ? (
             <div style={{ padding: "40px", textAlign: "center" }}>
               <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg }}>
-                {search ? "Sin resultados para la búsqueda" : "No hay liquidaciones registradas"}
+                {(search || statusFilter) ? "Sin resultados para los filtros aplicados" : "No hay liquidaciones registradas"}
               </span>
             </div>
           ) : (
@@ -135,10 +330,14 @@ export default function LiquidationHistoryPage() {
                   <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 600, color: CSS.fg }}>{liq.guideName}</p>
                   <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", color: CSS.mutedFg, marginTop: "2px" }}>{liq.paxName || "—"}</p>
                 </div>
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 400, color: "#3b82f6" }}>{fmtServiceMonth(liq)}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.fg }}>{liq.fileNumber}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", color: CSS.mutedFg }}>{fmtDate(liq.createdAt)}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", color: liq.paymentDate ? TOKEN.green : CSS.mutedFg }}>
+                  {liq.paymentDate ? fmtPaymentDate(liq.paymentDate) : "—"}
+                </span>
                 <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 700, color: CSS.fg }}>Bs. {fmt(liq.total)}</span>
-                <StatusBadge liq={liq} />
+                <div style={{ display: "flex", alignItems: "center" }}><StatusBadge liq={liq} /></div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px" }}>
                   {!liq.paymentDate && (
                     <button
@@ -161,6 +360,17 @@ export default function LiquidationHistoryPage() {
                   >
                     <Printer size={13} />
                   </button>
+                  {!liq.paymentDate && (
+                    <button
+                      onClick={() => setPayTarget(liq)}
+                      title="Marcar como pagado"
+                      style={{ width: "32px", height: "32px", borderRadius: "8px", border: `1px solid ${TOKEN.green}28`, background: `${TOKEN.green}0d`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms", color: TOKEN.green, flexShrink: 0 }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `${TOKEN.green}18`; (e.currentTarget as HTMLButtonElement).style.borderColor = `${TOKEN.green}66`; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `${TOKEN.green}0d`; (e.currentTarget as HTMLButtonElement).style.borderColor = `${TOKEN.green}28`; }}
+                    >
+                      <CheckCircle2 size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -174,6 +384,10 @@ export default function LiquidationHistoryPage() {
         blobUrl={pdfPreview?.url ?? null}
         fileName={pdfPreview?.fileName ?? ""}
       />
+
+      {payTarget && (
+        <PayModal liq={payTarget} onConfirm={handlePay} onCancel={() => setPayTarget(null)} loading={paying} />
+      )}
     </div>
   );
 }

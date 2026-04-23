@@ -381,9 +381,52 @@ export async function getDashboardStats(): Promise<LiquidationDashboardStats> {
 /**
  * Get all guide names from the guides master collection in Firestore.
  */
+const EXCLUDED_GUIDE_NAMES = ['TBA', 'SIN GUIA', 'SIN GUÍA', 'POR ASIGNAR', 'N/A', '-', ''];
+
 export async function getAllGuideNames(): Promise<string[]> {
   const guides = await getGuidesFromFirestore();
-  return guides.map(g => g.fullName).sort();
+  return guides
+    .map(g => g.fullName.trim())
+    .filter(name => !EXCLUDED_GUIDE_NAMES.includes(name.toUpperCase()))
+    .sort();
+}
+
+export interface GuideAvailableMonths {
+  [year: number]: number[]; // year → sorted array of month numbers (1-12)
+}
+
+/**
+ * Return the years and months where a guide has at least one service order.
+ * Uses the sessionStorage cache — 0 Firestore reads if cache is warm.
+ */
+export async function getAvailableMonthsForGuide(guideName: string): Promise<GuideAvailableMonths> {
+  const allOrders = await getAllServiceOrders();
+  const normalizedGuide = guideName.trim().toUpperCase();
+  const map = new Map<number, Set<number>>();
+
+  for (const order of allOrders) {
+    if (order.status === 'eliminado' || order.status === 'cancelado') continue;
+    if (!order.data) continue;
+    const guia = (order.data.guia ?? '').trim().toUpperCase();
+    if (guia !== normalizedGuide) continue;
+
+    const services = order.data.services ?? [];
+    for (const svc of services) {
+      if (!svc.fecha) continue;
+      const parts = svc.fecha.split('/').map(Number);
+      let [, m, y] = parts;
+      if (y < 100) y += 2000;
+      if (!m || !y) continue;
+      if (!map.has(y)) map.set(y, new Set());
+      map.get(y)!.add(m);
+    }
+  }
+
+  const result: GuideAvailableMonths = {};
+  for (const [year, months] of map.entries()) {
+    result[year] = Array.from(months).sort((a, b) => a - b);
+  }
+  return result;
 }
 
 export interface GuideFileRow {

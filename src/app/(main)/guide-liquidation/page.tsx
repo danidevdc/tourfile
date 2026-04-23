@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, FileText, TrendingUp, Calendar, Users, Printer, History, Settings2, Pencil, UserCheck } from "lucide-react";
-import { getDashboardStats, type LiquidationDashboardStats, type GuideLiquidation } from "@/lib/guideLiquidationService";
+import { ArrowLeft, Plus, FileText, TrendingUp, Calendar, Users, Printer, History, Settings2, Pencil, UserCheck, CheckCircle2, Loader2, X } from "lucide-react";
+import { getDashboardStats, payLiquidation, type LiquidationDashboardStats, type GuideLiquidation } from "@/lib/guideLiquidationService";
 import { buildLiquidationPDFUrl } from "@/lib/guideLiquidationPDF";
 import { LiquidationPDFPreviewModal } from "@/components/guide-liquidation/LiquidationPDFPreviewModal";
 
@@ -124,31 +124,108 @@ function ActionCard({
 }
 
 function StatusBadge({ liq }: { liq: GuideLiquidation }) {
-  const label    = liq.paymentDate ? "PAGADO" : "SOLICITADO";
-  const color    = liq.paymentDate ? "#16a34a" : "#f59e0b";
-  const dotAnim  = "none";
-  const haloAnim = liq.paymentDate ? "nd-halo 2.4s ease-in-out infinite" : "none";
+  const isPagado = !!liq.paymentDate;
+  const label    = isPagado ? "PAGADO" : "SOLICITADO";
+  const color    = isPagado ? "#16a34a" : "#f59e0b";
+
+  if (isPagado) {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: "5px",
+        padding: "3px 10px", borderRadius: "4px",
+        border: "1px solid #16a34a44", background: "#16a34a0f",
+        whiteSpace: "nowrap" as const, flexShrink: 0,
+      }}>
+        <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#16a34a", display: "inline-block", flexShrink: 0 }} />
+        <span className="nd-shimmer-badge" style={{
+          fontFamily: "'Space Mono', monospace", fontSize: "9px",
+          fontWeight: 700, letterSpacing: "0.08em",
+          textTransform: "uppercase" as const,
+        }}>
+          PAGADO
+        </span>
+      </span>
+    );
+  }
+
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: "5px",
       padding: "3px 10px", borderRadius: "4px",
-      border: `1px solid ${color}55`,
-      background: `${color}14`,
+      border: `1px solid ${color}55`, background: `${color}14`,
       fontFamily: "'Space Mono', monospace", fontSize: "9px",
       fontWeight: 700, letterSpacing: "0.08em",
       textTransform: "uppercase" as const,
-      color,
-      whiteSpace: "nowrap" as const,
-      animation: haloAnim,
+      color, whiteSpace: "nowrap" as const,
     }}>
-      <span style={{
-        width: "5px", height: "5px", borderRadius: "50%",
-        background: color,
-        display: "inline-block", flexShrink: 0,
-        animation: dotAnim,
-      }} />
+      <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0, animation: "nd-pulse 2s ease-in-out infinite" }} />
       {label}
     </span>
+  );
+}
+
+function PayModal({ liq, onConfirm, onCancel, loading }: {
+  liq: GuideLiquidation; onConfirm: (date: string) => void; onCancel: () => void; loading: boolean;
+}) {
+  const today = new Date();
+  const [dd, setDd] = useState(String(today.getDate()).padStart(2, "0"));
+  const [mm, setMm] = useState(String(today.getMonth() + 1).padStart(2, "0"));
+  const [yyyy, setYyyy] = useState(String(today.getFullYear()));
+
+  const isoDate = `${yyyy}-${mm}-${dd}`;
+  const isValid = /^\d{4}-\d{2}-\d{2}$/.test(isoDate) && !isNaN(new Date(isoDate).getTime());
+  const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
+
+  const inputStyle = {
+    padding: "8px 6px", borderRadius: "6px",
+    border: `1px solid ${CSS.border}`, background: CSS.bg, color: CSS.fg,
+    fontFamily: "'Space Mono', monospace", fontSize: "13px", outline: "none",
+    textAlign: "center" as const, width: "100%",
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
+      <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "12px", padding: "28px 32px", width: "380px", display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: CSS.fg, marginBottom: "6px" }}>Confirmar pago</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, letterSpacing: "0.04em" }}>
+              {liq.guideName} · {liq.liquidationNumber}
+            </p>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: TOKEN.green, marginTop: "10px" }}>
+              Bs. {fmt(liq.total)}
+            </p>
+          </div>
+          <button onClick={onCancel} style={{ width: "30px", height: "30px", borderRadius: "6px", border: "1px solid #ef444433", background: "#ef44440d", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms" }}>
+            <X size={14} />
+          </button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <label style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>Fecha de pago</label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 10px 1fr 10px 1.6fr", alignItems: "center", gap: "4px" }}>
+            <input value={dd} onChange={e => setDd(e.target.value.slice(0, 2))} placeholder="DD" maxLength={2} style={inputStyle} />
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "13px", color: CSS.mutedFg, textAlign: "center" as const }}>/</span>
+            <input value={mm} onChange={e => setMm(e.target.value.slice(0, 2))} placeholder="MM" maxLength={2} style={inputStyle} />
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "13px", color: CSS.mutedFg, textAlign: "center" as const }}>/</span>
+            <input value={yyyy} onChange={e => setYyyy(e.target.value.slice(0, 4))} placeholder="AAAA" maxLength={4} style={inputStyle} />
+          </div>
+          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", color: CSS.mutedFg, letterSpacing: "0.06em" }}>
+            {isValid ? `→ ${dd}/${mm}/${yyyy}` : "Ingresá la fecha en formato DD/MM/AAAA"}
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+          <button onClick={onCancel} disabled={loading}
+            style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: `1px solid ${CSS.border}`, background: "transparent", color: CSS.mutedFg, fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>
+            Cancelar
+          </button>
+          <button onClick={() => isValid && onConfirm(isoDate)} disabled={loading || !isValid}
+            style={{ height: "36px", padding: "0 20px", borderRadius: "8px", border: "none", background: isValid ? TOKEN.green : CSS.muted, color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: (loading || !isValid) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: loading ? 0.7 : 1 }}>
+            {loading && <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />}
+            Confirmar pago
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -193,6 +270,8 @@ export default function GuideLiquidationDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
+  const [payTarget, setPayTarget] = useState<GuideLiquidation | null>(null);
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     getDashboardStats().then(setStats).catch(console.error).finally(() => setLoading(false));
@@ -211,16 +290,69 @@ export default function GuideLiquidationDashboardPage() {
     }
   };
 
+  const handlePay = async (date: string) => {
+    if (!payTarget) return;
+    setPaying(true);
+    try {
+      await payLiquidation(payTarget.id, date);
+      // Optimistic update: mark the row as paid in local state
+      setStats(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          recientes: prev.recientes.map(l =>
+            l.id === payTarget.id ? { ...l, paymentDate: date } : l
+          ),
+        };
+      });
+      setPayTarget(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPaying(false);
+    }
+  };
+
   const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const COL_HEADERS = ["N°", "Guía", "File", "Total", "Estado", ""];
-  const GRID = "90px 1fr 120px 110px 120px 84px";
+  const MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const fmtServiceMonth = (liq: GuideLiquidation): string => {
+    const first = liq.items?.[0]?.fecha;
+    if (!first) return "—";
+    const parts = first.split("/").map(Number);
+    let [, m, y] = parts;
+    if (y < 100) y += 2000;
+    return `${MONTHS_ES[m - 1].slice(0, 3).toUpperCase()} ${y}`;
+  };
+
+  const COL_HEADERS = ["N°", "Guía", "Mes", "File", "Total", "Estado", ""];
+  const GRID = "90px 1fr 80px 120px 110px 130px 120px";
 
   return (
     <div style={{ minHeight: "100vh", background: CSS.bg, fontFamily: "'Space Grotesk', sans-serif" }}>
       <style>{`
         @keyframes nd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        @keyframes nd-halo  { 0%, 100% { box-shadow: 0 0 0 0px #16a34a00; } 50% { box-shadow: 0 0 0 3px #16a34a44; } }
+        @keyframes nd-shimmer {
+          0%   { background-position: -200% center; }
+          100% { background-position:  200% center; }
+        }
+        .nd-shimmer-badge {
+          background: linear-gradient(
+            105deg,
+            #16a34a 0%,
+            #16a34a 35%,
+            #86efac 48%,
+            #fff    52%,
+            #86efac 56%,
+            #16a34a 65%,
+            #16a34a 100%
+          );
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: nd-shimmer 2.4s linear infinite;
+        }
       `}</style>
 
       <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "28px 28px 48px", display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -371,6 +503,9 @@ export default function GuideLiquidationDashboardPage() {
                   <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 600, color: CSS.fg }}>{liq.guideName}</p>
                   <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", color: CSS.mutedFg, letterSpacing: "0.04em", marginTop: "2px" }}>{liq.paxName || "—"}</p>
                 </div>
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 400, color: "#3b82f6" }}>
+                  {fmtServiceMonth(liq)}
+                </span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.fg, letterSpacing: "0.04em" }}>
                   {liq.fileNumber}
                 </span>
@@ -381,7 +516,7 @@ export default function GuideLiquidationDashboardPage() {
                 <div style={{ display: "flex", alignItems: "center" }}>
                   <StatusBadge liq={liq} />
                 </div>
-                {/* Acciones: editar + imprimir */}
+                {/* Acciones: pagar + editar + imprimir */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px" }}>
                   {!liq.paymentDate && (
                     <button
@@ -395,6 +530,17 @@ export default function GuideLiquidationDashboardPage() {
                     </button>
                   )}
                   <PrintButton liq={liq} printingId={printingId} onPrint={handlePrint} />
+                  {!liq.paymentDate && (
+                    <button
+                      onClick={() => setPayTarget(liq)}
+                      title="Marcar como pagado"
+                      style={{ width: "34px", height: "34px", borderRadius: "8px", border: `1px solid ${TOKEN.green}28`, background: `${TOKEN.green}0d`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms ease-out", color: TOKEN.green, flexShrink: 0 }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `${TOKEN.green}18`; (e.currentTarget as HTMLButtonElement).style.borderColor = `${TOKEN.green}66`; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = `${TOKEN.green}0d`; (e.currentTarget as HTMLButtonElement).style.borderColor = `${TOKEN.green}28`; }}
+                    >
+                      <CheckCircle2 size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -408,6 +554,10 @@ export default function GuideLiquidationDashboardPage() {
         blobUrl={pdfPreview?.url ?? null}
         fileName={pdfPreview?.fileName ?? ""}
       />
+
+      {payTarget && (
+        <PayModal liq={payTarget} onConfirm={handlePay} onCancel={() => setPayTarget(null)} loading={paying} />
+      )}
     </div>
   );
 }

@@ -31,7 +31,7 @@ import {
   type Idioma, type LiquidationCriteriaRule,
 } from "@/lib/guideLiquidationCriteriaService";
 
-type PageStatus = "idle" | "searched" | "saved";
+type PageStatus = "idle" | "searched" | "saved" | "paid";
 
 // ── Idioma selector ──────────────────────────────────────────────────────────
 function IdiomaSelector({
@@ -201,7 +201,11 @@ async function fetchNextNumber(): Promise<string> {
 
         setItems(priced);
         setSavedLiquidation(existingLiq);
-        setPageStatus(existingLiq ? "saved" : "searched");
+        if (existingLiq) {
+          setPageStatus(existingLiq.paymentDate ? "paid" : "saved");
+        } else {
+          setPageStatus("searched");
+        }
 
         if (existingLiq) {
           toast({
@@ -305,13 +309,25 @@ async function fetchNextNumber(): Promise<string> {
     setFormKey((k) => k + 1);
   };
 
-  const statusLabel = pageStatus === "saved" ? "Liquidado" : "Sin Liquidar";
+  const statusLabel = pageStatus === "paid" ? "Pagado" : pageStatus === "saved" ? "Solicitado" : "Sin Liquidar";
   const currentLiqNumber = savedLiquidation?.liquidationNumber ?? liquidationNumber;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <style>{`
         @keyframes nd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes nd-shimmer {
+          0%   { background-position: -200% center; }
+          100% { background-position:  200% center; }
+        }
+        .nd-shimmer-badge {
+          background: linear-gradient(105deg, #16a34a 0%, #16a34a 35%, #86efac 48%, #fff 52%, #86efac 56%, #16a34a 65%, #16a34a 100%);
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: nd-shimmer 2.4s linear infinite;
+        }
       `}</style>
       <div className="flex flex-col gap-5 p-7 max-w-7xl mx-auto w-full">
 
@@ -365,7 +381,7 @@ async function fetchNextNumber(): Promise<string> {
               value={idioma}
               onChange={handleIdiomaChange}
               suggested={suggestedIdioma}
-              disabled={pageStatus === "saved"}
+              disabled={pageStatus === "saved" || pageStatus === "paid"}
             />
             {idioma && pageStatus === "searched" && criteriaRules.length > 0 && (
               <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", color: "hsl(var(--muted-foreground))", marginTop: "8px", letterSpacing: "0.04em" }}>
@@ -383,12 +399,28 @@ async function fetchNextNumber(): Promise<string> {
         {/* Status row */}
         {pageStatus !== "idle" && (
           <div className="flex items-center gap-3">
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "6px 14px", borderRadius: "6px", border: pageStatus === "saved" ? "1px solid #16a34a88" : "1px solid hsl(var(--destructive) / 0.5)", backgroundColor: pageStatus === "saved" ? "#16a34a14" : "hsl(var(--destructive) / 0.08)" }}>
-              <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: pageStatus === "saved" ? "#16a34a" : "hsl(var(--destructive))", display: "inline-block", flexShrink: 0, animation: pageStatus === "saved" ? "nd-pulse 2.4s ease-in-out infinite" : "none" }} />
-              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: pageStatus === "saved" ? "#16a34a" : "hsl(var(--destructive))" }}>
-                {statusLabel}
-              </span>
-            </div>
+            {pageStatus === "paid" ? (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "6px 14px", borderRadius: "6px", border: "1px solid #16a34a44", backgroundColor: "#16a34a0f" }}>
+                <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#16a34a", display: "inline-block", flexShrink: 0 }} />
+                <span className="nd-shimmer-badge" style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
+                  PAGADO
+                </span>
+              </div>
+            ) : pageStatus === "saved" ? (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "6px 14px", borderRadius: "6px", border: "1px solid #f59e0b55", backgroundColor: "#f59e0b0f" }}>
+                <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#f59e0b", display: "inline-block", flexShrink: 0 }} />
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#f59e0b" }}>
+                  SOLICITADO
+                </span>
+              </div>
+            ) : (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "6px 14px", borderRadius: "6px", border: "1px solid hsl(var(--destructive) / 0.5)", backgroundColor: "hsl(var(--destructive) / 0.08)" }}>
+                <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "hsl(var(--destructive))", display: "inline-block", flexShrink: 0, animation: "nd-pulse 2.4s ease-in-out infinite" }} />
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsl(var(--destructive))" }}>
+                  SIN LIQUIDAR
+                </span>
+              </div>
+            )}
             <div style={{ display: "inline-flex", alignItems: "center", padding: "4px 10px", borderRadius: "4px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--muted) / 0.4)" }}>
               <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.06em", color: "hsl(var(--muted-foreground))" }}>
                 {currentLiqNumber}
@@ -408,7 +440,7 @@ async function fetchNextNumber(): Promise<string> {
         <GuideLiquidationTable
           items={savedLiquidation ? savedLiquidation.items : items}
           onItemChange={handleItemChange}
-          readOnly={pageStatus === "saved"}
+          readOnly={pageStatus === "saved" || pageStatus === "paid"}
         />
 
         {/* Footer */}
@@ -416,7 +448,7 @@ async function fetchNextNumber(): Promise<string> {
           total={total}
           isSaving={isSaving}
           hasItems={items.length > 0}
-          isSaved={pageStatus === "saved"}
+          isSaved={pageStatus === "saved" || pageStatus === "paid"}
           onClear={handleClear}
           onSave={() => setShowSaveConfirm(true)}
           onPrint={handlePrint}
