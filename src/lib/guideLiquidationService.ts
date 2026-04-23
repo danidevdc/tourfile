@@ -6,6 +6,8 @@ import {
   doc,
   addDoc,
   getDocs,
+  getDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -438,18 +440,14 @@ export interface GuideFileRow {
 }
 
 /**
- * Get unique files worked by a guide in a given month/year, grouped by file number.
- * Includes any order where data.guia matches — roots, G- children, shared orders.
+ * Build GuideFileRow[] from the sessionStorage cache — no Firestore reads.
  */
-export async function getOrdersByGuideAndMonth(
-  guideName: string,
+function buildRowsFromOrders(
+  allOrders: Awaited<ReturnType<typeof getAllServiceOrders>>,
+  normalizedGuide: string,
   month: number,
   year: number
-): Promise<GuideFileRow[]> {
-  const allOrders = await getAllServiceOrders();
-  const normalizedGuide = guideName.trim().toUpperCase();
-
-  // Map fileNumber → row
+): GuideFileRow[] {
   const fileMap = new Map<string, GuideFileRow>();
 
   for (const order of allOrders) {
@@ -458,7 +456,6 @@ export async function getOrdersByGuideAndMonth(
     const guia = (order.data.guia ?? '').trim().toUpperCase();
     if (guia !== normalizedGuide) continue;
 
-    // Check if any service falls in the requested month/year
     const services = order.data.services ?? [];
     const hasServiceInMonth = services.some(svc => {
       if (!svc.fecha) return false;
@@ -490,6 +487,50 @@ export async function getOrdersByGuideAndMonth(
   return Array.from(fileMap.values()).sort((a, b) =>
     normalizeFileNumber(a.fileNumber).localeCompare(normalizeFileNumber(b.fileNumber))
   );
+}
+
+/**
+ * Get unique files worked by a guide in a given month/year, grouped by file number.
+ *
+ * Cache strategy:
+ * - Current month → always recompute from sessionStorage (data may still change)
+ * - Past months   → read from Firestore `guideMonthCache` collection first.
+ *                   On miss: compute, store in Firestore, return result.
+ *                   On hit:  return cached rows directly (1 Firestore read, 0 processing)
+ */
+export async function getOrdersByGuideAndMonth(
+  guideName: string,
+  month: number,
+  year: number
+): Promise<GuideFileRow[]> {
+  const normalizedGuide = guideName.trim().toUpperCase();
+  const now = new Date();
+  const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
+
+  // Current month: always recompute — orders may still be added/edited
+  if (isCurrentMonth) {
+    const allOrders = await getAllServiceOrders();
+    return buildRowsFromOrders(allOrders, normalizedGuide, month, year);
+  }
+
+  // Past month: try Firestore cache first
+  if (!db) throw new Error('Firestore not initialized.');
+  const cacheKey = `${normalizedGuide.replace(/\s+/g, '_')}-${year}-${month}`;
+  const cacheRef = doc(db, 'guideMonthCache', cacheKey);
+  const cacheSnap = await getDoc(cacheRef);
+
+  if (cacheSnap.exists()) {
+    return cacheSnap.data().rows as GuideFileRow[];
+  }
+
+  // Cache miss: compute from sessionStorage and persist
+  const allOrders = await getAllServiceOrders();
+  const rows = buildRowsFromOrders(allOrders, normalizedGuide, month, year);
+
+  // Store in Firestore asynchronously — don't block the UI
+  setDoc(cacheRef, { rows, cachedAt: serverTimestamp() }).catch(console.error);
+
+  return rows;
 }
 
 /**

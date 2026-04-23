@@ -167,25 +167,12 @@ function StatusBadge({ liq }: { liq: GuideLiquidation }) {
 function PayModal({ liq, onConfirm, onCancel, loading }: {
   liq: GuideLiquidation; onConfirm: (date: string) => void; onCancel: () => void; loading: boolean;
 }) {
-  const today = new Date();
-  const [dd, setDd] = useState(String(today.getDate()).padStart(2, "0"));
-  const [mm, setMm] = useState(String(today.getMonth() + 1).padStart(2, "0"));
-  const [yyyy, setYyyy] = useState(String(today.getFullYear()));
-
-  const isoDate = `${yyyy}-${mm}-${dd}`;
-  const isValid = /^\d{4}-\d{2}-\d{2}$/.test(isoDate) && !isNaN(new Date(isoDate).getTime());
+  const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
   const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
-
-  const inputStyle = {
-    padding: "8px 6px", borderRadius: "6px",
-    border: `1px solid ${CSS.border}`, background: CSS.bg, color: CSS.fg,
-    fontFamily: "'Space Mono', monospace", fontSize: "13px", outline: "none",
-    textAlign: "center" as const, width: "100%",
-  };
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
-      <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "12px", padding: "28px 32px", width: "380px", display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "12px", padding: "28px 32px", width: "360px", display: "flex", flexDirection: "column", gap: "20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
             <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: CSS.fg, marginBottom: "6px" }}>Confirmar pago</p>
@@ -200,26 +187,18 @@ function PayModal({ liq, onConfirm, onCancel, loading }: {
             <X size={14} />
           </button>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <label style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: CSS.mutedFg }}>Fecha de pago</label>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 10px 1fr 10px 1.6fr", alignItems: "center", gap: "4px" }}>
-            <input value={dd} onChange={e => setDd(e.target.value.slice(0, 2))} placeholder="DD" maxLength={2} style={inputStyle} />
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "13px", color: CSS.mutedFg, textAlign: "center" as const }}>/</span>
-            <input value={mm} onChange={e => setMm(e.target.value.slice(0, 2))} placeholder="MM" maxLength={2} style={inputStyle} />
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "13px", color: CSS.mutedFg, textAlign: "center" as const }}>/</span>
-            <input value={yyyy} onChange={e => setYyyy(e.target.value.slice(0, 4))} placeholder="AAAA" maxLength={4} style={inputStyle} />
-          </div>
-          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", color: CSS.mutedFg, letterSpacing: "0.06em" }}>
-            {isValid ? `→ ${dd}/${mm}/${yyyy}` : "Ingresá la fecha en formato DD/MM/AAAA"}
-          </span>
+          <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
+            style={{ padding: "8px 12px", borderRadius: "6px", border: `1px solid ${CSS.border}`, background: CSS.bg, color: CSS.fg, fontFamily: "'Space Mono', monospace", fontSize: "13px", outline: "none", width: "100%" }} />
         </div>
         <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
           <button onClick={onCancel} disabled={loading}
             style={{ height: "36px", padding: "0 18px", borderRadius: "8px", border: `1px solid ${CSS.border}`, background: "transparent", color: CSS.mutedFg, fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: "pointer" }}>
             Cancelar
           </button>
-          <button onClick={() => isValid && onConfirm(isoDate)} disabled={loading || !isValid}
-            style={{ height: "36px", padding: "0 20px", borderRadius: "8px", border: "none", background: isValid ? TOKEN.green : CSS.muted, color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: (loading || !isValid) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: loading ? 0.7 : 1 }}>
+          <button onClick={() => onConfirm(payDate)} disabled={loading || !payDate}
+            style={{ height: "36px", padding: "0 20px", borderRadius: "8px", border: "none", background: TOKEN.green, color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", cursor: loading ? "wait" : "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: loading ? 0.7 : 1 }}>
             {loading && <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />}
             Confirmar pago
           </button>

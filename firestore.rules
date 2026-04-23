@@ -128,6 +128,12 @@ service cloud.firestore {
       allow read, write: if isAuth();
     }
 
+    // --- Guide Month Cache (precomputed rows per guide+month for past months) ---
+    // Any authenticated user can read and write — cache is non-sensitive derived data.
+    match /guideMonthCache/{cacheId} {
+      allow read, write: if isAuth();
+    }
+
     // --- Guide Language Memory (learning system) ---
     // Any authenticated user can read and write (auto-learning on save).
     match /guideLiquidationGuideLanguage/{guideId} {
