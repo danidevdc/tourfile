@@ -10,6 +10,7 @@ import { toZonedTime } from 'date-fns-tz';
 import { formatTime, formatISO } from '@/lib/date-utils';
 import type { FindFlightInput, FindFlightOutput, FlightRouteHint } from './flight-types';
 
+const FLIGHTAWARE_TOO_FAR_FUTURE_ERROR = 'FLIGHTAWARE_TOO_FAR_FUTURE';
 
 function getApiKey(): string {
   const apiKey = process.env.NEXT_PUBLIC_AEROAPI_KEY;
@@ -21,6 +22,8 @@ function getApiKey(): string {
 
 const IATA_TO_ICAO_AIRLINE_PREFIX: Record<string, string> = {
   '8J': 'ECO', // EcoJet
+  AVA: 'AV', // Avianca canonical display/cache code for this module
+  BO: 'BOV', // Boliviana de Aviacion / BoA alias
   LA: 'LAN', // LATAM Chile
   OB: 'BOV', // Boliviana de Aviacion
 };
@@ -62,6 +65,19 @@ function formatAeroApiErrorMessage(rawErrorMessage: unknown, flightIdent: string
   }
 
   return message || 'FlightAware no pudo completar la busqueda.';
+}
+
+function isAeroApiTooFarFutureError(rawError: unknown): boolean {
+  const message = typeof rawError === 'string'
+    ? rawError
+    : JSON.stringify(rawError || {});
+  const lowerMessage = message.toLowerCase();
+
+  return (
+    lowerMessage.includes('invalid end bound') ||
+    lowerMessage.includes('too far in the future') ||
+    lowerMessage.includes('limit: 2 days')
+  );
 }
 
 // Maps the AeroAPI response to our app's FindFlightOutput format
@@ -113,7 +129,7 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
 
   return {
     flightFound: true,
-    flightNumber: flight.ident, // Return the official ident from the API
+    flightNumber: flight.ident_iata || normalizeIdent(flight.ident), // Prefer the user-facing IATA ident.
     departure: {
       airport: {
         code: flight.origin?.code_iata,
@@ -201,7 +217,16 @@ const NAABOL_AIRPORTS: Record<string, { aero: string; city: string; name: string
 const NAABOL_CITY_TO_IATA = Object.entries(NAABOL_AIRPORTS).reduce<Record<string, string>>((acc, [code, info]) => {
   acc[info.city.toUpperCase()] = code;
   return acc;
-}, {});
+}, {
+  CUZCO: 'CUZ',
+  CUSCO: 'CUZ',
+  LIMA: 'LIM',
+  BOGOTA: 'BOG',
+  BOGOTÁ: 'BOG',
+  'SAO PAULO': 'GRU',
+  'SÃO PAULO': 'GRU',
+  'BUENOS AIRES': 'EZE',
+});
 
 function isBoliviaAirport(code?: string): boolean {
   return !!code && !!NAABOL_AIRPORTS[code.toUpperCase()];
@@ -209,7 +234,7 @@ function isBoliviaAirport(code?: string): boolean {
 
 function isBolivianCarrier(flightNumber: string): boolean {
   const normalized = flightNumber.replace(/\s/g, '').toUpperCase();
-  return normalized.startsWith('OB') || normalized.startsWith('BOV') || normalized.startsWith('ECO') || normalized.startsWith('8J') || normalized.startsWith('TAM');
+  return normalized.startsWith('OB') || normalized.startsWith('BO') || normalized.startsWith('BOV') || normalized.startsWith('ECO') || normalized.startsWith('8J') || normalized.startsWith('TAM');
 }
 
 function formatNaabolFlightNumber(inputFlightNumber: string, naabolFlightNumber?: string): string {
@@ -539,6 +564,9 @@ async function findFlightWithGoogleFlights(
         date: input.date,
         origin: routeHint.origin,
         destination: routeHint.destination,
+        airlineCode: routeHint.airlineCode,
+        targetDepartureTime: routeHint.departureTime,
+        targetArrivalTime: routeHint.arrivalTime,
       }),
     });
 
@@ -671,7 +699,16 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
                 errorMessage: "El límite de la API de FlightAware ha sido excedido. Por favor, inténtalo de nuevo más tarde."
             };
         }
-        const rawErrorMessage = responseBody.title || responseBody.detail || `API request failed with status ${response.status}.`;
+        const rawErrorMessage = responseBody.detail || responseBody.title || `API request failed with status ${response.status}.`;
+        if (isAeroApiTooFarFutureError(responseBody) || isAeroApiTooFarFutureError(rawErrorMessage)) {
+          return {
+            flightFound: false,
+            flightNumber: input.flightNumber,
+            provider: 'aeroapi',
+            errorMessage: formatAeroApiErrorMessage(rawErrorMessage, flightIdent),
+            errorCode: FLIGHTAWARE_TOO_FAR_FUTURE_ERROR,
+          };
+        }
         const remainingCandidates = getIdentCandidates(input.flightNumber).filter((candidate) => candidate !== flightIdent);
         for (const fallbackIdent of remainingCandidates) {
           const fallbackUrl = `https://aeroapi.flightaware.com/aeroapi/flights/${fallbackIdent}?start=${startDate}&end=${endDate}&max_pages=1`;

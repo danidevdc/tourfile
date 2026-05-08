@@ -13,6 +13,9 @@ export type FlightSearchProvider = z.infer<typeof FlightSearchProviderSchema>;
 export const FlightRouteHintSchema = z.object({
   origin: z.string().length(3).describe("Origin airport IATA code."),
   destination: z.string().length(3).describe("Destination airport IATA code."),
+  airlineCode: z.string().min(2).max(4).optional().describe("Canonical airline/operator code, e.g. BOV, ECO, LAN."),
+  departureTime: z.string().regex(/^\d{2}:\d{2}$/).optional().describe("Observed usual departure time in HH:mm."),
+  arrivalTime: z.string().regex(/^\d{2}:\d{2}$/).optional().describe("Observed usual arrival time in HH:mm."),
 });
 export type FlightRouteHint = z.infer<typeof FlightRouteHintSchema>;
 
@@ -51,7 +54,8 @@ export const FindFlightOutputSchema = z.object({
   }).optional(),
   flightSegment: z.string().optional().describe("The flight route segment as 'DEPARTURE_CODE/ARRIVAL_CODE' (e.g., 'MIA/LPB')."),
   provider: FlightSearchProviderSchema.optional().describe("Provider that produced the result."),
-  errorMessage: z.string().optional().describe("An error message if the search flow failed.")
+  errorMessage: z.string().optional().describe("An error message if the search flow failed."),
+  errorCode: z.string().optional().describe("A stable internal error code used by the UI to choose fallback behavior.")
 });
 
 export type FindFlightOutput = z.infer<typeof FindFlightOutputSchema>;

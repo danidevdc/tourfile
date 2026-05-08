@@ -19,6 +19,9 @@ class FlightLookupRequest(BaseModel):
     date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     origin: str = Field(min_length=3, max_length=3)
     destination: str = Field(min_length=3, max_length=3)
+    airlineCode: str | None = Field(default=None, min_length=2, max_length=4)
+    targetDepartureTime: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    targetArrivalTime: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
 
 
 def format_date(value: Any) -> str | None:
@@ -47,7 +50,48 @@ def format_time(value: Any) -> str | None:
 
 def normalize_flight_number(value: str) -> str:
     normalized = value.replace(" ", "").upper()
-    return normalized.replace("OB", "BOV", 1) if normalized.startswith("OB") else normalized
+    if normalized.startswith("BOV") or normalized.startswith("ECO") or normalized.startswith("LAN"):
+        return normalized
+    if normalized.startswith("AVA"):
+        return normalized.replace("AVA", "AV", 1)
+    if normalized.startswith("OB"):
+        return normalized.replace("OB", "BOV", 1)
+    if normalized.startswith("BO"):
+        return normalized.replace("BO", "BOV", 1)
+    if normalized.startswith("8J"):
+        return normalized.replace("8J", "ECO", 1)
+    if normalized.startswith("LA"):
+        return normalized.replace("LA", "LAN", 1)
+    return normalized
+
+
+def airline_from_flight_number(value: str) -> str:
+    normalized = normalize_flight_number(value)
+    prefix = ""
+    for char in normalized:
+        if char.isdigit():
+            break
+        prefix += char
+    return prefix
+
+
+def minutes_from_time(value: str | None) -> int | None:
+    if not value:
+        return None
+    try:
+        hour, minute = value.split(":", 1)
+        return int(hour) * 60 + int(minute)
+    except (TypeError, ValueError):
+        return None
+
+
+def time_distance_minutes(left: str | None, right: str | None) -> int | None:
+    left_minutes = minutes_from_time(left)
+    right_minutes = minutes_from_time(right)
+    if left_minutes is None or right_minutes is None:
+        return None
+    direct = abs(left_minutes - right_minutes)
+    return min(direct, (24 * 60) - direct)
 
 
 def flight_number_variants(value: str) -> set[str]:
@@ -55,10 +99,17 @@ def flight_number_variants(value: str) -> set[str]:
     variants = {normalized}
     if normalized.startswith("BOV"):
         variants.add(f"OB{normalized[3:]}")
+        variants.add(f"BO{normalized[3:]}")
         variants.add(normalized[3:])
     elif normalized.startswith("OB"):
         variants.add(f"BOV{normalized[2:]}")
         variants.add(normalized[2:])
+    elif normalized.startswith("ECO"):
+        variants.add(f"8J{normalized[3:]}")
+        variants.add(normalized[3:])
+    elif normalized.startswith("LAN"):
+        variants.add(f"LA{normalized[3:]}")
+        variants.add(normalized[3:])
     return {variant.replace(" ", "").upper() for variant in variants if variant}
 
 
@@ -70,7 +121,13 @@ def airline_code_variants(airline: Any) -> set[str]:
     }
     normalized = {value.replace("_", "").replace(" ", "").upper() for value in values if value}
     if any("BOLIVIANA" in value or "BOA" in value or value == "BOV" for value in normalized):
-        normalized.update({"BOV", "OB", "BOA"})
+        normalized.update({"BOV", "OB", "BO", "BOA"})
+    if any("ECO" in value or "ECOJET" in value for value in normalized):
+        normalized.update({"ECO", "8J", "ECOJET"})
+    if any("LATAM" in value or value in {"LAN", "LA", "LPE"} for value in normalized):
+        normalized.update({"LAN", "LA", "LPE", "LATAM"})
+    if any("AVIANCA" in value or value == "AV" for value in normalized):
+        normalized.update({"AV", "AVIANCA"})
     return normalized
 
 
@@ -82,6 +139,35 @@ def leg_matches(leg: Any, flight_number: str) -> bool:
     candidates.update(f"{airline}{raw_number}" for airline in airline_variants)
     candidates.update(flight_number_variants(raw_number))
     return bool(target_variants.intersection(candidates))
+
+
+def airline_matches(leg: Any, airline_code: str | None) -> bool:
+    if not airline_code:
+        return False
+    target = airline_code.replace(" ", "").upper()
+    variants = airline_code_variants(getattr(leg, "airline", None))
+    return target in variants
+
+
+def fallback_score(leg: Any, request: FlightLookupRequest, flight_number: str) -> int | None:
+    airline_code = (request.airlineCode or airline_from_flight_number(flight_number)).upper()
+    if not airline_matches(leg, airline_code):
+        return None
+
+    departure_time = format_time(getattr(leg, "departure_datetime", None))
+    arrival_time = format_time(getattr(leg, "arrival_datetime", None))
+    distances = [
+        value for value in [
+            time_distance_minutes(departure_time, request.targetDepartureTime),
+            time_distance_minutes(arrival_time, request.targetArrivalTime),
+        ] if value is not None
+    ]
+
+    if not distances:
+        return 240
+
+    best_distance = min(distances)
+    return best_distance if best_distance <= 240 else None
 
 
 @app.get("/health")
@@ -112,6 +198,7 @@ def search_flight(request: FlightLookupRequest) -> dict[str, Any]:
 
     flights = SearchFlights().search(filters, top_n=25) or []
     seen_flights: list[str] = []
+    fallback_matches: list[tuple[int, Any]] = []
     for flight in flights:
         for leg in getattr(flight, "legs", []):
             airline = getattr(leg, "airline", "")
@@ -137,8 +224,41 @@ def search_flight(request: FlightLookupRequest) -> dict[str, Any]:
                     "departureDate": format_date(getattr(leg, "departure_datetime", None)),
                     "arrivalTime": format_time(getattr(leg, "arrival_datetime", None)),
                     "arrivalDate": format_date(getattr(leg, "arrival_datetime", None)),
-                },
-            }
+                    },
+                }
+
+            score = fallback_score(leg, request, flight_number)
+            if score is not None:
+                fallback_matches.append((score, leg))
+
+    if fallback_matches:
+        fallback_matches.sort(key=lambda item: item[0])
+        score, leg = fallback_matches[0]
+        departure_airport = str(getattr(leg, "departure_airport", request.origin))
+        arrival_airport = str(getattr(leg, "arrival_airport", request.destination))
+        raw_number = str(getattr(leg, "flight_number", "") or "").replace(" ", "").upper()
+        airline = getattr(leg, "airline", "")
+        airline_text = str(getattr(airline, "value", airline))
+        matched_flight_number = f"{airline_text}{raw_number}".replace(" ", "").upper() if raw_number else flight_number
+        return {
+            "flightFound": True,
+            "flightNumber": matched_flight_number,
+            "flightSegment": f"{request.origin.upper()}/{request.destination.upper()}",
+            "matchType": "route_airline_time",
+            "timeDeltaMinutes": score,
+            "leg": {
+                "flightNumber": matched_flight_number,
+                "airline": str(getattr(leg, "airline", "")),
+                "origin": request.origin.upper(),
+                "originCity": departure_airport,
+                "destination": request.destination.upper(),
+                "destinationCity": arrival_airport,
+                "departureTime": format_time(getattr(leg, "departure_datetime", None)),
+                "departureDate": format_date(getattr(leg, "departure_datetime", None)),
+                "arrivalTime": format_time(getattr(leg, "arrival_datetime", None)),
+                "arrivalDate": format_date(getattr(leg, "arrival_datetime", None)),
+            },
+        }
 
     return {
         "flightFound": False,

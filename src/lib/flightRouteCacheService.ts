@@ -6,6 +6,9 @@ import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firest
 export interface FlightRouteCacheEntry {
   flightNumber: string;
   canonicalFlightNumber?: string;
+  airlineCode?: string;
+  departureTime?: string;
+  arrivalTime?: string;
   origin: string;
   destination: string;
   segment: string;
@@ -23,11 +26,18 @@ export function normalizeFlightNumberForCache(flightNumber: string): string {
   const [, prefix, rest] = match;
   const airlinePrefixMap: Record<string, string> = {
     '8J': 'ECO',
+    AVA: 'AV',
+    BO: 'BOV',
     LA: 'LAN',
     OB: 'BOV',
   };
 
   return `${airlinePrefixMap[prefix] || prefix}${rest}`;
+}
+
+export function getAirlineCodeFromFlightNumber(flightNumber: string): string | undefined {
+  const normalized = normalizeFlightNumberForCache(flightNumber);
+  return normalized.match(/^[A-Z0-9]+?(?=\d)/)?.[0];
 }
 
 function getFlightNumberCacheAliases(flightNumber: string): string[] {
@@ -38,6 +48,9 @@ function getFlightNumberCacheAliases(flightNumber: string): string[] {
 
   if (digits && canonical.startsWith('ECO')) {
     aliases.push(`8J${digits}`);
+  }
+  if (digits && canonical.startsWith('AV')) {
+    aliases.push(`AVA${digits}`);
   }
 
   return Array.from(new Set(aliases));
@@ -68,6 +81,8 @@ export async function saveFlightRouteToCache(params: {
   flightNumber: string;
   origin?: string;
   destination?: string;
+  departureTime?: string;
+  arrivalTime?: string;
   discoveredBy?: 'aeroapi' | 'manual';
 }): Promise<void> {
   if (!db || !params.origin || !params.destination) return;
@@ -75,6 +90,7 @@ export async function saveFlightRouteToCache(params: {
   const firestore = db;
   const aliases = getFlightNumberCacheAliases(params.flightNumber);
   const normalizedFlightNumber = normalizeFlightNumberForCache(params.flightNumber);
+  const airlineCode = getAirlineCodeFromFlightNumber(normalizedFlightNumber);
   const origin = params.origin.toUpperCase();
   const destination = params.destination.toUpperCase();
 
@@ -83,6 +99,7 @@ export async function saveFlightRouteToCache(params: {
       setDoc(doc(firestore, 'flightRouteCache', alias), {
         flightNumber: alias,
         canonicalFlightNumber: normalizedFlightNumber,
+        airlineCode,
         origin,
         destination,
         segment: `${origin}/${destination}`,
@@ -90,6 +107,8 @@ export async function saveFlightRouteToCache(params: {
         firstSeenAt: serverTimestamp(),
         lastUsedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        ...(params.departureTime ? { departureTime: params.departureTime } : {}),
+        ...(params.arrivalTime ? { arrivalTime: params.arrivalTime } : {}),
       }, { merge: true })
     ));
   } catch (error) {

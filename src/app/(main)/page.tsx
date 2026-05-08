@@ -262,12 +262,12 @@ export default function HomePage() {
 
             {!authLoading && hasModule('vuelos') && (
               <Link href="/flight-search" passHref>
-                <Button variant="default" className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Button variant="outline" className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-[0_0_0_1px_hsl(var(--primary)/0.12),0_14px_34px_hsl(var(--primary)/0.18)] hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.28),0_18px_42px_hsl(var(--primary)/0.28)] transition-all duration-300 rounded-xl px-6 sm:px-8 group border-primary/25 text-primary hover:bg-transparent hover:text-primary dark:text-primary dark:hover:text-primary">
                   <Plane className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:translate-x-1 group-hover:-translate-y-1" />
                   <div className="text-left flex-grow">
                     <span className="block text-xl sm:text-2xl font-bold">Buscador de Vuelos</span>
                   </div>
-                  <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-primary-foreground/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                  <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
                 </Button>
               </Link>
             )}
