@@ -39,21 +39,13 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
     };
   }
 
-  // Filter flights to find one that involves La Paz airport (El Alto)
-  const laPazFlight = apiData.flights.find((f: any) => 
+  // Prefer flights that involve La Paz (El Alto), but allow other routes too.
+  const laPazFlight = apiData.flights.find((f: any) =>
     (f.origin?.code_iata === 'LPB' && f.origin?.name?.toLowerCase().includes('el alto')) ||
     (f.destination?.code_iata === 'LPB' && f.destination?.name?.toLowerCase().includes('el alto'))
   );
-
-  if (!laPazFlight) {
-    return {
-      flightFound: false,
-      flightNumber: originalFlightNumber,
-      errorMessage: `Flight found, but it does not originate from or fly to La Paz.`
-    };
-  }
   
-  const flight = laPazFlight;
+  const flight = laPazFlight || apiData.flights[0];
 
   const formatTimeWithTimezone = (dateStr: string | null | undefined): string | undefined => {
     if (!dateStr) return undefined;
