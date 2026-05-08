@@ -7,9 +7,20 @@
 import {z} from 'genkit';
 
 // Schema for input when a user searches for a flight.
+export const FlightSearchProviderSchema = z.enum(['aeroapi', 'google_flights_hybrid']);
+export type FlightSearchProvider = z.infer<typeof FlightSearchProviderSchema>;
+
+export const FlightRouteHintSchema = z.object({
+  origin: z.string().length(3).describe("Origin airport IATA code."),
+  destination: z.string().length(3).describe("Destination airport IATA code."),
+});
+export type FlightRouteHint = z.infer<typeof FlightRouteHintSchema>;
+
 export const FindFlightInputSchema = z.object({
   flightNumber: z.string().describe("The flight number to search for (e.g., 'OB304', 'AA923')."),
   date: z.string().describe("The date of the flight in 'YYYY-MM-DD' format."),
+  provider: FlightSearchProviderSchema.optional().describe("The flight data provider to use."),
+  routeHint: FlightRouteHintSchema.optional().describe("Known route used by Google Flights hybrid provider."),
 });
 export type FindFlightInput = z.infer<typeof FindFlightInputSchema>;
 
@@ -23,6 +34,7 @@ const AirportInfoSchema = z.object({
 
 const FlightTimeSchema = z.object({
   scheduled: z.string().describe("The scheduled time in HH:mm format."),
+  scheduledDate: z.string().optional().describe("The scheduled date in DD/MM/YYYY format, converted to Bolivia local time."),
 });
 
 export const FindFlightOutputSchema = z.object({
@@ -37,6 +49,7 @@ export const FindFlightOutputSchema = z.object({
     time: FlightTimeSchema,
   }).optional(),
   flightSegment: z.string().optional().describe("The flight route segment as 'DEPARTURE_CODE/ARRIVAL_CODE' (e.g., 'MIA/LPB')."),
+  provider: FlightSearchProviderSchema.optional().describe("Provider that produced the result."),
   errorMessage: z.string().optional().describe("An error message if the search flow failed.")
 });
 

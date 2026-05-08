@@ -8,7 +8,7 @@
 import { addDays, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { formatTime, formatISO } from '@/lib/date-utils';
-import type { FindFlightInput, FindFlightOutput } from './flight-types';
+import type { FindFlightInput, FindFlightOutput, FlightRouteHint } from './flight-types';
 
 
 function getApiKey(): string {
@@ -69,6 +69,21 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
     }
   };
 
+  const formatDateWithTimezone = (dateStr: string | null | undefined): string | undefined => {
+    if (!dateStr) return undefined;
+    try {
+      const utcDate = parseISO(dateStr);
+      const localDate = toZonedTime(utcDate, 'America/La_Paz');
+      const day = String(localDate.getDate()).padStart(2, '0');
+      const month = String(localDate.getMonth() + 1).padStart(2, '0');
+      const year = localDate.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch (e) {
+      console.error(`Error formatting date: ${dateStr}`, e);
+      return undefined;
+    }
+  };
+
   return {
     flightFound: true,
     flightNumber: flight.ident, // Return the official ident from the API
@@ -80,6 +95,7 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
       },
       time: {
         scheduled: formatTimeWithTimezone(flight.scheduled_out)!,
+        scheduledDate: formatDateWithTimezone(flight.scheduled_out),
       },
     },
     arrival: {
@@ -90,10 +106,125 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
       },
       time: {
         scheduled: formatTimeWithTimezone(flight.scheduled_in)!,
+        scheduledDate: formatDateWithTimezone(flight.scheduled_in),
       },
     },
     flightSegment: `${flight.origin?.code_iata}/${flight.destination?.code_iata}`,
+    provider: 'aeroapi',
   };
+}
+
+interface GoogleFlightsProxyLeg {
+  flightNumber?: string;
+  airline?: string;
+  origin?: string;
+  originName?: string;
+  originCity?: string;
+  destination?: string;
+  destinationName?: string;
+  destinationCity?: string;
+  departureTime?: string;
+  departureDate?: string;
+  arrivalTime?: string;
+  arrivalDate?: string;
+}
+
+interface GoogleFlightsProxyResponse {
+  flightFound?: boolean;
+  flightNumber?: string;
+  flightSegment?: string;
+  errorMessage?: string;
+  leg?: GoogleFlightsProxyLeg;
+}
+
+async function findFlightWithGoogleFlights(
+  input: FindFlightInput,
+  routeHint: FlightRouteHint
+): Promise<FindFlightOutput> {
+  const proxyUrl = process.env.GOOGLE_FLIGHTS_PROXY_URL;
+  if (!proxyUrl) {
+    return {
+      flightFound: false,
+      flightNumber: input.flightNumber,
+      provider: 'google_flights_hybrid',
+      errorMessage: 'Google Flights experimental no está configurado. Falta GOOGLE_FLIGHTS_PROXY_URL.',
+    };
+  }
+
+  try {
+    const flightIdent = normalizeIdent(input.flightNumber);
+    const endpoint = proxyUrl.endsWith('/search-flight')
+      ? proxyUrl
+      : `${proxyUrl.replace(/\/$/, '')}/search-flight`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({
+        flightNumber: flightIdent,
+        date: input.date,
+        origin: routeHint.origin,
+        destination: routeHint.destination,
+      }),
+    });
+
+    const payload = await response.json() as GoogleFlightsProxyResponse;
+    if (!response.ok || payload.errorMessage) {
+      return {
+        flightFound: false,
+        flightNumber: input.flightNumber,
+        provider: 'google_flights_hybrid',
+        errorMessage: payload.errorMessage || 'Google Flights experimental no pudo completar la búsqueda.',
+      };
+    }
+
+    const leg = payload.leg;
+    if (!payload.flightFound || !leg) {
+      return {
+        flightFound: false,
+        flightNumber: input.flightNumber,
+        provider: 'google_flights_hybrid',
+        errorMessage: `Google Flights no encontró el vuelo ${input.flightNumber} para esta fecha.`,
+      };
+    }
+
+    return {
+      flightFound: true,
+      flightNumber: payload.flightNumber || leg.flightNumber || flightIdent,
+      departure: {
+        airport: {
+          code: leg.origin || routeHint.origin,
+          name: leg.originName,
+          city: leg.originCity || leg.origin || routeHint.origin,
+        },
+        time: {
+          scheduled: leg.departureTime || '--:--',
+          scheduledDate: leg.departureDate,
+        },
+      },
+      arrival: {
+        airport: {
+          code: leg.destination || routeHint.destination,
+          name: leg.destinationName,
+          city: leg.destinationCity || leg.destination || routeHint.destination,
+        },
+        time: {
+          scheduled: leg.arrivalTime || '--:--',
+          scheduledDate: leg.arrivalDate,
+        },
+      },
+      flightSegment: payload.flightSegment || `${routeHint.origin}/${routeHint.destination}`,
+      provider: 'google_flights_hybrid',
+    };
+  } catch (error) {
+    console.error('[GOOGLE_FLIGHTS] Proxy search failed:', error);
+    return {
+      flightFound: false,
+      flightNumber: input.flightNumber,
+      provider: 'google_flights_hybrid',
+      errorMessage: 'Google Flights experimental no respondió. Revisa el proxy configurado.',
+    };
+  }
 }
 
 
@@ -102,6 +233,10 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
  */
 export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
   try {
+    if (input.provider === 'google_flights_hybrid' && input.routeHint) {
+      return findFlightWithGoogleFlights(input, input.routeHint);
+    }
+
     const apiKey = getApiKey(); // First, check for API key.
     
     // Step 1: Normalize the flight number
@@ -116,7 +251,7 @@ export async function findFlight(input: FindFlightInput): Promise<FindFlightOutp
 
 
     // Step 3: Call the API endpoint with date filters
-    const url = `https://aeroapi.flightaware.com/aeroapi/flights/${flightIdent}?start=${startDate}&end=${endDate}`;
+    const url = `https://aeroapi.flightaware.com/aeroapi/flights/${flightIdent}?start=${startDate}&end=${endDate}&max_pages=1`;
     
     // --- SERVER-SIDE LOGGING ---
     console.log(`[SERVER] Requesting URL: ${url}`);

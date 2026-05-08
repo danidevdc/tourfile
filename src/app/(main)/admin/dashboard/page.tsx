@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart, Save, LayoutGrid } from "lucide-react";
+import { ArrowLeft, Database, FilePenLine, Users, ArrowRight, Settings, Loader2, ClipboardEdit, BarChart3, LineChart, Save, LayoutGrid, Plane, Radio } from "lucide-react";
 import { useAuth, type UserProfile, type AppModule } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { getAllReportsFromFirestore } from '@/lib/reportService';
-import { setUserModules } from '@/lib/appConfigService';
+import { getFlightSearchSettings, setFlightSearchProvider, setUserModules } from '@/lib/appConfigService';
+import { getFlightSearchUsageStats, type FlightSearchUsageStats } from '@/lib/flightSearchCounterService';
+import type { FlightSearchProvider } from '@/ai/flows/flight-types';
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +49,9 @@ interface MonthlyReportData {
   reportes: number;
 }
 
+const formatUsd = (value: number) =>
+  value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 3, maximumFractionDigits: 3 });
+
 
 const AdminLinkCard: React.FC<AdminLinkCardProps> = ({ href, icon: Icon, title, description }) => (
   <Link href={href} passHref>
@@ -80,6 +85,9 @@ export default function AdminDashboardPage() {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [userModules, setUserModules_state] = useState<Record<string, AppModule[]>>({});
   const [savingUid, setSavingUid] = useState<string | null>(null);
+  const [flightUsage, setFlightUsage] = useState<FlightSearchUsageStats | null>(null);
+  const [flightProvider, setFlightProviderState] = useState<FlightSearchProvider>('aeroapi');
+  const [isSavingFlightProvider, setIsSavingFlightProvider] = useState(false);
 
   const ALL_MODULES: { key: AppModule; label: string }[] = [
     { key: 'cajas-chicas', label: 'Cajas Chicas' },
@@ -107,10 +115,14 @@ export default function AdminDashboardPage() {
           setIsLoadingData(true);
           try {
             // Fetch all data in parallel
-            const [reports, userProfiles] = await Promise.all([
+            const [reports, userProfiles, flightStats, flightSettings] = await Promise.all([
               getAllReportsFromFirestore(),
               getAllUserProfiles(),
+              getFlightSearchUsageStats(),
+              getFlightSearchSettings(),
             ]);
+            setFlightUsage(flightStats);
+            setFlightProviderState(flightSettings.provider);
 
             const nonAdminUsers = userProfiles
               .filter((u: UserProfile) => u.email && !u.isAdmin)
@@ -174,6 +186,21 @@ export default function AdminDashboardPage() {
     }
   }, [authLoading, isCurrentUserAdmin, router, toast, getAllUserProfiles]);
 
+  useEffect(() => {
+    if (authLoading || !isCurrentUserAdmin) return;
+
+    const refreshFlightUsage = async () => {
+      try {
+        setFlightUsage(await getFlightSearchUsageStats());
+      } catch (error) {
+        console.error("Failed to refresh flight usage stats:", error);
+      }
+    };
+
+    const intervalId = window.setInterval(refreshFlightUsage, 30000);
+    return () => window.clearInterval(intervalId);
+  }, [authLoading, isCurrentUserAdmin]);
+
   const toggleModule = (uid: string, mod: AppModule) => {
     setUserModules_state(prev => {
       const current = prev[uid] || [];
@@ -195,6 +222,30 @@ export default function AdminDashboardPage() {
       setSavingUid(null);
     }
   };
+
+  const handleFlightProviderChange = async (provider: FlightSearchProvider) => {
+    setIsSavingFlightProvider(true);
+    try {
+      await setFlightSearchProvider(provider);
+      setFlightProviderState(provider);
+      toast({
+        title: "Proveedor actualizado",
+        description: provider === 'aeroapi'
+          ? "El buscador usará AeroAPI."
+          : "El buscador usará Google Flights experimental cuando exista ruta cacheada.",
+        variant: "success" as any,
+      });
+    } catch {
+      toast({ title: "Error", description: "No se pudo guardar el proveedor de vuelos.", variant: "destructive" });
+    } finally {
+      setIsSavingFlightProvider(false);
+    }
+  };
+
+  const flightPeak = flightUsage?.today.reduce(
+    (peak, item) => item.searches > peak.searches ? item : peak,
+    { hour: "--", searches: 0 }
+  );
 
   if (authLoading || (!isCurrentUserAdmin && !authLoading)) {
     return (
@@ -253,6 +304,140 @@ export default function AdminDashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="w-full max-w-6xl">
+        <Card className="shadow-lg overflow-hidden border-primary/20">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Plane className="text-primary" /> Control AeroAPI
+                </CardTitle>
+                <CardDescription>
+                  Estimación con max_pages=1: cada búsqueda consume como máximo 1 result set.
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className="w-fit gap-2 border-primary/30 bg-primary/5 text-primary">
+                <Radio className="h-3.5 w-3.5" />
+                Actualiza cada 30s
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoadingData && !flightUsage ? (
+              <div className="flex justify-center items-center h-44">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : flightUsage ? (
+              <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.35fr] gap-6">
+                <div className="space-y-4">
+                  <div className="rounded-xl border bg-background/70 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="text-sm font-semibold">Proveedor del buscador</div>
+                        <div className="text-xs text-muted-foreground">
+                          Google Flights usa rutas cacheadas; si no conoce la ruta, AeroAPI la descubre una vez.
+                        </div>
+                      </div>
+                      <div className="inline-flex rounded-lg border bg-muted/30 p-1">
+                        <button
+                          type="button"
+                          onClick={() => handleFlightProviderChange('aeroapi')}
+                          disabled={isSavingFlightProvider}
+                          className={cn(
+                            "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+                            flightProvider === 'aeroapi'
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          AeroAPI
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFlightProviderChange('google_flights_hybrid')}
+                          disabled={isSavingFlightProvider}
+                          className={cn(
+                            "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+                            flightProvider === 'google_flights_hybrid'
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          Google experimental
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3 text-xs text-muted-foreground">
+                      Activo: <span className="font-semibold text-foreground">
+                        {flightProvider === 'aeroapi' ? 'AeroAPI' : 'Google Flights experimental'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border bg-muted/20 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Hoy</div>
+                      <div className="mt-2 text-3xl font-bold text-primary">{flightUsage.todayTotal}</div>
+                      <div className="text-xs text-muted-foreground">{formatUsd(flightUsage.estimatedTodayCost)}</div>
+                    </div>
+                    <div className="rounded-xl border bg-muted/20 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Mes actual</div>
+                      <div className="mt-2 text-3xl font-bold text-primary">{flightUsage.monthTotal}</div>
+                      <div className="text-xs text-muted-foreground">{formatUsd(flightUsage.estimatedMonthCost)}</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold">Crédito gratis mensual</div>
+                        <div className="text-xs text-muted-foreground">
+                          Quedan {formatUsd(flightUsage.remainingCreditUsd)} de {formatUsd(flightUsage.freeCreditUsd)}
+                        </div>
+                      </div>
+                      <div className="text-sm font-bold text-primary">{flightUsage.creditUsedPercent.toFixed(1)}%</div>
+                    </div>
+                    <div className="mt-3 h-3 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-500"
+                        style={{ width: `${flightUsage.creditUsedPercent}%` }}
+                      />
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                      <span>Costo por búsqueda: {formatUsd(flightUsage.costPerResultSet)}</span>
+                      <span className="text-right">Pico hoy: {flightPeak?.hour}h ({flightPeak?.searches || 0})</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border bg-background/60 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-semibold">Consultas por hora</div>
+                      <div className="text-xs text-muted-foreground">
+                        Última lectura: {format(flightUsage.lastUpdated, 'HH:mm:ss')}
+                      </div>
+                    </div>
+                    <Badge variant="secondary">{flightUsage.todayTotal} hoy</Badge>
+                  </div>
+                  <ResponsiveContainer width="100%" height={210}>
+                    <BarChart data={flightUsage.today} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="hour" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} interval={2} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                      <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} />
+                      <Bar dataKey="searches" fill="hsl(var(--primary))" name="Consultas" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            ) : (
+              <div className="py-10 text-center text-muted-foreground">No se pudieron cargar las estadísticas de vuelos.</div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="w-full max-w-6xl grid grid-cols-1 gap-6">
         <Card className="shadow-lg">

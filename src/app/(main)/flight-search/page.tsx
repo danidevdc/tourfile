@@ -6,9 +6,11 @@ import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Loader2, Plane, Search, ArrowLeft, PlaneTakeoff, PlaneLanding, Plus, X, RotateCcw } from "lucide-react";
 import { findFlight } from "@/ai/flows/find-flight-flow";
-import type { FindFlightOutput, FindFlightInput } from "@/ai/flows/flight-types";
+import type { FindFlightOutput, FindFlightInput, FlightSearchProvider } from "@/ai/flows/flight-types";
 import { useAuth, type AppModule } from "@/hooks/useAuth";
-import { incrementFlightSearchCount, getTodaysFlightSearchStats, type FlightSearchStat } from "@/lib/flightSearchCounterService";
+import { incrementFlightSearchCount } from "@/lib/flightSearchCounterService";
+import { getFlightSearchSettings } from "@/lib/appConfigService";
+import { getFlightRouteFromCache, saveFlightRouteToCache } from "@/lib/flightRouteCacheService";
 import { createFlight, type PredefinedFlight } from "@/lib/serviceOrderService";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,28 +31,6 @@ function LiveClock() {
 }
 
 // ── Hourly bar chart ──────────────────────────────────────────────────────────
-function HourlyBar({ data }: { data: FlightSearchStat[] }) {
-  const max = Math.max(...data.map(d => d.searches), 1);
-  const now = new Date().getHours();
-  return (
-    <div className="nd-bar-container">
-      {data.map((d, i) => {
-        const heightPct = Math.max(8, (d.searches / max) * 100);
-        const isNow = i === now;
-        const hasData = d.searches > 0;
-        return (
-          <div
-            key={d.hour}
-            title={`${d.hour}h: ${d.searches}`}
-            className={`nd-bar-segment ${isNow ? 'nd-bar-now' : hasData ? 'nd-bar-active' : 'nd-bar-empty'}`}
-            style={{ height: `${heightPct}%` }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Split-flap digit — efecto tablero aeropuerto ──────────────────────────────
 function SplitFlapChar({ char, delay = 0 }: { char: string; delay?: number }) {
   const [displayed, setDisplayed] = useState('·');
@@ -94,14 +74,44 @@ function SplitFlapText({ text, className = '' }: { text: string; className?: str
 }
 
 // ── FIDS horizontal result card with arc animation ────────────────────────────
+function FlightIdentityPill({ flightNumber, compact = false }: { flightNumber: string; compact?: boolean }) {
+  return (
+    <span className={`nd-flight-pill ${compact ? 'nd-flight-pill-compact' : ''}`}>
+      <span className="nd-flight-pill-icon">
+        <Plane size={13} strokeWidth={2} />
+      </span>
+      <span className="nd-flight-pill-text">{flightNumber}</span>
+    </span>
+  );
+}
+
+function formatDisplayDate(dateValue: string) {
+  if (dateValue.includes('/')) return dateValue;
+  const [year, month, day] = dateValue.split('-');
+  return year && month && day ? `${day}/${month}/${year}` : dateValue;
+}
+
+function FlightTime({ time, date, align = 'left' }: { time: string; date: string; align?: 'left' | 'right' }) {
+  return (
+    <span className={`nd-flight-time-card nd-flight-time-card-${align}`}>
+      <span className="nd-flight-date">{formatDisplayDate(date)}</span>
+      <span className={`nd-flight-time nd-flight-time-${align}`}>
+        {time}
+      </span>
+    </span>
+  );
+}
+
 function FlightResultCard({
   flightNumber,
+  date,
   departure,
   arrival,
 }: {
   flightNumber: string;
-  departure: { code: string; city: string; time: string };
-  arrival:   { code: string; city: string; time: string };
+  date: string;
+  departure: { code: string; city: string; time: string; date: string };
+  arrival:   { code: string; city: string; time: string; date: string };
 }) {
   const arcPath = "M 16,56 Q 150,4 284,56";
 
@@ -110,51 +120,66 @@ function FlightResultCard({
       <div className="nd-airports-row">
 
         {/* ─ Departure left ─ */}
-        <div className="nd-airport-block nd-airport-left">
+        <div className="nd-airport-card nd-airport-card-left">
           <div className="nd-fids-side-label">
             <PlaneTakeoff size={13} strokeWidth={1.5} className="nd-icon-muted" />
             <span className="nd-label nd-secondary">SALIDA</span>
           </div>
           <SplitFlapText text={departure.code} className="nd-fids-code-sf" />
-          <SplitFlapText text={departure.time} className="nd-fids-time-sf" />
-          <div className="nd-label nd-disabled nd-city-label">{departure.city.toUpperCase()}</div>
+          <div className="nd-airport-data-stack">
+            <FlightTime time={departure.time} date={departure.date || date} />
+            <div className="nd-label nd-disabled nd-city-label">{departure.city.toUpperCase()}</div>
+          </div>
         </div>
 
         {/* ─ Arc SVG center ─ */}
         <div className="nd-arc-wrapper">
-          <div className="nd-label nd-disabled nd-flight-num-center">{flightNumber}</div>
+          <div className="nd-flight-num-center">
+            <span className="nd-flight-center-label">{flightNumber}</span>
+          </div>
           <svg viewBox="0 0 300 64" className="nd-arc-svg" aria-hidden="true">
             {/* Dashed arc */}
-            <path d={arcPath} fill="none" className="nd-arc-path" strokeDasharray="5 5" strokeLinecap="round" />
+            <defs>
+              <linearGradient id="ndPlaneBody" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stopColor="hsl(var(--primary))" />
+                <stop offset="100%" stopColor="hsl(var(--accent))" />
+              </linearGradient>
+              <filter id="ndPlaneShadow" x="-40%" y="-40%" width="180%" height="180%">
+                <feDropShadow dx="0" dy="2" stdDeviation="1.6" floodColor="hsl(var(--primary))" floodOpacity="0.28" />
+              </filter>
+            </defs>
+            <path d={arcPath} fill="none" className="nd-arc-path nd-arc-path-glow" strokeLinecap="round" />
+            <path d={arcPath} fill="none" className="nd-arc-path" strokeDasharray="7 9" strokeLinecap="round" />
             {/* Endpoint dots */}
             <circle cx="16"  cy="56" r="3.5" className="nd-arc-dot" />
             <circle cx="284" cy="56" r="3.5" className="nd-arc-dot" />
             {/* Animated plane — bigger, filled primary color */}
             <g>
-              <animateMotion dur="3.6s" repeatCount="indefinite" path={arcPath} rotate="auto" />
+              <animateMotion dur="4.4s" repeatCount="indefinite" path={arcPath} rotate="auto" />
               {/* 24×24 Lucide Plane, centered at origin, scaled up */}
-              <g transform="translate(-14,-14) scale(1.15)">
-                <path
-                  d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"
-                  className="nd-arc-plane-icon nd-arc-plane-filled"
-                  strokeWidth="1"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+              <g className="nd-plane-bank" transform="translate(-18,-12)">
+                <path d="M-31 3 C-22 -3 -11 -3 -2 0" className="nd-contrail nd-contrail-1" />
+                <path d="M-27 8 C-18 3 -9 3 -1 5" className="nd-contrail nd-contrail-2" />
+                <ellipse cx="18" cy="14" rx="14" ry="3" className="nd-plane-shadow" />
+                <path d="M34.5 10.4 15.8 3.2c-1-.4-2 .4-1.7 1.5l1.7 6.2-8.9 2.2-3-2.4-2.1.7 3 4.2-1 5 2.2-.7 2-3.2 9-2.3 2.4 6c.4 1 1.7 1.1 2.3.2l13.4-8.5c.7-.5.5-1.5-.6-1.7Z" className="nd-arc-plane-body" />
+                <path d="M15.8 10.9 26.7 9.5" className="nd-arc-plane-line" />
+                <path d="M17.1 14.4 27.9 12.8" className="nd-arc-plane-line nd-arc-plane-line-soft" />
               </g>
             </g>
           </svg>
         </div>
 
         {/* ─ Arrival right ─ */}
-        <div className="nd-airport-block nd-airport-right">
+        <div className="nd-airport-card nd-airport-card-right">
           <div className="nd-fids-side-label nd-fids-side-label-right">
             <PlaneLanding size={13} strokeWidth={1.5} className="nd-icon-muted" />
             <span className="nd-label nd-secondary">LLEGADA</span>
           </div>
           <SplitFlapText text={arrival.code} className="nd-fids-code-sf nd-sf-right" />
-          <SplitFlapText text={arrival.time} className="nd-fids-time-sf nd-sf-right" />
-          <div className="nd-label nd-disabled nd-city-label">{arrival.city.toUpperCase()}</div>
+          <div className="nd-airport-data-stack nd-airport-data-stack-right">
+            <FlightTime time={arrival.time} date={arrival.date || date} align="right" />
+            <div className="nd-label nd-disabled nd-city-label">{arrival.city.toUpperCase()}</div>
+          </div>
         </div>
 
       </div>
@@ -170,19 +195,14 @@ function FlightSearchCard() {
   const [isAdding, setIsAdding] = useState(false);
   const [searchResult, setSearchResult] = useState<FindFlightOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [searchStats, setSearchStats] = useState<FlightSearchStat[]>([]);
   const [addedOk, setAddedOk] = useState(false);
+  const [flightProvider, setFlightProvider] = useState<FlightSearchProvider>('aeroapi');
   const { toast } = useToast();
   const flightInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchStats = async () => {
-    const stats = await getTodaysFlightSearchStats();
-    setSearchStats(stats);
-  };
-
   useEffect(() => {
-    fetchStats();
     flightInputRef.current?.focus();
+    getFlightSearchSettings().then(settings => setFlightProvider(settings.provider));
   }, []);
 
   const handleClear = () => {
@@ -205,7 +225,20 @@ function FlightSearchCard() {
     setAddedOk(false);
     try {
       await incrementFlightSearchCount();
-      const result = await findFlight({ flightNumber, date } as FindFlightInput);
+      const routeCache = flightProvider === 'google_flights_hybrid'
+        ? await getFlightRouteFromCache(flightNumber)
+        : null;
+      const providerForSearch: FlightSearchProvider = routeCache ? 'google_flights_hybrid' : 'aeroapi';
+      const input: FindFlightInput = {
+        flightNumber,
+        date,
+        provider: providerForSearch,
+        routeHint: routeCache ? {
+          origin: routeCache.origin,
+          destination: routeCache.destination,
+        } : undefined,
+      };
+      const result = await findFlight(input);
       if (result.errorMessage) {
         if (result.errorMessage.includes('No flight found for this date')) {
           setError(`VUELO ${flightNumber} NO OPERA EN ESTA FECHA`);
@@ -215,13 +248,20 @@ function FlightSearchCard() {
       } else if (!result.flightFound) {
         setError(`VUELO ${flightNumber} NO ENCONTRADO`);
       }
+      if (result.flightFound && result.provider === 'aeroapi' && result.flightNumber && result.departure?.airport.code && result.arrival?.airport.code) {
+        await saveFlightRouteToCache({
+          flightNumber: result.flightNumber,
+          origin: result.departure.airport.code,
+          destination: result.arrival.airport.code,
+          discoveredBy: 'aeroapi',
+        });
+      }
       setSearchResult(result);
     } catch (e) {
       setError('ERROR INESPERADO — REVISA LA CONSOLA');
       console.error(e);
     } finally {
       setIsLoading(false);
-      fetchStats();
     }
   };
 
@@ -253,7 +293,6 @@ function FlightSearchCard() {
     }
   };
 
-  const totalSearches = searchStats.reduce((s, d) => s + d.searches, 0);
   const canSearch = !isLoading && !!flightNumber && !!date;
 
   return (
@@ -343,7 +382,7 @@ function FlightSearchCard() {
           <div className="nd-fids-header">
             <div className="nd-fids-tag-row">
               <span className="nd-label nd-secondary">VUELO</span>
-              <span className="nd-flight-tag">{searchResult.flightNumber}</span>
+              <FlightIdentityPill flightNumber={searchResult.flightNumber || ''} />
             </div>
             <div className="nd-status-found">
               <span className="nd-status-dot" />
@@ -354,15 +393,18 @@ function FlightSearchCard() {
           {/* Horizontal FIDS with plane animation */}
           <FlightResultCard
             flightNumber={searchResult.flightNumber || ''}
+            date={date}
             departure={{
-              code: searchResult.departure.airport.code,
-              city: searchResult.departure.airport.city,
-              time: searchResult.departure.time.scheduled,
+              code: searchResult.departure.airport.code || '---',
+              city: searchResult.departure.airport.city || 'Origen',
+              time: searchResult.departure.time.scheduled || '--:--',
+              date: searchResult.departure.time.scheduledDate || date,
             }}
             arrival={{
-              code: searchResult.arrival.airport.code,
-              city: searchResult.arrival.airport.city,
-              time: searchResult.arrival.time.scheduled,
+              code: searchResult.arrival.airport.code || '---',
+              city: searchResult.arrival.airport.city || 'Destino',
+              time: searchResult.arrival.time.scheduled || '--:--',
+              date: searchResult.arrival.time.scheduledDate || date,
             }}
           />
 
@@ -389,23 +431,6 @@ function FlightSearchCard() {
         </div>
       )}
 
-      {/* ── Stats footer ─────────────────────────────────────────────── */}
-      <div className="nd-panel nd-panel-bottom">
-        <div className="nd-stats-header">
-          <span className="nd-label nd-disabled">BÚSQUEDAS HOY (GMT−4)</span>
-          <span className="nd-stat-count">{totalSearches}</span>
-        </div>
-        {searchStats.length > 0 && (
-          <>
-            <HourlyBar data={searchStats} />
-            <div className="nd-bar-labels">
-              <span className="nd-label nd-disabled">00H</span>
-              <span className="nd-label nd-disabled">23H</span>
-            </div>
-          </>
-        )}
-      </div>
-
       {/* ── Scoped styles — uses app CSS variables ────────────────────── */}
       <style>{`
         /* ── Tokens mapped from app palette ────────────────────────────
@@ -427,9 +452,8 @@ function FlightSearchCard() {
           padding: 24px 28px;
         }
         .nd-panel-top    { border-radius: 16px 16px 0 0; border-bottom: none; }
-        .nd-panel-mid    { border-bottom: none; }
+        .nd-panel-mid    { border-radius: 0 0 16px 16px; }
         .nd-panel-fids   { background: hsl(var(--card)); border-bottom: none; }
-        .nd-panel-bottom { border-radius: 0 0 16px 16px; }
 
         /* ── Typography ─────────────────────────────────────────────── */
         .nd-clock {
@@ -465,11 +489,13 @@ function FlightSearchCard() {
 
         /* ── Form ───────────────────────────────────────────────────── */
         .nd-form-row {
-          display: flex;
+          display: grid;
+          grid-template-columns: minmax(0, 1.35fr) minmax(170px, 0.9fr);
+          align-items: end;
           gap: 12px;
           margin-bottom: 16px;
         }
-        .nd-field    { display: flex; flex-direction: column; }
+        .nd-field    { display: flex; flex-direction: column; min-width: 0; }
         .nd-field-lg { flex: 2; }
         .nd-field-sm { flex: 1; }
 
@@ -477,7 +503,7 @@ function FlightSearchCard() {
           background: transparent;
           border: none;
           border-bottom: 1px solid hsl(var(--border));
-          padding: 8px 0;
+          padding: 8px 0 10px;
           font-family: "Space Mono", monospace;
           font-size: 20px;
           font-weight: 700;
@@ -485,6 +511,7 @@ function FlightSearchCard() {
           letter-spacing: 0.04em;
           outline: none;
           width: 100%;
+          min-height: 48px;
           box-sizing: border-box;
           transition: border-color 150ms ease-out;
         }
@@ -492,8 +519,8 @@ function FlightSearchCard() {
         .nd-input:focus        { border-bottom-color: hsl(var(--primary)); }
         .nd-input-error        { border-bottom-color: hsl(var(--destructive)); }
         .nd-input-date {
-          font-size: 13px;
-          font-weight: 400;
+          font-size: 20px;
+          font-weight: 700;
           color-scheme: light dark;
         }
 
@@ -570,17 +597,47 @@ function FlightSearchCard() {
           align-items: center;
           gap: 10px;
         }
-        .nd-flight-tag {
+        .nd-flight-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          width: max-content;
+          min-height: 32px;
+          padding: 5px 12px 5px 7px;
           font-family: "Space Mono", monospace;
           font-size: 13px;
           font-weight: 700;
           letter-spacing: 0.06em;
           color: hsl(var(--foreground));
-          background: hsl(var(--background));
-          border: 1px solid hsl(var(--border));
-          border-radius: 4px;
-          padding: 3px 10px;
+          background:
+            linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--accent) / 0.10)),
+            hsl(var(--background));
+          border: 1px solid hsl(var(--primary) / 0.24);
+          border-radius: 999px;
+          box-shadow: 0 10px 26px hsl(var(--primary) / 0.08);
+          transition: transform 180ms ease-out, border-color 180ms ease-out, box-shadow 180ms ease-out;
         }
+        .nd-flight-pill:hover {
+          transform: translateY(-2px);
+          border-color: hsl(var(--primary) / 0.52);
+          box-shadow: 0 16px 32px hsl(var(--primary) / 0.16);
+        }
+        .nd-flight-pill-compact {
+          min-height: 28px;
+          padding: 4px 10px 4px 6px;
+          font-size: 11px;
+        }
+        .nd-flight-pill-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          color: hsl(var(--primary));
+          background: hsl(var(--primary) / 0.12);
+        }
+        .nd-flight-pill-text { line-height: 1; }
         .nd-status-found {
           display: flex;
           align-items: center;
@@ -597,24 +654,37 @@ function FlightSearchCard() {
 
         /* ── FIDS horizontal layout ──────────────────────────────────── */
         .nd-fids-horizontal {
-          border-top: 1px solid hsl(var(--border));
-          padding-top: 16px;
+          margin-top: 2px;
+          padding: 18px 20px;
+          background:
+            linear-gradient(135deg, hsl(var(--primary) / 0.10), hsl(var(--accent) / 0.07)),
+            hsl(var(--background));
+          border: 1px solid hsl(var(--primary) / 0.18);
+          border-radius: 12px;
+          box-shadow: 0 16px 40px hsl(var(--primary) / 0.10);
+          transition: transform 180ms ease-out, border-color 180ms ease-out, box-shadow 180ms ease-out;
+        }
+        .nd-fids-horizontal:hover {
+          transform: translateY(-2px);
+          border-color: hsl(var(--primary) / 0.38);
+          box-shadow: 0 22px 48px hsl(var(--primary) / 0.16);
         }
 
         .nd-airports-row {
           display: flex;
-          align-items: flex-start;
-          gap: 0;
+          align-items: center;
+          gap: 16px;
         }
 
         /* Airport blocks */
-        .nd-airport-block {
+        .nd-airport-card {
           flex: 1;
           display: flex;
           flex-direction: column;
+          min-width: 0;
         }
-        .nd-airport-left  { align-items: flex-start; }
-        .nd-airport-right { align-items: flex-end; text-align: right; }
+        .nd-airport-card-left  { align-items: flex-start; }
+        .nd-airport-card-right { align-items: flex-end; text-align: right; }
 
         .nd-fids-side-label {
           display: flex;
@@ -654,24 +724,58 @@ function FlightSearchCard() {
           display: block;
           margin-top: 2px;
         }
-        /* Time: Doto monospace, primary color */
-        .nd-fids-time-sf {
-          font-family: "Doto", "Space Mono", monospace;
-          font-size: 28px;
+        .nd-airport-data-stack {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 7px;
+          width: max-content;
+          margin-top: 8px;
+        }
+        .nd-airport-data-stack-right {
+          align-items: flex-end;
+        }
+        .nd-flight-time-card {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          width: max-content;
+          min-width: 112px;
+          padding: 7px 11px 8px;
+          background: hsl(var(--background) / 0.72);
+          border: 1px solid hsl(var(--primary) / 0.18);
+          border-radius: 8px;
+        }
+        .nd-flight-time-card-right {
+          align-items: flex-end;
+        }
+        .nd-flight-date {
+          font-family: "Space Mono", monospace;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          color: hsl(var(--muted-foreground) / 0.78);
+          line-height: 1;
+        }
+        .nd-flight-time {
+          font-family: "Space Mono", monospace;
+          font-size: 24px;
           font-weight: 700;
           letter-spacing: 0.02em;
           color: hsl(var(--primary));
           line-height: 1;
-          margin-top: 6px;
-          display: block;
+        }
+        .nd-flight-time-right {
+          justify-content: flex-end;
         }
         .nd-sf-right { justify-content: flex-end; }
-        .nd-city-label { margin-top: 6px; display: block; }
+        .nd-city-label { display: block; padding-inline: 2px; }
 
         /* Arc SVG center */
         .nd-arc-wrapper {
           flex: 0 0 auto;
-          width: 120px;
+          width: 140px;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -679,7 +783,21 @@ function FlightSearchCard() {
         }
         .nd-flight-num-center {
           text-align: center;
-          margin-bottom: 4px;
+          margin-bottom: 8px;
+        }
+        .nd-flight-center-label {
+          display: inline-flex;
+          align-items: center;
+          min-height: 22px;
+          padding: 2px 8px;
+          font-family: "Space Mono", monospace;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          color: hsl(var(--muted-foreground));
+          background: hsl(var(--background));
+          border: 1px solid hsl(var(--border));
+          border-radius: 999px;
         }
         .nd-arc-svg {
           width: 100%;
@@ -687,16 +805,52 @@ function FlightSearchCard() {
           overflow: visible;
         }
         .nd-arc-path {
-          stroke: hsl(var(--muted-foreground) / 0.3);
+          stroke: hsl(var(--primary) / 0.28);
           stroke-width: 1.5;
         }
-        .nd-arc-dot {
-          fill: hsl(var(--primary) / 0.5);
+        .nd-arc-path-glow {
+          stroke: hsl(var(--primary) / 0.10);
+          stroke-width: 8;
         }
-        /* Plane: filled with primary color, bigger */
-        .nd-arc-plane-icon {
+        .nd-arc-dot {
+          fill: hsl(var(--background));
+          stroke: hsl(var(--primary) / 0.55);
+          stroke-width: 2;
+        }
+        .nd-plane-bank {
+          filter: url(#ndPlaneShadow);
+          animation: nd-plane-bank 4.4s ease-in-out infinite;
+          transform-origin: 18px 12px;
+        }
+        .nd-contrail {
+          fill: none;
+          stroke: hsl(var(--primary) / 0.28);
+          stroke-width: 1.4;
+          stroke-linecap: round;
+          stroke-dasharray: 18 10;
+          animation: nd-contrail-flow 1.4s linear infinite;
+        }
+        .nd-contrail-2 {
+          opacity: 0.55;
+          animation-delay: 180ms;
+        }
+        .nd-plane-shadow {
+          fill: hsl(var(--primary) / 0.14);
+        }
+        .nd-arc-plane-body {
+          fill: url(#ndPlaneBody);
           stroke: hsl(var(--primary));
-          fill: hsl(var(--primary));
+          stroke-width: 0.8;
+          stroke-linejoin: round;
+        }
+        .nd-arc-plane-line {
+          fill: none;
+          stroke: hsl(var(--primary-foreground) / 0.75);
+          stroke-width: 0.9;
+          stroke-linecap: round;
+        }
+        .nd-arc-plane-line-soft {
+          opacity: 0.5;
         }
 
         .nd-icon-muted    { color: hsl(var(--muted-foreground)); }
@@ -712,47 +866,53 @@ function FlightSearchCard() {
         .nd-saved-inline .nd-label { color: hsl(142 62% 40%); }
 
         /* ── Stats bar ──────────────────────────────────────────────── */
-        .nd-stats-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: baseline;
-          margin-bottom: 14px;
-        }
-        .nd-stat-count {
-          font-family: "Space Mono", monospace;
-          font-size: 28px;
-          font-weight: 700;
-          color: hsl(var(--foreground));
-          letter-spacing: -0.02em;
-          line-height: 1;
-        }
-        .nd-bar-container {
-          display: flex;
-          gap: 2px;
-          align-items: flex-end;
-          height: 48px;
-        }
-        .nd-bar-segment {
-          flex: 1;
-          border-radius: 0;
-          transition: height 300ms cubic-bezier(0.25, 0.1, 0.25, 1);
-        }
-        .nd-bar-now    { background: hsl(var(--primary)); }
-        .nd-bar-active { background: hsl(var(--primary) / 0.4); }
-        .nd-bar-empty  { background: hsl(var(--border)); }
-
-        .nd-bar-labels {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 6px;
-        }
-
         /* ── Spin animation ─────────────────────────────────────────── */
         .nd-spin {
           animation: nd-spin 1s linear infinite;
         }
         @keyframes nd-spin {
           to { transform: rotate(360deg); }
+        }
+        @keyframes nd-plane-bank {
+          0%, 100% { transform: translate(-18px, -12px) rotate(-5deg); }
+          48% { transform: translate(-18px, -13px) rotate(7deg); }
+          68% { transform: translate(-18px, -12px) rotate(2deg); }
+        }
+        @keyframes nd-contrail-flow {
+          to { stroke-dashoffset: -28; }
+        }
+        @media (max-width: 560px) {
+          .nd-panel { padding: 20px; }
+          .nd-header-row { gap: 18px; }
+          .nd-clock { font-size: 40px; }
+          .nd-form-row {
+            grid-template-columns: 1fr;
+            gap: 14px;
+          }
+          .nd-airports-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+          }
+          .nd-airport-card-right {
+            align-items: flex-start;
+            text-align: left;
+          }
+          .nd-airport-data-stack-right {
+            align-items: flex-start;
+          }
+          .nd-fids-side-label-right {
+            flex-direction: row;
+          }
+          .nd-sf-right { justify-content: flex-start; }
+          .nd-arc-wrapper {
+            width: min(100%, 280px);
+            order: 2;
+            justify-self: center;
+          }
+          .nd-airport-card-left { order: 1; }
+          .nd-airport-card-right { order: 3; }
+          .nd-fids-code-sf { font-size: 46px; }
         }
       `}</style>
     </div>

@@ -77,8 +77,13 @@ service cloud.firestore {
       allow read: if isAuth();
       allow write: if isAdmin();
     }
+    match /appConfig/flightSearchSettings {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
     match /appConfig/{docId} {
-      allow read, write: if isAuth();
+      allow read: if isAuth();
+      allow write: if isAuth() && (docId == 'masterDataVersion' || isAdmin());
     }
 
     // ADDED THIS BLOCK: Rules for the new Service Order Logic editor
@@ -98,6 +103,12 @@ service cloud.firestore {
     // Any authenticated user can create or update a counter document for flight searches.
     match /flightSearchStats/{day} {
       allow read, write: if request.auth != null;
+    }
+
+    // --- Flight Route Cache ---
+    // Stores route discovery like BOV304 -> LPB/UYU for the Google Flights hybrid provider.
+    match /flightRouteCache/{flightNumber} {
+      allow read, write: if isAuth();
     }
 
     // --- Service Orders ---
