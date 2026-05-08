@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, useRef, createContext, useContext, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
@@ -90,6 +90,7 @@ const SESSION_ID_KEY = 'app_session_id';
 function AuthProviderInternal({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const loginInProgressRef = useRef(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -182,7 +183,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         const localSessionId = typeof window !== 'undefined' ? localStorage.getItem(SESSION_ID_KEY) : null;
         const profile = await fetchUserProfile(firebaseUser.uid);
-        if (localSessionId && profile?.activeSessionId && profile.activeSessionId !== localSessionId) {
+        if (!loginInProgressRef.current && localSessionId && profile?.activeSessionId && profile.activeSessionId !== localSessionId) {
           await signOut(auth!);
           setCurrentUser(null);
           setIsLoading(false);
@@ -227,6 +228,11 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       return;
     }
     try {
+      loginInProgressRef.current = true;
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(SESSION_ID_KEY);
+      }
+
       // Validar conexión a base de datos ANTES de permitir login
       const { checkDatabaseConnection } = await import('@/lib/dbConnectionCheck');
       const isConnected = await checkDatabaseConnection();
@@ -243,11 +249,13 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       const userCredential = await signInWithEmailAndPassword(auth, emailInput.trim().toLowerCase(), passwordInput);
       const firebaseUser = userCredential.user;
       const newSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      localStorage.setItem(SESSION_ID_KEY, newSessionId);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(SESSION_ID_KEY, newSessionId);
+      }
       const userProfileDocRef = doc(db, 'userProfiles', firebaseUser.uid);
       await updateDoc(userProfileDocRef, { lastSignInTime: serverTimestamp(), activeSessionId: newSessionId });
       const profile = await fetchUserProfile(firebaseUser.uid);
-      setCurrentUser({ ...firebaseUser, profile });
+      setCurrentUser({ ...firebaseUser, profile: profile || undefined });
       sonnerToast.success('Inicio de Sesión Exitoso', { description: `¡Bienvenido de nuevo, ${profile?.email || "Usuario"}!` });
       router.push('/');
     } catch (error: any) {
@@ -256,6 +264,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       toast({ title: "Error de Inicio de Sesión", description: message, variant: "destructive" });
       setCurrentUser(null);
     } finally {
+      loginInProgressRef.current = false;
       setIsLoading(false);
     }
   }, [router, toast, fetchUserProfile]);
