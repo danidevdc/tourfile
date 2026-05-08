@@ -50,12 +50,38 @@ def normalize_flight_number(value: str) -> str:
     return normalized.replace("OB", "BOV", 1) if normalized.startswith("OB") else normalized
 
 
+def flight_number_variants(value: str) -> set[str]:
+    normalized = normalize_flight_number(value)
+    variants = {normalized}
+    if normalized.startswith("BOV"):
+        variants.add(f"OB{normalized[3:]}")
+        variants.add(normalized[3:])
+    elif normalized.startswith("OB"):
+        variants.add(f"BOV{normalized[2:]}")
+        variants.add(normalized[2:])
+    return {variant.replace(" ", "").upper() for variant in variants if variant}
+
+
+def airline_code_variants(airline: Any) -> set[str]:
+    values = {
+        str(airline or ""),
+        str(getattr(airline, "value", "") or ""),
+        str(getattr(airline, "name", "") or ""),
+    }
+    normalized = {value.replace("_", "").replace(" ", "").upper() for value in values if value}
+    if any("BOLIVIANA" in value or "BOA" in value or value == "BOV" for value in normalized):
+        normalized.update({"BOV", "OB", "BOA"})
+    return normalized
+
+
 def leg_matches(leg: Any, flight_number: str) -> bool:
     raw_number = str(getattr(leg, "flight_number", "") or "").replace(" ", "").upper()
-    airline = getattr(getattr(leg, "airline", None), "name", "") or getattr(leg, "airline", "")
-    airline_text = str(airline).replace("_", "").upper()
-    candidates = {raw_number, f"{airline_text}{raw_number}"}
-    return flight_number in candidates or any(candidate.endswith(flight_number[-4:]) for candidate in candidates)
+    target_variants = flight_number_variants(flight_number)
+    airline_variants = airline_code_variants(getattr(leg, "airline", None))
+    candidates = {raw_number}
+    candidates.update(f"{airline}{raw_number}" for airline in airline_variants)
+    candidates.update(flight_number_variants(raw_number))
+    return bool(target_variants.intersection(candidates))
 
 
 @app.get("/health")
@@ -84,9 +110,13 @@ def search_flight(request: FlightLookupRequest) -> dict[str, Any]:
         sort_by=parse_sort_by("DEPARTURE_TIME"),
     )
 
-    flights = SearchFlights().search(filters) or []
+    flights = SearchFlights().search(filters, top_n=25) or []
+    seen_flights: list[str] = []
     for flight in flights:
         for leg in getattr(flight, "legs", []):
+            airline = getattr(leg, "airline", "")
+            raw_number = str(getattr(leg, "flight_number", "") or "").replace(" ", "").upper()
+            seen_flights.append(f"{getattr(airline, 'value', airline)} {raw_number}".strip())
             if not leg_matches(leg, flight_number):
                 continue
 
@@ -113,5 +143,8 @@ def search_flight(request: FlightLookupRequest) -> dict[str, Any]:
     return {
         "flightFound": False,
         "flightNumber": flight_number,
-        "errorMessage": f"Google Flights no encontró {flight_number} en {request.origin.upper()}/{request.destination.upper()} para {request.date}.",
+        "errorMessage": (
+            f"Google Flights no encontró {flight_number} en {request.origin.upper()}/{request.destination.upper()} "
+            f"para {request.date}. Vuelos revisados: {', '.join(seen_flights[:12]) or 'ninguno'}."
+        ),
     }
