@@ -111,6 +111,11 @@ service cloud.firestore {
       allow read, write: if isAuth();
     }
 
+    // Stores observed route durations, e.g. CBB/LPB -> 45 minutes, for NAABOL partial matches.
+    match /flightRouteDurationCache/{routeId} {
+      allow read, write: if isAuth();
+    }
+
     // --- Service Orders ---
     // Any authenticated user can read and create orders.
     // Update: owner, admin, intermediate, OR any auth user updating only the hasLiquidation flag.

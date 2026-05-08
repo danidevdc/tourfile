@@ -5,6 +5,7 @@ import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firest
 
 export interface FlightRouteCacheEntry {
   flightNumber: string;
+  canonicalFlightNumber?: string;
   origin: string;
   destination: string;
   segment: string;
@@ -16,21 +17,47 @@ export interface FlightRouteCacheEntry {
 
 export function normalizeFlightNumberForCache(flightNumber: string): string {
   const normalized = flightNumber.replace(/\s/g, '').toUpperCase();
-  return normalized.startsWith('OB') ? normalized.replace('OB', 'BOV') : normalized;
+  const match = normalized.match(/^([A-Z0-9]+?)(\d+)$/);
+  if (!match) return normalized;
+
+  const [, prefix, rest] = match;
+  const airlinePrefixMap: Record<string, string> = {
+    '8J': 'ECO',
+    LA: 'LAN',
+    OB: 'BOV',
+  };
+
+  return `${airlinePrefixMap[prefix] || prefix}${rest}`;
+}
+
+function getFlightNumberCacheAliases(flightNumber: string): string[] {
+  const normalized = flightNumber.replace(/\s/g, '').toUpperCase();
+  const canonical = normalizeFlightNumberForCache(normalized);
+  const digits = normalized.match(/\d+$/)?.[0];
+  const aliases = [canonical, normalized];
+
+  if (digits && canonical.startsWith('ECO')) {
+    aliases.push(`8J${digits}`);
+  }
+
+  return Array.from(new Set(aliases));
 }
 
 export async function getFlightRouteFromCache(flightNumber: string): Promise<FlightRouteCacheEntry | null> {
   if (!db) return null;
 
-  const normalizedFlightNumber = normalizeFlightNumberForCache(flightNumber);
-  const ref = doc(db, 'flightRouteCache', normalizedFlightNumber);
+  const aliases = getFlightNumberCacheAliases(flightNumber);
 
   try {
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
+    for (const alias of aliases) {
+      const ref = doc(db, 'flightRouteCache', alias);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) continue;
 
-    await updateDoc(ref, { lastUsedAt: serverTimestamp() });
-    return snap.data() as FlightRouteCacheEntry;
+      await updateDoc(ref, { lastUsedAt: serverTimestamp() });
+      return snap.data() as FlightRouteCacheEntry;
+    }
+    return null;
   } catch (error) {
     console.warn('Unable to read flight route cache:', error);
     return null;
@@ -45,22 +72,26 @@ export async function saveFlightRouteToCache(params: {
 }): Promise<void> {
   if (!db || !params.origin || !params.destination) return;
 
+  const firestore = db;
+  const aliases = getFlightNumberCacheAliases(params.flightNumber);
   const normalizedFlightNumber = normalizeFlightNumberForCache(params.flightNumber);
   const origin = params.origin.toUpperCase();
   const destination = params.destination.toUpperCase();
-  const ref = doc(db, 'flightRouteCache', normalizedFlightNumber);
 
   try {
-    await setDoc(ref, {
-      flightNumber: normalizedFlightNumber,
-      origin,
-      destination,
-      segment: `${origin}/${destination}`,
-      discoveredBy: params.discoveredBy || 'aeroapi',
-      firstSeenAt: serverTimestamp(),
-      lastUsedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    await Promise.all(aliases.map((alias) =>
+      setDoc(doc(firestore, 'flightRouteCache', alias), {
+        flightNumber: alias,
+        canonicalFlightNumber: normalizedFlightNumber,
+        origin,
+        destination,
+        segment: `${origin}/${destination}`,
+        discoveredBy: params.discoveredBy || 'aeroapi',
+        firstSeenAt: serverTimestamp(),
+        lastUsedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }, { merge: true })
+    ));
   } catch (error) {
     console.warn('Unable to save flight route cache:', error);
   }

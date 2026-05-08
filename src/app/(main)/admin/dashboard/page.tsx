@@ -232,7 +232,7 @@ export default function AdminDashboardPage() {
         title: "Proveedor actualizado",
         description: provider === 'aeroapi'
           ? "El buscador usará AeroAPI."
-          : "El buscador usará Google Flights experimental cuando exista ruta cacheada.",
+          : "El buscador usará NAABOL hoy, Google para futuros y AeroAPI como respaldo.",
         variant: "success" as any,
       });
     } catch {
@@ -314,7 +314,7 @@ export default function AdminDashboardPage() {
                   <Plane className="text-primary" /> Control AeroAPI
                 </CardTitle>
                 <CardDescription>
-                  Estimación con max_pages=1: cada búsqueda consume como máximo 1 result set.
+                  Solo cuenta llamadas reales a FlightAware. NAABOL y Google no consumen este cupo.
                 </CardDescription>
               </div>
               <Badge variant="outline" className="w-fit gap-2 border-primary/30 bg-primary/5 text-primary">
@@ -336,7 +336,7 @@ export default function AdminDashboardPage() {
                       <div>
                         <div className="text-sm font-semibold">Proveedor del buscador</div>
                         <div className="text-xs text-muted-foreground">
-                          Google Flights usa rutas cacheadas; si no conoce la ruta, AeroAPI la descubre una vez.
+                          Google experimental usa NAABOL para vuelos de hoy, Google para futuros y AeroAPI como respaldo.
                         </div>
                       </div>
                       <div className="inline-flex rounded-lg border bg-muted/30 p-1">
@@ -377,9 +377,11 @@ export default function AdminDashboardPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-xl border bg-muted/20 p-4">
-                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Hoy</div>
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">FlightAware hoy</div>
                       <div className="mt-2 text-3xl font-bold text-primary">{flightUsage.todayTotal}</div>
-                      <div className="text-xs text-muted-foreground">{formatUsd(flightUsage.estimatedTodayCost)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {flightUsage.todayRemaining} de {flightUsage.dailyLimit} disponibles
+                      </div>
                     </div>
                     <div className="rounded-xl border bg-muted/20 p-4">
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">Mes actual</div>
@@ -391,22 +393,22 @@ export default function AdminDashboardPage() {
                   <div className="rounded-xl border p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-sm font-semibold">Crédito gratis mensual</div>
+                        <div className="text-sm font-semibold">Límite diario FlightAware</div>
                         <div className="text-xs text-muted-foreground">
-                          Quedan {formatUsd(flightUsage.remainingCreditUsd)} de {formatUsd(flightUsage.freeCreditUsd)}
+                          Usadas {flightUsage.todayTotal} de {flightUsage.dailyLimit}. Estimado hoy: {formatUsd(flightUsage.estimatedTodayCost)}
                         </div>
                       </div>
-                      <div className="text-sm font-bold text-primary">{flightUsage.creditUsedPercent.toFixed(1)}%</div>
+                      <div className="text-sm font-bold text-primary">{flightUsage.limitUsedPercent.toFixed(1)}%</div>
                     </div>
                     <div className="mt-3 h-3 overflow-hidden rounded-full bg-muted">
                       <div
                         className="h-full rounded-full bg-primary transition-all duration-500"
-                        style={{ width: `${flightUsage.creditUsedPercent}%` }}
+                        style={{ width: `${flightUsage.limitUsedPercent}%` }}
                       />
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
                       <span>Costo por búsqueda: {formatUsd(flightUsage.costPerResultSet)}</span>
-                      <span className="text-right">Pico hoy: {flightPeak?.hour}h ({flightPeak?.searches || 0})</span>
+                      <span className="text-right">Crédito mensual restante: {formatUsd(flightUsage.remainingCreditUsd)}</span>
                     </div>
                   </div>
                 </div>

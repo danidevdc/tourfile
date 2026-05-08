@@ -8,9 +8,10 @@ import { Loader2, Plane, Search, ArrowLeft, PlaneTakeoff, PlaneLanding, Plus, X,
 import { findFlight } from "@/ai/flows/find-flight-flow";
 import type { FindFlightOutput, FindFlightInput, FlightSearchProvider } from "@/ai/flows/flight-types";
 import { useAuth, type AppModule } from "@/hooks/useAuth";
-import { incrementFlightSearchCount } from "@/lib/flightSearchCounterService";
+import { tryConsumeFlightAwareSearch } from "@/lib/flightSearchCounterService";
 import { getFlightSearchSettings } from "@/lib/appConfigService";
-import { getFlightRouteFromCache, saveFlightRouteToCache } from "@/lib/flightRouteCacheService";
+import { getFlightRouteFromCache, normalizeFlightNumberForCache, saveFlightRouteToCache } from "@/lib/flightRouteCacheService";
+import { calculateFlightDurationMinutes, getFlightRouteDurationFromCache, saveFlightRouteDurationToCache } from "@/lib/flightRouteDurationCacheService";
 import { createFlight, type PredefinedFlight } from "@/lib/serviceOrderService";
 import { useToast } from "@/hooks/use-toast";
 
@@ -219,26 +220,53 @@ function FlightSearchCard() {
       setError('INGRESA EL NÚMERO DE VUELO Y LA FECHA');
       return;
     }
+    const normalizedFlightNumber = normalizeFlightNumberForCache(flightNumber);
     setIsLoading(true);
     setError(null);
     setSearchResult(null);
     setAddedOk(false);
     try {
-      await incrementFlightSearchCount();
       const routeCache = flightProvider === 'google_flights_hybrid'
-        ? await getFlightRouteFromCache(flightNumber)
+        ? await getFlightRouteFromCache(normalizedFlightNumber)
         : null;
-      const providerForSearch: FlightSearchProvider = routeCache ? 'google_flights_hybrid' : 'aeroapi';
-      const input: FindFlightInput = {
-        flightNumber,
-        date,
-        provider: providerForSearch,
-        routeHint: routeCache ? {
-          origin: routeCache.origin,
-          destination: routeCache.destination,
-        } : undefined,
+      const routeHint = routeCache ? {
+        origin: routeCache.origin,
+        destination: routeCache.destination,
+      } : undefined;
+      const durationCache = routeHint
+        ? await getFlightRouteDurationFromCache(routeHint.origin, routeHint.destination)
+        : null;
+      const runAeroApiSearch = async (): Promise<FindFlightOutput> => {
+        const consumption = await tryConsumeFlightAwareSearch();
+        if (!consumption.allowed) {
+          return {
+            flightFound: false,
+            flightNumber: normalizedFlightNumber,
+            provider: 'aeroapi',
+            errorMessage: `LIMITE DIARIO DE FLIGHTAWARE ALCANZADO (${consumption.total}/${consumption.limit}). PRUEBA MANANA O USA NAABOL PARA VUELOS DE HOY.`,
+          };
+        }
+        return findFlight({
+          flightNumber: normalizedFlightNumber,
+          date,
+          provider: 'aeroapi',
+        });
       };
-      const result = await findFlight(input);
+      const input: FindFlightInput = {
+        flightNumber: normalizedFlightNumber,
+        date,
+        provider: flightProvider === 'google_flights_hybrid' ? 'google_flights_hybrid' : 'aeroapi',
+        routeHint,
+        routeDurationMinutes: durationCache?.durationMinutes,
+      };
+      let result = flightProvider === 'google_flights_hybrid'
+        ? await findFlight(input)
+        : await runAeroApiSearch();
+
+      if (!result.flightFound && flightProvider === 'google_flights_hybrid') {
+        result = await runAeroApiSearch();
+      }
+
       if (result.errorMessage) {
         if (result.errorMessage.includes('No flight found for this date')) {
           setError(`VUELO ${flightNumber} NO OPERA EN ESTA FECHA`);
@@ -248,13 +276,29 @@ function FlightSearchCard() {
       } else if (!result.flightFound) {
         setError(`VUELO ${flightNumber} NO ENCONTRADO`);
       }
-      if (result.flightFound && result.provider === 'aeroapi' && result.flightNumber && result.departure?.airport.code && result.arrival?.airport.code) {
+      if (result.flightFound && result.flightNumber && result.departure?.airport.code && result.arrival?.airport.code) {
         await saveFlightRouteToCache({
           flightNumber: result.flightNumber,
           origin: result.departure.airport.code,
           destination: result.arrival.airport.code,
-          discoveredBy: 'aeroapi',
+          discoveredBy: result.provider === 'aeroapi' ? 'aeroapi' : 'manual',
         });
+      }
+      if (result.flightFound && result.departure?.airport.code && result.arrival?.airport.code) {
+        const durationMinutes = calculateFlightDurationMinutes({
+          departureDate: result.departure.time.scheduledDate,
+          departureTime: result.departure.time.scheduled,
+          arrivalDate: result.arrival.time.scheduledDate,
+          arrivalTime: result.arrival.time.scheduled,
+        });
+
+        if (durationMinutes) {
+          await saveFlightRouteDurationToCache({
+            origin: result.departure.airport.code,
+            destination: result.arrival.airport.code,
+            durationMinutes,
+          });
+        }
       }
       setSearchResult(result);
     } catch (e) {

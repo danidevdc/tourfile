@@ -16,6 +16,9 @@ export interface FlightSearchStat {
 export interface FlightSearchUsageStats {
   today: FlightSearchStat[];
   todayTotal: number;
+  dailyLimit: number;
+  todayRemaining: number;
+  limitUsedPercent: number;
   monthTotal: number;
   estimatedTodayCost: number;
   estimatedMonthCost: number;
@@ -35,53 +38,100 @@ interface DailyStats {
 const TIME_ZONE = 'America/La_Paz'; // GMT-4
 const COST_PER_RESULT_SET = 0.005;
 const FREE_CREDIT_USD = 5;
+export const FLIGHTAWARE_DAILY_LIMIT = 30;
+
+export interface FlightAwareSearchConsumption {
+  allowed: boolean;
+  total: number;
+  remaining: number;
+  limit: number;
+}
+
+function getTodayStatRef(): DocumentReference<DailyStats> | null {
+  if (!db) return null;
+
+  const nowUtc = new Date();
+  const zonedDate = toZonedTime(nowUtc, TIME_ZONE);
+  const dateKey = formatISO(zonedDate);
+  return doc(db, 'flightSearchStats', dateKey) as DocumentReference<DailyStats>;
+}
 
 /**
  * Increments the flight search counter for the current day and hour based on the specified timezone.
  * This function uses a transaction to ensure atomic updates.
  */
 export async function incrementFlightSearchCount(): Promise<void> {
-  if (!db) {
+  await tryConsumeFlightAwareSearch();
+}
+
+/**
+ * Atomically reserves one FlightAware/AeroAPI search for today.
+ * Google Flights and NAABOL calls should not use this because they do not consume AeroAPI credit.
+ */
+export async function tryConsumeFlightAwareSearch(
+  options: { enforceLimit?: boolean } = {}
+): Promise<FlightAwareSearchConsumption> {
+  const statDocRef = getTodayStatRef();
+  if (!db || !statDocRef) {
     console.error("Firestore not initialized.");
-    return;
+    return {
+      allowed: true,
+      total: 0,
+      remaining: FLIGHTAWARE_DAILY_LIMIT,
+      limit: FLIGHTAWARE_DAILY_LIMIT,
+    };
   }
 
-  // Get current time and convert it to the target timezone (GMT-4)
   const nowUtc = new Date();
   const zonedDate = toZonedTime(nowUtc, TIME_ZONE);
-  
-  // Use the date and hour from the converted time
-  const dateKey = formatISO(zonedDate); // e.g., "2024-08-01"
-  const hourKey = zonedDate.getHours(); // 0-23 in GMT-4
-
-  const statDocRef: DocumentReference<DailyStats> = doc(db, 'flightSearchStats', dateKey) as DocumentReference<DailyStats>;
+  const hourKey = zonedDate.getHours();
 
   try {
-    await runTransaction(db, async (transaction) => {
+    return await runTransaction(db, async (transaction) => {
       const statDoc = await transaction.get(statDocRef);
+      const currentData = statDoc.exists() ? statDoc.data() : null;
+      const currentTotal = currentData?.total || 0;
+
+      if (options.enforceLimit !== false && currentTotal >= FLIGHTAWARE_DAILY_LIMIT) {
+        return {
+          allowed: false,
+          total: currentTotal,
+          remaining: 0,
+          limit: FLIGHTAWARE_DAILY_LIMIT,
+        };
+      }
+
+      const newTotal = currentTotal + 1;
+      const newHourlyCount = (currentData?.hourly?.[hourKey] || 0) + 1;
 
       if (!statDoc.exists()) {
-        // If document for today (in GMT-4) doesn't exist, create it
         const newDailyStat: DailyStats = {
           total: 1,
           hourly: { [hourKey]: 1 }
         };
         transaction.set(statDocRef, newDailyStat);
       } else {
-        // If it exists, increment atomically
-        const currentData = statDoc.data();
-        const newTotal = (currentData.total || 0) + 1;
-        const newHourlyCount = (currentData.hourly?.[hourKey] || 0) + 1;
-
         transaction.update(statDocRef, {
           total: newTotal,
           [`hourly.${hourKey}`]: newHourlyCount
         });
       }
+
+      return {
+        allowed: true,
+        total: newTotal,
+        remaining: Math.max(0, FLIGHTAWARE_DAILY_LIMIT - newTotal),
+        limit: FLIGHTAWARE_DAILY_LIMIT,
+      };
     });
   } catch (error) {
     console.error("Error incrementing flight search count:", error);
-    // Fail silently to not interrupt the user's main task
+    return {
+      allowed: true,
+      total: 0,
+      remaining: FLIGHTAWARE_DAILY_LIMIT,
+      limit: FLIGHTAWARE_DAILY_LIMIT,
+    };
   }
 }
 
@@ -171,6 +221,9 @@ export async function getFlightSearchUsageStats(): Promise<FlightSearchUsageStat
   return {
     today,
     todayTotal,
+    dailyLimit: FLIGHTAWARE_DAILY_LIMIT,
+    todayRemaining: Math.max(0, FLIGHTAWARE_DAILY_LIMIT - todayTotal),
+    limitUsedPercent: Math.min(100, (todayTotal / FLIGHTAWARE_DAILY_LIMIT) * 100),
     monthTotal,
     estimatedTodayCost,
     estimatedMonthCost,
