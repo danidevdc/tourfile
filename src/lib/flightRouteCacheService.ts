@@ -12,7 +12,7 @@ export interface FlightRouteCacheEntry {
   origin: string;
   destination: string;
   segment: string;
-  discoveredBy: 'aeroapi' | 'manual';
+  discoveredBy: 'aeroapi' | 'airlabs' | 'naabol' | 'manual';
   firstSeenAt?: unknown;
   lastUsedAt?: unknown;
   updatedAt?: unknown;
@@ -83,7 +83,7 @@ export async function saveFlightRouteToCache(params: {
   destination?: string;
   departureTime?: string;
   arrivalTime?: string;
-  discoveredBy?: 'aeroapi' | 'manual';
+  discoveredBy?: 'aeroapi' | 'airlabs' | 'naabol' | 'manual';
 }): Promise<void> {
   if (!db || !params.origin || !params.destination) return;
 

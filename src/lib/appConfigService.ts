@@ -94,7 +94,7 @@ export async function getFlightSearchSettings(): Promise<FlightSearchSettings> {
     if (!snap.exists()) return DEFAULT_FLIGHT_SEARCH_SETTINGS;
 
     const provider = snap.data().provider;
-    return provider === 'google_flights_hybrid' || provider === 'aeroapi'
+    return provider === 'airlabs' || provider === 'aeroapi'
       ? { provider }
       : DEFAULT_FLIGHT_SEARCH_SETTINGS;
   } catch (error) {
@@ -105,7 +105,7 @@ export async function getFlightSearchSettings(): Promise<FlightSearchSettings> {
 
 export async function setFlightSearchProvider(provider: FlightSearchProvider): Promise<void> {
   if (!db) throw new Error("Firestore is not initialized.");
-  if (provider !== 'aeroapi' && provider !== 'google_flights_hybrid') {
+  if (provider !== 'aeroapi' && provider !== 'airlabs') {
     throw new Error("Invalid flight search provider.");
   }
 

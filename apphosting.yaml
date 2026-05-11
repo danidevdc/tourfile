@@ -21,8 +21,6 @@ env:
     value: '020725'
   - variable: NEXT_PUBLIC_AEROAPI_KEY
     value: 'BMwuOBNM6LoW1yR5vs6SO4eqQXVrhhXf'
-  - variable: GOOGLE_FLIGHTS_PROXY_URL
-    value: 'https://tourfile-google-flights-proxy.onrender.com'
 build:
   require-buildpacks:
     - google.nodejs.npm

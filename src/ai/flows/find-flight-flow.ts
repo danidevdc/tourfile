@@ -28,6 +28,30 @@ const IATA_TO_ICAO_AIRLINE_PREFIX: Record<string, string> = {
   OB: 'BOV', // Boliviana de Aviacion
 };
 
+const AIRLABS_IATA_PREFIX: Record<string, string> = {
+  '8J': '8J',
+  AV: 'AV',
+  AVA: 'AV',
+  BO: 'OB',
+  BOV: 'OB',
+  ECO: '8J',
+  LA: 'LA',
+  LAN: 'LA',
+  OB: 'OB',
+};
+
+const AIRLABS_ICAO_PREFIX: Record<string, string> = {
+  '8J': 'ECO',
+  AV: 'AVA',
+  AVA: 'AVA',
+  BO: 'BOV',
+  BOV: 'BOV',
+  ECO: 'ECO',
+  LA: 'LAN',
+  LAN: 'LAN',
+  OB: 'BOV',
+};
+
 // Normalizes the flight number to the format expected by AeroAPI.
 // "ob 305" -> "OB305" -> "BOV305"; "LA2401" -> "LAN2401"
 function normalizeIdent(flightNumber: string): string {
@@ -50,6 +74,23 @@ function getIdentCandidates(flightNumber: string): string[] {
   }
 
   return Array.from(new Set(candidates));
+}
+
+function getAirLabsIdentCandidates(flightNumber: string): Array<{ key: 'flight_iata' | 'flight_icao'; ident: string }> {
+  const compact = flightNumber.replace(/\s/g, '').toUpperCase();
+  const match = compact.match(/^([A-Z0-9]+?)(\d+)$/);
+  if (!match) return [{ key: 'flight_iata', ident: compact }];
+
+  const [, prefix, digits] = match;
+  const candidates: Array<{ key: 'flight_iata' | 'flight_icao'; ident: string }> = [
+    { key: 'flight_iata', ident: `${AIRLABS_IATA_PREFIX[prefix] || prefix}${digits}` },
+    { key: 'flight_icao', ident: `${AIRLABS_ICAO_PREFIX[prefix] || prefix}${digits}` },
+    { key: 'flight_iata', ident: compact },
+  ];
+
+  return candidates.filter((candidate, index, list) =>
+    list.findIndex((item) => item.key === candidate.key && item.ident === candidate.ident) === index
+  );
 }
 
 function formatAeroApiErrorMessage(rawErrorMessage: unknown, flightIdent: string): string {
@@ -161,27 +202,32 @@ function getFlightDigits(flightNumber: string): string {
   return flightNumber.replace(/\D/g, '');
 }
 
-interface GoogleFlightsProxyLeg {
-  flightNumber?: string;
-  airline?: string;
-  origin?: string;
-  originName?: string;
-  originCity?: string;
-  destination?: string;
-  destinationName?: string;
-  destinationCity?: string;
-  departureTime?: string;
-  departureDate?: string;
-  arrivalTime?: string;
-  arrivalDate?: string;
+interface AirLabsFlight {
+  airline_iata?: string;
+  airline_icao?: string;
+  flight_iata?: string;
+  flight_icao?: string;
+  flight_number?: string;
+  dep_iata?: string;
+  dep_icao?: string;
+  dep_time?: string;
+  dep_estimated?: string;
+  dep_actual?: string;
+  arr_iata?: string;
+  arr_icao?: string;
+  arr_time?: string;
+  arr_estimated?: string;
+  arr_actual?: string;
+  duration?: number;
+  status?: string;
 }
 
-interface GoogleFlightsProxyResponse {
-  flightFound?: boolean;
-  flightNumber?: string;
-  flightSegment?: string;
-  errorMessage?: string;
-  leg?: GoogleFlightsProxyLeg;
+interface AirLabsResponse {
+  response?: AirLabsFlight | AirLabsFlight[];
+  error?: {
+    code?: string;
+    message?: string;
+  };
 }
 
 interface NaabolItinerary {
@@ -458,7 +504,7 @@ async function findFlightWithNaabol(input: FindFlightInput, routeHint?: FlightRo
     targets.push({ code: routeHint.destination.toUpperCase(), tipo: 'L' });
   }
 
-  if (targets.length === 0 && isBolivianCarrier(input.flightNumber)) {
+  if (targets.length === 0) {
     for (const code of Object.keys(NAABOL_AIRPORTS)) {
       targets.push({ code, tipo: 'S' }, { code, tipo: 'L' });
     }
@@ -536,126 +582,114 @@ async function findFlightWithNaabol(input: FindFlightInput, routeHint?: FlightRo
   }
 }
 
-async function findFlightWithGoogleFlights(
-  input: FindFlightInput,
-  routeHint: FlightRouteHint
-): Promise<FindFlightOutput> {
-  const proxyUrl = process.env.GOOGLE_FLIGHTS_PROXY_URL;
-  if (!proxyUrl) {
-    return {
-      flightFound: false,
-      flightNumber: input.flightNumber,
-      provider: 'google_flights_hybrid',
-      errorMessage: 'Google Flights experimental no está configurado. Falta GOOGLE_FLIGHTS_PROXY_URL.',
-    };
-  }
-
-  try {
-    const flightIdent = normalizeIdent(input.flightNumber);
-    const endpoint = proxyUrl.endsWith('/search-flight')
-      ? proxyUrl
-      : `${proxyUrl.replace(/\/$/, '')}/search-flight`;
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      cache: 'no-store',
-      body: JSON.stringify({
-        flightNumber: flightIdent,
-        date: input.date,
-        origin: routeHint.origin,
-        destination: routeHint.destination,
-        airlineCode: routeHint.airlineCode,
-        targetDepartureTime: routeHint.departureTime,
-        targetArrivalTime: routeHint.arrivalTime,
-      }),
-    });
-
-    const payload = await response.json() as GoogleFlightsProxyResponse;
-    if (!response.ok || payload.errorMessage) {
-      return {
-        flightFound: false,
-        flightNumber: input.flightNumber,
-        provider: 'google_flights_hybrid',
-        errorMessage: payload.errorMessage || 'Google Flights experimental no pudo completar la búsqueda.',
-      };
-    }
-
-    const leg = payload.leg;
-    if (!payload.flightFound || !leg) {
-      return {
-        flightFound: false,
-        flightNumber: input.flightNumber,
-        provider: 'google_flights_hybrid',
-        errorMessage: `Google Flights no encontró el vuelo ${input.flightNumber} para esta fecha.`,
-      };
-    }
-
-    return {
-      flightFound: true,
-      flightNumber: payload.flightNumber || leg.flightNumber || flightIdent,
-      departure: {
-        airport: {
-          code: leg.origin || routeHint.origin,
-          name: leg.originName,
-          city: leg.originCity || leg.origin || routeHint.origin,
-        },
-        time: {
-          scheduled: leg.departureTime || '--:--',
-          scheduledDate: leg.departureDate,
-        },
-      },
-      arrival: {
-        airport: {
-          code: leg.destination || routeHint.destination,
-          name: leg.destinationName,
-          city: leg.destinationCity || leg.destination || routeHint.destination,
-        },
-        time: {
-          scheduled: leg.arrivalTime || '--:--',
-          scheduledDate: leg.arrivalDate,
-        },
-      },
-      flightSegment: payload.flightSegment || `${routeHint.origin}/${routeHint.destination}`,
-      provider: 'google_flights_hybrid',
-    };
-  } catch (error) {
-    console.error('[GOOGLE_FLIGHTS] Proxy search failed:', error);
-    return {
-      flightFound: false,
-      flightNumber: input.flightNumber,
-      provider: 'google_flights_hybrid',
-      errorMessage: 'Google Flights experimental no respondió. Revisa el proxy configurado.',
-    };
-  }
+function formatAirLabsDateTime(value?: string): { time: string; date?: string } {
+  if (!value) return { time: '--:--' };
+  const [datePart, timePart] = value.split(' ');
+  return {
+    time: timePart?.slice(0, 5) || '--:--',
+    date: datePart ? formatDateForDisplay(datePart) : undefined,
+  };
 }
 
-async function findFlightWithGoogleHybrid(input: FindFlightInput): Promise<FindFlightOutput> {
-  const naabolResult = await findFlightWithNaabol(input, input.routeHint);
-  if (naabolResult.flightFound || isTodayInBolivia(input.date)) {
-    return naabolResult;
-  }
-
-  if (!input.routeHint) {
-    return {
-      flightFound: false,
-      flightNumber: input.flightNumber,
-      provider: 'google_flights_hybrid',
-      errorMessage: 'Google Flights necesita una ruta cacheada. Si no existe, usa FlightAware una vez para descubrirla.',
-    };
-  }
-
-  return findFlightWithGoogleFlights(input, input.routeHint);
+function getAirLabsComparableDate(flight: AirLabsFlight): string | undefined {
+  return (flight.dep_time || flight.arr_time || flight.dep_estimated || flight.arr_estimated)?.slice(0, 10);
 }
 
+function mapAirLabsFlightToOutput(flight: AirLabsFlight, input: FindFlightInput): FindFlightOutput {
+  const departure = formatAirLabsDateTime(flight.dep_estimated || flight.dep_actual || flight.dep_time);
+  const arrival = formatAirLabsDateTime(flight.arr_estimated || flight.arr_actual || flight.arr_time);
+
+  return {
+    flightFound: true,
+    flightNumber: flight.flight_iata || flight.flight_icao || input.flightNumber,
+    departure: {
+      airport: {
+        code: flight.dep_iata,
+      },
+      time: {
+        scheduled: departure.time,
+        scheduledDate: departure.date || formatDateForDisplay(input.date),
+      },
+    },
+    arrival: {
+      airport: {
+        code: flight.arr_iata,
+      },
+      time: {
+        scheduled: arrival.time,
+        scheduledDate: arrival.date || formatDateForDisplay(input.date),
+      },
+    },
+    flightSegment: `${flight.dep_iata || '---'}/${flight.arr_iata || '---'}`,
+    provider: 'airlabs',
+  };
+}
+
+async function fetchAirLabs(endpoint: 'flight' | 'schedules', key: 'flight_iata' | 'flight_icao', ident: string): Promise<AirLabsResponse> {
+  const apiKey = process.env.AIRLABS_API_KEY;
+  if (!apiKey) {
+    throw new Error('Falta AIRLABS_API_KEY.');
+  }
+
+  const url = new URL(`https://airlabs.co/api/v9/${endpoint}`);
+  url.searchParams.set(key, ident);
+  url.searchParams.set('api_key', apiKey);
+  url.searchParams.set('_fields', 'airline_iata,airline_icao,flight_iata,flight_icao,flight_number,dep_iata,dep_time,dep_estimated,dep_actual,arr_iata,arr_time,arr_estimated,arr_actual,duration,status');
+
+  const response = await fetch(url.toString(), {
+    cache: 'no-store',
+    headers: { accept: 'application/json' },
+  });
+  const payload = await response.json() as AirLabsResponse;
+
+  if (!response.ok || payload.error) {
+    throw new Error(payload.error?.message || `AirLabs request failed with status ${response.status}.`);
+  }
+
+  return payload;
+}
+
+async function findFlightWithAirLabs(input: FindFlightInput): Promise<FindFlightOutput> {
+  const candidates = getAirLabsIdentCandidates(input.flightNumber);
+  const errors: string[] = [];
+
+  for (const candidate of candidates) {
+    for (const endpoint of ['schedules', 'flight'] as const) {
+      try {
+        const payload = await fetchAirLabs(endpoint, candidate.key, candidate.ident);
+        const flights = Array.isArray(payload.response)
+          ? payload.response
+          : payload.response
+            ? [payload.response]
+            : [];
+        const match = flights.find((flight) => getAirLabsComparableDate(flight) === input.date) || flights[0];
+
+        if (match?.dep_iata && match?.arr_iata) {
+          return mapAirLabsFlightToOutput(match, input);
+        }
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+  }
+
+  return {
+    flightFound: false,
+    flightNumber: input.flightNumber,
+    provider: 'airlabs',
+    errorMessage: errors.find((message) => message.includes('AIRLABS_API_KEY')) || `AirLabs no encontro ${input.flightNumber} para ${input.date}.`,
+  };
+}
 
 /**
  * Finds a flight by calling the AeroAPI.
  */
 export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
   try {
-    if (input.provider === 'google_flights_hybrid') {
-      return findFlightWithGoogleHybrid(input);
+    if (input.provider === 'airlabs') {
+      return findFlightWithAirLabs(input);
     }
+
 
     if (input.provider === 'naabol') {
       return findFlightWithNaabol(input, input.routeHint);

@@ -29,6 +29,8 @@ export interface FlightSearchUsageStats {
   lastUpdated: Date;
 }
 
+export type CountedFlightSearchProvider = 'aeroapi' | 'airlabs';
+
 // The structure of our document in Firestore
 interface DailyStats {
   total: number;
@@ -39,6 +41,9 @@ const TIME_ZONE = 'America/La_Paz'; // GMT-4
 const COST_PER_RESULT_SET = 0.005;
 const FREE_CREDIT_USD = 5;
 export const FLIGHTAWARE_DAILY_LIMIT = 30;
+export const AIRLABS_DAILY_LIMIT = 100;
+const AIRLABS_COST_PER_REQUEST = 0;
+const AIRLABS_FREE_CREDIT_USD = 0;
 
 export interface FlightAwareSearchConsumption {
   allowed: boolean;
@@ -47,13 +52,21 @@ export interface FlightAwareSearchConsumption {
   limit: number;
 }
 
-function getTodayStatRef(): DocumentReference<DailyStats> | null {
+function getStatsCollection(provider: CountedFlightSearchProvider): string {
+  return provider === 'airlabs' ? 'airlabsFlightSearchStats' : 'flightSearchStats';
+}
+
+function getDailyLimit(provider: CountedFlightSearchProvider): number {
+  return provider === 'airlabs' ? AIRLABS_DAILY_LIMIT : FLIGHTAWARE_DAILY_LIMIT;
+}
+
+function getTodayStatRef(provider: CountedFlightSearchProvider = 'aeroapi'): DocumentReference<DailyStats> | null {
   if (!db) return null;
 
   const nowUtc = new Date();
   const zonedDate = toZonedTime(nowUtc, TIME_ZONE);
   const dateKey = formatISO(zonedDate);
-  return doc(db, 'flightSearchStats', dateKey) as DocumentReference<DailyStats>;
+  return doc(db, getStatsCollection(provider), dateKey) as DocumentReference<DailyStats>;
 }
 
 /**
@@ -66,19 +79,33 @@ export async function incrementFlightSearchCount(): Promise<void> {
 
 /**
  * Atomically reserves one FlightAware/AeroAPI search for today.
- * Google Flights and NAABOL calls should not use this because they do not consume AeroAPI credit.
+ * AirLabs and NAABOL calls should not use this because they do not consume AeroAPI credit.
  */
 export async function tryConsumeFlightAwareSearch(
   options: { enforceLimit?: boolean } = {}
 ): Promise<FlightAwareSearchConsumption> {
-  const statDocRef = getTodayStatRef();
+  return tryConsumeCountedFlightSearch('aeroapi', options);
+}
+
+export async function tryConsumeAirLabsSearch(
+  options: { enforceLimit?: boolean } = {}
+): Promise<FlightAwareSearchConsumption> {
+  return tryConsumeCountedFlightSearch('airlabs', options);
+}
+
+async function tryConsumeCountedFlightSearch(
+  provider: CountedFlightSearchProvider,
+  options: { enforceLimit?: boolean } = {}
+): Promise<FlightAwareSearchConsumption> {
+  const statDocRef = getTodayStatRef(provider);
+  const dailyLimit = getDailyLimit(provider);
   if (!db || !statDocRef) {
     console.error("Firestore not initialized.");
     return {
       allowed: true,
       total: 0,
-      remaining: FLIGHTAWARE_DAILY_LIMIT,
-      limit: FLIGHTAWARE_DAILY_LIMIT,
+      remaining: dailyLimit,
+      limit: dailyLimit,
     };
   }
 
@@ -92,12 +119,12 @@ export async function tryConsumeFlightAwareSearch(
       const currentData = statDoc.exists() ? statDoc.data() : null;
       const currentTotal = currentData?.total || 0;
 
-      if (options.enforceLimit !== false && currentTotal >= FLIGHTAWARE_DAILY_LIMIT) {
+      if (options.enforceLimit !== false && currentTotal >= dailyLimit) {
         return {
           allowed: false,
           total: currentTotal,
           remaining: 0,
-          limit: FLIGHTAWARE_DAILY_LIMIT,
+          limit: dailyLimit,
         };
       }
 
@@ -120,8 +147,8 @@ export async function tryConsumeFlightAwareSearch(
       return {
         allowed: true,
         total: newTotal,
-        remaining: Math.max(0, FLIGHTAWARE_DAILY_LIMIT - newTotal),
-        limit: FLIGHTAWARE_DAILY_LIMIT,
+        remaining: Math.max(0, dailyLimit - newTotal),
+        limit: dailyLimit,
       };
     });
   } catch (error) {
@@ -129,8 +156,8 @@ export async function tryConsumeFlightAwareSearch(
     return {
       allowed: true,
       total: 0,
-      remaining: FLIGHTAWARE_DAILY_LIMIT,
-      limit: FLIGHTAWARE_DAILY_LIMIT,
+      remaining: dailyLimit,
+      limit: dailyLimit,
     };
   }
 }
@@ -139,7 +166,7 @@ export async function tryConsumeFlightAwareSearch(
  * Retrieves the flight search statistics for the current day based on the specified timezone.
  * @returns An array of stats formatted for the chart, or an empty array on error.
  */
-export async function getTodaysFlightSearchStats(): Promise<FlightSearchStat[]> {
+export async function getTodaysFlightSearchStats(provider: CountedFlightSearchProvider = 'aeroapi'): Promise<FlightSearchStat[]> {
   if (!db) {
     console.error("Firestore not initialized.");
     return [];
@@ -150,7 +177,7 @@ export async function getTodaysFlightSearchStats(): Promise<FlightSearchStat[]> 
   const zonedDate = toZonedTime(nowUtc, TIME_ZONE);
   const dateKey = format(zonedDate, 'yyyy-MM-dd');
 
-  const statDocRef: DocumentReference<DailyStats> = doc(db, 'flightSearchStats', dateKey) as DocumentReference<DailyStats>;
+  const statDocRef: DocumentReference<DailyStats> = doc(db, getStatsCollection(provider), dateKey) as DocumentReference<DailyStats>;
 
   try {
     const statDoc = await getDoc(statDocRef);
@@ -182,9 +209,14 @@ export async function getTodaysFlightSearchStats(): Promise<FlightSearchStat[]> 
  * Retrieves current usage estimates for AeroAPI searches.
  * The estimate assumes max_pages=1, so each app search costs at most one result set.
  */
-export async function getFlightSearchUsageStats(): Promise<FlightSearchUsageStats> {
-  const today = await getTodaysFlightSearchStats();
+export async function getFlightSearchUsageStats(
+  provider: CountedFlightSearchProvider = 'aeroapi'
+): Promise<FlightSearchUsageStats> {
+  const today = await getTodaysFlightSearchStats(provider);
   const todayTotal = today.reduce((sum, item) => sum + item.searches, 0);
+  const dailyLimit = getDailyLimit(provider);
+  const costPerResultSet = provider === 'airlabs' ? AIRLABS_COST_PER_REQUEST : COST_PER_RESULT_SET;
+  const freeCreditUsd = provider === 'airlabs' ? AIRLABS_FREE_CREDIT_USD : FREE_CREDIT_USD;
 
   let monthTotal = todayTotal;
   if (db) {
@@ -197,7 +229,7 @@ export async function getFlightSearchUsageStats(): Promise<FlightSearchUsageStat
       const nextMonth = new Date(year, zonedDate.getMonth() + 1, 1);
       const nextMonthKey = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
-      const statsRef = collection(db, 'flightSearchStats');
+      const statsRef = collection(db, getStatsCollection(provider));
       const monthQuery = query(
         statsRef,
         where(documentId(), '>=', firstDayKey),
@@ -213,24 +245,24 @@ export async function getFlightSearchUsageStats(): Promise<FlightSearchUsageStat
     }
   }
 
-  const estimatedTodayCost = todayTotal * COST_PER_RESULT_SET;
-  const estimatedMonthCost = monthTotal * COST_PER_RESULT_SET;
-  const remainingCreditUsd = Math.max(0, FREE_CREDIT_USD - estimatedMonthCost);
-  const creditUsedPercent = Math.min(100, (estimatedMonthCost / FREE_CREDIT_USD) * 100);
+  const estimatedTodayCost = todayTotal * costPerResultSet;
+  const estimatedMonthCost = monthTotal * costPerResultSet;
+  const remainingCreditUsd = Math.max(0, freeCreditUsd - estimatedMonthCost);
+  const creditUsedPercent = freeCreditUsd > 0 ? Math.min(100, (estimatedMonthCost / freeCreditUsd) * 100) : 0;
 
   return {
     today,
     todayTotal,
-    dailyLimit: FLIGHTAWARE_DAILY_LIMIT,
-    todayRemaining: Math.max(0, FLIGHTAWARE_DAILY_LIMIT - todayTotal),
-    limitUsedPercent: Math.min(100, (todayTotal / FLIGHTAWARE_DAILY_LIMIT) * 100),
+    dailyLimit,
+    todayRemaining: Math.max(0, dailyLimit - todayTotal),
+    limitUsedPercent: Math.min(100, (todayTotal / dailyLimit) * 100),
     monthTotal,
     estimatedTodayCost,
     estimatedMonthCost,
-    freeCreditUsd: FREE_CREDIT_USD,
+    freeCreditUsd,
     remainingCreditUsd,
     creditUsedPercent,
-    costPerResultSet: COST_PER_RESULT_SET,
+    costPerResultSet,
     lastUpdated: new Date(),
   };
 }

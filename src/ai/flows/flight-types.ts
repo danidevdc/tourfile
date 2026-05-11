@@ -7,7 +7,7 @@
 import {z} from 'genkit';
 
 // Schema for input when a user searches for a flight.
-export const FlightSearchProviderSchema = z.enum(['aeroapi', 'google_flights_hybrid', 'naabol']);
+export const FlightSearchProviderSchema = z.enum(['aeroapi', 'airlabs', 'naabol']);
 export type FlightSearchProvider = z.infer<typeof FlightSearchProviderSchema>;
 
 export const FlightRouteHintSchema = z.object({
@@ -23,7 +23,7 @@ export const FindFlightInputSchema = z.object({
   flightNumber: z.string().describe("The flight number to search for (e.g., 'OB304', 'AA923')."),
   date: z.string().describe("The date of the flight in 'YYYY-MM-DD' format."),
   provider: FlightSearchProviderSchema.optional().describe("The flight data provider to use."),
-  routeHint: FlightRouteHintSchema.optional().describe("Known route used by Google Flights hybrid provider."),
+  routeHint: FlightRouteHintSchema.optional().describe("Known route used by NAABOL partial matching and route cache."),
   routeDurationMinutes: z.number().int().positive().optional().describe("Known duration for the route, used to estimate missing NAABOL times."),
 });
 export type FindFlightInput = z.infer<typeof FindFlightInputSchema>;

@@ -86,6 +86,7 @@ export default function AdminDashboardPage() {
   const [userModules, setUserModules_state] = useState<Record<string, AppModule[]>>({});
   const [savingUid, setSavingUid] = useState<string | null>(null);
   const [flightUsage, setFlightUsage] = useState<FlightSearchUsageStats | null>(null);
+  const [airLabsUsage, setAirLabsUsage] = useState<FlightSearchUsageStats | null>(null);
   const [flightProvider, setFlightProviderState] = useState<FlightSearchProvider>('aeroapi');
   const [isSavingFlightProvider, setIsSavingFlightProvider] = useState(false);
 
@@ -115,13 +116,15 @@ export default function AdminDashboardPage() {
           setIsLoadingData(true);
           try {
             // Fetch all data in parallel
-            const [reports, userProfiles, flightStats, flightSettings] = await Promise.all([
+            const [reports, userProfiles, flightStats, airLabsStats, flightSettings] = await Promise.all([
               getAllReportsFromFirestore(),
               getAllUserProfiles(),
-              getFlightSearchUsageStats(),
+              getFlightSearchUsageStats('aeroapi'),
+              getFlightSearchUsageStats('airlabs'),
               getFlightSearchSettings(),
             ]);
             setFlightUsage(flightStats);
+            setAirLabsUsage(airLabsStats);
             setFlightProviderState(flightSettings.provider);
 
             const nonAdminUsers = userProfiles
@@ -191,7 +194,12 @@ export default function AdminDashboardPage() {
 
     const refreshFlightUsage = async () => {
       try {
-        setFlightUsage(await getFlightSearchUsageStats());
+        const [flightStats, airLabsStats] = await Promise.all([
+          getFlightSearchUsageStats('aeroapi'),
+          getFlightSearchUsageStats('airlabs'),
+        ]);
+        setFlightUsage(flightStats);
+        setAirLabsUsage(airLabsStats);
       } catch (error) {
         console.error("Failed to refresh flight usage stats:", error);
       }
@@ -231,8 +239,8 @@ export default function AdminDashboardPage() {
       toast({
         title: "Proveedor actualizado",
         description: provider === 'aeroapi'
-          ? "El buscador usará AeroAPI."
-          : "El buscador usará NAABOL hoy, Google para futuros y AeroAPI como respaldo.",
+          ? "Vuelos de hoy usaran NAABOL; vuelos futuros usaran FlightAware."
+          : "Vuelos de hoy usaran NAABOL; vuelos futuros usaran AirLabs.",
         variant: "success" as any,
       });
     } catch {
@@ -311,10 +319,10 @@ export default function AdminDashboardPage() {
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <CardTitle className="text-xl flex items-center gap-2">
-                  <Plane className="text-primary" /> Control AeroAPI
+                  <Plane className="text-primary" /> Control de consultas de vuelos
                 </CardTitle>
                 <CardDescription>
-                  Solo cuenta llamadas reales a FlightAware. NAABOL y Google no consumen este cupo.
+                  Contadores separados para FlightAware y AirLabs. NAABOL no consume estos cupos.
                 </CardDescription>
               </div>
               <Badge variant="outline" className="w-fit gap-2 border-primary/30 bg-primary/5 text-primary">
@@ -336,7 +344,7 @@ export default function AdminDashboardPage() {
                       <div>
                         <div className="text-sm font-semibold">Proveedor del buscador</div>
                         <div className="text-xs text-muted-foreground">
-                          Google experimental usa NAABOL para vuelos de hoy, Google para futuros y AeroAPI como respaldo.
+                          El proveedor elegido solo aplica a vuelos futuros. Los vuelos del dia usan NAABOL.
                         </div>
                       </div>
                       <div className="inline-flex rounded-lg border bg-muted/30 p-1">
@@ -355,22 +363,22 @@ export default function AdminDashboardPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleFlightProviderChange('google_flights_hybrid')}
+                          onClick={() => handleFlightProviderChange('airlabs')}
                           disabled={isSavingFlightProvider}
                           className={cn(
                             "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
-                            flightProvider === 'google_flights_hybrid'
+                            flightProvider === 'airlabs'
                               ? "bg-primary text-primary-foreground shadow-sm"
                               : "text-muted-foreground hover:text-foreground"
                           )}
                         >
-                          Google experimental
+                          AirLabs
                         </button>
                       </div>
                     </div>
                     <div className="mt-3 text-xs text-muted-foreground">
                       Activo: <span className="font-semibold text-foreground">
-                        {flightProvider === 'aeroapi' ? 'AeroAPI' : 'Google Flights experimental'}
+                        {flightProvider === 'aeroapi' ? 'AeroAPI' : 'AirLabs'}
                       </span>
                     </div>
                   </div>
@@ -387,6 +395,18 @@ export default function AdminDashboardPage() {
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">Mes actual</div>
                       <div className="mt-2 text-3xl font-bold text-primary">{flightUsage.monthTotal}</div>
                       <div className="text-xs text-muted-foreground">{formatUsd(flightUsage.estimatedMonthCost)}</div>
+                    </div>
+                    <div className="rounded-xl border bg-muted/20 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">AirLabs hoy</div>
+                      <div className="mt-2 text-3xl font-bold text-primary">{airLabsUsage?.todayTotal ?? 0}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {airLabsUsage?.todayRemaining ?? 0} de {airLabsUsage?.dailyLimit ?? 0} disponibles
+                      </div>
+                    </div>
+                    <div className="rounded-xl border bg-muted/20 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">AirLabs mes</div>
+                      <div className="mt-2 text-3xl font-bold text-primary">{airLabsUsage?.monthTotal ?? 0}</div>
+                      <div className="text-xs text-muted-foreground">Contador separado</div>
                     </div>
                   </div>
 
