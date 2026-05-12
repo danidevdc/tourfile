@@ -106,6 +106,14 @@ function resultTouchesLPB(result?: FindFlightOutput | null): boolean {
   return result?.departure?.airport.code === 'LPB' || result?.arrival?.airport.code === 'LPB';
 }
 
+function getStatusLabel(result: FindFlightOutput) {
+  return result.statusLabel || 'ENCONTRADO';
+}
+
+function getStatusTone(result: FindFlightOutput) {
+  return result.statusTone || 'success';
+}
+
 function FlightTime({ time, date, align = 'left' }: { time: string; date: string; align?: 'left' | 'right' }) {
   return (
     <span className={`nd-flight-time-card nd-flight-time-card-${align}`}>
@@ -228,6 +236,7 @@ function FlightSearchCard() {
       setError('INGRESA EL NÚMERO DE VUELO Y LA FECHA');
       return;
     }
+    const searchedFlightNumber = flightNumber.replace(/\s/g, '').toUpperCase();
     const normalizedFlightNumber = normalizeFlightNumberForCache(flightNumber);
     setIsLoading(true);
     setError(null);
@@ -249,13 +258,13 @@ function FlightSearchCard() {
         if (!consumption.allowed) {
           return {
             flightFound: false,
-            flightNumber: normalizedFlightNumber,
+            flightNumber: searchedFlightNumber,
             provider: 'aeroapi',
             errorMessage: `LIMITE DIARIO DE FLIGHTAWARE ALCANZADO (${consumption.total}/${consumption.limit}). PRUEBA MANANA O USA NAABOL PARA VUELOS DE HOY.`,
           };
         }
         return findFlight({
-          flightNumber: normalizedFlightNumber,
+          flightNumber: searchedFlightNumber,
           date,
           provider: 'aeroapi',
         });
@@ -265,13 +274,13 @@ function FlightSearchCard() {
         if (!consumption.allowed) {
           return {
             flightFound: false,
-            flightNumber: normalizedFlightNumber,
+            flightNumber: searchedFlightNumber,
             provider: 'airlabs',
             errorMessage: `LIMITE DIARIO DE AIRLABS ALCANZADO (${consumption.total}/${consumption.limit}).`,
           };
         }
         return findFlight({
-          flightNumber: normalizedFlightNumber,
+          flightNumber: searchedFlightNumber,
           date,
           provider: 'airlabs',
         });
@@ -313,7 +322,7 @@ function FlightSearchCard() {
       const isToday = date === format(new Date(), 'yyyy-MM-dd');
       let result = isToday
         ? await findFlight({
-            flightNumber: normalizedFlightNumber,
+            flightNumber: searchedFlightNumber,
             date,
             provider: 'naabol',
             routeHint,
@@ -445,9 +454,9 @@ function FlightSearchCard() {
               <span className="nd-label nd-secondary">VUELO</span>
               <FlightIdentityPill flightNumber={searchResult.flightNumber || ''} />
             </div>
-            <div className="nd-status-found">
+            <div className={`nd-status-found nd-status-${getStatusTone(searchResult)}`}>
               <span className="nd-status-dot" />
-              <span className="nd-label">ENCONTRADO</span>
+              <span className="nd-label">{getStatusLabel(searchResult)}</span>
             </div>
           </div>
 
@@ -474,6 +483,9 @@ function FlightSearchCard() {
             <div className="nd-source-strip">
               <span className="nd-label nd-secondary">FUENTE</span>
               <span className="nd-source-name">{getProviderLabel(searchResult.provider)}</span>
+              {searchResult.providerFlightNumber && (
+                <span className="nd-provider-id">ID {searchResult.providerFlightNumber}</span>
+              )}
               {resultTouchesLPB(searchResult) && (
                 <span className="nd-source-lpb">LPB</span>
               )}
@@ -704,14 +716,19 @@ function FlightSearchCard() {
           align-items: center;
           gap: 6px;
         }
-        .nd-status-found .nd-label { color: hsl(142 62% 40%); }
+        .nd-status-found .nd-label { color: var(--nd-status-color, hsl(142 62% 40%)); }
         .nd-status-dot {
           width: 6px;
           height: 6px;
           border-radius: 50%;
-          background: hsl(142 62% 40%);
+          background: var(--nd-status-color, hsl(142 62% 40%));
           flex-shrink: 0;
         }
+        .nd-status-success { --nd-status-color: hsl(142 62% 40%); }
+        .nd-status-warning { --nd-status-color: hsl(38 92% 46%); }
+        .nd-status-danger { --nd-status-color: hsl(var(--destructive)); }
+        .nd-status-info { --nd-status-color: hsl(var(--primary)); }
+        .nd-status-neutral { --nd-status-color: hsl(var(--muted-foreground)); }
 
         /* ── FIDS horizontal layout ──────────────────────────────────── */
         .nd-fids-horizontal {
@@ -952,6 +969,21 @@ function FlightSearchCard() {
           font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.08em;
+        }
+        .nd-provider-id {
+          display: inline-flex;
+          align-items: center;
+          min-height: 24px;
+          padding: 3px 8px;
+          border-radius: 999px;
+          background: hsl(var(--background) / 0.78);
+          border: 1px solid hsl(var(--border));
+          color: hsl(var(--muted-foreground));
+          font-family: "Space Mono", monospace;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
         }
 
         /* ── Stats bar ──────────────────────────────────────────────── */

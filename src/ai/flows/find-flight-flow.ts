@@ -11,6 +11,7 @@ import { formatTime, formatISO } from '@/lib/date-utils';
 import type { FindFlightInput, FindFlightOutput, FlightRouteHint } from './flight-types';
 
 const FLIGHTAWARE_TOO_FAR_FUTURE_ERROR = 'FLIGHTAWARE_TOO_FAR_FUTURE';
+type FlightStatusTone = NonNullable<FindFlightOutput['statusTone']>;
 
 function getApiKey(): string {
   const apiKey = process.env.NEXT_PUBLIC_AEROAPI_KEY;
@@ -121,6 +122,67 @@ function isAeroApiTooFarFutureError(rawError: unknown): boolean {
   );
 }
 
+function normalizeStatusTone(label?: string): FlightStatusTone {
+  const normalized = (label || '').toUpperCase();
+  if (normalized.includes('CANCEL') || normalized.includes('CANCELADO')) return 'danger';
+  if (normalized.includes('DELAY') || normalized.includes('DEMOR') || normalized.includes('RETRAS')) return 'warning';
+  if (normalized.includes('TIERRA') || normalized.includes('ARRIVED') || normalized.includes('LANDED')) return 'info';
+  if (normalized.includes('PRE-EMBARQUE') || normalized.includes('BOARD')) return 'info';
+  if (normalized.includes('CONFIRM') || normalized.includes('HORARIO') || normalized.includes('TIME') || normalized.includes('SCHEDULE')) return 'success';
+  return 'neutral';
+}
+
+function normalizeAeroApiStatus(flight: any): { statusLabel: string; statusTone: FlightStatusTone } {
+  const rawStatus = String(flight.status || '').trim();
+  const delaySeconds = Math.max(Number(flight.departure_delay || 0), Number(flight.arrival_delay || 0));
+  const lowerStatus = rawStatus.toLowerCase();
+
+  if (flight.cancelled || lowerStatus.includes('cancel')) {
+    return { statusLabel: 'CANCELADO', statusTone: 'danger' };
+  }
+  if (flight.diverted || lowerStatus.includes('divert')) {
+    return { statusLabel: 'DESVIADO', statusTone: 'warning' };
+  }
+  if (delaySeconds >= 900 || lowerStatus.includes('delay')) {
+    return { statusLabel: 'DEMORADO', statusTone: 'warning' };
+  }
+  if (flight.actual_on || flight.actual_in || lowerStatus.includes('arrived')) {
+    return { statusLabel: 'EN TIERRA', statusTone: 'info' };
+  }
+
+  return { statusLabel: 'EN HORARIO', statusTone: 'success' };
+}
+
+function normalizeAirLabsStatus(status?: string): { statusLabel: string; statusTone: FlightStatusTone } {
+  const normalized = (status || '').trim().toLowerCase();
+  if (normalized.includes('cancel')) return { statusLabel: 'CANCELADO', statusTone: 'danger' };
+  if (normalized.includes('delay')) return { statusLabel: 'DEMORADO', statusTone: 'warning' };
+  if (normalized.includes('land')) return { statusLabel: 'EN TIERRA', statusTone: 'info' };
+  if (normalized.includes('active') || normalized.includes('scheduled')) return { statusLabel: 'EN HORARIO', statusTone: 'success' };
+  return { statusLabel: status?.trim().toUpperCase() || 'EN HORARIO', statusTone: normalizeStatusTone(status) };
+}
+
+function chooseAeroApiDisplayFlightNumber(flight: any, originalFlightNumber: string): { display: string; provider?: string } {
+  const original = originalFlightNumber.replace(/\s/g, '').toUpperCase();
+  const provider = flight.ident_iata || flight.ident || flight.ident_icao;
+  const providerValues = [flight.ident_iata, flight.ident, flight.ident_icao]
+    .filter(Boolean)
+    .map((value: string) => value.replace(/\s/g, '').toUpperCase());
+  const codeshares = [
+    ...(Array.isArray(flight.codeshares_iata) ? flight.codeshares_iata : []),
+    ...(Array.isArray(flight.codeshares) ? flight.codeshares : []),
+  ].map((value: string) => value.replace(/\s/g, '').toUpperCase());
+
+  const display = providerValues.includes(original) || codeshares.includes(original)
+    ? original
+    : provider || normalizeIdent(flight.ident);
+
+  return {
+    display,
+    provider: provider && provider.replace(/\s/g, '').toUpperCase() !== display ? provider : undefined,
+  };
+}
+
 // Maps the AeroAPI response to our app's FindFlightOutput format
 function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string): FindFlightOutput {
   if (!apiData || !apiData.flights || apiData.flights.length === 0) {
@@ -168,9 +230,13 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
     }
   };
 
+  const flightNumber = chooseAeroApiDisplayFlightNumber(flight, originalFlightNumber);
+  const status = normalizeAeroApiStatus(flight);
+
   return {
     flightFound: true,
-    flightNumber: flight.ident_iata || normalizeIdent(flight.ident), // Prefer the user-facing IATA ident.
+    flightNumber: flightNumber.display,
+    providerFlightNumber: flightNumber.provider,
     departure: {
       airport: {
         code: flight.origin?.code_iata,
@@ -195,6 +261,8 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
     },
     flightSegment: `${flight.origin?.code_iata}/${flight.destination?.code_iata}`,
     provider: 'aeroapi',
+    statusLabel: status.statusLabel,
+    statusTone: status.statusTone,
   };
 }
 
@@ -341,6 +409,14 @@ function getNaabolRouteCity(flight?: NaabolItinerary, fallback?: string): string
   return flight?.RUTA0?.split(' - ')[0]?.trim() || fallback || 'Ruta';
 }
 
+function getNaabolStatus(flight?: NaabolItinerary): { statusLabel: string; statusTone: FlightStatusTone } {
+  const label = flight?.OBSERVACION?.trim().toUpperCase() || 'ENCONTRADO';
+  return {
+    statusLabel: label,
+    statusTone: normalizeStatusTone(label),
+  };
+}
+
 async function fetchNaabolItineraries(aero: string, tipo: 'S' | 'L'): Promise<NaabolItinerary[]> {
   const url = new URL('https://fids.naabol.gob.bo/Fids/itin/vuelos');
   url.searchParams.set('aero', aero);
@@ -380,6 +456,7 @@ function mapNaabolFlightToOutput(
       : shiftNaabolDateTime(input.date, displayTime, -routeDurationMinutes)
     : { time: '--:--', date: scheduledDate };
   const displayFlightNumber = formatNaabolFlightNumber(input.flightNumber, flight.NRO_VUELO);
+  const status = getNaabolStatus(flight);
 
   const departure = tipo === 'S'
     ? {
@@ -408,6 +485,8 @@ function mapNaabolFlightToOutput(
     arrival,
     flightSegment: `${departure.airport.code || '---'}/${arrival.airport.code || '---'}`,
     provider: 'naabol',
+    statusLabel: status.statusLabel,
+    statusTone: status.statusTone,
   };
 }
 
@@ -445,6 +524,7 @@ function mapNaabolMergedFlightToOutput(
     input.flightNumber,
     departureMatch.flight.NRO_VUELO || arrivalMatch.flight.NRO_VUELO
   );
+  const status = getNaabolStatus(arrivalMatch.flight || departureMatch.flight);
 
   return {
     flightFound: true,
@@ -473,6 +553,8 @@ function mapNaabolMergedFlightToOutput(
     },
     flightSegment: `${departureMatch.target.code}/${arrivalMatch.target.code}`,
     provider: 'naabol',
+    statusLabel: status.statusLabel,
+    statusTone: status.statusTone,
   };
 }
 
@@ -606,10 +688,13 @@ function flightTouchesAirport(
 function mapAirLabsFlightToOutput(flight: AirLabsFlight, input: FindFlightInput): FindFlightOutput {
   const departure = formatAirLabsDateTime(flight.dep_estimated || flight.dep_actual || flight.dep_time);
   const arrival = formatAirLabsDateTime(flight.arr_estimated || flight.arr_actual || flight.arr_time);
+  const status = normalizeAirLabsStatus(flight.status);
+  const providerFlightNumber = flight.flight_iata || flight.flight_icao;
 
   return {
     flightFound: true,
-    flightNumber: flight.flight_iata || flight.flight_icao || input.flightNumber,
+    flightNumber: input.flightNumber,
+    providerFlightNumber: providerFlightNumber && providerFlightNumber !== input.flightNumber ? providerFlightNumber : undefined,
     departure: {
       airport: {
         code: flight.dep_iata,
@@ -630,6 +715,8 @@ function mapAirLabsFlightToOutput(flight: AirLabsFlight, input: FindFlightInput)
     },
     flightSegment: `${flight.dep_iata || '---'}/${flight.arr_iata || '---'}`,
     provider: 'airlabs',
+    statusLabel: status.statusLabel,
+    statusTone: status.statusTone,
   };
 }
 

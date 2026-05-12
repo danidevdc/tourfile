@@ -44,6 +44,7 @@ const FlightTimeSchema = z.object({
 export const FindFlightOutputSchema = z.object({
   flightFound: z.boolean().describe('Whether a flight was successfully found.'),
   flightNumber: z.string().optional().describe("The flight number that was found (e.g., 'AAL923')."),
+  providerFlightNumber: z.string().optional().describe("The operating/provider flight identifier, when different from the displayed flight number."),
   departure: z.object({
     airport: AirportInfoSchema,
     time: FlightTimeSchema,
@@ -54,6 +55,8 @@ export const FindFlightOutputSchema = z.object({
   }).optional(),
   flightSegment: z.string().optional().describe("The flight route segment as 'DEPARTURE_CODE/ARRIVAL_CODE' (e.g., 'MIA/LPB')."),
   provider: FlightSearchProviderSchema.optional().describe("Provider that produced the result."),
+  statusLabel: z.string().optional().describe("Human-readable flight status from the provider."),
+  statusTone: z.enum(['success', 'warning', 'danger', 'info', 'neutral']).optional().describe("UI color tone for the flight status."),
   errorMessage: z.string().optional().describe("An error message if the search flow failed."),
   errorCode: z.string().optional().describe("A stable internal error code used by the UI to choose fallback behavior.")
 });
