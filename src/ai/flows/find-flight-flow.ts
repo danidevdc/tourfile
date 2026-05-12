@@ -125,7 +125,7 @@ function isAeroApiTooFarFutureError(rawError: unknown): boolean {
 function normalizeStatusTone(label?: string): FlightStatusTone {
   const normalized = (label || '').toUpperCase();
   if (normalized.includes('CANCEL') || normalized.includes('CANCELADO')) return 'danger';
-  if (normalized.includes('DELAY') || normalized.includes('DEMOR') || normalized.includes('RETRAS')) return 'warning';
+  if (normalized.includes('DELAY') || normalized.includes('DEMOR') || normalized.includes('RETRAS')) return 'danger';
   if (normalized.includes('TIERRA') || normalized.includes('ARRIVED') || normalized.includes('LANDED')) return 'info';
   if (normalized.includes('PRE-EMBARQUE') || normalized.includes('BOARD')) return 'info';
   if (normalized.includes('CONFIRM') || normalized.includes('HORARIO') || normalized.includes('TIME') || normalized.includes('SCHEDULE')) return 'success';
@@ -144,7 +144,7 @@ function normalizeAeroApiStatus(flight: any): { statusLabel: string; statusTone:
     return { statusLabel: 'DESVIADO', statusTone: 'warning' };
   }
   if (delaySeconds >= 900 || lowerStatus.includes('delay')) {
-    return { statusLabel: 'DEMORADO', statusTone: 'warning' };
+    return { statusLabel: 'DEMORADO', statusTone: 'danger' };
   }
   if (flight.actual_on || flight.actual_in || lowerStatus.includes('arrived')) {
     return { statusLabel: 'EN TIERRA', statusTone: 'info' };
@@ -156,7 +156,7 @@ function normalizeAeroApiStatus(flight: any): { statusLabel: string; statusTone:
 function normalizeAirLabsStatus(status?: string): { statusLabel: string; statusTone: FlightStatusTone } {
   const normalized = (status || '').trim().toLowerCase();
   if (normalized.includes('cancel')) return { statusLabel: 'CANCELADO', statusTone: 'danger' };
-  if (normalized.includes('delay')) return { statusLabel: 'DEMORADO', statusTone: 'warning' };
+  if (normalized.includes('delay')) return { statusLabel: 'DEMORADO', statusTone: 'danger' };
   if (normalized.includes('land')) return { statusLabel: 'EN TIERRA', statusTone: 'info' };
   if (normalized.includes('active') || normalized.includes('scheduled')) return { statusLabel: 'EN HORARIO', statusTone: 'success' };
   return { statusLabel: status?.trim().toUpperCase() || 'EN HORARIO', statusTone: normalizeStatusTone(status) };
