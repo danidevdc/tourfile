@@ -4,15 +4,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { Loader2, Plane, Search, ArrowLeft, PlaneTakeoff, PlaneLanding, Plus, X, RotateCcw } from "lucide-react";
+import { Loader2, Plane, Search, ArrowLeft, PlaneTakeoff, PlaneLanding, X, RotateCcw } from "lucide-react";
 import { findFlight } from "@/ai/flows/find-flight-flow";
-import type { FindFlightOutput } from "@/ai/flows/flight-types";
+import type { FindFlightOutput, FlightSearchProvider } from "@/ai/flows/flight-types";
 import { useAuth, type AppModule } from "@/hooks/useAuth";
 import { tryConsumeAirLabsSearch, tryConsumeFlightAwareSearch } from "@/lib/flightSearchCounterService";
 import { getFlightRouteFromCache, normalizeFlightNumberForCache, saveFlightRouteToCache } from "@/lib/flightRouteCacheService";
 import { calculateFlightDurationMinutes, getFlightRouteDurationFromCache, saveFlightRouteDurationToCache } from "@/lib/flightRouteDurationCacheService";
-import { createFlight, type PredefinedFlight } from "@/lib/serviceOrderService";
-import { useToast } from "@/hooks/use-toast";
 
 // ── Live dot-matrix clock ─────────────────────────────────────────────────────
 function LiveClock() {
@@ -89,6 +87,23 @@ function formatDisplayDate(dateValue: string) {
   if (dateValue.includes('/')) return dateValue;
   const [year, month, day] = dateValue.split('-');
   return year && month && day ? `${day}/${month}/${year}` : dateValue;
+}
+
+function getProviderLabel(provider?: FlightSearchProvider) {
+  switch (provider) {
+    case 'naabol':
+      return 'NAABOL';
+    case 'airlabs':
+      return 'AirLabs';
+    case 'aeroapi':
+      return 'FlightAware';
+    default:
+      return 'Proveedor externo';
+  }
+}
+
+function resultTouchesLPB(result?: FindFlightOutput | null): boolean {
+  return result?.departure?.airport.code === 'LPB' || result?.arrival?.airport.code === 'LPB';
 }
 
 function FlightTime({ time, date, align = 'left' }: { time: string; date: string; align?: 'left' | 'right' }) {
@@ -192,11 +207,8 @@ function FlightSearchCard() {
   const [flightNumber, setFlightNumber] = useState('');
   const [date, setDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [isLoading, setIsLoading] = useState(false);
-  const [isAdding, setIsAdding] = useState(false);
   const [searchResult, setSearchResult] = useState<FindFlightOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [addedOk, setAddedOk] = useState(false);
-  const { toast } = useToast();
   const flightInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -208,7 +220,6 @@ function FlightSearchCard() {
     setDate(format(new Date(), 'yyyy-MM-dd'));
     setSearchResult(null);
     setError(null);
-    setAddedOk(false);
     flightInputRef.current?.focus();
   };
 
@@ -221,7 +232,6 @@ function FlightSearchCard() {
     setIsLoading(true);
     setError(null);
     setSearchResult(null);
-    setAddedOk(false);
     try {
       const routeCache = await getFlightRouteFromCache(normalizedFlightNumber);
       const routeHint = routeCache ? {
@@ -311,12 +321,18 @@ function FlightSearchCard() {
           })
         : await runAeroApiSearch();
 
-      if (isToday && !result.flightFound) {
-        result = await runAirLabsSearch();
+      if (isToday && !resultTouchesLPB(result)) {
+        const airLabsResult = await runAirLabsSearch();
+        if (airLabsResult.flightFound && (!result.flightFound || resultTouchesLPB(airLabsResult))) {
+          result = airLabsResult;
+        }
       }
 
-      if (isToday && !result.flightFound) {
-        result = await runAeroApiSearch();
+      if (isToday && !resultTouchesLPB(result)) {
+        const aeroApiResult = await runAeroApiSearch();
+        if (aeroApiResult.flightFound && (!result.flightFound || resultTouchesLPB(aeroApiResult))) {
+          result = aeroApiResult;
+        }
       }
 
       if (result.errorMessage) {
@@ -335,34 +351,6 @@ function FlightSearchCard() {
       console.error(e);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleAddFlight = async () => {
-    if (!searchResult?.flightFound) return;
-    setIsAdding(true);
-    try {
-      const { flightNumber: ident, departure, arrival, flightSegment } = searchResult;
-      if (ident && departure?.time.scheduled && arrival?.time.scheduled) {
-        await createFlight({
-          flightNumber: ident,
-          time: arrival.time.scheduled,
-          observations: `VUELO LLEGA ${arrival.time.scheduled}. ${flightSegment}`,
-        } as Omit<PredefinedFlight, 'id'>);
-        await createFlight({
-          flightNumber: ident,
-          time: departure.time.scheduled,
-          observations: `VUELO SALE ${departure.time.scheduled}. ${flightSegment}`,
-        } as Omit<PredefinedFlight, 'id'>);
-        setAddedOk(true);
-        toast({ title: 'Vuelo guardado', description: `${ident} añadido a la lista.`, variant: 'success' as any });
-      } else {
-        throw new Error('Datos insuficientes para guardar el vuelo.');
-      }
-    } catch (e: any) {
-      toast({ title: 'Error al guardar', description: e.message, variant: 'destructive' });
-    } finally {
-      setIsAdding(false);
     }
   };
 
@@ -481,25 +469,15 @@ function FlightSearchCard() {
             }}
           />
 
-          {/* Save action */}
+          {/* Data source */}
           <div className="nd-fids-action">
-            {addedOk ? (
-              <div className="nd-saved-inline">
-                <span className="nd-label">[GUARDADO] — VUELO AÑADIDO A LA LISTA</span>
-              </div>
-            ) : (
-              <button
-                onClick={handleAddFlight}
-                disabled={isAdding}
-                className={`nd-btn nd-btn-secondary nd-btn-full ${isAdding ? 'nd-btn-disabled' : ''}`}
-              >
-                {isAdding
-                  ? <Loader2 size={14} strokeWidth={1.5} className="nd-spin" />
-                  : <Plus size={14} strokeWidth={1.5} />
-                }
-                {isAdding ? 'GUARDANDO...' : 'AÑADIR A MIS VUELOS'}
-              </button>
-            )}
+            <div className="nd-source-strip">
+              <span className="nd-label nd-secondary">FUENTE</span>
+              <span className="nd-source-name">{getProviderLabel(searchResult.provider)}</span>
+              {resultTouchesLPB(searchResult) && (
+                <span className="nd-source-lpb">LPB</span>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -939,14 +917,42 @@ function FlightSearchCard() {
         .nd-icon-muted    { color: hsl(var(--muted-foreground)); }
         .nd-icon-disabled { color: hsl(var(--muted-foreground) / 0.5); }
 
-        /* ── Save feedback ──────────────────────────────────────────── */
+        /* ── Data source ────────────────────────────────────────────── */
         .nd-fids-action { margin-top: 20px; }
-        .nd-saved-inline {
+        .nd-source-strip {
           display: flex;
           align-items: center;
-          padding: 10px 0;
+          justify-content: space-between;
+          gap: 12px;
+          min-height: 44px;
+          padding: 10px 14px;
+          border: 1px solid hsl(var(--primary) / 0.22);
+          border-radius: 10px;
+          background: hsl(var(--primary) / 0.07);
         }
-        .nd-saved-inline .nd-label { color: hsl(142 62% 40%); }
+        .nd-source-name {
+          flex: 1;
+          font-family: "Space Mono", monospace;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: hsl(var(--foreground));
+        }
+        .nd-source-lpb {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 24px;
+          padding: 3px 8px;
+          border-radius: 999px;
+          background: hsl(142 62% 40% / 0.12);
+          color: hsl(142 62% 34%);
+          font-family: "Space Mono", monospace;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+        }
 
         /* ── Stats bar ──────────────────────────────────────────────── */
         /* ── Spin animation ─────────────────────────────────────────── */

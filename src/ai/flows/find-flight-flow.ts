@@ -133,8 +133,8 @@ function mapApiResponseToFlightOutput(apiData: any, originalFlightNumber: string
 
   // Prefer flights that involve La Paz (El Alto), but allow other routes too.
   const laPazFlight = apiData.flights.find((f: any) =>
-    (f.origin?.code_iata === 'LPB' && f.origin?.name?.toLowerCase().includes('el alto')) ||
-    (f.destination?.code_iata === 'LPB' && f.destination?.name?.toLowerCase().includes('el alto'))
+    f.origin?.code_iata === 'LPB' ||
+    f.destination?.code_iata === 'LPB'
   );
   
   const flight = laPazFlight || apiData.flights[0];
@@ -595,6 +595,14 @@ function getAirLabsComparableDate(flight: AirLabsFlight): string | undefined {
   return (flight.dep_time || flight.arr_time || flight.dep_estimated || flight.arr_estimated)?.slice(0, 10);
 }
 
+function flightTouchesAirport(
+  flight: { dep_iata?: string; arr_iata?: string },
+  airportCode: string
+): boolean {
+  const code = airportCode.toUpperCase();
+  return flight.dep_iata?.toUpperCase() === code || flight.arr_iata?.toUpperCase() === code;
+}
+
 function mapAirLabsFlightToOutput(flight: AirLabsFlight, input: FindFlightInput): FindFlightOutput {
   const departure = formatAirLabsDateTime(flight.dep_estimated || flight.dep_actual || flight.dep_time);
   const arrival = formatAirLabsDateTime(flight.arr_estimated || flight.arr_actual || flight.arr_time);
@@ -659,7 +667,8 @@ async function findFlightWithAirLabs(input: FindFlightInput): Promise<FindFlight
       : payload.response
         ? [payload.response]
         : [];
-    const match = flights.find((flight) => getAirLabsComparableDate(flight) === input.date);
+    const datedFlights = flights.filter((flight) => getAirLabsComparableDate(flight) === input.date);
+    const match = datedFlights.find((flight) => flightTouchesAirport(flight, 'LPB')) || datedFlights[0];
 
     if (match?.dep_iata && match?.arr_iata) {
       return mapAirLabsFlightToOutput(match, input);
