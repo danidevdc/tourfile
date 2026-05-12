@@ -321,14 +321,14 @@ function FlightSearchCard() {
           })
         : await runAeroApiSearch();
 
-      if (isToday && !resultTouchesLPB(result)) {
+      if (isToday && !result.flightFound) {
         const airLabsResult = await runAirLabsSearch();
         if (airLabsResult.flightFound && (!result.flightFound || resultTouchesLPB(airLabsResult))) {
           result = airLabsResult;
         }
       }
 
-      if (isToday && !resultTouchesLPB(result)) {
+      if (isToday && !result.flightFound) {
         const aeroApiResult = await runAeroApiSearch();
         if (aeroApiResult.flightFound && (!result.flightFound || resultTouchesLPB(aeroApiResult))) {
           result = aeroApiResult;
