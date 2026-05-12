@@ -77,6 +77,10 @@ function getIdentCandidates(flightNumber: string): string[] {
   return Array.from(new Set(candidates));
 }
 
+function isSupportedFlightNumber(flightNumber: string): boolean {
+  return /^(LA|AV|OB|8J|ECO)\d{1,4}$/.test(flightNumber.replace(/\s/g, '').toUpperCase());
+}
+
 function getAirLabsIdentCandidates(flightNumber: string): Array<{ key: 'flight_iata' | 'flight_icao'; ident: string }> {
   const compact = flightNumber.replace(/\s/g, '').toUpperCase();
   const match = compact.match(/^([A-Z0-9]+?)(\d+)$/);
@@ -783,6 +787,15 @@ async function findFlightWithAirLabs(input: FindFlightInput): Promise<FindFlight
  */
 export async function findFlight(input: FindFlightInput): Promise<FindFlightOutput> {
   try {
+    if (!isSupportedFlightNumber(input.flightNumber)) {
+      return {
+        flightFound: false,
+        flightNumber: input.flightNumber,
+        provider: input.provider,
+        errorMessage: 'Formato invalido. Usa LA, AV, OB, 8J o ECO seguido del numero de vuelo.',
+      };
+    }
+
     if (input.provider === 'airlabs') {
       return findFlightWithAirLabs(input);
     }

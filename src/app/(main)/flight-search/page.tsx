@@ -106,8 +106,12 @@ function resultTouchesLPB(result?: FindFlightOutput | null): boolean {
   return result?.departure?.airport.code === 'LPB' || result?.arrival?.airport.code === 'LPB';
 }
 
+function isSupportedFlightNumber(flightNumber: string): boolean {
+  return /^(LA|AV|OB|8J|ECO)\d{1,4}$/.test(flightNumber.replace(/\s/g, '').toUpperCase());
+}
+
 function getStatusLabel(result: FindFlightOutput) {
-  return result.statusLabel || 'ENCONTRADO';
+  return result.statusLabel || 'EN HORARIO';
 }
 
 function getStatusTone(result: FindFlightOutput) {
@@ -237,6 +241,12 @@ function FlightSearchCard() {
       return;
     }
     const searchedFlightNumber = flightNumber.replace(/\s/g, '').toUpperCase();
+    if (!isSupportedFlightNumber(searchedFlightNumber)) {
+      setSearchResult(null);
+      setError('FORMATO INVALIDO. USA LA, AV, OB, 8J O ECO + NUMERO. EJ: OB305');
+      flightInputRef.current?.focus();
+      return;
+    }
     const normalizedFlightNumber = normalizeFlightNumberForCache(flightNumber);
     setIsLoading(true);
     setError(null);
@@ -715,6 +725,11 @@ function FlightSearchCard() {
           display: flex;
           align-items: center;
           gap: 6px;
+          min-height: 28px;
+          padding: 5px 9px;
+          border-radius: 999px;
+          border: 1px solid var(--nd-status-border, hsl(142 62% 40% / 0.28));
+          background: var(--nd-status-bg, hsl(142 62% 40% / 0.10));
         }
         .nd-status-found .nd-label { color: var(--nd-status-color, hsl(142 62% 40%)); }
         .nd-status-dot {
@@ -724,11 +739,31 @@ function FlightSearchCard() {
           background: var(--nd-status-color, hsl(142 62% 40%));
           flex-shrink: 0;
         }
-        .nd-status-success { --nd-status-color: hsl(142 62% 40%); }
-        .nd-status-warning { --nd-status-color: hsl(38 92% 46%); }
-        .nd-status-danger { --nd-status-color: hsl(var(--destructive)); }
-        .nd-status-info { --nd-status-color: hsl(var(--primary)); }
-        .nd-status-neutral { --nd-status-color: hsl(var(--muted-foreground)); }
+        .nd-status-success {
+          --nd-status-color: hsl(142 62% 40%);
+          --nd-status-bg: hsl(142 62% 40% / 0.12);
+          --nd-status-border: hsl(142 62% 40% / 0.30);
+        }
+        .nd-status-warning {
+          --nd-status-color: hsl(38 92% 46%);
+          --nd-status-bg: hsl(38 92% 46% / 0.13);
+          --nd-status-border: hsl(38 92% 46% / 0.32);
+        }
+        .nd-status-danger {
+          --nd-status-color: hsl(var(--destructive));
+          --nd-status-bg: hsl(var(--destructive) / 0.12);
+          --nd-status-border: hsl(var(--destructive) / 0.30);
+        }
+        .nd-status-info {
+          --nd-status-color: hsl(var(--primary));
+          --nd-status-bg: hsl(var(--primary) / 0.10);
+          --nd-status-border: hsl(var(--primary) / 0.28);
+        }
+        .nd-status-neutral {
+          --nd-status-color: hsl(var(--muted-foreground));
+          --nd-status-bg: hsl(var(--muted) / 0.50);
+          --nd-status-border: hsl(var(--border));
+        }
 
         /* ── FIDS horizontal layout ──────────────────────────────────── */
         .nd-fids-horizontal {
