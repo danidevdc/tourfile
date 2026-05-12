@@ -625,13 +625,13 @@ function mapAirLabsFlightToOutput(flight: AirLabsFlight, input: FindFlightInput)
   };
 }
 
-async function fetchAirLabs(endpoint: 'flight' | 'schedules', key: 'flight_iata' | 'flight_icao', ident: string): Promise<AirLabsResponse> {
+async function fetchAirLabs(key: 'flight_iata' | 'flight_icao', ident: string): Promise<AirLabsResponse> {
   const apiKey = process.env.AIRLABS_API_KEY;
   if (!apiKey) {
     throw new Error('Falta AIRLABS_API_KEY.');
   }
 
-  const url = new URL(`https://airlabs.co/api/v9/${endpoint}`);
+  const url = new URL('https://airlabs.co/api/v9/flight');
   url.searchParams.set(key, ident);
   url.searchParams.set('api_key', apiKey);
   url.searchParams.set('_fields', 'airline_iata,airline_icao,flight_iata,flight_icao,flight_number,dep_iata,dep_time,dep_estimated,dep_actual,arr_iata,arr_time,arr_estimated,arr_actual,duration,status');
@@ -650,35 +650,36 @@ async function fetchAirLabs(endpoint: 'flight' | 'schedules', key: 'flight_iata'
 }
 
 async function findFlightWithAirLabs(input: FindFlightInput): Promise<FindFlightOutput> {
-  const candidates = getAirLabsIdentCandidates(input.flightNumber);
-  const errors: string[] = [];
+  const candidate = getAirLabsIdentCandidates(input.flightNumber)[0];
 
-  for (const candidate of candidates) {
-    for (const endpoint of ['schedules', 'flight'] as const) {
-      try {
-        const payload = await fetchAirLabs(endpoint, candidate.key, candidate.ident);
-        const flights = Array.isArray(payload.response)
-          ? payload.response
-          : payload.response
-            ? [payload.response]
-            : [];
-        const match = flights.find((flight) => getAirLabsComparableDate(flight) === input.date) || flights[0];
+  try {
+    const payload = await fetchAirLabs(candidate.key, candidate.ident);
+    const flights = Array.isArray(payload.response)
+      ? payload.response
+      : payload.response
+        ? [payload.response]
+        : [];
+    const match = flights.find((flight) => getAirLabsComparableDate(flight) === input.date);
 
-        if (match?.dep_iata && match?.arr_iata) {
-          return mapAirLabsFlightToOutput(match, input);
-        }
-      } catch (error) {
-        errors.push(error instanceof Error ? error.message : String(error));
-      }
+    if (match?.dep_iata && match?.arr_iata) {
+      return mapAirLabsFlightToOutput(match, input);
     }
-  }
 
-  return {
-    flightFound: false,
-    flightNumber: input.flightNumber,
-    provider: 'airlabs',
-    errorMessage: errors.find((message) => message.includes('AIRLABS_API_KEY')) || `AirLabs no encontro ${input.flightNumber} para ${input.date}.`,
-  };
+    return {
+      flightFound: false,
+      flightNumber: input.flightNumber,
+      provider: 'airlabs',
+      errorMessage: `AirLabs no encontro ${input.flightNumber} para ${input.date}. AirLabs Flight devuelve el vuelo mas cercano y Schedules solo cubre hasta 10 horas hacia adelante.`,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      flightFound: false,
+      flightNumber: input.flightNumber,
+      provider: 'airlabs',
+      errorMessage: message.includes('AIRLABS_API_KEY') ? message : `AirLabs no pudo consultar ${input.flightNumber}: ${message}`,
+    };
+  }
 }
 
 /**

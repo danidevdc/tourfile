@@ -4,20 +4,10 @@
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import type { AppModule } from '@/hooks/useAuth';
-import type { FlightSearchProvider } from '@/ai/flows/flight-types';
 
 const CONFIG_COLLECTION = 'appConfig';
 const SPECIAL_ROLES_DOC_ID = 'specialRoles';
 const EDITORS_LIST_KEY = 'allowedEditors';
-const FLIGHT_SEARCH_SETTINGS_DOC_ID = 'flightSearchSettings';
-
-export interface FlightSearchSettings {
-  provider: FlightSearchProvider;
-}
-
-const DEFAULT_FLIGHT_SEARCH_SETTINGS: FlightSearchSettings = {
-  provider: 'aeroapi',
-};
 
 /**
  * Sets the email for the intermediate user role in Firestore.
@@ -84,33 +74,4 @@ export async function getUserModules(uid: string): Promise<AppModule[]> {
   } catch {
     return [];
   }
-}
-
-export async function getFlightSearchSettings(): Promise<FlightSearchSettings> {
-  if (!db) return DEFAULT_FLIGHT_SEARCH_SETTINGS;
-
-  try {
-    const snap = await getDoc(doc(db, CONFIG_COLLECTION, FLIGHT_SEARCH_SETTINGS_DOC_ID));
-    if (!snap.exists()) return DEFAULT_FLIGHT_SEARCH_SETTINGS;
-
-    const provider = snap.data().provider;
-    return provider === 'airlabs' || provider === 'aeroapi'
-      ? { provider }
-      : DEFAULT_FLIGHT_SEARCH_SETTINGS;
-  } catch (error) {
-    console.warn("Silent error getting flight search settings:", error);
-    return DEFAULT_FLIGHT_SEARCH_SETTINGS;
-  }
-}
-
-export async function setFlightSearchProvider(provider: FlightSearchProvider): Promise<void> {
-  if (!db) throw new Error("Firestore is not initialized.");
-  if (provider !== 'aeroapi' && provider !== 'airlabs') {
-    throw new Error("Invalid flight search provider.");
-  }
-
-  await setDoc(doc(db, CONFIG_COLLECTION, FLIGHT_SEARCH_SETTINGS_DOC_ID), {
-    provider,
-    updatedAt: new Date().toISOString(),
-  }, { merge: true });
 }

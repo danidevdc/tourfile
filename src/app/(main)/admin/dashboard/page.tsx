@@ -10,9 +10,8 @@ import { useAuth, type UserProfile, type AppModule } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { getAllReportsFromFirestore } from '@/lib/reportService';
-import { getFlightSearchSettings, setFlightSearchProvider, setUserModules } from '@/lib/appConfigService';
+import { setUserModules } from '@/lib/appConfigService';
 import { getFlightSearchUsageStats, type FlightSearchUsageStats } from '@/lib/flightSearchCounterService';
-import type { FlightSearchProvider } from '@/ai/flows/flight-types';
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from "@/components/ui/badge";
@@ -87,8 +86,6 @@ export default function AdminDashboardPage() {
   const [savingUid, setSavingUid] = useState<string | null>(null);
   const [flightUsage, setFlightUsage] = useState<FlightSearchUsageStats | null>(null);
   const [airLabsUsage, setAirLabsUsage] = useState<FlightSearchUsageStats | null>(null);
-  const [flightProvider, setFlightProviderState] = useState<FlightSearchProvider>('aeroapi');
-  const [isSavingFlightProvider, setIsSavingFlightProvider] = useState(false);
 
   const ALL_MODULES: { key: AppModule; label: string }[] = [
     { key: 'cajas-chicas', label: 'Cajas Chicas' },
@@ -116,16 +113,14 @@ export default function AdminDashboardPage() {
           setIsLoadingData(true);
           try {
             // Fetch all data in parallel
-            const [reports, userProfiles, flightStats, airLabsStats, flightSettings] = await Promise.all([
+            const [reports, userProfiles, flightStats, airLabsStats] = await Promise.all([
               getAllReportsFromFirestore(),
               getAllUserProfiles(),
               getFlightSearchUsageStats('aeroapi'),
               getFlightSearchUsageStats('airlabs'),
-              getFlightSearchSettings(),
             ]);
             setFlightUsage(flightStats);
             setAirLabsUsage(airLabsStats);
-            setFlightProviderState(flightSettings.provider);
 
             const nonAdminUsers = userProfiles
               .filter((u: UserProfile) => u.email && !u.isAdmin)
@@ -231,25 +226,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleFlightProviderChange = async (provider: FlightSearchProvider) => {
-    setIsSavingFlightProvider(true);
-    try {
-      await setFlightSearchProvider(provider);
-      setFlightProviderState(provider);
-      toast({
-        title: "Proveedor actualizado",
-        description: provider === 'aeroapi'
-          ? "Vuelos de hoy usaran NAABOL; vuelos futuros usaran FlightAware."
-          : "Vuelos de hoy usaran NAABOL; vuelos futuros usaran AirLabs.",
-        variant: "success" as any,
-      });
-    } catch {
-      toast({ title: "Error", description: "No se pudo guardar el proveedor de vuelos.", variant: "destructive" });
-    } finally {
-      setIsSavingFlightProvider(false);
-    }
-  };
-
   const flightPeak = flightUsage?.today.reduce(
     (peak, item) => item.searches > peak.searches ? item : peak,
     { hour: "--", searches: 0 }
@@ -340,46 +316,9 @@ export default function AdminDashboardPage() {
               <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.35fr] gap-6">
                 <div className="space-y-4">
                   <div className="rounded-xl border bg-background/70 p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="text-sm font-semibold">Proveedor del buscador</div>
-                        <div className="text-xs text-muted-foreground">
-                          El proveedor elegido solo aplica a vuelos futuros. Los vuelos del dia usan NAABOL.
-                        </div>
-                      </div>
-                      <div className="inline-flex rounded-lg border bg-muted/30 p-1">
-                        <button
-                          type="button"
-                          onClick={() => handleFlightProviderChange('aeroapi')}
-                          disabled={isSavingFlightProvider}
-                          className={cn(
-                            "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
-                            flightProvider === 'aeroapi'
-                              ? "bg-primary text-primary-foreground shadow-sm"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          AeroAPI
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleFlightProviderChange('airlabs')}
-                          disabled={isSavingFlightProvider}
-                          className={cn(
-                            "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
-                            flightProvider === 'airlabs'
-                              ? "bg-primary text-primary-foreground shadow-sm"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          AirLabs
-                        </button>
-                      </div>
-                    </div>
-                    <div className="mt-3 text-xs text-muted-foreground">
-                      Activo: <span className="font-semibold text-foreground">
-                        {flightProvider === 'aeroapi' ? 'AeroAPI' : 'AirLabs'}
-                      </span>
+                    <div className="text-sm font-semibold">Flujo del buscador</div>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Hoy: NAABOL, luego AirLabs, luego FlightAware. Fechas futuras: FlightAware.
                     </div>
                   </div>
 

@@ -6,10 +6,9 @@ import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Loader2, Plane, Search, ArrowLeft, PlaneTakeoff, PlaneLanding, Plus, X, RotateCcw } from "lucide-react";
 import { findFlight } from "@/ai/flows/find-flight-flow";
-import type { FindFlightOutput, FlightSearchProvider } from "@/ai/flows/flight-types";
+import type { FindFlightOutput } from "@/ai/flows/flight-types";
 import { useAuth, type AppModule } from "@/hooks/useAuth";
 import { tryConsumeAirLabsSearch, tryConsumeFlightAwareSearch } from "@/lib/flightSearchCounterService";
-import { getFlightSearchSettings } from "@/lib/appConfigService";
 import { getFlightRouteFromCache, normalizeFlightNumberForCache, saveFlightRouteToCache } from "@/lib/flightRouteCacheService";
 import { calculateFlightDurationMinutes, getFlightRouteDurationFromCache, saveFlightRouteDurationToCache } from "@/lib/flightRouteDurationCacheService";
 import { createFlight, type PredefinedFlight } from "@/lib/serviceOrderService";
@@ -197,13 +196,11 @@ function FlightSearchCard() {
   const [searchResult, setSearchResult] = useState<FindFlightOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [addedOk, setAddedOk] = useState(false);
-  const [flightProvider, setFlightProvider] = useState<FlightSearchProvider>('aeroapi');
   const { toast } = useToast();
   const flightInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     flightInputRef.current?.focus();
-    getFlightSearchSettings().then(settings => setFlightProvider(settings.provider));
   }, []);
 
   const handleClear = () => {
@@ -226,8 +223,6 @@ function FlightSearchCard() {
     setSearchResult(null);
     setAddedOk(false);
     try {
-      const activeFlightProvider = (await getFlightSearchSettings()).provider;
-      setFlightProvider(activeFlightProvider);
       const routeCache = await getFlightRouteFromCache(normalizedFlightNumber);
       const routeHint = routeCache ? {
         origin: routeCache.origin,
@@ -314,9 +309,15 @@ function FlightSearchCard() {
             routeHint,
             routeDurationMinutes: durationCache?.durationMinutes,
           })
-        : activeFlightProvider === 'airlabs'
-          ? await runAirLabsSearch()
-          : await runAeroApiSearch();
+        : await runAeroApiSearch();
+
+      if (isToday && !result.flightFound) {
+        result = await runAirLabsSearch();
+      }
+
+      if (isToday && !result.flightFound) {
+        result = await runAeroApiSearch();
+      }
 
       if (result.errorMessage) {
         if (result.errorMessage.includes('No flight found for this date')) {
