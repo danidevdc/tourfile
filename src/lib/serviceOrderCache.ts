@@ -1,8 +1,9 @@
 "use client";
 
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { serverTimestamp } from 'firebase/firestore';
+import { logger } from './logger';
 
 // --- Caching Configuration ---
 const CACHE_VERSION_ID = 'masterDataVersion';
@@ -16,6 +17,7 @@ const VERSION_STORAGE_KEY = 'tourfile_master_data_version';
  */
 export async function getRemoteVersion(): Promise<number> {
   if (!db) return 0;
+  if (!auth?.currentUser) return 0;
   try {
     const versionDocRef = doc(db, CACHE_COLLECTION, CACHE_VERSION_ID);
     const snap = await getDoc(versionDocRef);
@@ -25,7 +27,11 @@ export async function getRemoteVersion(): Promise<number> {
     }
     return snap.data().version || 0;
   } catch (error) {
-    console.warn('Failed to fetch remote version:', error);
+    if ((error as { code?: string })?.code === 'permission-denied') {
+      logger.debug('Skipped remote cache version fetch without Firestore permission.');
+      return 0;
+    }
+    logger.warn('Failed to fetch remote version:', error);
     return 0;
   }
 }
@@ -85,7 +91,7 @@ export async function checkForMasterDataUpdates(): Promise<boolean> {
   const localVersion = getLocalVersion();
 
   if (remoteVersion > 0 && remoteVersion !== localVersion) {
-    console.log(
+    logger.debug(
       `🌐 Nueva versión detectada: v${remoteVersion} (local: v${localVersion}). Limpiando caché...`
     );
     clearMasterDataCache();
@@ -141,9 +147,9 @@ export async function initializeCacheVersion(): Promise<void> {
     const snap = await getDoc(versionDocRef);
     if (!snap.exists()) {
       await setDoc(versionDocRef, { version: 1, lastUpdate: serverTimestamp() });
-      console.log('Cache version initialized to 1');
+      logger.debug('Cache version initialized to 1');
     }
   } catch (error) {
-    console.error('Failed to initialize cache version:', error);
+    logger.error('Failed to initialize cache version:', error);
   }
 }

@@ -11,6 +11,7 @@
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
 import { StoredServiceOrder } from './serviceOrderStorage';
+import { logger } from './logger';
 
 /**
  * Busca órdenes por nombre de orden (substring matching)
@@ -40,7 +41,7 @@ export async function searchOrdersByName(searchTerm: string): Promise<StoredServ
   );
 
   const snapshot = await getDocs(q);
-  console.log(`🔍 Búsqueda por nombre "${searchTerm}" - ${snapshot.size} reads`);
+  logger.debug(`🔍 Búsqueda por nombre "${searchTerm}" - ${snapshot.size} reads`);
 
   // Filtrar client-side con substring match
   const filtered = snapshot.docs
@@ -58,7 +59,7 @@ export async function searchOrdersByName(searchTerm: string): Promise<StoredServ
       } as StoredServiceOrder;
     });
 
-  console.log(`✅ ${filtered.length} órdenes encontradas con "${searchTerm}"`);
+  logger.debug(`✅ ${filtered.length} órdenes encontradas con "${searchTerm}"`);
   
   return filtered;
 }
@@ -95,7 +96,7 @@ export async function searchOrdersByResponsible(responsibleName: string): Promis
     );
     
     const snapshot = await getDocs(q);
-    console.log(`🔍 Búsqueda por responsable "${responsibleName}" - ${snapshot.size} reads (últimos 12 meses)`);
+    logger.debug(`🔍 Búsqueda por responsable "${responsibleName}" - ${snapshot.size} reads (últimos 12 meses)`);
     
     // Filtrar client-side: buscar substring en responsables
     const filtered = snapshot.docs
@@ -132,17 +133,17 @@ export async function searchOrdersByResponsible(responsibleName: string): Promis
         } as StoredServiceOrder;
       });
     
-    console.log(`   ✅ ${filtered.length} órdenes encontradas con "${responsibleName}"`);
+    logger.debug(`   ✅ ${filtered.length} órdenes encontradas con "${responsibleName}"`);
     
     // Advertencia si no existe el campo en producción
     if (filtered.length > 0 && !snapshot.docs[0].data().allResponsibles) {
-      console.warn(`   ⚠️ IMPORTANTE: Campo allResponsibles no existe. Ejecuta la migración: npm run migrate:responsibles`);
+      logger.warn(`   ⚠️ IMPORTANTE: Campo allResponsibles no existe. Ejecuta la migración: npm run migrate:responsibles`);
     }
     
     return filtered;
   } catch (error) {
-    console.error('❌ Error en búsqueda por responsable:', error);
-    console.warn('   Asegúrate de haber ejecutado el script de migración: npm run migrate:responsibles');
+    logger.error('❌ Error en búsqueda por responsable:', error);
+    logger.warn('   Asegúrate de haber ejecutado el script de migración: npm run migrate:responsibles');
     return [];
   }
 }
@@ -163,8 +164,8 @@ export async function searchOrdersByDateRange(monthYear: string): Promise<Stored
   const monthName = parts[0];
   const year = parts.length > 1 ? parseInt(parts[1]) : new Date().getFullYear();
 
-  if (!months[monthName]) {
-    console.warn(`Mes no reconocido: ${monthName}`);
+  if (!(monthName in months)) {
+    logger.warn(`Mes no reconocido: ${monthName}`);
     return [];
   }
 
@@ -182,7 +183,7 @@ export async function searchOrdersByDateRange(monthYear: string): Promise<Stored
   );
 
   const snapshot = await getDocs(q);
-  console.log(`🔍 Búsqueda por mes "${monthYear}" - ${snapshot.size} reads`);
+  logger.debug(`🔍 Búsqueda por mes "${monthYear}" - ${snapshot.size} reads`);
 
   return snapshot.docs.map(doc => {
     const data = doc.data();
@@ -217,7 +218,7 @@ export async function searchRecentOrdersByFileCode(fileCode: string): Promise<St
   );
 
   const snapshot = await getDocs(q);
-  console.log(`🔍 Búsqueda por código "${fileCode}" - ${snapshot.size} reads (últimos 12 meses)`);
+  logger.debug(`🔍 Búsqueda por código "${fileCode}" - ${snapshot.size} reads (últimos 12 meses)`);
 
   const codeUpper = fileCode.toUpperCase();
   return snapshot.docs
@@ -255,7 +256,7 @@ export async function searchRecentOrders(searchTerm: string, daysBack: number = 
   );
 
   const snapshot = await getDocs(q);
-  console.log(`🔍 Búsqueda general en últimos ${daysBack} días - ${snapshot.size} reads`);
+  logger.debug(`🔍 Búsqueda general en últimos ${daysBack} días - ${snapshot.size} reads`);
 
   const searchLower = searchTerm.toLowerCase();
   return snapshot.docs
@@ -446,7 +447,7 @@ export async function hybridSearch(
   }
 
   // Si la búsqueda inteligente no encontró nada
-  console.log(`⚠️ Búsqueda inteligente no encontró resultados para: "${searchTerm}"`);
+  logger.debug(`⚠️ Búsqueda inteligente no encontró resultados para: "${searchTerm}"`);
 
   // Solo usa búsqueda completa si el usuario lo autoriza
   if (!useFullSearchFallback) {
@@ -459,7 +460,7 @@ export async function hybridSearch(
   }
 
   // FALLBACK: Búsqueda completa (lenta pero garantizada)
-  console.log(`🔍 Ejecutando búsqueda completa (fallback)...`);
+  logger.debug(`🔍 Ejecutando búsqueda completa (fallback)...`);
   const { getAllServiceOrders } = await import('./serviceOrderStorage');
   const allOrders = await getAllServiceOrders();
   const filtered = filterOrdersLocally(searchTerm, allOrders);

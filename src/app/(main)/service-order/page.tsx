@@ -25,6 +25,7 @@ import {
 } from '@/lib/serviceOrderStorage';
 import { smartSearch } from '@/lib/serviceOrderSearch';
 import { checkDatabaseConnection } from "@/lib/dbConnectionCheck";
+import { logger } from "@/lib/logger";
 import { type QueryDocumentSnapshot } from 'firebase/firestore';
 import { generateServiceOrderExcel, type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { getFamilyId, childNameFrom, getBaseName, shortPerson } from "@/lib/serviceOrderFamily";
@@ -67,6 +68,7 @@ const initialOrderDataState: ServiceOrderData = {
 };
 
 const ITEMS_PER_PAGE = 10;
+const DEFAULT_ORDER_WINDOW_DAYS = 28;
 
 // Extend the Window interface to include our global function
 declare global {
@@ -130,6 +132,12 @@ export default function ServiceOrderListPage() {
 
   // Search state improvement
   const [activeSearchTerm, setActiveSearchTerm] = useState(""); // This is the term actually being searched
+  const recentOrdersSince = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - DEFAULT_ORDER_WINDOW_DAYS);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, []);
 
   const families = useMemo(() => {
     // Siempre mostrar solo órdenes activas (excluir eliminadas y canceladas)
@@ -237,7 +245,7 @@ export default function ServiceOrderListPage() {
     try {
       if (activeSearchTerm.trim().length > 0) {
         // Smart Search Mode: Use optimized field-specific queries
-        console.log(`🔍 Smart Search: "${activeSearchTerm}"`);
+        logger.debug(`🔍 Smart Search: "${activeSearchTerm}"`);
         const searchResults = await smartSearch(activeSearchTerm);
         setOrders(searchResults.results);
         setHasMore(false); // Not used in search mode as we have the full list
@@ -250,19 +258,24 @@ export default function ServiceOrderListPage() {
           const savedReads = totalRootOrders - actualReads;
           const reductionPercent = totalRootOrders > 0 ? Math.round((savedReads / totalRootOrders) * 100) : 0;
           
-          console.log(`✅ Smart Search completed: ${actualReads} reads`);
-          console.log(`   💰 Ahorro real: ${savedReads} lecturas (${reductionPercent}% vs descargar todas las ${totalRootOrders} órdenes)`);
-          console.log(`   📊 Método: ${searchResults.searchType}`);
+          logger.debug(`✅ Smart Search completed: ${actualReads} reads`);
+          logger.debug(`   💰 Ahorro real: ${savedReads} lecturas (${reductionPercent}% vs descargar todas las ${totalRootOrders} órdenes)`);
+          logger.debug(`   📊 Método: ${searchResults.method}`);
         } else {
-          console.log(`✅ Smart Search completed: ${actualReads} reads`);
-          console.log(`   📊 Método: ${searchResults.searchType}`);
+          logger.debug(`✅ Smart Search completed: ${actualReads} reads`);
+          logger.debug(`   📊 Método: ${searchResults.method}`);
         }
       } else {
         // Paginated Mode: Fetch only one page
         const cursor = lastDocs[page - 1];
-        console.log(`Paging: Page ${page}, using cursor index ${page - 1}`, cursor);
+        logger.debug(`Paging: Page ${page}, using cursor index ${page - 1}`, cursor);
         // Excluir órdenes eliminadas/canceladas para todos los usuarios (admin usa filtros en UI)
-        const { orders: fetchedOrders, lastDoc } = await getServiceOrdersPaginated(ITEMS_PER_PAGE, cursor, true);
+        const { orders: fetchedOrders, lastDoc } = await getServiceOrdersPaginated(
+          ITEMS_PER_PAGE,
+          cursor,
+          true,
+          { since: recentOrdersSince }
+        );
         setOrders(fetchedOrders);
 
         // Record the cursor for the NEXT page (index 'page')
@@ -284,7 +297,7 @@ export default function ServiceOrderListPage() {
   };
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && currentUser) {
       if (activeSearchTerm.trim().length === 0) {
         // Reset to real pagination when search is cleared
         setCurrentPage(1);
@@ -292,11 +305,11 @@ export default function ServiceOrderListPage() {
         fetchOrders(1);
         
         // Recargar total de páginas y total de órdenes root
-        getTotalServiceOrdersCount().then(count => {
+        getTotalServiceOrdersCount({ since: recentOrdersSince }).then(count => {
           setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
           setTotalRootOrders(count); // Actualizar con el valor real
         }).catch(err => {
-          console.error('Error obteniendo total de páginas:', err);
+          logger.error('Error obteniendo total de páginas:', err);
         });
       } else {
         // Fetch all for global search
@@ -305,7 +318,7 @@ export default function ServiceOrderListPage() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSearchTerm, authLoading]);
+  }, [activeSearchTerm, authLoading, currentUser?.uid]);
 
   const handleExecuteSearch = () => {
     setActiveSearchTerm(searchTerm);
@@ -336,7 +349,7 @@ export default function ServiceOrderListPage() {
       setBuses(fetchedBuses);
 
     } catch (error) {
-      console.error("Error fetching metadata:", error);
+      logger.error("Error fetching metadata:", error);
     }
   };
 
@@ -346,7 +359,7 @@ export default function ServiceOrderListPage() {
       const isConnected = await checkDatabaseConnection();
       setDbConnected(isConnected);
     } catch (error) {
-      console.error('Error checking database connection:', error);
+      logger.error('Error checking database connection:', error);
       setDbConnected(false);
     } finally {
       setIsCheckingConnection(false);
@@ -357,22 +370,10 @@ export default function ServiceOrderListPage() {
     verifyDatabaseConnection();
 
     // Solo cargamos datos si la autenticación ya terminó
-    if (!authLoading) {
+    if (!authLoading && currentUser) {
       fetchInitialData(); // Cargar guías, hoteles, etc.
-      fetchOrders(1); // Cargar primera página de órdenes
-      
-      // Cargar total de páginas Y total de órdenes root (para métricas de ahorro)
-      if (activeSearchTerm.trim().length === 0) {
-        getTotalServiceOrdersCount().then(count => {
-          setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
-          setTotalRootOrders(count); // Almacenar el total real de órdenes root
-          console.log(`📊 Sistema tiene ${count} órdenes root actualmente`);
-        }).catch(err => {
-          console.error('Error obteniendo total de páginas:', err);
-        });
-      }
     }
-  }, [isCurrentUserAdmin, authLoading]);
+  }, [isCurrentUserAdmin, authLoading, currentUser?.uid]);
 
   const handleStatusUpdate = async (orderId: string) => {
     const orderToUpdate = orders.find(o => o.id === orderId);
@@ -386,7 +387,7 @@ export default function ServiceOrderListPage() {
           prevOrders.map(o => o.id === orderId ? { ...o, status: 'enviado' } : o)
         );
       } catch (error) {
-        console.error("Failed to update order status:", error);
+        logger.error("Failed to update order status:", error);
         toast({ title: "Error", description: "No se pudo actualizar el estado de la orden.", variant: "destructive" });
       }
     }
@@ -447,7 +448,7 @@ export default function ServiceOrderListPage() {
       setIsEditModalOpen(false);
       setOrderToEdit(null);
     } catch (error: any) {
-      console.error("Error saving/splitting order:", error);
+      logger.error("Error saving/splitting order:", error);
       toast({ title: "Error al Guardar", description: error.message || "No se pudo guardar la orden.", variant: "destructive" });
     } finally {
       setIsSaving(false);

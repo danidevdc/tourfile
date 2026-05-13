@@ -212,6 +212,8 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     const unsubscribe = onSnapshot(doc(db, 'userProfiles', currentUser.uid), (snap) => {
       if (!initialized) { initialized = true; return; }
       if (!snap.exists()) return;
+      const currentLocalSessionId = typeof window !== 'undefined' ? localStorage.getItem(SESSION_ID_KEY) : null;
+      if (loginInProgressRef.current || currentLocalSessionId !== localSessionId || auth?.currentUser?.uid !== currentUser.uid) return;
       const remoteSessionId = snap.data()?.activeSessionId;
       if (remoteSessionId && remoteSessionId !== localSessionId) {
         handleLogout(true, 'Tu cuenta fue iniciada en otro dispositivo.');

@@ -25,6 +25,7 @@ import {
 import { type ServiceOrderData } from './serviceOrderGenerator';
 import { formatOrderName, parseDateDDMMYYYY } from './formatters';
 import { childNameFrom, getBaseName } from './serviceOrderFamily';
+import { logger } from './logger';
 
 // --- Caching Configuration for Search/Timeline ---
 const SEARCH_CACHE_KEY = 'tourfile_orders_cache';
@@ -40,7 +41,7 @@ export function clearServiceOrdersSearchCache() {
     if (typeof window !== 'undefined') {
         sessionStorage.removeItem(SEARCH_CACHE_KEY);
         sessionStorage.removeItem(SEARCH_SYNC_KEY);
-        console.log('🗑️ Cache de búsqueda de órdenes eliminado.');
+        logger.debug('🗑️ Cache de búsqueda de órdenes eliminado.');
     }
 }
 
@@ -77,7 +78,7 @@ function getFirstDateFromServices(services: ServiceOrderData['services']): Date 
         const parsed = parseDateDDMMYYYY(firstServiceDate);
         return parsed || new Date();
     } catch (e) {
-        console.error("Could not parse date from service, falling back to today.", e);
+        logger.error("Could not parse date from service, falling back to today.", e);
         return new Date();
     }
 }
@@ -308,7 +309,7 @@ export async function saveEditedServiceOrder(
     // --- PROTECTION: Prevent concurrent saves of the same order ---
     const lockKey = `edit-${originalOrder.id}`;
     if (saveLocks.has(lockKey)) {
-        console.warn(`⚠️ Guardado duplicado bloqueado para orden ${originalOrder.orderName}`);
+        logger.warn(`⚠️ Guardado duplicado bloqueado para orden ${originalOrder.orderName}`);
         throw new Error("Esta orden ya se está guardando. Por favor espera unos segundos.");
     }
 
@@ -553,18 +554,18 @@ export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
             where('updatedAt', '>', Timestamp.fromMillis(lastSyncTimestamp - 5000)),
             orderBy('updatedAt', 'desc')
         );
-        console.log(`🔍 Iniciando sincronización incremental del buscador (Desde: ${new Date(lastSyncTimestamp).toLocaleTimeString()})...`);
+        logger.debug(`🔍 Iniciando sincronización incremental del buscador (Desde: ${new Date(lastSyncTimestamp).toLocaleTimeString()})...`);
     } else {
         // First download of the session
         q = query(ordersRef, orderBy('createdAt', 'desc'), limit(3000));
-        console.log('📊 Descargando catálogo completo de órdenes por primera vez en esta sesión...');
+        logger.debug('📊 Descargando catálogo completo de órdenes por primera vez en esta sesión...');
     }
 
     try {
         const snapshot = await getDocs(q);
 
         if (!snapshot.empty) {
-            console.log(`📊 Sincronizados ${snapshot.size} cambios/registros desde Firebase (${snapshot.size} reads)`);
+            logger.debug(`📊 Sincronizados ${snapshot.size} cambios/registros desde Firebase (${snapshot.size} reads)`);
 
             const newDeltas = snapshot.docs.map(docSnap => {
                 const data = docSnap.data();
@@ -592,7 +593,7 @@ export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
 
             cachedOrders = finalOrders;
         } else {
-            console.log('✅ Buscador al día. 0 lecturas adicionales.');
+            logger.debug('✅ Buscador al día. 0 lecturas adicionales.');
         }
 
         // Return processed orders (convert flat JSON back to Date objects)
@@ -604,7 +605,7 @@ export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
         } as StoredServiceOrder)).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     } catch (error) {
-        console.error("Error in Delta Sync fetching:", error);
+        logger.error("Error in Delta Sync fetching:", error);
         // Fallback to cache if exists, otherwise empty
         return cachedOrders.map(o => ({
             ...o,
@@ -614,14 +615,26 @@ export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
     }
 }
 
-export async function getTotalServiceOrdersCount(): Promise<number> {
+export async function getTotalServiceOrdersCount(options: { since?: Date } = {}): Promise<number> {
     if (!db) throw new Error("Firestore not initialized.");
     const ordersRef = collection(db, 'serviceOrders');
 
     // 1. Get count of documents specifically marked as roots
-    const rootQuery = query(ordersRef, where('isRoot', '==', true));
+    const rootQuery = options.since
+        ? query(
+            ordersRef,
+            where('isRoot', '==', true),
+            where('createdAt', '>=', Timestamp.fromDate(options.since)),
+            orderBy('createdAt', 'desc')
+        )
+        : query(ordersRef, where('isRoot', '==', true));
     const rootSnapshot = await getCountFromServer(rootQuery);
     let rootCount = rootSnapshot.data().count;
+
+    if (options.since) {
+        logger.debug(`📊 getTotalServiceOrdersCount() - Counted ${rootCount} recent root orders.`);
+        return rootCount;
+    }
 
     // 2. Get total document count for context
     const totalSnapshot = await getCountFromServer(ordersRef);
@@ -632,11 +645,11 @@ export async function getTotalServiceOrdersCount(): Promise<number> {
     // We assume roughly 1/3 of docs are roots (parent + 2 children avg)
     // If roots < 5% of total, we use totalCount/2 as a safe estimate for UI
     if (rootCount < totalCount * 0.05 && totalCount > 10) {
-        console.warn(`⚠️ Low root count (${rootCount}/${totalCount}). UI might be using estimated pagination.`);
+        logger.warn(`⚠️ Low root count (${rootCount}/${totalCount}). UI might be using estimated pagination.`);
         return Math.ceil(totalCount / 2.5); // Heuristic until migration
     }
 
-    console.log(`📊 getTotalServiceOrdersCount() - Counted ${rootCount} root orders.`);
+    logger.debug(`📊 getTotalServiceOrdersCount() - Counted ${rootCount} root orders.`);
     return rootCount;
 }
 
@@ -672,7 +685,8 @@ export async function runMigrateRoots(): Promise<number> {
 export async function getServiceOrdersPaginated(
     pageSize: number = 10,
     lastVisible: QueryDocumentSnapshot | null = null,
-    excludeDeleted: boolean = true
+    excludeDeleted: boolean = true,
+    options: { since?: Date } = {}
 ): Promise<{ orders: StoredServiceOrder[], lastDoc: QueryDocumentSnapshot | null }> {
     if (!db) throw new Error("Firestore not initialized.");
 
@@ -684,12 +698,20 @@ export async function getServiceOrdersPaginated(
     // Strategy: Keep fetching batches of parent orders (isRoot=true) until we have pageSize parents
     // This handles cases where some orders don't have isRoot field yet
     while (parents.length < pageSize) {
-        let q = query(
-            ordersRef,
-            where('isRoot', '==', true),
-            orderBy('createdAt', 'desc'),
-            limit(pageSize * 3) // Load extra to ensure we get enough after filtering
-        );
+        let q = options.since
+            ? query(
+                ordersRef,
+                where('isRoot', '==', true),
+                where('createdAt', '>=', Timestamp.fromDate(options.since)),
+                orderBy('createdAt', 'desc'),
+                limit(pageSize * 3) // Load extra to ensure we get enough after filtering
+            )
+            : query(
+                ordersRef,
+                where('isRoot', '==', true),
+                orderBy('createdAt', 'desc'),
+                limit(pageSize * 3) // Load extra to ensure we get enough after filtering
+            );
 
         if (currentCursor) {
             q = query(q, startAfter(currentCursor));
@@ -740,7 +762,7 @@ export async function getServiceOrdersPaginated(
         currentCursor = currentLastDoc;
     }
 
-    console.log(`📊 getServiceOrdersPaginated - Found ${parents.length} parents with isRoot (excludeDeleted: ${excludeDeleted})`);
+    logger.debug(`📊 getServiceOrdersPaginated - Found ${parents.length} parents with isRoot (excludeDeleted: ${excludeDeleted})`);
 
     if (parents.length === 0) {
         return { orders: [], lastDoc: null };
@@ -756,7 +778,7 @@ export async function getServiceOrdersPaginated(
             const batchIds = parentIds.slice(i, i + 10);
             const childrenQ = query(ordersRef, where('splitFrom', 'in', batchIds));
             const childrenSnap = await getDocs(childrenQ);
-            console.log(`📊 getServiceOrdersPaginated - Read ${childrenSnap.size} children for batch ${i / 10 + 1}`);
+            logger.debug(`📊 getServiceOrdersPaginated - Read ${childrenSnap.size} children for batch ${i / 10 + 1}`);
 
             childrenSnap.forEach(docSnap => {
                 const data = docSnap.data();
@@ -844,7 +866,7 @@ export async function getDeletedOrdersPaginated(
         currentCursor = currentLastDoc;
     }
 
-    console.log(`📊 getDeletedOrdersPaginated - Found ${parents.length} deleted parents`);
+    logger.debug(`📊 getDeletedOrdersPaginated - Found ${parents.length} deleted parents`);
 
     if (parents.length === 0) {
         return { orders: [], lastDoc: null };

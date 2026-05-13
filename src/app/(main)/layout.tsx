@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { PlaneSpinner } from '@/components/ui/plane-spinner';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { logger } from '@/lib/logger';
 
 // Define public paths that don't require authentication
 const PUBLIC_PATHS = ["/login", "/register", "/forgot-password"];
@@ -27,7 +28,7 @@ export default function MainAppLayout({
       
       // If the user is NOT authenticated and the path is NOT public
       if (!isAuthenticated && !isPublicPath) {
-        console.log(`Redirecting to /login from protected route: ${pathname}`);
+        logger.debug(`Redirecting to /login from protected route: ${pathname}`);
         router.replace("/login");
       }
     }

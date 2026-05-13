@@ -103,12 +103,14 @@ export default function HomePage() {
   };
 
   useEffect(() => {
+    if (authLoading || !currentUser) return;
+
     checkForMasterDataUpdates();
     const interval = setInterval(() => checkForMasterDataUpdates(), 5 * 60 * 1000);
     const handle = () => { if (document.visibilityState === 'visible') checkForMasterDataUpdates(); };
     document.addEventListener('visibilitychange', handle);
     return () => { clearInterval(interval); document.removeEventListener('visibilitychange', handle); };
-  }, []);
+  }, [authLoading, currentUser?.uid]);
 
   const appVersion = `${version} - DC`;
 
