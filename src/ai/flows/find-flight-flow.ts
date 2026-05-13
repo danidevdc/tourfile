@@ -414,7 +414,7 @@ function getNaabolRouteCity(flight?: NaabolItinerary, fallback?: string): string
 }
 
 function getNaabolStatus(flight?: NaabolItinerary): { statusLabel: string; statusTone: FlightStatusTone } {
-  const label = flight?.OBSERVACION?.trim().toUpperCase() || 'ENCONTRADO';
+  const label = flight?.OBSERVACION?.trim().toUpperCase() || 'EN HORARIO';
   return {
     statusLabel: label,
     statusTone: normalizeStatusTone(label),

@@ -23,8 +23,10 @@ service cloud.firestore {
       );
     }
     function hasModule(moduleName) {
-      return isAuth() &&
-        moduleName in get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.modules;
+      return isAdmin() || (
+        isAuth() &&
+        moduleName in get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.modules
+      );
     }
 
     // --- User Profiles ---
@@ -138,29 +140,27 @@ service cloud.firestore {
     }
 
     // --- Guide Liquidations ---
-    // Any authenticated user can read, create, and delete liquidations.
-    // Update allowed to any auth user (edit items/amounts) — not just admin.
+    // Only admins or users with the liquidation module can access liquidations.
     match /guideLiquidations/{liquidationId} {
-      allow read, create, delete: if isAuth();
-      allow update: if isAuth();
+      allow read, create, update, delete: if hasModule('liquidacion');
     }
 
     // --- Guide Liquidation Criteria (price rules) ---
-    // Any authenticated user can read and write (module still in development).
+    // Only admins or users with the liquidation module can access price rules.
     match /guideLiquidationCriteria/{ruleId} {
-      allow read, write: if isAuth();
+      allow read, write: if hasModule('liquidacion');
     }
 
     // --- Guide Month Cache (precomputed rows per guide+month for past months) ---
-    // Any authenticated user can read and write — cache is non-sensitive derived data.
+    // Only admins or users with the liquidation module can access liquidation cache data.
     match /guideMonthCache/{cacheId} {
-      allow read, write: if isAuth();
+      allow read, write: if hasModule('liquidacion');
     }
 
     // --- Guide Language Memory (learning system) ---
-    // Any authenticated user can read and write (auto-learning on save).
+    // Only admins or users with the liquidation module can access language memory.
     match /guideLiquidationGuideLanguage/{guideId} {
-      allow read, write: if isAuth();
+      allow read, write: if hasModule('liquidacion');
     }
 
     // --- Learning Data for AI/Suggestions ---

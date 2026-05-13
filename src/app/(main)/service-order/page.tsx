@@ -116,6 +116,9 @@ export default function ServiceOrderListPage() {
   const [orderToDelete, setOrderToDelete] = useState<StoredServiceOrder | null>(null);
   const [isPrintingPdfId, setIsPrintingPdfId] = useState<string | null>(null);
   const [liquidationViewerFile, setLiquidationViewerFile] = useState<string | null>(null);
+  const canAccessLiquidation =
+    isCurrentUserAdmin ||
+    (currentUser?.profile?.modules || []).includes('liquidacion');
 
   // Pagination states
   const [lastDocs, setLastDocs] = useState<(QueryDocumentSnapshot | null)[]>([null]);
@@ -777,7 +780,7 @@ export default function ServiceOrderListPage() {
       <div className="text-left space-x-1">
         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary h-8 w-8 p-0"><Eye className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Vista Previa (WhatsApp)</p></TooltipContent></Tooltip>
         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} disabled={!canEdit || isDeleted} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"><FilePenLine className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
-        {order.hasLiquidation && order.data?.file && (<Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => setLiquidationViewerFile(order.data.file)} className="text-cyan-600 border-cyan-500/50 hover:bg-cyan-100/80 hover:text-cyan-700 dark:text-cyan-400 dark:border-cyan-400/50 dark:hover:bg-cyan-950/40 h-8 w-8 p-0"><Receipt className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Ver Liquidación</p></TooltipContent></Tooltip>)}
+        {canAccessLiquidation && order.hasLiquidation && order.data?.file && (<Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => setLiquidationViewerFile(order.data.file)} className="text-cyan-600 border-cyan-500/50 hover:bg-cyan-100/80 hover:text-cyan-700 dark:text-cyan-400 dark:border-cyan-400/50 dark:hover:bg-cyan-950/40 h-8 w-8 p-0"><Receipt className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Ver Liquidación</p></TooltipContent></Tooltip>)}
         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleDownloadExcel(order)} disabled={isDownloadingId === order.id || isDeleted} className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0">{isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent><p>Descargar Excel</p></TooltipContent></Tooltip>
         {isCurrentUserAdmin && (<Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePrintToPdf(order)} disabled={isPrintingPdfId === order.id || isDeleted} className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0">{isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>)}
         {!isDeleted && (<AlertDialog>
@@ -960,7 +963,7 @@ export default function ServiceOrderListPage() {
                     onDownload={handleDownloadExcel}
                     onPrint={handlePrintToPdf}
                     onDelete={setOrderToDelete}
-                    onViewLiquidation={(file) => setLiquidationViewerFile(file)}
+                    onViewLiquidation={canAccessLiquidation ? (file) => setLiquidationViewerFile(file) : undefined}
                     getStatusBadge={getStatusBadge}
                     getDeletionDescription={getDeletionAlertDescription}
                   />
@@ -1202,7 +1205,7 @@ export default function ServiceOrderListPage() {
           buses={buses}
         />
 
-        {liquidationViewerFile && (
+        {canAccessLiquidation && liquidationViewerFile && (
           <LiquidationViewerModal
             fileNumber={liquidationViewerFile}
             open={!!liquidationViewerFile}
