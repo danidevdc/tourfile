@@ -22,6 +22,10 @@ service cloud.firestore {
         request.auth.token.email in get(/databases/$(database)/documents/appConfig/specialRoles).data.allowedEditors
       );
     }
+    function hasModule(moduleName) {
+      return isAuth() &&
+        moduleName in get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.modules;
+    }
 
     // --- User Profiles ---
     // Users can only read/update their own profile. Admins have special access.
@@ -61,10 +65,10 @@ service cloud.firestore {
     }
 
     // --- Business Logic Rules ---
-    // Anyone logged in can read to generate reports. Only admins can modify them.
+    // Anyone logged in can read to generate reports. Admins and cajas chicas users can modify them.
     match /expenseRules/{ruleId} {
         allow get, list: if isAuth(); // This rule allows any authenticated user to read the list of rules.
-        allow write: if isAdmin();
+        allow write: if isAdmin() || hasModule('cajas-chicas');
     }
 
     // --- App Configuration (Special Roles) ---
