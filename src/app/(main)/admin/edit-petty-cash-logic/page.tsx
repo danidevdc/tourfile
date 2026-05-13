@@ -32,9 +32,10 @@ import { Switch } from '@/components/ui/switch';
 
 
 export default function EditPettyCashLogicPage() {
-  const { isCurrentUserAdmin, isLoading: authLoading } = useAuth();
+  const { isCurrentUserAdmin, currentUser, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const canEditPettyCashLogic = isCurrentUserAdmin || (currentUser?.profile?.modules || []).includes('cajas-chicas');
 
   const [rules, setRules] = useState<ExpenseRule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,15 +43,15 @@ export default function EditPettyCashLogicPage() {
   const [ruleToDelete, setRuleToDelete] = useState<ExpenseRule | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !isCurrentUserAdmin) {
+    if (!authLoading && !canEditPettyCashLogic) {
       toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder.", variant: "destructive" });
       router.replace('/');
     }
-  }, [authLoading, isCurrentUserAdmin, router, toast]);
+  }, [authLoading, canEditPettyCashLogic, router, toast]);
 
   useEffect(() => {
     async function fetchRules() {
-      if (isCurrentUserAdmin) {
+      if (canEditPettyCashLogic) {
         setIsLoading(true);
         try {
           await initializeDefaultRules(); 
@@ -68,7 +69,7 @@ export default function EditPettyCashLogicPage() {
     if (!authLoading) {
         fetchRules();
     }
-  }, [isCurrentUserAdmin, authLoading, toast]);
+  }, [canEditPettyCashLogic, authLoading, toast]);
 
 
   const handleInputChange = (id: string, field: keyof ExpenseRule, value: string | number | boolean) => {
@@ -261,4 +262,3 @@ export default function EditPettyCashLogicPage() {
   );
 }
 
-    

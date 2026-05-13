@@ -22,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, Eye, FileDown, Trash2, Files, RefreshCw, Database } from "lucide-react";
+import { Upload, Loader2, ArrowLeft, Search, CheckCircle2, XCircle, Eye, FileDown, Trash2, Files, RefreshCw, Database, FilePenLine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -630,39 +630,51 @@ export default function GeneratorPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
 
-        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-300 ${dbConnected === null ? 'border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-800' :
-          dbConnected ? 'border-green-200 bg-green-50 dark:bg-emerald-950/20 dark:border-emerald-500/30' : 'border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-500/30'
-          }`}>
-          {isCheckingConnection ? (
-            <>
-              <RefreshCw className="h-4 w-4 text-gray-500 animate-spin" />
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Verificando...</span>
-            </>
-          ) : dbConnected === null ? (
-            <>
-              <Database className="h-4 w-4 text-gray-500" />
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">DB Status</span>
-            </>
-          ) : dbConnected ? (
-            <>
-              <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-emerald-400" />
-              <span className="text-xs font-semibold text-green-600 dark:text-emerald-400">Conectado</span>
-            </>
-          ) : (
-            <div className="flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />
-              <span className="text-xs font-semibold text-red-600 dark:text-red-400">Offline</span>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={verifyDatabaseConnection}
-                disabled={isCheckingConnection}
-                className="h-6 w-6 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 p-0"
-              >
-                <RefreshCw className="h-3 w-3" />
-              </Button>
-            </div>
-          )}
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push('/admin/edit-petty-cash-logic')}
+            className="h-9 border-teal-500/30 text-teal-700 hover:bg-teal-50 hover:text-teal-800 dark:text-teal-300 dark:hover:bg-teal-950/40"
+          >
+            <FilePenLine className="mr-2 h-4 w-4" />
+            Editar lógica
+          </Button>
+
+          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-300 ${dbConnected === null ? 'border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-800' :
+            dbConnected ? 'border-green-200 bg-green-50 dark:bg-emerald-950/20 dark:border-emerald-500/30' : 'border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-500/30'
+            }`}>
+            {isCheckingConnection ? (
+              <>
+                <RefreshCw className="h-4 w-4 text-gray-500 animate-spin" />
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Verificando...</span>
+              </>
+            ) : dbConnected === null ? (
+              <>
+                <Database className="h-4 w-4 text-gray-500" />
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">DB Status</span>
+              </>
+            ) : dbConnected ? (
+              <>
+                <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-emerald-400" />
+                <span className="text-xs font-semibold text-green-600 dark:text-emerald-400">Conectado</span>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />
+                <span className="text-xs font-semibold text-red-600 dark:text-red-400">Offline</span>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={verifyDatabaseConnection}
+                  disabled={isCheckingConnection}
+                  className="h-6 w-6 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 p-0"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <Card className="w-full max-w-3xl shadow-lg">
