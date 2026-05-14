@@ -615,6 +615,25 @@ export async function getAllServiceOrders(): Promise<StoredServiceOrder[]> {
     }
 }
 
+export async function getRecentServiceOrders(maxOrders = 20): Promise<StoredServiceOrder[]> {
+    if (!db) throw new Error("Firestore not initialized.");
+
+    const ordersRef = collection(db, 'serviceOrders');
+    const q = query(ordersRef, orderBy('createdAt', 'desc'), limit(maxOrders));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+            id: docSnap.id,
+            ...data,
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
+            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined,
+            status: data.status || 'creado',
+        } as StoredServiceOrder;
+    });
+}
+
 export async function getTotalServiceOrdersCount(options: { since?: Date } = {}): Promise<number> {
     if (!db) throw new Error("Firestore not initialized.");
     const ordersRef = collection(db, 'serviceOrders');
