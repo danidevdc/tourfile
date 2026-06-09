@@ -9,9 +9,58 @@
  */
 
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, Timestamp, doc, getDoc, type DocumentData } from 'firebase/firestore';
 import { StoredServiceOrder } from './serviceOrderStorage';
 import { logger } from './logger';
+
+function mapOrderDoc(docSnap: { id: string; data: () => DocumentData }): StoredServiceOrder {
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...data,
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined,
+    status: data.status || 'creado',
+  } as StoredServiceOrder;
+}
+
+/**
+ * Completes search hits with their parent/child family.
+ *
+ * The UI groups children under their parent. Some optimized searches only return
+ * root orders, while responsible/general searches can return a child directly.
+ * This helper makes both cases render consistently.
+ */
+export async function expandSearchResultsWithFamilies(results: StoredServiceOrder[]): Promise<StoredServiceOrder[]> {
+  if (!db) throw new Error("Firestore not initialized.");
+  if (results.length === 0) return [];
+
+  const ordersRef = collection(db, 'serviceOrders');
+  const ordersById = new Map(results.map(order => [order.id, order]));
+  const familyIds = Array.from(new Set(results.map(order => order.splitFrom ?? order.id)));
+
+  const missingParentIds = familyIds.filter(id => !ordersById.has(id));
+  await Promise.all(missingParentIds.map(async parentId => {
+    const parentSnap = await getDoc(doc(db!, 'serviceOrders', parentId));
+    if (parentSnap.exists()) {
+      const parent = mapOrderDoc(parentSnap);
+      ordersById.set(parent.id, parent);
+    }
+  }));
+
+  for (let i = 0; i < familyIds.length; i += 10) {
+    const batchIds = familyIds.slice(i, i + 10);
+    const childrenQ = query(ordersRef, where('splitFrom', 'in', batchIds));
+    const childrenSnap = await getDocs(childrenQ);
+
+    childrenSnap.forEach(childSnap => {
+      const child = mapOrderDoc(childSnap);
+      ordersById.set(child.id, child);
+    });
+  }
+
+  return Array.from(ordersById.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
 
 /**
  * Busca órdenes por nombre de orden (substring matching)

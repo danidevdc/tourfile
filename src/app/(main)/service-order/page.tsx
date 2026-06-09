@@ -23,7 +23,7 @@ import {
   getAllServiceOrders,
   runMigrateRoots,
 } from '@/lib/serviceOrderStorage';
-import { smartSearch } from '@/lib/serviceOrderSearch';
+import { expandSearchResultsWithFamilies, smartSearch } from '@/lib/serviceOrderSearch';
 import { checkDatabaseConnection } from "@/lib/dbConnectionCheck";
 import { logger } from "@/lib/logger";
 import { type QueryDocumentSnapshot } from 'firebase/firestore';
@@ -151,34 +151,7 @@ export default function ServiceOrderListPage() {
 
     const visibleOrders = orders.filter(orderIsVisible);
 
-    const searchedOrders = activeSearchTerm
-      ? visibleOrders.filter(order => {
-        const lowercasedFilter = activeSearchTerm.toLowerCase();
-        const date = format(order.createdAt, 'dd/MM/yyyy', { locale: es });
-
-        if (!order.data) return false;
-
-        const allGuidsInOrder = new Set<string>();
-        if (order.data.guia) allGuidsInOrder.add(order.data.guia);
-        order.data.services?.forEach(s => {
-          if (s.guia) allGuidsInOrder.add(s.guia);
-        });
-
-        const allDriversInOrder = new Set<string>();
-        order.data.services?.forEach(s => {
-          if (s.chofer) allDriversInOrder.add(s.chofer);
-        });
-
-        return (
-          order.orderName.replace(/_/g, ' ').toLowerCase().includes(lowercasedFilter) ||
-          (order.data.file && order.data.file.toLowerCase().includes(lowercasedFilter)) ||
-          Array.from(allGuidsInOrder).some(g => shortPerson(g).toLowerCase().includes(lowercasedFilter)) ||
-          Array.from(allDriversInOrder).some(d => shortPerson(d).toLowerCase().includes(lowercasedFilter)) ||
-          (order.createdBy && order.createdBy.toLowerCase().includes(lowercasedFilter)) ||
-          date.toLowerCase().includes(lowercasedFilter)
-        );
-      })
-      : visibleOrders;
+    const searchedOrders = visibleOrders;
 
     const byId = new Map(searchedOrders.map(o => [o.id, o]));
     const familyGroups = new Map<string, { parent: StoredServiceOrder; children: StoredServiceOrder[] }>();
@@ -250,11 +223,12 @@ export default function ServiceOrderListPage() {
         // Smart Search Mode: Use optimized field-specific queries
         logger.debug(`🔍 Smart Search: "${activeSearchTerm}"`);
         const searchResults = await smartSearch(activeSearchTerm);
-        setOrders(searchResults.results);
+        const expandedSearchResults = await expandSearchResultsWithFamilies(searchResults.results);
+        setOrders(expandedSearchResults);
         setHasMore(false); // Not used in search mode as we have the full list
         
         // Show REAL search efficiency based on actual system data
-        const actualReads = searchResults.results.length;
+        const actualReads = expandedSearchResults.length;
         
         if (totalRootOrders !== null) {
           // Calcular ahorro real comparado con descargar todo
