@@ -183,6 +183,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         const localSessionId = typeof window !== 'undefined' ? localStorage.getItem(SESSION_ID_KEY) : null;
         const profile = await fetchUserProfile(firebaseUser.uid);
+        /*
         if (!loginInProgressRef.current && localSessionId && profile?.activeSessionId && profile.activeSessionId !== localSessionId) {
           await signOut(auth!);
           setCurrentUser(null);
@@ -191,6 +192,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
           router.push('/login');
           return;
         }
+          */
         setCurrentUser({ ...firebaseUser, profile: profile || undefined });
       } else {
         setCurrentUser(null);
@@ -200,7 +202,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     });
     return () => unsubscribe();
   }, [fetchUserProfile, handleLogout, toast]);
-
+/*
   // Real-time session monitoring — kicks out any prior session when a new login occurs.
   // Skips the first snapshot because it always reflects the ID we just wrote ourselves.
   useEffect(() => {
@@ -221,7 +223,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     });
     return () => unsubscribe();
   }, [currentUser?.uid, handleLogout]);
-
+*/
   const login = useCallback(async (emailInput?: string, passwordInput?: string) => {
     setIsLoading(true);
     if (!auth || !db || !emailInput || !passwordInput) {
@@ -255,7 +257,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
         localStorage.setItem(SESSION_ID_KEY, newSessionId);
       }
       const userProfileDocRef = doc(db, 'userProfiles', firebaseUser.uid);
-      await updateDoc(userProfileDocRef, { lastSignInTime: serverTimestamp(), activeSessionId: newSessionId });
+      await updateDoc(userProfileDocRef, { lastSignInTime: serverTimestamp() });
       const profile = await fetchUserProfile(firebaseUser.uid);
       setCurrentUser({ ...firebaseUser, profile: profile || undefined });
       sonnerToast.success('Inicio de Sesión Exitoso', { description: `¡Bienvenido de nuevo, ${profile?.email || "Usuario"}!` });
