@@ -112,7 +112,7 @@ export default function HomePage() {
     return () => { clearInterval(interval); document.removeEventListener('visibilitychange', handle); };
   }, [authLoading, currentUser?.uid]);
 
-  const appVersion = `${version} - DC`;
+  const appVersion = `${version} - DC - DEV`;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen mobile-padding bg-background">
