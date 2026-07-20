@@ -247,12 +247,22 @@ export default function GeneratorPage() {
     let colIdx = -1;
     let rowIdxWhereFileNumberFound = -1;
 
+    const searchTerm = fileNumberToSearch.trim().toUpperCase();
+    // Si el usuario escribió solo dígitos (sin el prefijo, ej. "109860" en vez de
+    // "CTFI109860"), se busca por coincidencia de sufijo numérico. Solo se acepta
+    // si es inequívoco: distintos files pueden compartir el mismo número con
+    // prefijos distintos (CTFI, CTPM, etc.), así que un match ambiguo no se
+    // resuelve solo — se le pide al usuario el prefijo completo.
+    const isDigitsOnlySearch = /^\d+$/.test(searchTerm);
+
     if (excelData && excelData.length > 0) {
       const numCols = excelData.reduce((max, row) => Math.max(max, row ? row.length : 0), 0);
+
+      // Paso 1: coincidencia exacta (comportamiento existente, sin cambios).
       for (let j = 0; j < numCols; j++) {
         for (let i = 0; i < excelData.length; i++) {
           if (excelData[i] && excelData[i][j] !== undefined && excelData[i][j] !== null) {
-            if (String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch.trim().toUpperCase()) {
+            if (String(excelData[i][j]).trim().toUpperCase() === searchTerm) {
               colIdx = j;
               rowIdxWhereFileNumberFound = i;
               found = true;
@@ -261,6 +271,42 @@ export default function GeneratorPage() {
           }
         }
         if (found) break;
+      }
+
+      // Paso 2: si no hubo match exacto y la búsqueda es solo números, buscar por
+      // sufijo numérico en todas las celdas y verificar que sea inequívoco.
+      if (!found && isDigitsOnlySearch) {
+        const suffixMatches: { row: number; col: number; value: string }[] = [];
+        for (let j = 0; j < numCols; j++) {
+          for (let i = 0; i < excelData.length; i++) {
+            const cellValue = excelData[i] && excelData[i][j];
+            if (cellValue !== undefined && cellValue !== null) {
+              const cellText = String(cellValue).trim().toUpperCase();
+              if (cellText.endsWith(searchTerm) && /^[A-Z]*\d+$/.test(cellText)) {
+                suffixMatches.push({ row: i, col: j, value: cellText });
+              }
+            }
+          }
+        }
+
+        const distinctValues = new Set(suffixMatches.map(m => m.value));
+        if (distinctValues.size === 1) {
+          colIdx = suffixMatches[0].col;
+          rowIdxWhereFileNumberFound = suffixMatches[0].row;
+          found = true;
+          // El reporte debe usar el número de file real del Excel (con prefijo),
+          // no los dígitos que el usuario ingresó para buscar.
+          form.setValue("fileNumber", suffixMatches[0].value, { shouldValidate: true });
+        } else if (distinctValues.size > 1) {
+          setIsProcessingSearch(false);
+          setFileSearchStatus("error");
+          toast({
+            title: "Número de File Ambiguo",
+            description: `Se encontraron varios files terminados en "${searchTerm}" (${Array.from(distinctValues).join(", ")}). Ingresa el número completo con su prefijo.`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
     }
 
@@ -308,8 +354,8 @@ export default function GeneratorPage() {
 
             // Regex para formato "1+3" (permite espacios alrededor de '+')
             const plusFormatRegex = /^\d+\s*\+\s*\d+$/;
-            // Regex para número de 1 o 2 dígitos
-            const numberRegex = /^\d{1,2}$/;
+            // Regex para número de 1 a 3 dígitos (hasta 999 pax)
+            const numberRegex = /^\d{1,3}$/;
 
             if (numberRegex.test(paxValue) || plusFormatRegex.test(paxValue)) {
               pax = paxValue;
@@ -801,7 +847,7 @@ export default function GeneratorPage() {
                 <Button
                   type="submit"
                   className="w-full bg-teal-600 text-white hover:bg-teal-700 dark:bg-teal-600 dark:hover:bg-teal-700"
-                  disabled={isProcessingGeneration || !selectedFile || fileSearchStatus !== 'found' || !form.formState.isValid || !currentPaxCount || currentPaxCount === "N/A"}
+                  disabled={isProcessingGeneration || !selectedFile || fileSearchStatus !== 'found' || !form.watch("fileNumber") || !form.watch("guideName") || !currentPaxCount || currentPaxCount === "N/A"}
                 >
                   {isProcessingGeneration ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generando...</>

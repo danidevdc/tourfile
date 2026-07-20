@@ -26,7 +26,6 @@ import {
   getDocs,
   deleteDoc,
   increment,
-  onSnapshot,
 } from 'firebase/firestore';
 
 export type AppModule =
@@ -50,7 +49,6 @@ export interface UserProfile {
   lastName?: string;
   username?: string;
   generatedReportsCount?: number;
-  activeSessionId?: string;
   modules?: AppModule[];
 }
 
@@ -181,18 +179,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setIsLoading(true);
       if (firebaseUser) {
-        const localSessionId = typeof window !== 'undefined' ? localStorage.getItem(SESSION_ID_KEY) : null;
         const profile = await fetchUserProfile(firebaseUser.uid);
-        /*
-        if (!loginInProgressRef.current && localSessionId && profile?.activeSessionId && profile.activeSessionId !== localSessionId) {
-          await signOut(auth!);
-          setCurrentUser(null);
-          setIsLoading(false);
-          sonnerToast.warning('Sesión Cerrada', { description: 'Tu cuenta fue iniciada en otro dispositivo.', duration: 6000 });
-          router.push('/login');
-          return;
-        }
-          */
         setCurrentUser({ ...firebaseUser, profile: profile || undefined });
       } else {
         setCurrentUser(null);
@@ -202,28 +189,6 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     });
     return () => unsubscribe();
   }, [fetchUserProfile, handleLogout, toast]);
-/*
-  // Real-time session monitoring — kicks out any prior session when a new login occurs.
-  // Skips the first snapshot because it always reflects the ID we just wrote ourselves.
-  useEffect(() => {
-    if (!db || !currentUser?.uid) return;
-    const localSessionId = typeof window !== 'undefined' ? localStorage.getItem(SESSION_ID_KEY) : null;
-    if (!localSessionId) return;
-
-    let initialized = false;
-    const unsubscribe = onSnapshot(doc(db, 'userProfiles', currentUser.uid), (snap) => {
-      if (!initialized) { initialized = true; return; }
-      if (!snap.exists()) return;
-      const currentLocalSessionId = typeof window !== 'undefined' ? localStorage.getItem(SESSION_ID_KEY) : null;
-      if (loginInProgressRef.current || currentLocalSessionId !== localSessionId || auth?.currentUser?.uid !== currentUser.uid) return;
-      const remoteSessionId = snap.data()?.activeSessionId;
-      if (remoteSessionId && remoteSessionId !== localSessionId) {
-        handleLogout(true, 'Tu cuenta fue iniciada en otro dispositivo.');
-      }
-    });
-    return () => unsubscribe();
-  }, [currentUser?.uid, handleLogout]);
-*/
   const login = useCallback(async (emailInput?: string, passwordInput?: string) => {
     setIsLoading(true);
     if (!auth || !db || !emailInput || !passwordInput) {
@@ -252,10 +217,6 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
 
       const userCredential = await signInWithEmailAndPassword(auth, emailInput.trim().toLowerCase(), passwordInput);
       const firebaseUser = userCredential.user;
-      const newSessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(SESSION_ID_KEY, newSessionId);
-      }
       const userProfileDocRef = doc(db, 'userProfiles', firebaseUser.uid);
       await updateDoc(userProfileDocRef, { lastSignInTime: serverTimestamp() });
       const profile = await fetchUserProfile(firebaseUser.uid);

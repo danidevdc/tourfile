@@ -112,7 +112,7 @@ export default function HomePage() {
     return () => { clearInterval(interval); document.removeEventListener('visibilitychange', handle); };
   }, [authLoading, currentUser?.uid]);
 
-  const appVersion = `${version} - DC`;
+  const appVersion = `${version} - DC - DEV`;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen mobile-padding bg-background">
@@ -202,6 +202,18 @@ export default function HomePage() {
                     <span className="block text-xl sm:text-2xl font-bold">Órdenes de Servicio</span>
                   </div>
                   <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-primary/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                </Button>
+              </Link>
+            )}
+
+            {(hasModule('ordenes') || hasModule('vuelos')) && (
+              <Link href="/flight-monitor" passHref>
+                <Button variant="outline" className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-sky-500/20 text-sky-600 dark:text-sky-400 hover:bg-transparent hover:text-sky-700 dark:hover:text-sky-300">
+                  <Plane className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6" />
+                  <div className="text-left flex-grow">
+                    <span className="block text-xl sm:text-2xl font-bold">Control de Vuelos</span>
+                  </div>
+                  <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-sky-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
                 </Button>
               </Link>
             )}

@@ -383,7 +383,7 @@ function FlightSearchCard() {
         <div className="nd-header-row">
           <div>
             <div className="nd-label nd-disabled nd-mb-sm">TOURFILE // VUELOS</div>
-            <LiveClock />
+            <div className="nd-label nd-secondary">BUSCADOR</div>
           </div>
           <div className="nd-header-meta">
             <div className="nd-label nd-disabled">GMT−4 / LPB</div>

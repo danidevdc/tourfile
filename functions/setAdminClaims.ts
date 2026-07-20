@@ -16,14 +16,18 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
+const ADMIN_EMAIL = 'daniish77@gmail.com';
+
 // Inicializar solo si no está inicializado
 if (admin.apps.length === 0) {
   admin.initializeApp();
 }
 
 export const setAdminClaim = functions.https.onCall(async (data, context) => {
-  // Solo usuarios admin existentes pueden asignar claims
-  if (!context.auth?.token.isAdmin && !context.auth?.uid) {
+  // Solo administradores autenticados pueden asignar claims
+  const callerEmail = context.auth?.token.email;
+  const callerIsAdmin = context.auth?.token.isAdmin === true || callerEmail === ADMIN_EMAIL;
+  if (!context.auth || !callerIsAdmin) {
     throw new functions.https.HttpsError(
       'permission-denied',
       'Solo administradores pueden asignar claims'
