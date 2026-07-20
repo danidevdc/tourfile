@@ -15,8 +15,8 @@ export function isValidPaxFormat(paxString: string): boolean {
   
   const trimmed = paxString.trim();
   
-  // Single number format
-  const singleNumberRegex = /^\d{1,2}$/;
+  // Single number format (up to 999 pax)
+  const singleNumberRegex = /^\d{1,3}$/;
   if (singleNumberRegex.test(trimmed)) return true;
   
   // Plus format (e.g., "16+1")
