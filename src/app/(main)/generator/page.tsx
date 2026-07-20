@@ -801,7 +801,7 @@ export default function GeneratorPage() {
                 <Button
                   type="submit"
                   className="w-full bg-teal-600 text-white hover:bg-teal-700 dark:bg-teal-600 dark:hover:bg-teal-700"
-                  disabled={isProcessingGeneration || !selectedFile || fileSearchStatus !== 'found' || !form.formState.isValid || !currentPaxCount || currentPaxCount === "N/A"}
+                  disabled={isProcessingGeneration || !selectedFile || fileSearchStatus !== 'found' || !form.watch("fileNumber") || !form.watch("guideName") || !currentPaxCount || currentPaxCount === "N/A"}
                 >
                   {isProcessingGeneration ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generando...</>
