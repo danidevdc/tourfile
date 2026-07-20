@@ -294,6 +294,9 @@ export default function GeneratorPage() {
           colIdx = suffixMatches[0].col;
           rowIdxWhereFileNumberFound = suffixMatches[0].row;
           found = true;
+          // El reporte debe usar el número de file real del Excel (con prefijo),
+          // no los dígitos que el usuario ingresó para buscar.
+          form.setValue("fileNumber", suffixMatches[0].value, { shouldValidate: true });
         } else if (distinctValues.size > 1) {
           setIsProcessingSearch(false);
           setFileSearchStatus("error");
