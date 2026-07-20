@@ -308,8 +308,8 @@ export default function GeneratorPage() {
 
             // Regex para formato "1+3" (permite espacios alrededor de '+')
             const plusFormatRegex = /^\d+\s*\+\s*\d+$/;
-            // Regex para número de 1 o 2 dígitos
-            const numberRegex = /^\d{1,2}$/;
+            // Regex para número de 1 a 3 dígitos (hasta 999 pax)
+            const numberRegex = /^\d{1,3}$/;
 
             if (numberRegex.test(paxValue) || plusFormatRegex.test(paxValue)) {
               pax = paxValue;
