@@ -218,6 +218,11 @@ export function ServiceOrderGeneratorSheet({
 
         let found = false, fileColumnIndex = -1, rowIdxWhereFileNumberFound = -1;
         const fileNumberToSearch = orderData.file.trim().toUpperCase();
+        // Si el usuario escribió solo dígitos (sin el prefijo, ej. "109860" en vez de
+        // "CTFI109860"), se busca por sufijo numérico. Solo se acepta si es
+        // inequívoco: distintos files pueden compartir el mismo número con
+        // prefijos distintos, así que un match ambiguo no se resuelve solo.
+        const isDigitsOnlySearch = /^\d+$/.test(fileNumberToSearch);
 
         const numCols = excelData.reduce((max, row) => Math.max(max, row ? row.length : 0), 0);
 
@@ -228,6 +233,40 @@ export function ServiceOrderGeneratorSheet({
                 }
             }
             if (found) break;
+        }
+
+        let realFileNumber: string | null = null;
+
+        if (!found && isDigitsOnlySearch) {
+            const suffixMatches: { row: number; col: number; value: string }[] = [];
+            for (let j = 0; j < numCols; j++) {
+                for (let i = 0; i < excelData.length; i++) {
+                    const cellValue = excelData[i] && excelData[i][j];
+                    if (cellValue !== undefined && cellValue !== null) {
+                        const cellText = String(cellValue).trim().toUpperCase();
+                        if (cellText.endsWith(fileNumberToSearch) && /^[A-Z]*\d+$/.test(cellText)) {
+                            suffixMatches.push({ row: i, col: j, value: cellText });
+                        }
+                    }
+                }
+            }
+
+            const distinctValues = new Set(suffixMatches.map(m => m.value));
+            if (distinctValues.size === 1) {
+                fileColumnIndex = suffixMatches[0].col;
+                rowIdxWhereFileNumberFound = suffixMatches[0].row;
+                realFileNumber = suffixMatches[0].value;
+                found = true;
+            } else if (distinctValues.size > 1) {
+                setIsProcessingSearch(false);
+                setFileSearchStatus("error");
+                toast({
+                    title: "Número de File Ambiguo",
+                    description: `Se encontraron varios files terminados en "${fileNumberToSearch}" (${Array.from(distinctValues).join(", ")}). Ingresa el número completo con su prefijo.`,
+                    variant: "destructive",
+                });
+                return;
+            }
         }
 
         if (found) {
@@ -241,7 +280,7 @@ export function ServiceOrderGeneratorSheet({
                 const paxRaw = excelData[i]?.[fileColumnIndex];
                 if (paxRaw !== null && paxRaw !== undefined) {
                     const paxValue = String(paxRaw).trim();
-                    const paxRegex = /^\d{1,2}(\s*\+\s*\d{1,2})?$/;
+                    const paxRegex = /^\d{1,3}(\s*\+\s*\d{1,3})?$/;
                     if (paxRegex.test(paxValue)) { pax = paxValue; break; }
                 }
             }
@@ -270,7 +309,13 @@ export function ServiceOrderGeneratorSheet({
                 hotelName = hotelsToPick.sort((a, b) => b.length - a.length)[0];
             }
 
-            setOrderData((prev: ServiceOrderData) => ({ ...prev, ref: groupName, nPax: pax, hotel: hotelName, services: [] }));
+            setOrderData((prev: ServiceOrderData) => ({
+                ...prev,
+                // Si se encontró por sufijo numérico, usar el número de file real
+                // del Excel (con prefijo), no los dígitos que el usuario tecleó.
+                file: realFileNumber ?? prev.file,
+                ref: groupName, nPax: pax, hotel: hotelName, services: [],
+            }));
             toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}, Hotel: ${hotelName || 'No encontrado'}`, variant: "success" as any, duration: 5000 });
 
         } else {
