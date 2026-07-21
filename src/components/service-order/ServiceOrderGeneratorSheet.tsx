@@ -80,6 +80,42 @@ export function ServiceOrderGeneratorSheet({
     const [fileSearchStatus, setFileSearchStatus] = useState<FileSearchStatus>("idle");
     const [isProcessingSearch, setIsProcessingSearch] = useState(false);
     const [foundFileColumnIndex, setFoundFileColumnIndex] = useState<number | null>(null);
+    const [showFileSuggestions, setShowFileSuggestions] = useState(false);
+    const fileFieldWrapperRef = useRef<HTMLDivElement>(null);
+
+    // Números de file únicos detectados en el Excel cargado (ej. "CTFI109860"),
+    // usados para sugerir mientras el usuario escribe en el campo File.
+    const availableFileNumbers = useMemo(() => {
+        if (!excelData) return [];
+        const found = new Set<string>();
+        for (const row of excelData) {
+            if (!row) continue;
+            for (const cell of row) {
+                if (cell === null || cell === undefined) continue;
+                const cellText = String(cell).trim().toUpperCase();
+                if (cellText.length >= 4 && /^[A-Z]*\d{3,}$/.test(cellText)) {
+                    found.add(cellText);
+                }
+            }
+        }
+        return Array.from(found).sort();
+    }, [excelData]);
+
+    const fileSuggestions = useMemo(() => {
+        const typed = orderData.file.trim().toUpperCase();
+        if (!typed) return [];
+        return availableFileNumbers.filter(f => f.includes(typed) && f !== typed).slice(0, 8);
+    }, [availableFileNumbers, orderData.file]);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (fileFieldWrapperRef.current && !fileFieldWrapperRef.current.contains(e.target as Node)) {
+                setShowFileSuggestions(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
     const [busTypeSelection, setBusTypeSelection] = useState('');
@@ -203,8 +239,9 @@ export function ServiceOrderGeneratorSheet({
         toast({ title: "Archivo Limpiado" });
     };
 
-    const handleSearchFile = async () => {
-        if (!selectedFile || !excelData || !orderData.file) {
+    const handleSearchFile = async (fileNumberOverride?: string) => {
+        const fileNumberInput = fileNumberOverride ?? orderData.file;
+        if (!selectedFile || !excelData || !fileNumberInput) {
             toast({ title: "Datos incompletos", description: "Selecciona un archivo e ingresa un número de file.", variant: "destructive" }); return;
         }
 
@@ -217,7 +254,7 @@ export function ServiceOrderGeneratorSheet({
         await new Promise(resolve => setTimeout(resolve, 300));
 
         let found = false, fileColumnIndex = -1, rowIdxWhereFileNumberFound = -1;
-        const fileNumberToSearch = orderData.file.trim().toUpperCase();
+        const fileNumberToSearch = fileNumberInput.trim().toUpperCase();
         // Si el usuario escribió solo dígitos (sin el prefijo, ej. "109860" en vez de
         // "CTFI109860"), se busca por sufijo numérico. Solo se acepta si es
         // inequívoco: distintos files pueden compartir el mismo número con
@@ -325,6 +362,12 @@ export function ServiceOrderGeneratorSheet({
             toast({ title: "Búsqueda Fallida", description: "Número de file no encontrado.", variant: "destructive" });
         }
         setIsProcessingSearch(false);
+    };
+
+    const handleSelectFileSuggestion = (fileNumber: string) => {
+        setOrderData(prev => ({ ...prev, file: fileNumber }));
+        setShowFileSuggestions(false);
+        handleSearchFile(fileNumber);
     };
 
     const handleGenerateServices = () => {
@@ -598,14 +641,38 @@ export function ServiceOrderGeneratorSheet({
                                         {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile}><Trash2 className="h-4 w-4" /></Button>}
                                     </div>
                                 </div>
-                                <div>
+                                <div ref={fileFieldWrapperRef} className="relative">
                                     <Label htmlFor="file">File:*</Label>
                                     <div className="flex items-center gap-1 mt-1">
-                                        <Input id="file" value={orderData.file} onChange={e => handleInputChange('file', e.target.value)} className={cn(orderData.file && "border-green-500")} />
-                                        <Button type="button" onClick={handleSearchFile} size="icon" disabled={!selectedFile || !orderData.file || isProcessingSearch}>
+                                        <Input
+                                            id="file"
+                                            value={orderData.file}
+                                            onChange={e => {
+                                                handleInputChange('file', e.target.value);
+                                                setShowFileSuggestions(true);
+                                            }}
+                                            onFocus={() => setShowFileSuggestions(true)}
+                                            className={cn(orderData.file && "border-green-500")}
+                                            autoComplete="off"
+                                        />
+                                        <Button type="button" onClick={() => handleSearchFile()} size="icon" disabled={!selectedFile || !orderData.file || isProcessingSearch}>
                                             {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                                         </Button>
                                     </div>
+                                    {showFileSuggestions && fileSuggestions.length > 0 && (
+                                        <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md">
+                                            {fileSuggestions.map(f => (
+                                                <button
+                                                    type="button"
+                                                    key={f}
+                                                    onClick={() => handleSelectFileSuggestion(f)}
+                                                    className="block w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                                                >
+                                                    {f}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
