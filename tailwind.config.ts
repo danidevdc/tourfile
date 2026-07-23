@@ -86,10 +86,15 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0px" },
         },
+        "pulse-glow-green": {
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(34,197,94,0.55)" },
+          "50%": { boxShadow: "0 0 0 8px rgba(34,197,94,0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-glow-green": "pulse-glow-green 2.5s ease-in-out infinite",
       },
     },
   },

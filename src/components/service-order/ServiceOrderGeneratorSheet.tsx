@@ -24,8 +24,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser, CheckCircle, UserPlus, Car, Split } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser, CheckCircle, UserPlus, Car, Split, FileSpreadsheet, X, Lock, Pencil, UsersRound, ChevronDown, CirclePlus } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { FileSearchStatus } from "@/lib/report-generator";
@@ -128,6 +128,13 @@ export function ServiceOrderGeneratorSheet({
     const [additionalDrivers, setAdditionalDrivers] = useState<string[]>([]);
     const [isSplitMode, setIsSplitMode] = useState(false);
 
+    // Ref y Pax (autocompletados por la búsqueda) quedan readonly por defecto;
+    // cada uno se desbloquea de forma independiente con su propio ícono.
+    const [isRefUnlocked, setIsRefUnlocked] = useState(false);
+    const [isPaxUnlocked, setIsPaxUnlocked] = useState(false);
+    const [isAdicionalesOpen, setIsAdicionalesOpen] = useState(false);
+    const [isAddServiceOpen, setIsAddServiceOpen] = useState(false);
+
     // Calculate if split mode can be enabled (only with exactly 1 guide and 1 driver)
     const splitModeStatus = useMemo(() => {
         const totalGuides = orderData.guia ? 1 + additionalGuides.length : additionalGuides.length;
@@ -138,6 +145,46 @@ export function ServiceOrderGeneratorSheet({
 
         return { canEnableSplit, willBeDivided, totalGuides, totalDrivers };
     }, [orderData.guia, additionalGuides, choferSelection, additionalDrivers]);
+
+    // Cuando hay un único guía/bus/chofer asignado (sin adicionales), cambiar el
+    // valor principal actualiza las filas de la tabla que aún coincidían con el
+    // valor anterior — las que ya fueron editadas manualmente a otro valor no se tocan.
+    const prevGuiaRef = useRef(orderData.guia);
+    const prevBusRef = useRef(busTypeSelection);
+    const prevChoferRef = useRef(choferSelection);
+
+    useEffect(() => {
+        const prevGuia = prevGuiaRef.current;
+        prevGuiaRef.current = orderData.guia;
+        if (!splitModeStatus.canEnableSplit) return;
+        if (!prevGuia || prevGuia === orderData.guia) return;
+        setOrderData((prev: ServiceOrderData) => ({
+            ...prev,
+            services: prev.services.map(s => s.guia === prevGuia ? { ...s, guia: orderData.guia } : s),
+        }));
+    }, [orderData.guia, splitModeStatus.canEnableSplit]);
+
+    useEffect(() => {
+        const prevBus = prevBusRef.current;
+        prevBusRef.current = busTypeSelection;
+        if (!splitModeStatus.canEnableSplit) return;
+        if (!prevBus || prevBus === busTypeSelection) return;
+        setOrderData((prev: ServiceOrderData) => ({
+            ...prev,
+            services: prev.services.map(s => s.bus === prevBus ? { ...s, bus: busTypeSelection } : s),
+        }));
+    }, [busTypeSelection, splitModeStatus.canEnableSplit]);
+
+    useEffect(() => {
+        const prevChofer = prevChoferRef.current;
+        prevChoferRef.current = choferSelection;
+        if (!splitModeStatus.canEnableSplit) return;
+        if (!prevChofer || prevChofer === choferSelection) return;
+        setOrderData((prev: ServiceOrderData) => ({
+            ...prev,
+            services: prev.services.map(s => s.chofer === prevChofer ? { ...s, chofer: choferSelection } : s),
+        }));
+    }, [choferSelection, splitModeStatus.canEnableSplit]);
 
     const processAndStoreFile = (file: File) => {
         const reader = new FileReader();
@@ -244,6 +291,8 @@ export function ServiceOrderGeneratorSheet({
         if (!selectedFile || !excelData || !fileNumberInput) {
             toast({ title: "Datos incompletos", description: "Selecciona un archivo e ingresa un número de file.", variant: "destructive" }); return;
         }
+        setIsRefUnlocked(false);
+        setIsPaxUnlocked(false);
 
         // Fix: Check if excelData is empty or first row is invalid
         if (excelData.length === 0 || !excelData[0]) {
@@ -583,10 +632,10 @@ export function ServiceOrderGeneratorSheet({
     }, [orderData.services]);
 
 
-    const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
-    const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
-    const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\\s/i, '') }));
-    const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
+    const guideOptions = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName, key: g.uid }));
+    const hotelOptions = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name, key: h.id }));
+    const driverOptions = (busTypeSelection === 'CONT.' ? externalDrivers : ownDrivers).map(d => ({ value: d.name.toUpperCase(), label: d.name.replace(/^CONT\\s/i, ''), key: d.id }));
+    const activityOptions = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name, key: a.id }));
     const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim();
 
     const filteredFlightOptions = useMemo(() => {
@@ -601,8 +650,8 @@ export function ServiceOrderGeneratorSheet({
     const finalBusOptions = [...busOptions, { value: 'CONT.', label: 'Contratado' }];
 
     // Options for selecting guide/driver per service (from assigned ones)
-    const allAvailableGuides = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
-    const allAvailableDrivers = drivers.map(d => ({ value: d.name.toUpperCase(), label: d.name }));
+    const allAvailableGuides = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName, key: g.uid }));
+    const allAvailableDrivers = drivers.map(d => ({ value: d.name.toUpperCase(), label: d.name, key: d.id }));
 
     const assignedGuides = [orderData.guia, ...additionalGuides].filter(Boolean);
     const serviceGuideOptions = [
@@ -619,29 +668,36 @@ export function ServiceOrderGeneratorSheet({
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
             <SheetContent side="top" className="w-full h-full max-h-screen flex flex-col sm:max-w-full overflow-y-auto">
-                <SheetHeader>
+                <TooltipProvider>
+                <SheetHeader className="space-y-0">
                     <SheetTitle className="text-2xl font-headline text-primary">
-                        {isAutomatedMode ? "Generar Orden de Servicio Automatizada" : "Nueva Orden de Servicio"}
+                        Generar Orden Automatizada
                     </SheetTitle>
-                    <SheetDescription>
-                        Completa los detalles de la orden aquí. Haz clic en guardar cuando hayas terminado.
-                    </SheetDescription>
                 </SheetHeader>
-                <div className="flex-grow min-h-0 overflow-y-auto mobile-padding relative">
-                    <div className="space-y-4 py-4">
+                <div className="flex-grow min-h-0 overflow-y-auto mobile-padding relative -mt-2">
+                    <div className="space-y-4 py-2">
                         <div className="space-y-4 p-3 sm:p-4 border rounded-lg bg-card">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <Label>Programa:</Label>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className={cn("w-full justify-start", selectedFile && "border-green-500 font-medium text-green-700")}>
-                                            <Upload className="mr-2 h-4 w-4" />{selectedFile ? selectedFile.name : "Seleccionar .xlsx"}
-                                        </Button>
-                                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls" />
-                                        {selectedFile && <Button type="button" variant="destructive" size="icon" onClick={clearFile}><Trash2 className="h-4 w-4" /></Button>}
-                                    </div>
+                            {/* Chip compacto del archivo subido, en su propia fila */}
+                            {selectedFile ? (
+                                <div className="flex items-center gap-2 w-fit rounded-full border border-green-500/50 bg-green-50 dark:bg-emerald-950/30 px-3 py-1.5 text-sm">
+                                    <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                                    <FileSpreadsheet className="h-3.5 w-3.5 text-green-700 dark:text-emerald-400 shrink-0" />
+                                    <span className="text-green-800 dark:text-emerald-200 font-medium truncate max-w-[240px]">{selectedFile.name}</span>
+                                    <button type="button" onClick={clearFile} className="text-green-600/60 hover:text-destructive transition-colors">
+                                        <X className="h-3.5 w-3.5" />
+                                    </button>
                                 </div>
-                                <div ref={fileFieldWrapperRef} className="relative">
+                            ) : (
+                                <div>
+                                    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="w-fit justify-start">
+                                        <Upload className="mr-2 h-4 w-4" />Seleccionar archivo .xlsx
+                                    </Button>
+                                </div>
+                            )}
+                            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx,.xls" />
+
+                            <div className="flex flex-wrap items-end gap-4">
+                                <div ref={fileFieldWrapperRef} className="relative" style={{ width: '175px' }}>
                                     <Label htmlFor="file">File:*</Label>
                                     <div className="flex items-center gap-1 mt-1">
                                         <Input
@@ -652,10 +708,10 @@ export function ServiceOrderGeneratorSheet({
                                                 setShowFileSuggestions(true);
                                             }}
                                             onFocus={() => setShowFileSuggestions(true)}
-                                            className={cn(orderData.file && "border-green-500")}
+                                            className={cn("rounded-md ring-2 ring-blue-200 dark:ring-blue-500/30 shadow-[0_0_0_3px_rgba(47,111,237,0.10)]", orderData.file && "border-green-500")}
                                             autoComplete="off"
                                         />
-                                        <Button type="button" onClick={() => handleSearchFile()} size="icon" disabled={!selectedFile || !orderData.file || isProcessingSearch}>
+                                        <Button type="button" onClick={() => handleSearchFile()} size="icon" className="shrink-0" disabled={!selectedFile || !orderData.file || isProcessingSearch}>
                                             {isProcessingSearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                                         </Button>
                                     </div>
@@ -674,28 +730,67 @@ export function ServiceOrderGeneratorSheet({
                                         </div>
                                     )}
                                 </div>
+
+                                <div className="flex flex-1 min-w-[380px] items-end gap-3 transition-opacity" style={{ opacity: fileSearchStatus === "found" ? 1 : 0.45 }}>
+                                    <div className="flex-[3]">
+                                        <Label htmlFor="ref">Ref (Grupo):</Label>
+                                        <div className="relative mt-1">
+                                            <Input
+                                                id="ref"
+                                                value={orderData.ref}
+                                                readOnly={!isRefUnlocked}
+                                                tabIndex={isRefUnlocked ? 0 : -1}
+                                                onMouseDown={e => { if (!isRefUnlocked) e.preventDefault(); }}
+                                                onChange={e => handleInputChange('ref', e.target.value)}
+                                                className={cn("pr-8", !isRefUnlocked && "cursor-default", orderData.ref && !isRefUnlocked && "border-green-500 bg-green-50 dark:bg-emerald-950/20")}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsRefUnlocked(v => !v)}
+                                                title={isRefUnlocked ? "Bloquear edición" : "Editar manualmente"}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                            >
+                                                {isRefUnlocked ? <Lock className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="w-[70px] shrink-0">
+                                        <Label htmlFor="nPax">Nº Pax:</Label>
+                                        <div className="relative mt-1">
+                                            <Input
+                                                id="nPax"
+                                                value={orderData.nPax}
+                                                readOnly={!isPaxUnlocked}
+                                                tabIndex={isPaxUnlocked ? 0 : -1}
+                                                onMouseDown={e => { if (!isPaxUnlocked) e.preventDefault(); }}
+                                                onChange={e => handleInputChange('nPax', e.target.value)}
+                                                maxLength={3}
+                                                className={cn("text-left pr-7", !isPaxUnlocked && "cursor-default", orderData.nPax && !isPaxUnlocked && "border-green-500 bg-green-50 dark:bg-emerald-950/20")}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsPaxUnlocked(v => !v)}
+                                                title={isPaxUnlocked ? "Bloquear edición" : "Editar manualmente"}
+                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                            >
+                                                {isPaxUnlocked ? <Lock className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="flex-[2.4]">
+                                        <Label>Hotel</Label>
+                                        <Combobox
+                                            options={hotelOptions}
+                                            value={orderData.hotel}
+                                            onSelect={(val) => handleSelectChange('hotel', val)}
+                                            placeholder="Buscar hotel..."
+                                            className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
+                                            triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", orderData.hotel && "border-green-500 font-medium")}
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                <div>
-                                    <Label htmlFor="ref">Ref (Grupo):</Label>
-                                    <Input id="ref" value={orderData.ref} onChange={e => handleInputChange('ref', e.target.value)} className={cn("mt-1", orderData.ref && "border-green-500")} />
-                                </div>
-                                <div>
-                                    <Label htmlFor="nPax">Nº Pax:</Label>
-                                    <Input id="nPax" value={orderData.nPax} onChange={e => handleInputChange('nPax', e.target.value)} className={cn("mt-1", orderData.nPax && "border-green-500")} />
-                                </div>
-                                <div>
-                                    <Label>Hotel</Label>
-                                    <Combobox
-                                        options={hotelOptions}
-                                        value={orderData.hotel}
-                                        onSelect={(val) => handleSelectChange('hotel', val)}
-                                        placeholder="Buscar hotel..."
-                                        className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
-                                        triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", orderData.hotel && "border-green-500 font-medium")}
-                                    />
-                                </div>
-                            </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-10 items-end gap-4">
                                 <div className="sm:col-span-3">
                                     <Label>Guía Principal*</Label>
@@ -729,133 +824,176 @@ export function ServiceOrderGeneratorSheet({
                                         disabled={!busTypeSelection}
                                     />
                                 </div>
-                                {isAutomatedMode && (
-                                    <div className="col-span-2 flex items-center">
-                                        <Button onClick={handleGenerateServices} disabled={fileSearchStatus !== "found" || !orderData.guia || !busTypeSelection || !choferSelection} className="w-full h-10 bg-green-600 hover:bg-green-700 text-white">
-                                            <CheckCircle className="mr-2 h-5 w-5" />
-                                            Generar Servicios
+                                {isAutomatedMode && (() => {
+                                    const readyCount = [!!orderData.guia, !!busTypeSelection, !!choferSelection].filter(Boolean).length;
+                                    const progressPct = (readyCount / 3) * 100;
+                                    const isReady = fileSearchStatus === "found" && readyCount === 3;
+                                    return (
+                                        <div className={cn("col-span-2 flex items-center rounded-md", isReady && "animate-pulse-glow-green")}>
+                                            <Button
+                                                onClick={handleGenerateServices}
+                                                disabled={!isReady}
+                                                className="relative w-full h-10 overflow-hidden bg-zinc-400 dark:bg-zinc-700 text-white hover:bg-zinc-400 dark:hover:bg-zinc-700 disabled:opacity-100"
+                                            >
+                                                <span
+                                                    className="absolute inset-y-0 left-0 bg-green-600 transition-all duration-300 ease-out"
+                                                    style={{ width: `${progressPct}%` }}
+                                                />
+                                                <span className="relative z-10 flex items-center">
+                                                    <CheckCircle className="mr-2 h-5 w-5" />
+                                                    Generar Servicios
+                                                </span>
+                                            </Button>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* Botones-ícono lado a lado: cada uno activa/desactiva su propia ficha debajo */}
+                            <div className="flex items-center gap-2">
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant={isAdicionalesOpen ? "secondary" : "outline"}
+                                            size="icon"
+                                            onClick={() => setIsAdicionalesOpen(v => !v)}
+                                        >
+                                            <UsersRound className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Guías / Choferes Adicionales</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant={isAddServiceOpen ? "secondary" : "outline"}
+                                            size="icon"
+                                            onClick={() => setIsAddServiceOpen(v => !v)}
+                                        >
+                                            <CirclePlus className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Añadir Servicio {isAutomatedMode ? 'Adicional' : 'Manualmente'}</TooltipContent>
+                                </Tooltip>
+                            </div>
+
+                            {isAdicionalesOpen && (
+                                <div className="mt-3 space-y-3 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
+                                    <div className="flex items-end gap-2">
+                                        <div className="flex-1">
+                                            <Label className="flex items-center gap-2"><UserPlus size={14} />Guías Adicionales</Label>
+                                            <Combobox
+                                                options={allAvailableGuides.filter(g => g.value !== orderData.guia && !additionalGuides.includes(g.value))}
+                                                value={''}
+                                                onSelect={(val) => {
+                                                    if (!additionalGuides.includes(val)) {
+                                                        setAdditionalGuides([...additionalGuides, val]);
+                                                    }
+                                                }}
+                                                placeholder="Añadir otro guía..."
+                                                className="h-9 mt-1"
+                                                triggerClassName="bg-background dark:bg-slate-800/80 dark:border-slate-600"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        {additionalGuides.map(g => (
+                                            <div key={g} className="flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full px-2 py-0.5">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-4 w-4 text-blue-500"
+                                                    onClick={() => setAdditionalGuides(additionalGuides.filter(ag => ag !== g))}
+                                                >
+                                                    <XCircle size={14} />
+                                                </Button>
+                                                <span>{g}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <hr className="my-2 border-zinc-200 dark:border-zinc-700" />
+                                    <div className="flex items-end gap-2">
+                                        <div className="flex-1">
+                                            <Label className="flex items-center gap-2"><Car size={14} />Choferes Adicionales</Label>
+                                            <Combobox
+                                                options={allAvailableDrivers.filter(d => !additionalDrivers.includes(d.value))}
+                                                value={''}
+                                                onSelect={(val) => {
+                                                    if (!additionalDrivers.includes(val)) {
+                                                        setAdditionalDrivers([...additionalDrivers, val]);
+                                                    }
+                                                }}
+                                                placeholder="Añadir otro chofer..."
+                                                className="h-9 mt-1"
+                                                triggerClassName="bg-background dark:bg-slate-800/80 dark:border-slate-600"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        {additionalDrivers.map(d => (
+                                            <div key={d} className="flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-full px-2 py-0.5">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-4 w-4 text-green-500"
+                                                    onClick={() => setAdditionalDrivers(additionalDrivers.filter(ad => ad !== d))}
+                                                >
+                                                    <XCircle size={14} />
+                                                </Button>
+                                                <span>{d}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {isAddServiceOpen && (
+                                <div className="flex items-end gap-2 mt-3 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
+                                    <div style={{ width: '150px' }}>
+                                        <Label>Fecha</Label>
+                                        <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full" />
+                                    </div>
+                                    <div className="flex-grow" style={{ minWidth: '250px' }}>
+                                        <Label>Actividad</Label>
+                                        <Combobox
+                                            options={activityOptions}
+                                            value={newService.servicio}
+                                            onSelect={handleActivitySelect}
+                                            placeholder="Buscar actividad..."
+                                            className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
+                                            triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", newService.servicio && "border-green-500 font-medium")}
+                                        />
+                                    </div>
+                                    <div className="flex-grow" style={{ minWidth: '200px' }}>
+                                        <Label>Vuelo</Label>
+                                        <Combobox
+                                            options={filteredFlightOptions}
+                                            value={newService.vuelo || ''}
+                                            onSelect={handleFlightSelect}
+                                            placeholder="Seleccionar vuelo..."
+                                            className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
+                                            triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", newService.vuelo && "border-green-500 font-medium")}
+                                            disabled={!(newService.servicio?.toUpperCase().includes('TRF') || newService.servicio?.toUpperCase().includes('APTO'))}
+                                        />
+                                    </div>
+                                    <div style={{ width: '100px' }}>
+                                        <Label>Hora</Label>
+                                        <Input value={newService.hora} onChange={handleTimeInputChange} onBlur={handleTimeInputBlur} placeholder="HH:mm" maxLength={5} className="mt-1 w-full" />
+                                    </div>
+                                    <div>
+                                        <Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}>
+                                            <PlusCircle className="mr-2 h-5 w-5" />Añadir
                                         </Button>
                                     </div>
-                                )}
-                            </div>
-
-                            {/* Additional Guides and Drivers Section */}
-                            <div className="space-y-3 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
-                                <div className="flex items-end gap-2">
-                                    <div className="flex-1">
-                                        <Label className="flex items-center gap-2"><UserPlus size={14} />Guías Adicionales</Label>
-                                        <Combobox
-                                            options={allAvailableGuides.filter(g => g.value !== orderData.guia && !additionalGuides.includes(g.value))}
-                                            value={''}
-                                            onSelect={(val) => {
-                                                if (!additionalGuides.includes(val)) {
-                                                    setAdditionalGuides([...additionalGuides, val]);
-                                                }
-                                            }}
-                                            placeholder="Añadir otro guía..."
-                                            className="h-9 mt-1"
-                                            triggerClassName="bg-background dark:bg-slate-800/80 dark:border-slate-600"
-                                        />
-                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    {additionalGuides.map(g => (
-                                        <div key={g} className="flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full px-2 py-0.5">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-4 w-4 text-blue-500"
-                                                onClick={() => setAdditionalGuides(additionalGuides.filter(ag => ag !== g))}
-                                            >
-                                                <XCircle size={14} />
-                                            </Button>
-                                            <span>{g}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                <hr className="my-2 border-zinc-200 dark:border-zinc-700" />
-                                <div className="flex items-end gap-2">
-                                    <div className="flex-1">
-                                        <Label className="flex items-center gap-2"><Car size={14} />Choferes Adicionales</Label>
-                                        <Combobox
-                                            options={allAvailableDrivers.filter(d => !additionalDrivers.includes(d.value))}
-                                            value={''}
-                                            onSelect={(val) => {
-                                                if (!additionalDrivers.includes(val)) {
-                                                    setAdditionalDrivers([...additionalDrivers, val]);
-                                                }
-                                            }}
-                                            placeholder="Añadir otro chofer..."
-                                            className="h-9 mt-1"
-                                            triggerClassName="bg-background dark:bg-slate-800/80 dark:border-slate-600"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    {additionalDrivers.map(d => (
-                                        <div key={d} className="flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-full px-2 py-0.5">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-4 w-4 text-green-500"
-                                                onClick={() => setAdditionalDrivers(additionalDrivers.filter(ad => ad !== d))}
-                                            >
-                                                <XCircle size={14} />
-                                            </Button>
-                                            <span>{d}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                            )}
                         </div>
 
-                        <div className="p-3 sm:p-4 border rounded-lg bg-card">
-                            <h3 className="font-semibold mb-2">Añadir Servicio {isAutomatedMode ? 'Adicional' : 'Manualmente'}</h3>
-                            <div className="flex items-end gap-2">
-                                <div style={{ width: '150px' }}>
-                                    <Label>Fecha</Label>
-                                    <Input type="date" value={newService.fecha} onChange={(e) => handleNewServiceChange('fecha', e.target.value)} className="mt-1 w-full" />
-                                </div>
-                                <div className="flex-grow" style={{ minWidth: '250px' }}>
-                                    <Label>Actividad</Label>
-                                    <Combobox
-                                        options={activityOptions}
-                                        value={newService.servicio}
-                                        onSelect={handleActivitySelect}
-                                        placeholder="Buscar actividad..."
-                                        className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
-                                        triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", newService.servicio && "border-green-500 font-medium")}
-                                    />
-                                </div>
-                                <div className="flex-grow" style={{ minWidth: '200px' }}>
-                                    <Label>Vuelo</Label>
-                                    <Combobox
-                                        options={filteredFlightOptions}
-                                        value={newService.vuelo || ''}
-                                        onSelect={handleFlightSelect}
-                                        placeholder="Seleccionar vuelo..."
-                                        className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
-                                        triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", newService.vuelo && "border-green-500 font-medium")}
-                                        disabled={!(newService.servicio?.toUpperCase().includes('TRF') || newService.servicio?.toUpperCase().includes('APTO'))}
-                                    />
-                                </div>
-                                <div style={{ width: '100px' }}>
-                                    <Label>Hora</Label>
-                                    <Input value={newService.hora} onChange={handleTimeInputChange} onBlur={handleTimeInputBlur} placeholder="HH:mm" maxLength={5} className="mt-1 w-full" />
-                                </div>
-                                <div>
-                                    <Button onClick={addNewServiceRow} variant="default" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddServiceDisabled}>
-                                        <PlusCircle className="mr-2 h-5 w-5" />Añadir
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="p-3 sm:p-4 border rounded-lg bg-card">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="font-semibold mobile-text-base">Resumen ({orderData.services.length} servicios)</h3>
-                            </div>
-                            <div className="max-h-64 overflow-y-auto overflow-x-auto border rounded-md bg-card">
+                        <div>
+                            <h3 className="font-semibold mobile-text-base mb-2 px-1">Resumen ({orderData.services.length} servicios)</h3>
+                            <div className="max-h-96 overflow-y-auto overflow-x-auto rounded-lg border bg-card ring-2 ring-blue-200 dark:ring-blue-500/30 shadow-[0_0_0_4px_rgba(47,111,237,0.10)]">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10 hover:bg-primary/10">
                                         <TableRow className="border-b-primary/20">
@@ -886,12 +1024,12 @@ export function ServiceOrderGeneratorSheet({
                                         {orderData.services.length > 0 ? (
                                             orderData.services.map((s, i) => {
                                                 const originalIndex = i;
-                                                const guiaFirstName = (s.guia || "").split(" ")[0];
+                                                const guiaFirstName = ((s.guia || orderData.guia) || "").split(" ")[0];
                                                 const choferName = (s.chofer || "").replace(/^CONT\s/i, '');
                                                 const isTransfer = s.servicio?.toUpperCase().includes('TRF') || s.servicio?.toUpperCase().includes('APTO');
 
                                                 return (
-                                                    <TableRow key={s.id || i} className="font-mono border-b-primary/20">
+                                                    <TableRow key={s.id || i} className="border-b-primary/20">
                                                         <TableCell className="p-1 border-r border-primary/20 text-center">
                                                             <Checkbox
                                                                 checked={selectedServices.has(originalIndex)}
@@ -929,8 +1067,10 @@ export function ServiceOrderGeneratorSheet({
                                                                 value={s.guia || orderData.guia || 'NONE'}
                                                                 onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'guia', value === 'NONE' ? '' : value)}
                                                             >
-                                                                <SelectTrigger className="h-8 text-xs bg-card/80">
-                                                                    <SelectValue placeholder="Guía..." />
+                                                                <SelectTrigger className="h-8 text-xs bg-card/80 dark:bg-slate-800/90 dark:border-slate-600">
+                                                                    <SelectValue placeholder="Guía..." className="flex-1 text-left truncate">
+                                                                        {guiaFirstName || undefined}
+                                                                    </SelectValue>
                                                                 </SelectTrigger>
                                                                 <SelectContent>
                                                                     {serviceGuideOptions.map(g => (
@@ -972,7 +1112,7 @@ export function ServiceOrderGeneratorSheet({
                                                                 </SelectContent>
                                                             </Select>
                                                         </TableCell>
-                                                        <TableCell className="p-1 border-r border-primary/20 font-sans">
+                                                        <TableCell className="p-1 border-r border-primary/20">
                                                             <Input
                                                                 value={s.observaciones || ''}
                                                                 onChange={(e) => handleServiceSummaryChange(originalIndex, 'observaciones', e.target.value)}
@@ -1045,44 +1185,43 @@ export function ServiceOrderGeneratorSheet({
                         Limpiar Formulario
                     </Button>
                     {/* Split Mode Toggle */}
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-3 px-4 py-2 rounded-md border bg-muted/30">
-                                    <div className="flex items-center gap-2">
-                                        <Split className="h-4 w-4 text-purple-600" />
-                                        <Label htmlFor="split-mode" className="text-sm font-medium cursor-pointer">
-                                            {splitModeStatus.willBeDivided
-                                                ? `Dividida (${splitModeStatus.totalGuides}G/${splitModeStatus.totalDrivers}C)`
-                                                : "Orden Separada"}
-                                        </Label>
-                                    </div>
-                                    <Switch
-                                        id="split-mode"
-                                        checked={isSplitMode}
-                                        onCheckedChange={setIsSplitMode}
-                                        disabled={!splitModeStatus.canEnableSplit}
-                                        className="data-[state=checked]:bg-purple-600"
-                                    />
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="flex items-center gap-3 px-4 py-2 rounded-md border border-purple-300 dark:border-purple-500/40 bg-purple-50 dark:bg-purple-950/30">
+                                <div className="flex items-center gap-2">
+                                    <Split className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                    <Label htmlFor="split-mode" className="text-sm font-medium cursor-pointer text-purple-900 dark:text-purple-100">
+                                        {splitModeStatus.willBeDivided
+                                            ? `Dividida (${splitModeStatus.totalGuides}G/${splitModeStatus.totalDrivers}C)`
+                                            : "Orden Separada"}
+                                    </Label>
                                 </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                                {splitModeStatus.canEnableSplit ? (
-                                    <p>Activar para crear 2 órdenes idénticas: una para el guía y otra para el chofer. Solo disponible con 1 guía y 1 chofer.</p>
-                                ) : splitModeStatus.willBeDivided ? (
-                                    <p>Con más de 1 guía o chofer, la orden se dividirá automáticamente (cada responsable recibe solo sus servicios).</p>
-                                ) : (
-                                    <p>Necesitas asignar 1 guía y 1 chofer para habilitar la orden separada.</p>
-                                )}
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                    <Button variant="outline" onClick={onClose}>Cerrar</Button>
+                                <Switch
+                                    id="split-mode"
+                                    checked={isSplitMode}
+                                    onCheckedChange={setIsSplitMode}
+                                    disabled={!splitModeStatus.canEnableSplit}
+                                    className="data-[state=checked]:bg-purple-600 data-[state=unchecked]:bg-purple-200 dark:data-[state=unchecked]:bg-purple-900/60"
+                                />
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                            {splitModeStatus.canEnableSplit ? (
+                                <p>Activar para crear 2 órdenes idénticas: una para el guía y otra para el chofer. Solo disponible con 1 guía y 1 chofer.</p>
+                            ) : splitModeStatus.willBeDivided ? (
+                                <p>Con más de 1 guía o chofer, la orden se dividirá automáticamente (cada responsable recibe solo sus servicios).</p>
+                            ) : (
+                                <p>Necesitas asignar 1 guía y 1 chofer para habilitar la orden separada.</p>
+                            )}
+                        </TooltipContent>
+                    </Tooltip>
+                    <Button variant="outline" onClick={onClose} className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">Cerrar</Button>
                     <Button onClick={handleSaveOrder} disabled={isSaving || isLoadingData}>
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                         Guardar Orden
                     </Button>
                 </div>
+                </TooltipProvider>
             </SheetContent>
         </Sheet>
     );
