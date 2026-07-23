@@ -34,7 +34,7 @@ async function invalidateMasterCache(): Promise<void> {
 export const createGuide = async (guide: { firstName: string; lastName: string }) => {
   const batch = writeBatch(db!);
   const ref = doc(collection(db!, 'guides'));
-  batch.set(ref, guide);
+  batch.set(ref, { firstName: guide.firstName.trim(), lastName: guide.lastName.trim() });
   batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), {
     version: increment(1),
     lastUpdate: serverTimestamp(),
@@ -45,7 +45,7 @@ export const createGuide = async (guide: { firstName: string; lastName: string }
 
 export const updateGuide = async (id: string, data: { firstName: string; lastName: string }) => {
   const batch = writeBatch(db!);
-  batch.set(doc(db!, 'guides', id), data);
+  batch.set(doc(db!, 'guides', id), { firstName: data.firstName.trim(), lastName: data.lastName.trim() });
   batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), {
     version: increment(1),
     lastUpdate: serverTimestamp(),
@@ -69,7 +69,7 @@ export const deleteGuide = async (id: string) => {
 export const createHotel = async (name: string) => {
   const batch = writeBatch(db!);
   const ref = doc(collection(db!, 'hotels'));
-  batch.set(ref, { name });
+  batch.set(ref, { name: name.trim() });
   batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), {
     version: increment(1),
     lastUpdate: serverTimestamp(),
@@ -80,7 +80,7 @@ export const createHotel = async (name: string) => {
 
 export const updateHotel = async (id: string, name: string) => {
   const batch = writeBatch(db!);
-  batch.set(doc(db!, 'hotels', id), { name });
+  batch.set(doc(db!, 'hotels', id), { name: name.trim() });
   batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), {
     version: increment(1),
     lastUpdate: serverTimestamp(),
@@ -104,7 +104,7 @@ export const deleteHotel = async (id: string) => {
 export const createActivity = async (name: string) => {
   const batch = writeBatch(db!);
   const ref = doc(collection(db!, 'activities'));
-  batch.set(ref, { name });
+  batch.set(ref, { name: name.trim() });
   batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), {
     version: increment(1),
     lastUpdate: serverTimestamp(),
@@ -115,7 +115,7 @@ export const createActivity = async (name: string) => {
 
 export const updateActivity = async (id: string, name: string) => {
   const batch = writeBatch(db!);
-  batch.set(doc(db!, 'activities', id), { name });
+  batch.set(doc(db!, 'activities', id), { name: name.trim() });
   batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), {
     version: increment(1),
     lastUpdate: serverTimestamp(),
@@ -139,7 +139,7 @@ export const deleteActivity = async (id: string) => {
 export const createDriver = async (name: string) => {
   const batch = writeBatch(db!);
   const ref = doc(collection(db!, 'drivers'));
-  batch.set(ref, { name });
+  batch.set(ref, { name: name.trim() });
   batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), {
     version: increment(1),
     lastUpdate: serverTimestamp(),
@@ -150,7 +150,7 @@ export const createDriver = async (name: string) => {
 
 export const updateDriver = async (id: string, name: string) => {
   const batch = writeBatch(db!);
-  batch.set(doc(db!, 'drivers', id), { name });
+  batch.set(doc(db!, 'drivers', id), { name: name.trim() });
   batch.update(doc(db!, CACHE_COLLECTION, CACHE_VERSION_ID), {
     version: increment(1),
     lastUpdate: serverTimestamp(),
@@ -220,9 +220,10 @@ export interface Bus {
 
 export const createBus = async (name: string) => {
   if (!db) throw new Error('Firestore not initialized.');
+  const trimmedName = name.trim().toUpperCase();
   const batch = writeBatch(db);
-  const docRef = doc(db, 'buses', name.toUpperCase());
-  batch.set(docRef, { name: name.toUpperCase() });
+  const docRef = doc(db, 'buses', trimmedName);
+  batch.set(docRef, { name: trimmedName });
   const versionRef = doc(db, CACHE_COLLECTION, CACHE_VERSION_ID);
   batch.update(versionRef, { version: increment(1), lastUpdate: serverTimestamp() });
   await batch.commit();
@@ -232,7 +233,7 @@ export const createBus = async (name: string) => {
 export const updateBus = async (id: string, name: string) => {
   if (!db) throw new Error('Firestore not initialized.');
   const batch = writeBatch(db);
-  batch.set(doc(db, 'buses', id), { name: name.toUpperCase() });
+  batch.set(doc(db, 'buses', id), { name: name.trim().toUpperCase() });
   batch.update(doc(db, CACHE_COLLECTION, CACHE_VERSION_ID), {
     version: increment(1),
     lastUpdate: serverTimestamp(),
@@ -264,7 +265,12 @@ const createBulk = async (collectionName: string, records: { [key: string]: any 
   const collectionRef = collection(db, collectionName);
   records.forEach((record) => {
     const docRef = doc(collectionRef);
-    batch.set(docRef, record);
+    // Recorta espacios sobrantes en cualquier campo de texto (ej. importaciones
+    // desde Excel suelen traer espacios al inicio/fin de nombres/actividades).
+    const trimmedRecord = Object.fromEntries(
+      Object.entries(record).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+    );
+    batch.set(docRef, trimmedRecord);
   });
   batch.update(doc(db, CACHE_COLLECTION, CACHE_VERSION_ID), {
     version: increment(1),
