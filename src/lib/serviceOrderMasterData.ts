@@ -272,7 +272,7 @@ import { query, where } from 'firebase/firestore';
  */
 async function checkExists(collectionName: string, fieldName: string, value: string): Promise<boolean> {
   if (!db) return false;
-  const q = query(collection(db, collectionName), where(fieldName, '==', value.toUpperCase()));
+  const q = query(collection(db, collectionName), where(fieldName, '==', value.trim().toUpperCase()));
   const snapshot = await getDocs(q);
   return !snapshot.empty;
 }
@@ -287,7 +287,7 @@ export const checkIfFlightExists = (flightNumber: string) => checkExists('flight
  */
 export async function checkIfBusExists(name: string): Promise<boolean> {
   if (!db) return false;
-  const busDocRef = doc(db, 'buses', name.toUpperCase());
+  const busDocRef = doc(db, 'buses', name.trim().toUpperCase());
   const docSnap = await getDoc(busDocRef);
   return docSnap.exists();
 }
@@ -299,8 +299,8 @@ export async function checkIfGuideExists(firstName: string, lastName: string): P
   if (!db) return false;
   const q = query(
     collection(db, 'guides'),
-    where('firstName', '==', firstName.toUpperCase()),
-    where('lastName', '==', lastName.toUpperCase())
+    where('firstName', '==', firstName.trim().toUpperCase()),
+    where('lastName', '==', lastName.trim().toUpperCase())
   );
   const snapshot = await getDocs(q);
   return !snapshot.empty;

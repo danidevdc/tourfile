@@ -45,3 +45,9 @@ firebase-debug.log
 firestore-debug.log
 .env.local
 .cocoindex_code/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# graphify output (generated knowledge graph)
+graphify-out/

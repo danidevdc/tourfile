@@ -114,5 +114,24 @@ export function generateServicesFromExcelColumn(
     }
   }
 
-  return generatedServices;
+  return deduplicateServices(generatedServices);
+}
+
+/**
+ * Elimina servicios duplicados generados a partir de una misma línea del
+ * programa repetida en el Excel (ej. "FD LAGO" listado dos veces el mismo
+ * día). Dos servicios se consideran duplicados solo si coinciden en fecha,
+ * nombre de servicio, vuelo Y observaciones — así dos TRF OUT el mismo día
+ * con vuelos distintos se mantienen como filas separadas.
+ */
+function deduplicateServices(services: ServiceItem[]): ServiceItem[] {
+  const seen = new Set<string>();
+  const deduped: ServiceItem[] = [];
+  for (const service of services) {
+    const key = [service.fecha, service.servicio, service.vuelo, service.observaciones].join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(service);
+  }
+  return deduped;
 }
