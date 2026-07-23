@@ -42,7 +42,10 @@ interface ComboboxProps {
 export function Combobox({ options, value, onSelect, placeholder, notFoundMessage, className, triggerClassName, disabled = false }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
-  const selectedLabel = options.find((option) => option.value.toUpperCase() === value.toUpperCase())?.label;
+  // Si no hay una opción cuyo value coincida exactamente (ej. la lista de
+  // opciones cambió, o el valor guardado difiere sutilmente por espacios/
+  // caracteres), no dejar el trigger en blanco — mostrar el valor tal cual.
+  const selectedLabel = options.find((option) => option.value.toUpperCase() === value.toUpperCase())?.label ?? value;
 
   return (
     <Popover open={open} onOpenChange={(newState) => !disabled && setOpen(newState)} modal={true}>
