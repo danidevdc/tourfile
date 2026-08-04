@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Car, Loader2, Plane, RefreshCw, User, XCircle } from "lucide-react";
 
 import { getNaabolDailyMonitorSnapshot, type NaabolMonitorFlight } from "@/ai/flows/flight-monitor-flow";
+import { findFlight } from "@/ai/flows/find-flight-flow";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth, type AppModule } from "@/hooks/useAuth";
 import { getUpcomingFlightServiceOrders, type StoredServiceOrder } from "@/lib/serviceOrderStorage";
+import { tryConsumeFlightAwareSearch } from "@/lib/flightSearchCounterService";
 import {
   extractFlightNumbers,
   extractFlightTimeFromObservations,
@@ -39,8 +41,14 @@ const NAABOL_POLL_INTERVAL_MS = 75_000;
 
 // Un vuelo confirmado por NAABOL que deja de aparecer en un snapshot (por la
 // ventana angosta que expone la API) se conserva con su ultimo dato conocido
-// hasta que pasen estos minutos sin reaparecer.
-const LAST_KNOWN_FLIGHT_TTL_MINUTES = 20;
+// por el resto del dia operativo (hasta medianoche La Paz) en vez de
+// descartarse a los pocos minutos -- NAABOL es la fuente de mayor confianza
+// para vuelos de hoy, asi que se prefiere sobre AeroAPI mientras se pueda.
+
+// Minutos despues de la hora prevista sin ningun dato (ni NAABOL ni su
+// ultimo dato conocido del dia) antes de intentar, como ultimo recurso,
+// el fallback puntual a AeroAPI (una sola vez por vuelo, sin polling).
+const AEROAPI_FALLBACK_MARGIN_MINUTES = 50;
 
 interface FlightMonitorRow {
   id: string;
@@ -76,6 +84,12 @@ interface NaabolHealth {
   failedCount: number;
   totalCount: number;
   failedAirports: string[];
+}
+
+interface AeroApiFallbackResult {
+  status: "loading" | "found" | "not-found" | "error";
+  statusLabel?: string;
+  statusTone?: MonitorTone;
 }
 
 function getLaPazParts(date = new Date()): Record<string, string> {
@@ -177,6 +191,28 @@ function writeOrdersCache(orders: StoredServiceOrder[], today: string) {
   sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify(payload));
 }
 
+function getAeroApiFallbackKey(row: { flightDigits: string; serviceDate: string }): string {
+  return `${row.flightDigits}-${row.serviceDate}`;
+}
+
+// Una fila entra en "zona gris" cuando NAABOL ya no la lista (row.naabol es
+// undefined) pero su hora prevista, segun la orden, ya paso hace mas de
+// AEROAPI_FALLBACK_MARGIN_MINUTES -- solo aplica al dia de hoy, nunca a
+// manana/pasado manana, porque AeroAPI tampoco es tracking en tiempo real
+// para vuelos futuros y NAABOL nunca tuvo esos datos para empezar.
+function isInGrayZone(row: FlightMonitorRow, today: string, nowMinutes: number): boolean {
+  if (row.naabol) return false;
+  if (row.serviceDate !== today) return false;
+  const serviceMinutes = timeToMinutes(row.serviceTime);
+  if (serviceMinutes === null) return false;
+  return nowMinutes - serviceMinutes >= AEROAPI_FALLBACK_MARGIN_MINUTES;
+}
+
+function dateDdMmYyyyToIso(value: string): string {
+  const [day, month, year] = value.split("/");
+  return `${year}-${month}-${day}`;
+}
+
 function getNaabolFlightKey(flight: { airportCode: string; operation: string; flightDigits: string }): string {
   return `${flight.airportCode}-${flight.operation}-${flight.flightDigits}`;
 }
@@ -270,17 +306,22 @@ function buildRows(
   });
 }
 
-function getStatusDisplayLabel(row: FlightMonitorRow, liveState: RowLiveState): string {
+function getStatusDisplayLabel(row: FlightMonitorRow, liveState: RowLiveState, aeroApiResult?: AeroApiFallbackResult): string {
+  if (liveState === "pending" && aeroApiResult?.status === "found") return aeroApiResult.statusLabel || "OK";
   if (liveState === "pending") return "OK";
   return row.naabol?.statusLabel || "OK";
 }
 
-function FlightMonitorRowView({ row }: { row: FlightMonitorRow }) {
+function FlightMonitorRowView({ row, aeroApiResult }: { row: FlightMonitorRow; aeroApiResult?: AeroApiFallbackResult }) {
   const liveState = getRowLiveState(row);
-  const tone: MonitorTone = liveState === "pending" ? "neutral" : liveState === "live-mismatch" ? "danger" : row.naabol?.statusTone || "success";
+  const resolvedByAeroApi = liveState === "pending" && aeroApiResult?.status === "found";
+  const tone: MonitorTone = resolvedByAeroApi
+    ? aeroApiResult.statusTone || "info"
+    : liveState === "pending" ? "neutral" : liveState === "live-mismatch" ? "danger" : row.naabol?.statusTone || "success";
   const driverDisplay = getDriverDisplay(row.driver, row.bus);
   const displayTime = row.naabol ? row.naabolTime : row.serviceTime;
-  const timeSourceTag = row.naabol ? "NAABOL" : "ORDEN";
+  const timeSourceTag = resolvedByAeroApi ? "FLIGHTAWARE" : row.naabol ? "NAABOL" : "ORDEN";
+  const timeSourceClass = resolvedByAeroApi ? "aeroapi" : row.naabol ? "naabol" : "orden";
   const orderRoute = getOrderRoute(row);
 
   return (
@@ -301,18 +342,21 @@ function FlightMonitorRowView({ row }: { row: FlightMonitorRow }) {
       </td>
       <td>
         <div className="fm-time"><SplitFlapText text={displayTime} /></div>
-        <span className={`fm-source-tag fm-source-tag-${row.naabol ? "naabol" : "orden"} fm-source-tag-tone-${tone}`}>
+        <span className={`fm-source-tag fm-source-tag-${timeSourceClass} fm-source-tag-tone-${tone}`}>
           {timeSourceTag}
         </span>
       </td>
       <td>
         <Badge variant="outline" className={statusBadgeClass(tone)}>
-          {getStatusDisplayLabel(row, liveState)}
+          {getStatusDisplayLabel(row, liveState, aeroApiResult)}
         </Badge>
         {liveState === "live-mismatch" && row.deltaMinutes !== null ? (
           <div className="fm-delta-message">
             {getTimingDifferenceMessage(row.expectedOperation, row.deltaMinutes)}
           </div>
+        ) : null}
+        {liveState === "pending" && aeroApiResult?.status === "loading" ? (
+          <div className="fm-subtle">Consultando FlightAware...</div>
         ) : null}
       </td>
       <td>
@@ -350,8 +394,10 @@ export default function FlightMonitorPage() {
   const [timeSource, setTimeSource] = useState<"naabol-header" | "server">("server");
   const [networkOffsetMs, setNetworkOffsetMs] = useState(0);
   const [now, setNow] = useState(new Date(Date.now() + networkOffsetMs));
+  const [aeroApiFallback, setAeroApiFallback] = useState<Map<string, AeroApiFallbackResult>>(new Map());
 
   const lastKnownFlightsRef = useRef<Map<string, { flight: NaabolMonitorFlight; lastSeenAt: number }>>(new Map());
+  const aeroApiInFlightRef = useRef<Set<string>>(new Set());
 
   const today = getLaPazToday(now);
   const allowedDates = useMemo(
@@ -402,9 +448,13 @@ export default function FlightMonitorPage() {
         knownMap.set(getNaabolFlightKey(flight), { flight, lastSeenAt: nowMs });
       });
 
-      const ttlMs = LAST_KNOWN_FLIGHT_TTL_MINUTES * 60 * 1000;
+      // El ultimo dato conocido de un vuelo se conserva mientras siga siendo
+      // del mismo dia operativo (La Paz); recien se descarta al cruzar a un
+      // dia nuevo, para no perder el estado de un vuelo de hoy solo porque
+      // NAABOL dejo de listarlo dentro de su ventana angosta.
+      const currentLaPazDay = getLaPazToday(new Date(nowMs));
       Array.from(knownMap.entries()).forEach(([key, entry]) => {
-        if (nowMs - entry.lastSeenAt > ttlMs) knownMap.delete(key);
+        if (getLaPazToday(new Date(entry.lastSeenAt)) !== currentLaPazDay) knownMap.delete(key);
       });
 
       setNaabolFlights(Array.from(knownMap.values()).map((entry) => entry.flight));
@@ -451,6 +501,52 @@ export default function FlightMonitorPage() {
 
   const rows = useMemo(() => buildRows(orders, naabolFlights, allowedDates, now), [orders, naabolFlights, allowedDates, now]);
   const allTodayRows = useMemo(() => buildRows(orders, naabolFlights, allowedDates, now, false), [orders, naabolFlights, allowedDates, now]);
+
+  useEffect(() => {
+    const nowMinutes = getLaPazMinutes(now);
+    const candidate = allTodayRows.find((row) => {
+      if (!isInGrayZone(row, today, nowMinutes)) return false;
+      const key = getAeroApiFallbackKey(row);
+      return !aeroApiFallback.has(key) && !aeroApiInFlightRef.current.has(key);
+    });
+    if (!candidate) return;
+
+    const key = getAeroApiFallbackKey(candidate);
+    aeroApiInFlightRef.current.add(key);
+    setAeroApiFallback((prev) => new Map(prev).set(key, { status: "loading" }));
+
+    (async () => {
+      try {
+        const consumption = await tryConsumeFlightAwareSearch();
+        if (!consumption.allowed) {
+          setAeroApiFallback((prev) => new Map(prev).set(key, { status: "error" }));
+          return;
+        }
+
+        const result = await findFlight({
+          flightNumber: candidate.flightNumber,
+          date: dateDdMmYyyyToIso(candidate.serviceDate),
+          provider: "aeroapi",
+        });
+
+        if (result.flightFound) {
+          setAeroApiFallback((prev) => new Map(prev).set(key, {
+            status: "found",
+            statusLabel: result.statusLabel,
+            statusTone: result.statusTone,
+          }));
+        } else {
+          setAeroApiFallback((prev) => new Map(prev).set(key, { status: "not-found" }));
+        }
+      } catch (fallbackError) {
+        console.error("[FlightMonitor] AeroAPI fallback failed:", fallbackError);
+        setAeroApiFallback((prev) => new Map(prev).set(key, { status: "error" }));
+      } finally {
+        aeroApiInFlightRef.current.delete(key);
+      }
+    })();
+  }, [allTodayRows, today, now, aeroApiFallback]);
+
   const expiredCount = Math.max(
     allTodayRows.filter((row) => row.serviceDate === today).length -
       rows.filter((row) => row.serviceDate === today).length,
@@ -577,7 +673,11 @@ export default function FlightMonitorPage() {
                     </thead>
                     <tbody>
                       {rows.map((row) => (
-                        <FlightMonitorRowView key={row.id} row={row} />
+                        <FlightMonitorRowView
+                          key={row.id}
+                          row={row}
+                          aeroApiResult={aeroApiFallback.get(getAeroApiFallbackKey(row))}
+                        />
                       ))}
                     </tbody>
                   </table>
@@ -922,6 +1022,11 @@ export default function FlightMonitorPage() {
           border-color: hsl(198 92% 46% / 0.3);
           background: hsl(198 92% 46% / 0.1);
           color: hsl(198 92% 34%);
+        }
+        .fm-source-tag-aeroapi {
+          border-color: hsl(262 60% 50% / 0.32);
+          background: hsl(262 60% 50% / 0.1);
+          color: hsl(262 55% 42%);
         }
         .fm-split {
           display: inline-flex;
