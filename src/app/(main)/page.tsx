@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileSpreadsheet, ArrowRight, ArrowLeft, ClipboardList, Settings, Plane, Database, ClipboardEdit, Calendar, CheckCircle2, XCircle, RefreshCw, Wallet } from "lucide-react";
+import { FileSpreadsheet, ArrowRight, ArrowLeft, ClipboardList, Settings, Plane, Database, Calendar, CheckCircle2, XCircle, RefreshCw, Wallet } from "lucide-react";
 import { useAuth, type AppModule } from "@/hooks/useAuth";
 import { version } from '../../../package.json';
 import { useEffect, useState } from "react";
@@ -230,18 +230,6 @@ export default function HomePage() {
               </Link>
             )}
 
-            {hasModule('aportar-datos') && (
-              <Link href="/admin/contribute" passHref>
-                <Button variant="outline" className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-transparent hover:text-blue-600 dark:hover:text-blue-400">
-                  <Database className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-3" />
-                  <div className="text-left flex-grow">
-                    <span className="block text-xl sm:text-2xl font-bold">Aportar Datos</span>
-                  </div>
-                  <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-blue-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-                </Button>
-              </Link>
-            )}
-
             {hasModule('reportes') && (
               <Button variant="outline" onClick={() => setIsDownloadModalOpen(true)} className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-green-600/20 text-green-700 dark:text-green-400 hover:bg-transparent hover:text-green-800 dark:hover:text-green-300">
                 <FileSpreadsheet className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3" />
@@ -250,18 +238,6 @@ export default function HomePage() {
                 </div>
                 <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-green-600/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
               </Button>
-            )}
-
-            {!authLoading && hasModule('editar-logica') && (
-              <Link href="/admin/edit-service-order-logic" passHref>
-                <Button variant="outline" className="w-full h-auto min-h-[80px] py-5 sm:py-6 mobile-text-lg flex flex-row items-center justify-start shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 sm:px-8 group border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-transparent hover:text-amber-600 dark:hover:text-amber-400">
-                  <ClipboardEdit className="h-10 w-10 sm:h-12 sm:w-12 mr-4 sm:mr-6 shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-1 group-hover:rotate-3" />
-                  <div className="text-left flex-grow">
-                    <span className="block text-xl sm:text-2xl font-bold">Editar Lógica</span>
-                  </div>
-                  <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-auto text-amber-500/70 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
-                </Button>
-              </Link>
             )}
 
             {hasModule('timeline') && (

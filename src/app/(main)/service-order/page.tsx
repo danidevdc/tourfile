@@ -2,8 +2,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, type AppModule } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -35,7 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown, ChevronLeft, ChevronRight, Image, Split, User, Car, CheckCircle2, XCircle, RefreshCw, Database, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Receipt } from "lucide-react";
+import { ArrowLeft, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown, ChevronLeft, ChevronRight, Image, Split, User, Car, CheckCircle2, XCircle, RefreshCw, Database, ClipboardEdit, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Receipt } from "lucide-react";
 import { LiquidationViewerModal } from "@/components/guide-liquidation/LiquidationViewerModal";
 import { PlaneSpinner } from "@/components/ui/plane-spinner";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +120,12 @@ export default function ServiceOrderListPage() {
   const canAccessLiquidation =
     isCurrentUserAdmin ||
     (currentUser?.profile?.modules || []).includes('liquidacion');
+
+  const hasModule = (mod: AppModule): boolean => {
+    if (!currentUser) return false;
+    if (isCurrentUserAdmin) return true;
+    return (currentUser?.profile?.modules || []).includes(mod);
+  };
 
   // Pagination states
   const [lastDocs, setLastDocs] = useState<(QueryDocumentSnapshot | null)[]>([null]);
@@ -815,16 +822,67 @@ export default function ServiceOrderListPage() {
                 </div>
               )}
             </div>
-            <Button onClick={handleAutomatedOrderClick} className="bg-green-600 hover:bg-green-700 text-white mobile-full-width touch-target text-sm sm:text-base">
-              <Bot className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Generar Orden Automatizada</span>
-              <span className="sm:hidden">Orden Automatizada</span>
-            </Button>
-            <Button onClick={handleNewOrderClick} className="mobile-full-width touch-target text-sm sm:text-base">
-              <FilePlus className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Nueva Orden de Servicio</span>
-              <span className="sm:hidden">Nueva Orden</span>
-            </Button>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleNewOrderClick}
+                    size="icon"
+                    variant="outline"
+                    aria-label="Nueva Orden de Servicio"
+                    className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl border-primary/30 text-primary hover:bg-transparent hover:text-primary/80 dark:hover:text-primary/80 hover:border-primary/50 shadow-md touch-target shrink-0"
+                  >
+                    <FilePlus className="h-6 w-6 sm:h-7 sm:w-7" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Nueva Orden de Servicio</p></TooltipContent>
+              </Tooltip>
+
+              {hasModule('aportar-datos') && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link href="/admin/contribute" passHref>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        aria-label="Aportar Datos"
+                        className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-transparent hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-600/50 shadow-md touch-target shrink-0"
+                      >
+                        <Database className="h-6 w-6 sm:h-7 sm:w-7" />
+                      </Button>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Aportar Datos</p></TooltipContent>
+                </Tooltip>
+              )}
+
+              {hasModule('editar-logica') && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link href="/admin/edit-service-order-logic" passHref>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        aria-label="Editar Lógica"
+                        className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-transparent hover:text-amber-700 dark:hover:text-amber-300 hover:border-amber-600/50 shadow-md touch-target shrink-0"
+                      >
+                        <ClipboardEdit className="h-6 w-6 sm:h-7 sm:w-7" />
+                      </Button>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Editar Lógica</p></TooltipContent>
+                </Tooltip>
+              )}
+
+              <Button
+                onClick={handleAutomatedOrderClick}
+                className="h-12 sm:h-14 rounded-xl bg-green-600 hover:bg-green-700 text-white shadow-md touch-target text-sm sm:text-base shrink-0"
+              >
+                <Bot className="mr-2 h-5 w-5" />
+                <span className="hidden sm:inline">Generar Orden Automatizada</span>
+                <span className="sm:hidden">Orden Automatizada</span>
+              </Button>
+            </div>
           </div>
         </div>
 

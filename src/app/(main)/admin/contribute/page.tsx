@@ -461,7 +461,7 @@ export default function ContributeDataPage() {
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
       <div className="w-full max-w-5xl mb-4 flex justify-between items-center">
-        <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go to Home">
+        <Button variant="default" size="icon" onClick={() => router.back()} aria-label="Go back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         {/* Search Input Moved Inside Tabs */}
