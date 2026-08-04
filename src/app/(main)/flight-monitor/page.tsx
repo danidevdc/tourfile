@@ -14,7 +14,6 @@ import {
   extractFlightNumbers,
   extractFlightTimeFromObservations,
   findServiceIssues,
-  formatDelta,
   getDriverDisplay,
   getExpectedOperation,
   getFlightDigits,
@@ -194,7 +193,10 @@ function buildRows(
   const today = allowedDates[0];
 
   orders
-    .filter((order) => order.status !== "eliminado" && order.status !== "cancelado")
+    // Las ordenes "hijas" (splitFrom) son copias del mismo servicio separadas
+    // solo para reparto de guia/chofer -- se ignoran aqui para no triplicar
+    // filas; la orden madre ya trae los mismos datos de servicio.
+    .filter((order) => order.status !== "eliminado" && order.status !== "cancelado" && !order.splitFrom)
     .forEach((order) => {
       (order.data.services || []).forEach((service, index) => {
         const serviceDate = normalizeDate(service.fecha);
@@ -206,7 +208,12 @@ function buildRows(
         const observations = service.observaciones || "";
         const serviceName = service.servicio || "";
         const expectedOperation = getExpectedOperation(serviceName, observations);
-        const naabol = matchNaabolFlight({ flightDigitsList, expectedOperation, expectedPrefix: dominantPrefix }, naabolFlights);
+        // NAABOL solo publica el itinerario del dia operativo actual: nunca
+        // cruzar contra el tablero para filas de manana/pasado manana, o un
+        // vuelo con el mismo numero que uno de hoy matchearia por error.
+        const naabol = serviceDate === today
+          ? matchNaabolFlight({ flightDigitsList, expectedOperation, expectedPrefix: dominantPrefix }, naabolFlights)
+          : undefined;
         const issues = findServiceIssues(serviceName, observations);
         const naabolTime = naabol?.realTime || naabol?.estimatedTime || "--:--";
         const naabolTimeSource = naabol?.realTime ? "real" : naabol?.estimatedTime ? "estimada" : "sin dato";
@@ -302,8 +309,10 @@ function FlightMonitorRowView({ row }: { row: FlightMonitorRow }) {
         <Badge variant="outline" className={statusBadgeClass(tone)}>
           {getStatusDisplayLabel(row, liveState)}
         </Badge>
-        {liveState === "live-mismatch" ? (
-          <div className="fm-delta fm-delta-alert">{formatDelta(row.deltaMinutes)}</div>
+        {liveState === "live-mismatch" && row.deltaMinutes !== null ? (
+          <div className="fm-delta-message">
+            {getTimingDifferenceMessage(row.expectedOperation, row.deltaMinutes)}
+          </div>
         ) : null}
       </td>
       <td>
@@ -727,24 +736,48 @@ export default function FlightMonitorPage() {
         .fm-row-pending td:first-child {
           border-left-color: hsl(var(--muted-foreground) / 0.35);
         }
-        .fm-row-live-match td:first-child {
-          animation: fm-halo-green 1.4s ease-in-out infinite;
+        .fm-row-live-match td {
+          animation: fm-halo-green 2.8s ease-in-out infinite;
+        }
+        .fm-row-live-mismatch td {
+          animation: fm-halo-red 2.8s ease-in-out infinite;
+        }
+        .fm-row-live-match td:first-child,
+        .fm-row-live-mismatch td:first-child {
+          animation-name: fm-halo-green-border, fm-halo-green;
         }
         .fm-row-live-mismatch td:first-child {
-          animation: fm-halo-red 1.4s ease-in-out infinite;
+          animation-name: fm-halo-red-border, fm-halo-red;
         }
         @keyframes fm-halo-green {
-          0%, 100% { border-left-color: hsl(142 62% 40% / 0.5); box-shadow: none; }
-          50% { border-left-color: hsl(142 62% 40% / 1); box-shadow: inset 3px 0 8px -4px hsl(142 62% 40% / 0.6); }
+          0%, 100% { background: hsl(142 62% 40% / 0); }
+          50% { background: hsl(142 62% 40% / 0.12); }
         }
         @keyframes fm-halo-red {
-          0%, 100% { border-left-color: hsl(var(--destructive) / 0.5); box-shadow: none; }
-          50% { border-left-color: hsl(var(--destructive) / 1); box-shadow: inset 3px 0 8px -4px hsl(var(--destructive) / 0.6); }
+          0%, 100% { background: hsl(var(--destructive) / 0); }
+          50% { background: hsl(var(--destructive) / 0.12); }
+        }
+        @keyframes fm-halo-green-border {
+          0%, 100% { border-left-color: hsl(142 62% 40% / 0.5); }
+          50% { border-left-color: hsl(142 62% 40% / 1); }
+        }
+        @keyframes fm-halo-red-border {
+          0%, 100% { border-left-color: hsl(var(--destructive) / 0.5); }
+          50% { border-left-color: hsl(var(--destructive) / 1); }
         }
         @media (prefers-reduced-motion: reduce) {
+          .fm-row-live-match td,
+          .fm-row-live-mismatch td,
           .fm-row-live-match td:first-child,
           .fm-row-live-mismatch td:first-child {
             animation: none;
+          }
+          .fm-row-live-match td:first-child {
+            border-left-color: hsl(142 62% 40% / 1);
+            border-left-width: 4px;
+          }
+          .fm-row-live-mismatch td:first-child {
+            border-left-color: hsl(var(--destructive) / 1);
             border-left-width: 4px;
           }
         }
@@ -820,6 +853,13 @@ export default function FlightMonitorPage() {
         }
         .fm-delta-ok { color: hsl(142 62% 40%); }
         .fm-delta-alert { color: hsl(var(--destructive)); }
+        .fm-delta-message {
+          margin-top: 6px;
+          max-width: 220px;
+          font-size: 11px;
+          line-height: 1.35;
+          color: hsl(var(--destructive));
+        }
         .fm-status-cell {
           display: flex;
           flex-direction: column;
