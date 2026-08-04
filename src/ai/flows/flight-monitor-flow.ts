@@ -11,6 +11,7 @@ interface NaabolItinerary {
   RUTA0?: string;
   AEROPUERTO?: string;
   TIPO_OPERACION?: OperationType;
+  NOMBRE_AEROLINEA?: string;
 }
 
 export interface NaabolMonitorFlight {
@@ -22,12 +23,16 @@ export interface NaabolMonitorFlight {
   statusLabel: string;
   statusTone: 'success' | 'warning' | 'danger' | 'info' | 'neutral';
   route?: string;
+  airline?: string;
 }
 
 export interface NaabolMonitorSnapshot {
   flights: NaabolMonitorFlight[];
   serverNowIso: string;
   timeSource: 'naabol-header' | 'server';
+  failedAirports: string[];
+  failedCount: number;
+  totalCount: number;
 }
 
 const NAABOL_AIRPORTS: Record<string, { aero: string; city: string }> = {
@@ -78,16 +83,44 @@ async function fetchNaabolItineraries(aero: string, tipo: OperationType): Promis
   };
 }
 
+async function fetchNaabolItinerariesWithRetry(
+  aero: string,
+  tipo: OperationType,
+  attempts = 2
+): Promise<{ flights: NaabolItinerary[]; responseDate?: string }> {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await fetchNaabolItineraries(aero, tipo);
+    } catch (err) {
+      if (attempt === attempts - 1) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+    }
+  }
+  // Inalcanzable: el loop siempre retorna o lanza en la ultima iteracion.
+  throw new Error(`NAABOL ${aero} ${tipo}: reintentos agotados.`);
+}
+
 export async function getNaabolDailyMonitorSnapshot(): Promise<NaabolMonitorSnapshot> {
-  const entries = await Promise.allSettled(
-    Object.entries(NAABOL_AIRPORTS).flatMap(([airportCode, airport]) =>
-      (['S', 'L'] as const).map(async (operation) => ({
-        airportCode,
-        operation,
-        result: await fetchNaabolItineraries(airport.aero, operation),
-      }))
-    )
+  const requests = Object.entries(NAABOL_AIRPORTS).flatMap(([airportCode, airport]) =>
+    (['S', 'L'] as const).map((operation) => ({ airportCode, operation, aero: airport.aero }))
   );
+
+  const entries = await Promise.allSettled(
+    requests.map(async ({ airportCode, operation, aero }) => ({
+      airportCode,
+      operation,
+      result: await fetchNaabolItinerariesWithRetry(aero, operation),
+    }))
+  );
+
+  const failedAirports = new Set<string>();
+  entries.forEach((entry, index) => {
+    if (entry.status === 'rejected') {
+      const { airportCode, operation } = requests[index];
+      failedAirports.add(airportCode);
+      console.error(`[flight-monitor-flow] NAABOL ${airportCode} ${operation} fallo tras reintentos:`, entry.reason);
+    }
+  });
 
   const firstResponseDate = entries.find((entry) => entry.status === 'fulfilled' && entry.value.result.responseDate);
   const serverNowIso = firstResponseDate?.status === 'fulfilled' && firstResponseDate.value.result.responseDate
@@ -108,6 +141,7 @@ export async function getNaabolDailyMonitorSnapshot(): Promise<NaabolMonitorSnap
         statusLabel,
         statusTone: normalizeStatusTone(statusLabel),
         route: flight.RUTA0?.trim() || undefined,
+        airline: flight.NOMBRE_AEROLINEA?.trim().toUpperCase() || undefined,
       };
     }).filter((flight) => flight.flightDigits);
   });
@@ -116,6 +150,9 @@ export async function getNaabolDailyMonitorSnapshot(): Promise<NaabolMonitorSnap
     flights,
     serverNowIso,
     timeSource: firstResponseDate ? 'naabol-header' : 'server',
+    failedAirports: Array.from(failedAirports),
+    failedCount: entries.filter((entry) => entry.status === 'rejected').length,
+    totalCount: entries.length,
   };
 }
 
