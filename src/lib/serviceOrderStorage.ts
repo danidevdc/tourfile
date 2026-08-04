@@ -634,6 +634,14 @@ export async function getRecentServiceOrders(maxOrders = 20): Promise<StoredServ
     });
 }
 
+// Trae ordenes por fecha de creacion (sin filtro de fecha de servicio en la query,
+// Firestore no tiene un campo de fecha de servicio indexado). El filtro por
+// fecha de servicio real (hoy/manana/pasado manana) se hace en el cliente,
+// en flight-monitor, para no requerir un indice compuesto ni migrar el esquema.
+export async function getUpcomingFlightServiceOrders(maxOrders = 80): Promise<StoredServiceOrder[]> {
+    return getRecentServiceOrders(maxOrders);
+}
+
 export async function getTotalServiceOrdersCount(options: { since?: Date } = {}): Promise<number> {
     if (!db) throw new Error("Firestore not initialized.");
     const ordersRef = collection(db, 'serviceOrders');

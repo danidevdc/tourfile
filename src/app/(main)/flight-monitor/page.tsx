@@ -1,32 +1,46 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, AlertTriangle, Car, CheckCircle2, Loader2, Plane, RefreshCw, User, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Car, Loader2, Plane, RefreshCw, User, XCircle } from "lucide-react";
 
 import { getNaabolDailyMonitorSnapshot, type NaabolMonitorFlight } from "@/ai/flows/flight-monitor-flow";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth, type AppModule } from "@/hooks/useAuth";
-import { getRecentServiceOrders, type StoredServiceOrder } from "@/lib/serviceOrderStorage";
+import { getUpcomingFlightServiceOrders, type StoredServiceOrder } from "@/lib/serviceOrderStorage";
+import {
+  extractFlightNumbers,
+  extractFlightTimeFromObservations,
+  findServiceIssues,
+  getDriverDisplay,
+  getExpectedOperation,
+  getFlightDigits,
+  getOperationLabel,
+  getOrderRoute,
+  getRowLiveState,
+  getTimingDifferenceMessage,
+  matchNaabolFlight,
+  normalizeDate,
+  timeToMinutes,
+  type OperationType,
+  type RowLiveState,
+} from "@/lib/flightMonitorParsing";
 
 type MonitorTone = "success" | "warning" | "danger" | "info" | "neutral";
-type OperationType = "S" | "L";
 
-const MONITOR_CACHE_KEY = "tourfile_flight_monitor_cache_v10_team";
-const FLIGHT_PREFIX_ALIASES: Record<string, string> = {
-  AVA: "AV",
-  AV: "AV",
-  BO: "OB",
-  BOV: "OB",
-  OB: "OB",
-  LA: "LA",
-  LAN: "LA",
-  "8J": "8J",
-  ECO: "ECO",
-};
-const FLIGHT_PREFIX_PATTERN = "AVA|BOV|LAN|ECO|AV|BO|OB|LA|8J";
+const ORDERS_CACHE_KEY = "tourfile_flight_monitor_orders_cache_v11";
+const UPCOMING_ORDERS_FETCH_LIMIT = 80;
+const NAABOL_POLL_INTERVAL_MS = 75_000;
+// NAABOL solo expone el itinerario del dia operativo actual: no se puede
+// consultar el tablero de manana con antelacion. Las filas de "Manana" y
+// "Pasado manana" quedan en gris hasta que ese dia se convierta en "hoy".
+
+// Un vuelo confirmado por NAABOL que deja de aparecer en un snapshot (por la
+// ventana angosta que expone la API) se conserva con su ultimo dato conocido
+// hasta que pasen estos minutos sin reaparecer.
+const LAST_KNOWN_FLIGHT_TTL_MINUTES = 20;
 
 interface FlightMonitorRow {
   id: string;
@@ -52,27 +66,16 @@ interface FlightMonitorRow {
   issues: string[];
 }
 
-interface MonitorCachePayload {
+interface OrdersCachePayload {
   cachedAt: number;
   serviceDate: string;
   orders: StoredServiceOrder[];
-  naabolFlights: NaabolMonitorFlight[];
-  serverNowIso: string;
-  timeSource: "naabol-header" | "server";
 }
 
-function normalizeDate(value?: string): string | null {
-  if (!value) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [year, month, day] = value.split("-");
-    return `${day}/${month}/${year}`;
-  }
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return value;
-  if (/^\d{2}\/\d{2}\/\d{2}$/.test(value)) {
-    const [day, month, year] = value.split("/");
-    return `${day}/${month}/20${year}`;
-  }
-  return null;
+interface NaabolHealth {
+  failedCount: number;
+  totalCount: number;
+  failedAirports: string[];
 }
 
 function getLaPazParts(date = new Date()): Record<string, string> {
@@ -95,6 +98,16 @@ function getLaPazToday(date = new Date()): string {
   return `${parts.day}/${parts.month}/${parts.year}`;
 }
 
+function addDaysToLaPazDate(date: Date, days: number): string {
+  const parts = getLaPazParts(date);
+  const asUtcNoon = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), 12));
+  asUtcNoon.setUTCDate(asUtcNoon.getUTCDate() + days);
+  const y = asUtcNoon.getUTCFullYear();
+  const m = String(asUtcNoon.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(asUtcNoon.getUTCDate()).padStart(2, "0");
+  return `${d}/${m}/${y}`;
+}
+
 function getLaPazDateLabel(date = new Date()): string {
   const parts = getLaPazParts(date);
   return `${parts.day}/${parts.month}/${parts.year}`;
@@ -112,147 +125,6 @@ function getLaPazMinutes(date = new Date()): number {
 
 function getNetworkOffsetFromSnapshot(serverNowIso: string, snapshotLocalMs: number): number {
   return new Date(serverNowIso).getTime() - snapshotLocalMs;
-}
-
-function normalizeFlightNumber(value?: string): string {
-  return (value || "").replace(/\s/g, "").toUpperCase();
-}
-
-function normalizeFlightPrefix(prefix?: string): string {
-  if (!prefix) return "";
-  return FLIGHT_PREFIX_ALIASES[prefix] || prefix;
-}
-
-function extractFlightNumbers(flightValue?: string, observations?: string): string[] {
-  const primarySource = (flightValue || "").toUpperCase();
-  const fallbackSource = flightValue?.trim()
-    ? ""
-    : (observations || "").toUpperCase();
-  const flights: string[] = [];
-  let lastPrefix = "";
-
-  const appendMatches = (source: string, allowBareFlight: boolean) => {
-    if (!source.trim()) return;
-    const matcher = new RegExp(`(?:${FLIGHT_PREFIX_PATTERN})?\\s*\\d{1,4}`, "g");
-    const matches = source.match(matcher) || [];
-
-    matches.forEach((match) => {
-      const compact = match.replace(/\s/g, "");
-      const prefix = compact.match(new RegExp(`^(${FLIGHT_PREFIX_PATTERN})`))?.[0];
-      const normalizedPrefix = normalizeFlightPrefix(prefix);
-      const digits = compact.replace(/\D/g, "");
-      if (normalizedPrefix) lastPrefix = normalizedPrefix;
-      if (!digits || (!normalizedPrefix && !lastPrefix && !allowBareFlight)) return;
-      flights.push(`${normalizedPrefix || lastPrefix}${digits}`);
-    });
-  };
-
-  appendMatches(primarySource, true);
-  appendMatches(fallbackSource, false);
-
-  return Array.from(new Set(flights));
-}
-
-function getFlightDigits(value?: string): string {
-  return normalizeFlightNumber(value).replace(/\D/g, "");
-}
-
-function timeToMinutes(value?: string): number | null {
-  if (!value || !/^\d{2}:\d{2}$/.test(value)) return null;
-  const [hours, minutes] = value.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-function extractFlightTimeFromObservations(observations?: string): string | null {
-  if (!observations) return null;
-  const normalized = observations.toUpperCase();
-  const keywordMatch = normalized.match(/\b(?:SALE|SALIDA|DEP|DEPARTURE|LLEGA|LLEGADA|ARR|ARRIVAL)\b[^\d]*(\d{1,2})[:H.](\d{2})/);
-  const genericMatch = normalized.match(/\b(\d{1,2})[:H.](\d{2})\b/);
-  const match = keywordMatch || genericMatch;
-  if (!match) return null;
-
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (Number.isNaN(hours) || Number.isNaN(minutes) || hours > 23 || minutes > 59) return null;
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-}
-
-function formatDelta(minutes: number | null): string {
-  if (minutes === null) return "-";
-  if (minutes === 0) return "0 min";
-  const sign = minutes > 0 ? "+" : "";
-  return `${sign}${minutes} min`;
-}
-
-function formatMinutesText(minutes: number): string {
-  const absolute = Math.abs(minutes);
-  return `${absolute} min`;
-}
-
-function getOperationLabel(operation?: OperationType): string {
-  if (operation === "S") return "Salida";
-  if (operation === "L") return "Llegada";
-  return "Sin tipo";
-}
-
-function getTimingDifferenceMessage(operation: OperationType | undefined, deltaMinutes: number): string {
-  const action = operation === "S" ? "saldrá" : "llegará";
-  const reference = operation === "S" ? "salida" : "llegada";
-  if (deltaMinutes > 0) {
-    return `El vuelo ${action} ${formatMinutesText(deltaMinutes)} antes de lo previsto en la orden`;
-  }
-  return `El vuelo ${action} con un retraso de ${formatMinutesText(deltaMinutes)} respecto a la ${reference} de la orden`;
-}
-
-function getDisplayRoute(row: { expectedOperation?: OperationType; naabol?: NaabolMonitorFlight }): string {
-  const otherPoint = row.naabol?.route || row.naabol?.airportCode || "-";
-  if (row.expectedOperation === "L") return `${otherPoint} -> LPB`;
-  if (row.expectedOperation === "S") return `LPB -> ${otherPoint}`;
-  return row.naabol ? `LPB / ${otherPoint}` : "Sin cruce";
-}
-
-function getDriverDisplay(driver: string, bus: string): string {
-  const cleanBus = bus?.replace(/\bBUS\b/gi, "").replace(/\s+/g, " ").trim();
-  const cleanDriver = driver?.replace(/\bCONT\b/gi, "").replace(/\s+/g, " ").trim();
-  if (cleanBus && cleanBus !== "-" && cleanBus.toUpperCase() !== "SIN BUS") {
-    return `${cleanBus} ${cleanDriver}`.trim();
-  }
-  return cleanDriver || driver;
-}
-
-function getExpectedOperation(serviceName: string, observations: string): OperationType | undefined {
-  const service = serviceName.toUpperCase();
-  const obs = observations.toUpperCase();
-  if (service.includes("OUT") || obs.includes("SALE")) return "S";
-  if (service.includes("IN") || obs.includes("LLEGA")) return "L";
-  return undefined;
-}
-
-function findServiceIssues(serviceName: string, observations: string): string[] {
-  const service = serviceName.toUpperCase();
-  const obs = observations.toUpperCase();
-  const issues: string[] = [];
-
-  if (service.includes("OUT") && obs.includes("LLEGA")) {
-    issues.push("TRF OUT con texto de llegada");
-  }
-  if (service.includes("IN") && obs.includes("SALE")) {
-    issues.push("TRF IN con texto de salida");
-  }
-
-  return issues;
-}
-
-function matchNaabolFlight(
-  row: { flightDigitsList: string[]; expectedOperation?: OperationType },
-  naabolFlights: NaabolMonitorFlight[]
-): NaabolMonitorFlight | undefined {
-  const candidates = naabolFlights.filter((flight) => row.flightDigitsList.includes(flight.flightDigits));
-  const prioritized = candidates.filter((flight) => flight.airportCode === "LPB" || (flight.route || "").toUpperCase().includes("LPB"));
-  if (row.expectedOperation) {
-    return prioritized.find((flight) => flight.operation === row.expectedOperation) || prioritized[0];
-  }
-  return prioritized[0];
 }
 
 function statusBadgeClass(tone: MonitorTone): string {
@@ -282,12 +154,12 @@ function SplitFlapText({ text }: { text: string }) {
   );
 }
 
-function readMonitorCache(today: string): MonitorCachePayload | null {
+function readOrdersCache(today: string): OrdersCachePayload | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = sessionStorage.getItem(MONITOR_CACHE_KEY);
+    const raw = sessionStorage.getItem(ORDERS_CACHE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as MonitorCachePayload;
+    const parsed = JSON.parse(raw) as OrdersCachePayload;
     if (!parsed.cachedAt || parsed.serviceDate !== today) return null;
     return parsed;
   } catch {
@@ -295,49 +167,53 @@ function readMonitorCache(today: string): MonitorCachePayload | null {
   }
 }
 
-function writeMonitorCache(
-  orders: StoredServiceOrder[],
-  naabolFlights: NaabolMonitorFlight[],
-  today: string,
-  serverNowIso: string,
-  timeSource: "naabol-header" | "server"
-) {
+function writeOrdersCache(orders: StoredServiceOrder[], today: string) {
   if (typeof window === "undefined") return;
-  const payload: MonitorCachePayload = {
+  const payload: OrdersCachePayload = {
     cachedAt: Date.now(),
     serviceDate: today,
     orders,
-    naabolFlights,
-    serverNowIso,
-    timeSource,
   };
-  sessionStorage.setItem(MONITOR_CACHE_KEY, JSON.stringify(payload));
+  sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify(payload));
+}
+
+function getNaabolFlightKey(flight: { airportCode: string; operation: string; flightDigits: string }): string {
+  return `${flight.airportCode}-${flight.operation}-${flight.flightDigits}`;
 }
 
 function buildRows(
   orders: StoredServiceOrder[],
   naabolFlights: NaabolMonitorFlight[],
-  today: string,
+  allowedDates: string[],
   now: Date,
   hidePast = true
 ): FlightMonitorRow[] {
   const rows: FlightMonitorRow[] = [];
   const nowMinutes = getLaPazMinutes(now);
+  const today = allowedDates[0];
 
   orders
-    .filter((order) => order.status !== "eliminado" && order.status !== "cancelado")
+    // Las ordenes "hijas" (splitFrom) son copias del mismo servicio separadas
+    // solo para reparto de guia/chofer -- se ignoran aqui para no triplicar
+    // filas; la orden madre ya trae los mismos datos de servicio.
+    .filter((order) => order.status !== "eliminado" && order.status !== "cancelado" && !order.splitFrom)
     .forEach((order) => {
       (order.data.services || []).forEach((service, index) => {
         const serviceDate = normalizeDate(service.fecha);
-        const flightNumbers = extractFlightNumbers(service.vuelo, service.observaciones);
+        const { flights: flightNumbers, dominantPrefix } = extractFlightNumbers(service.vuelo, service.observaciones);
         const flightDigitsList = flightNumbers.map(getFlightDigits).filter(Boolean);
 
-        if (!serviceDate || serviceDate !== today || flightDigitsList.length === 0) return;
+        if (!serviceDate || !allowedDates.includes(serviceDate) || flightDigitsList.length === 0) return;
 
         const observations = service.observaciones || "";
         const serviceName = service.servicio || "";
         const expectedOperation = getExpectedOperation(serviceName, observations);
-        const naabol = matchNaabolFlight({ flightDigitsList, expectedOperation }, naabolFlights);
+        // NAABOL solo publica el itinerario del dia operativo actual: nunca
+        // cruzar contra el tablero para filas de manana/pasado manana, o un
+        // vuelo con el mismo numero que uno de hoy matchearia por error.
+        const naabol = serviceDate === today
+          ? matchNaabolFlight({ flightDigitsList, expectedOperation, expectedPrefix: dominantPrefix }, naabolFlights)
+          : undefined;
         const issues = findServiceIssues(serviceName, observations);
         const naabolTime = naabol?.realTime || naabol?.estimatedTime || "--:--";
         const naabolTimeSource = naabol?.realTime ? "real" : naabol?.estimatedTime ? "estimada" : "sin dato";
@@ -350,10 +226,10 @@ function buildRows(
         const effectiveMinutes = naabolMinutes ?? serviceMinutes;
         const deltaMinutes = serviceMinutes !== null && naabolMinutes !== null ? serviceMinutes - naabolMinutes : null;
 
-        if (hidePast && effectiveMinutes !== null && effectiveMinutes < nowMinutes) return;
+        if (hidePast && serviceDate === today && effectiveMinutes !== null && effectiveMinutes < nowMinutes) return;
 
         if (!naabol) {
-          issues.push("No encontrado en tablero");
+          if (serviceDate === today) issues.push("No encontrado en tablero");
         } else if (deltaMinutes !== null && deltaMinutes !== 0) {
           issues.push(getTimingDifferenceMessage(expectedOperation, deltaMinutes));
         }
@@ -385,10 +261,80 @@ function buildRows(
     });
 
   return rows.sort((a, b) => {
+    const aDateIndex = allowedDates.indexOf(a.serviceDate);
+    const bDateIndex = allowedDates.indexOf(b.serviceDate);
+    if (aDateIndex !== bDateIndex) return aDateIndex - bDateIndex;
     const aMinutes = a.effectiveMinutes ?? timeToMinutes(a.serviceTime) ?? 0;
     const bMinutes = b.effectiveMinutes ?? timeToMinutes(b.serviceTime) ?? 0;
     return aMinutes - bMinutes;
   });
+}
+
+function getStatusDisplayLabel(row: FlightMonitorRow, liveState: RowLiveState): string {
+  if (liveState === "pending") return "OK";
+  return row.naabol?.statusLabel || "OK";
+}
+
+function FlightMonitorRowView({ row }: { row: FlightMonitorRow }) {
+  const liveState = getRowLiveState(row);
+  const tone: MonitorTone = liveState === "pending" ? "neutral" : liveState === "live-mismatch" ? "danger" : row.naabol?.statusTone || "success";
+  const driverDisplay = getDriverDisplay(row.driver, row.bus);
+  const displayTime = row.naabol ? row.naabolTime : row.serviceTime;
+  const timeSourceTag = row.naabol ? "NAABOL" : "ORDEN";
+  const orderRoute = getOrderRoute(row);
+
+  return (
+    <tr className={`fm-row-${liveState}`}>
+      <td>
+        <div className="fm-date">{row.serviceDate}</div>
+      </td>
+      <td>
+        <div className="fm-flight-number">
+          <SplitFlapText text={row.flightNumber} />
+        </div>
+        <div className="fm-route">
+          <span className={`fm-op-badge fm-op-${row.expectedOperation || "none"}`}>
+            {getOperationLabel(row.expectedOperation)}
+          </span>
+          {orderRoute ? <span className="fm-route-path">{orderRoute}</span> : null}
+        </div>
+      </td>
+      <td>
+        <div className="fm-time"><SplitFlapText text={displayTime} /></div>
+        <span className={`fm-source-tag fm-source-tag-${row.naabol ? "naabol" : "orden"} fm-source-tag-tone-${tone}`}>
+          {timeSourceTag}
+        </span>
+      </td>
+      <td>
+        <Badge variant="outline" className={statusBadgeClass(tone)}>
+          {getStatusDisplayLabel(row, liveState)}
+        </Badge>
+        {liveState === "live-mismatch" && row.deltaMinutes !== null ? (
+          <div className="fm-delta-message">
+            {getTimingDifferenceMessage(row.expectedOperation, row.deltaMinutes)}
+          </div>
+        ) : null}
+      </td>
+      <td>
+        <div className="fm-file">{row.file}</div>
+        <div className="fm-subtle">{row.ref}</div>
+        <div className="fm-team-stack">
+          {row.guide && row.guide !== "-" ? (
+            <div className="fm-team-line fm-team-guide">
+              <User size={13} />
+              <span>{row.guide}</span>
+            </div>
+          ) : null}
+          {row.driver && row.driver !== "-" ? (
+            <div className="fm-team-line fm-team-driver">
+              <Car size={13} />
+              <span>{driverDisplay}</span>
+            </div>
+          ) : null}
+        </div>
+      </td>
+    </tr>
+  );
 }
 
 export default function FlightMonitorPage() {
@@ -398,13 +344,20 @@ export default function FlightMonitorPage() {
   const [naabolFlights, setNaabolFlights] = useState<NaabolMonitorFlight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [naabolHealth, setNaabolHealth] = useState<NaabolHealth | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [isUsingCache, setIsUsingCache] = useState(false);
   const [timeSource, setTimeSource] = useState<"naabol-header" | "server">("server");
   const [networkOffsetMs, setNetworkOffsetMs] = useState(0);
   const [now, setNow] = useState(new Date(Date.now() + networkOffsetMs));
 
+  const lastKnownFlightsRef = useRef<Map<string, { flight: NaabolMonitorFlight; lastSeenAt: number }>>(new Map());
+
   const today = getLaPazToday(now);
+  const allowedDates = useMemo(
+    () => [today, addDaysToLaPazDate(now, 1), addDaysToLaPazDate(now, 2)],
+    [today, now]
+  );
   const hasModule = (mod: AppModule): boolean => {
     if (!isAuthenticated) return false;
     if (isCurrentUserAdmin) return true;
@@ -413,45 +366,67 @@ export default function FlightMonitorPage() {
 
   const canOpen = hasModule("ordenes") || hasModule("vuelos");
 
-  const loadData = useCallback(async (forceRefresh = false) => {
+  const loadOrders = useCallback(async (forceRefresh = false) => {
     setIsLoading(true);
     setError(null);
     try {
       if (!forceRefresh) {
-        const cached = readMonitorCache(today);
+        const cached = readOrdersCache(today);
         if (cached) {
-          const offsetMs = getNetworkOffsetFromSnapshot(cached.serverNowIso || new Date(cached.cachedAt).toISOString(), cached.cachedAt);
           setOrders(cached.orders);
-          setNaabolFlights(cached.naabolFlights);
-          setLastRefresh(new Date(cached.cachedAt));
-          setTimeSource(cached.timeSource || "server");
-          setNetworkOffsetMs(offsetMs);
-          setNow(new Date(Date.now() + offsetMs));
           setIsUsingCache(true);
+          setIsLoading(false);
           return;
         }
       }
 
-      const [ordersData, naabolSnapshot] = await Promise.all([
-        getRecentServiceOrders(20),
-        getNaabolDailyMonitorSnapshot(),
-      ]);
+      const ordersData = await getUpcomingFlightServiceOrders(UPCOMING_ORDERS_FETCH_LIMIT);
       setOrders(ordersData);
-      setNaabolFlights(naabolSnapshot.flights);
+      setIsUsingCache(false);
+      writeOrdersCache(ordersData, today);
+    } catch (loadError) {
+      console.error("[FlightMonitor] Unable to load orders:", loadError);
+      setError(loadError instanceof Error ? loadError.message : "No se pudo cargar las órdenes.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [today]);
+
+  const loadNaabolSnapshot = useCallback(async () => {
+    try {
+      const naabolSnapshot = await getNaabolDailyMonitorSnapshot();
+      const nowMs = Date.now();
+      const knownMap = lastKnownFlightsRef.current;
+
+      naabolSnapshot.flights.forEach((flight) => {
+        knownMap.set(getNaabolFlightKey(flight), { flight, lastSeenAt: nowMs });
+      });
+
+      const ttlMs = LAST_KNOWN_FLIGHT_TTL_MINUTES * 60 * 1000;
+      Array.from(knownMap.entries()).forEach(([key, entry]) => {
+        if (nowMs - entry.lastSeenAt > ttlMs) knownMap.delete(key);
+      });
+
+      setNaabolFlights(Array.from(knownMap.values()).map((entry) => entry.flight));
+      setNaabolHealth({
+        failedCount: naabolSnapshot.failedCount,
+        totalCount: naabolSnapshot.totalCount,
+        failedAirports: naabolSnapshot.failedAirports,
+      });
       setLastRefresh(new Date());
       setTimeSource(naabolSnapshot.timeSource);
       const offsetMs = getNetworkOffsetFromSnapshot(naabolSnapshot.serverNowIso, Date.now());
       setNetworkOffsetMs(offsetMs);
       setNow(new Date(Date.now() + offsetMs));
-      setIsUsingCache(false);
-      writeMonitorCache(ordersData, naabolSnapshot.flights, today, naabolSnapshot.serverNowIso, naabolSnapshot.timeSource);
     } catch (loadError) {
-      console.error("[FlightMonitor] Unable to load data:", loadError);
-      setError(loadError instanceof Error ? loadError.message : "No se pudo cargar el monitor.");
-    } finally {
-      setIsLoading(false);
+      console.error("[FlightMonitor] Unable to load NAABOL snapshot:", loadError);
+      setError(loadError instanceof Error ? loadError.message : "No se pudo cargar el tablero NAABOL.");
     }
-  }, [today]);
+  }, []);
+
+  const refreshAll = useCallback(async (forceRefresh = false) => {
+    await Promise.all([loadOrders(forceRefresh), loadNaabolSnapshot()]);
+  }, [loadOrders, loadNaabolSnapshot]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -459,7 +434,7 @@ export default function FlightMonitorPage() {
       router.replace("/");
       return;
     }
-    loadData();
+    refreshAll();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, canOpen]);
 
@@ -468,35 +443,21 @@ export default function FlightMonitorPage() {
     return () => clearInterval(interval);
   }, [networkOffsetMs]);
 
-  const rows = useMemo(() => buildRows(orders, naabolFlights, today, now), [orders, naabolFlights, today, now]);
-  const allTodayRows = useMemo(() => buildRows(orders, naabolFlights, today, now, false), [orders, naabolFlights, today, now]);
-  const expiredCount = Math.max(allTodayRows.length - rows.length, 0);
-  const issueCount = rows.filter((row) => row.issues.length > 0).length;
-  const matchedCount = rows.filter((row) => row.naabol).length;
-
   useEffect(() => {
-    if (isLoading || rows.length === 0) return;
-    const currentMinutes = getLaPazMinutes(now);
-    const nextExpiry = rows
-      .map((row) => row.effectiveMinutes)
-      .filter((minutes): minutes is number => minutes !== null && minutes >= currentMinutes)
-      .sort((a, b) => a - b)[0];
+    if (!canOpen) return;
+    const interval = setInterval(() => { loadNaabolSnapshot(); }, NAABOL_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [canOpen, loadNaabolSnapshot]);
 
-    if (nextExpiry === undefined) return;
-
-    const msUntilExpired =
-      (nextExpiry - currentMinutes + 1) * 60 * 1000 -
-      now.getSeconds() * 1000 -
-      now.getMilliseconds() +
-      500;
-
-    const timeout = window.setTimeout(() => {
-      setNow(new Date(Date.now() + networkOffsetMs));
-      loadData(true);
-    }, Math.max(msUntilExpired, 1000));
-
-    return () => window.clearTimeout(timeout);
-  }, [isLoading, loadData, networkOffsetMs, now, rows]);
+  const rows = useMemo(() => buildRows(orders, naabolFlights, allowedDates, now), [orders, naabolFlights, allowedDates, now]);
+  const allTodayRows = useMemo(() => buildRows(orders, naabolFlights, allowedDates, now, false), [orders, naabolFlights, allowedDates, now]);
+  const expiredCount = Math.max(
+    allTodayRows.filter((row) => row.serviceDate === today).length -
+      rows.filter((row) => row.serviceDate === today).length,
+    0
+  );
+  const matchedCount = rows.filter((row) => row.naabol).length;
+  const mismatchCount = rows.filter((row) => getRowLiveState(row) === "live-mismatch").length;
 
   if (authLoading || (!canOpen && !authLoading)) {
     return (
@@ -522,9 +483,10 @@ export default function FlightMonitorPage() {
                 <Plane className="h-4 w-4" />
                 Control de vuelos
               </div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Vuelos de hoy</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Vuelos próximos</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                Cruce local entre ordenes de servicio del dia y tablero operativo. Solo usa datos de hoy.
+                Cruce entre las órdenes de servicio y el tablero operativo de NAABOL, para hoy, mañana y pasado mañana.
+                Los vuelos de mañana y pasado mañana se muestran en gris hasta que NAABOL publique la información de ese día.
               </p>
             </div>
             <div className="fm-live-clock">
@@ -544,16 +506,16 @@ export default function FlightMonitorPage() {
                 <div className="text-xs uppercase text-muted-foreground">Coinciden</div>
               </div>
               <div className="rounded-xl border bg-background px-4 py-3">
-                <div className={issueCount > 0 ? "text-2xl font-bold text-red-600" : "text-2xl font-bold text-emerald-600"}>
-                  {issueCount}
+                <div className={mismatchCount > 0 ? "text-2xl font-bold text-red-600" : "text-2xl font-bold text-emerald-600"}>
+                  {mismatchCount}
                 </div>
-                <div className="text-xs uppercase text-muted-foreground">Alertas</div>
+                <div className="text-xs uppercase text-muted-foreground">Cambios</div>
               </div>
             </div>
           </div>
           <div className="mt-4 text-xs text-muted-foreground">
-            Fecha: {today} {lastRefresh ? `- Ultima verificacion ${getLaPazTimeLabel(lastRefresh)}` : ""}
-            {isUsingCache ? " - cache de sesion" : ""}
+            Fecha: {today} {lastRefresh ? `- Última verificación ${getLaPazTimeLabel(lastRefresh)}` : ""}
+            {isUsingCache ? " - caché de sesión" : ""}
           </div>
         </section>
 
@@ -564,26 +526,37 @@ export default function FlightMonitorPage() {
           </div>
         )}
 
+        {naabolHealth && naabolHealth.failedCount > 0 && (
+          <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>
+              NAABOL no respondió para {naabolHealth.failedCount} de {naabolHealth.totalCount} consultas
+              {naabolHealth.failedAirports.length > 0 ? ` (${naabolHealth.failedAirports.join(", ")})` : ""}
+              {" "}— algunos vuelos pueden faltar temporalmente.
+            </span>
+          </div>
+        )}
+
         <Card className="overflow-hidden">
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle>Ordenes con vuelos del dia</CardTitle>
+              <CardTitle>Órdenes con vuelos próximos</CardTitle>
             </div>
-            <Button className="h-11 px-5 shadow-md" onClick={() => loadData(true)} disabled={isLoading}>
+            <Button className="h-11 px-5 shadow-md" onClick={() => refreshAll(true)} disabled={isLoading}>
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               Actualizar estados
             </Button>
           </CardHeader>
           <CardContent>
-            <div>
+            <div className="flex flex-col gap-6">
               {isLoading ? (
                 <div className="rounded-xl border bg-background p-8 text-center text-muted-foreground">
                   <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
-                  Cargando ordenes y tablero...
+                  Cargando órdenes y tablero...
                 </div>
               ) : rows.length === 0 ? (
                 <div className="rounded-xl border bg-background p-8 text-center text-muted-foreground">
-                  No hay vuelos pendientes de hoy en las ultimas 20 ordenes.
+                  No hay vuelos próximos en las últimas {UPCOMING_ORDERS_FETCH_LIMIT} órdenes creadas.
                   {expiredCount > 0 ? (
                     <div className="mt-2 text-xs">
                       {expiredCount} vuelo{expiredCount === 1 ? "" : "s"} de hoy ya pasaron y fueron ocultados.
@@ -595,85 +568,17 @@ export default function FlightMonitorPage() {
                   <table className="fm-table">
                     <thead>
                       <tr>
+                        <th>Fecha</th>
                         <th>Vuelo</th>
-                        <th>Hora orden</th>
-                        <th>Hora NAABOL</th>
-                        <th>Diferencia</th>
+                        <th>Hora</th>
                         <th>Estado</th>
-                        <th>File / equipo</th>
-                        <th>Alertas</th>
+                        <th>Detalles</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {rows.map((row) => {
-                        const tone = row.naabol?.statusTone || "danger";
-                        const driverDisplay = getDriverDisplay(row.driver, row.bus);
-                        return (
-                          <tr key={row.id}>
-                            <td>
-                              <div className="fm-flight-number">
-                                <SplitFlapText text={row.flightNumber} />
-                              </div>
-                              <div className="fm-route">
-                                <span className={`fm-op-badge fm-op-${row.expectedOperation || "none"}`}>
-                                  {getOperationLabel(row.expectedOperation)}
-                                </span>
-                                <span className="fm-route-path">{getDisplayRoute(row)}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <div className="fm-time fm-time-order"><SplitFlapText text={row.serviceTime} /></div>
-                              <div className="fm-subtle">observaciones</div>
-                            </td>
-                            <td>
-                              <div className="fm-time fm-time-board"><SplitFlapText text={row.naabolTime} /></div>
-                              <div className="fm-subtle">{row.naabolTimeSource}</div>
-                            </td>
-                            <td>
-                              <div className={row.deltaMinutes === 0 ? "fm-delta fm-delta-ok" : row.deltaMinutes === null ? "fm-delta" : "fm-delta fm-delta-alert"}>
-                                {formatDelta(row.deltaMinutes)}
-                              </div>
-                            </td>
-                            <td>
-                              <Badge variant="outline" className={statusBadgeClass(tone)}>
-                                {row.naabol?.statusLabel || "NO ENCONTRADO"}
-                              </Badge>
-                            </td>
-                            <td>
-                              <div className="fm-file">{row.file}</div>
-                              <div className="fm-subtle">{row.ref}</div>
-                              <div className="fm-team-stack">
-                                {row.guide && row.guide !== "-" ? (
-                                  <div className="fm-team-line fm-team-guide">
-                                    <User size={13} />
-                                    <span>{row.guide}</span>
-                                  </div>
-                                ) : null}
-                                {row.driver && row.driver !== "-" ? (
-                                  <div className="fm-team-line fm-team-driver">
-                                    <Car size={13} />
-                                    <span>{driverDisplay}</span>
-                                  </div>
-                                ) : null}
-                              </div>
-                            </td>
-                            <td>
-                              <div className="fm-alerts">
-                                {row.issues.length === 0 ? (
-                                  <span className="fm-ok"><CheckCircle2 className="h-4 w-4" /> OK</span>
-                                ) : (
-                                  row.issues.map((issue) => (
-                                    <span key={issue} className="fm-issue">
-                                      <AlertTriangle className="h-4 w-4" />
-                                      {issue}
-                                    </span>
-                                  ))
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {rows.map((row) => (
+                        <FlightMonitorRowView key={row.id} row={row} />
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -791,7 +696,7 @@ export default function FlightMonitorPage() {
         }
         .fm-table {
           width: 100%;
-          min-width: 980px;
+          min-width: 780px;
           border-collapse: separate;
           border-spacing: 0;
         }
@@ -827,6 +732,54 @@ export default function FlightMonitorPage() {
         }
         .fm-table tbody tr:hover td:first-child {
           border-left-color: hsl(var(--primary));
+        }
+        .fm-row-pending td:first-child {
+          border-left-color: hsl(var(--muted-foreground) / 0.35);
+        }
+        .fm-row-live-match td {
+          animation: fm-halo-green 2.8s ease-in-out infinite;
+        }
+        .fm-row-live-mismatch td {
+          animation: fm-halo-red 2.8s ease-in-out infinite;
+        }
+        .fm-row-live-match td:first-child,
+        .fm-row-live-mismatch td:first-child {
+          animation-name: fm-halo-green-border, fm-halo-green;
+        }
+        .fm-row-live-mismatch td:first-child {
+          animation-name: fm-halo-red-border, fm-halo-red;
+        }
+        @keyframes fm-halo-green {
+          0%, 100% { background: hsl(142 62% 40% / 0); }
+          50% { background: hsl(142 62% 40% / 0.12); }
+        }
+        @keyframes fm-halo-red {
+          0%, 100% { background: hsl(var(--destructive) / 0); }
+          50% { background: hsl(var(--destructive) / 0.12); }
+        }
+        @keyframes fm-halo-green-border {
+          0%, 100% { border-left-color: hsl(142 62% 40% / 0.5); }
+          50% { border-left-color: hsl(142 62% 40% / 1); }
+        }
+        @keyframes fm-halo-red-border {
+          0%, 100% { border-left-color: hsl(var(--destructive) / 0.5); }
+          50% { border-left-color: hsl(var(--destructive) / 1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .fm-row-live-match td,
+          .fm-row-live-mismatch td,
+          .fm-row-live-match td:first-child,
+          .fm-row-live-mismatch td:first-child {
+            animation: none;
+          }
+          .fm-row-live-match td:first-child {
+            border-left-color: hsl(142 62% 40% / 1);
+            border-left-width: 4px;
+          }
+          .fm-row-live-mismatch td:first-child {
+            border-left-color: hsl(var(--destructive) / 1);
+            border-left-width: 4px;
+          }
         }
         .fm-live-clock {
           border: 1px solid hsl(var(--primary) / 0.18);
@@ -900,6 +853,13 @@ export default function FlightMonitorPage() {
         }
         .fm-delta-ok { color: hsl(142 62% 40%); }
         .fm-delta-alert { color: hsl(var(--destructive)); }
+        .fm-delta-message {
+          margin-top: 6px;
+          max-width: 220px;
+          font-size: 11px;
+          line-height: 1.35;
+          color: hsl(var(--destructive));
+        }
         .fm-status-cell {
           display: flex;
           flex-direction: column;
@@ -920,28 +880,48 @@ export default function FlightMonitorPage() {
           color: hsl(var(--muted-foreground));
           font-size: 12px;
         }
-        .fm-alerts {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
+        .fm-date {
+          font-family: inherit;
+          font-size: 17px;
+          font-weight: 700;
+          color: hsl(var(--foreground));
+          white-space: nowrap;
         }
-        .fm-ok,
-        .fm-issue {
+        .fm-source-tag {
           display: inline-flex;
           align-items: center;
-          gap: 5px;
+          margin-top: 6px;
           border-radius: 999px;
-          padding: 5px 9px;
-          font-size: 12px;
-          font-weight: 700;
+          padding: 2px 8px;
+          font-family: "Space Mono", monospace;
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.06em;
+          border: 1px solid hsl(var(--border));
+          background: hsl(var(--muted));
+          color: hsl(var(--muted-foreground));
         }
-        .fm-ok {
-          background: hsl(142 62% 40% / 0.10);
-          color: hsl(142 62% 36%);
+        .fm-source-tag-orden {
+          border-color: hsl(214 86% 46% / 0.3);
+          background: hsl(214 86% 46% / 0.1);
+          color: hsl(214 72% 38%);
         }
-        .fm-issue {
-          background: hsl(var(--destructive) / 0.10);
+        .fm-source-tag-naabol.fm-source-tag-tone-success {
+          border-color: hsl(142 62% 40% / 0.3);
+          background: hsl(142 62% 40% / 0.1);
+          color: hsl(142 62% 30%);
+        }
+        .fm-source-tag-naabol.fm-source-tag-tone-danger {
+          border-color: hsl(var(--destructive) / 0.35);
+          background: hsl(var(--destructive) / 0.1);
           color: hsl(var(--destructive));
+        }
+        .fm-source-tag-naabol.fm-source-tag-tone-info,
+        .fm-source-tag-naabol.fm-source-tag-tone-warning,
+        .fm-source-tag-naabol.fm-source-tag-tone-neutral {
+          border-color: hsl(198 92% 46% / 0.3);
+          background: hsl(198 92% 46% / 0.1);
+          color: hsl(198 92% 34%);
         }
         .fm-split {
           display: inline-flex;
