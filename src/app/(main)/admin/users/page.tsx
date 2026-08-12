@@ -103,7 +103,7 @@ export default function AdminUsersPage() {
         monthlyData: {
           'Julio': julioCount,
           ...monthlyData
-        },
+        } as { [month: string]: number },
       };
     });
   }, [users, monthlyReportCounts, reportMonths]);
@@ -198,9 +198,9 @@ export default function AdminUsersPage() {
                       <TableCell className="font-medium">{user.email}</TableCell>
                       <TableCell className="text-center">
                         {user.isAdmin ? (
-                          <ShieldCheck className="h-5 w-5 text-green-500 mx-auto" title="Administrador" />
+                          <span title="Administrador"><ShieldCheck className="h-5 w-5 text-green-500 mx-auto" /></span>
                         ) : (
-                          <ShieldOff className="h-5 w-5 text-muted-foreground mx-auto" title="Usuario regular" />
+                          <span title="Usuario regular"><ShieldOff className="h-5 w-5 text-muted-foreground mx-auto" /></span>
                         )}
                       </TableCell>
                       <TableCell>

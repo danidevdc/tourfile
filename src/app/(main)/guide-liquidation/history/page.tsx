@@ -145,8 +145,6 @@ function DeleteModal({ liq, onConfirm, onCancel, loading }: {
   );
 }
 
-type StatusFilter = "PAGADO" | "SOLICITADO" | null;
-
 export default function LiquidationHistoryPage() {
   const router = useRouter();
   const { isCurrentUserAdmin } = useAuth();

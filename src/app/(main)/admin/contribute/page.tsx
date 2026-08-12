@@ -387,7 +387,7 @@ export default function ContributeDataPage() {
                               <TableCell><Input value={editingValues[id].observations} onChange={(e) => handleEditingChange(id, 'observations', e.target.value)} /></TableCell>
                             </>
                           ) : (
-                            <TableCell colSpan={type === 'guides' || type === 'flights' ? 3 : 1}>
+                            <TableCell colSpan={1}>
                               <Input value={editingValues[id].name} onChange={(e) => handleEditingChange(id, 'name', e.target.value.toUpperCase())} />
                             </TableCell>
                           )}

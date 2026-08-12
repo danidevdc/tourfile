@@ -4,7 +4,7 @@ import type { Toast } from '@/hooks/use-toast';
 
 export async function copiarVistaPreviaAlClipboard(
     captureNode: HTMLElement | null, // Accept HTMLElement or null
-    toast?: (props: Parameters<typeof Toast>[0]) => void
+    toast?: (props: Toast) => void
 ): Promise<boolean> {
   console.log("[copyPreview] Starting copy process. Node:", captureNode);
   if (!captureNode) {

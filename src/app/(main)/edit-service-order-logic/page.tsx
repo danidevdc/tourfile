@@ -30,7 +30,7 @@ import {
   type ServiceOrderRule,
 } from '@/lib/serviceOrderRuleService';
 import { getActivitiesFromFirestore, type Activity } from '@/lib/serviceOrderService';
-import { getIntermediateUserEmail } from '@/lib/appConfigService';
+import { getIntermediateUserEmails } from '@/lib/appConfigService';
 import { Switch } from '@/components/ui/switch';
 
 
@@ -59,8 +59,8 @@ export default function EditServiceOrderLogicPage() {
         }
 
         try {
-            const intermediateEmail = await getIntermediateUserEmail();
-            if (currentUser?.email && currentUser.email === intermediateEmail) {
+            const intermediateEmails = await getIntermediateUserEmails();
+            if (currentUser?.email && intermediateEmails.includes(currentUser.email)) {
                 setHasPermission(true);
             } else {
                 setHasPermission(false);

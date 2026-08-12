@@ -14,7 +14,7 @@ type ToasterToast = ToastProps & {
   action?: ToastActionElement
 }
 
-type Toast = Omit<ToasterToast, "id">
+export type Toast = Omit<ToasterToast, "id">
 
 // Map shadcn variant → Sonner method
 function toast({ title, description, variant, duration }: Toast) {
