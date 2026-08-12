@@ -28,7 +28,6 @@ export function ThemeToggle() {
     const doSwitch = () => setTheme(goingDark ? "dark" : "light")
 
     if (typeof document !== "undefined" && "startViewTransition" in document) {
-      // @ts-ignore
       document.startViewTransition(doSwitch)
     } else {
       doSwitch()

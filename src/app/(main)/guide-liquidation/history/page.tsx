@@ -255,7 +255,8 @@ export default function LiquidationHistoryPage() {
     const first = liq.items?.[0]?.fecha;
     if (!first) return "—";
     const parts = first.split("/").map(Number);
-    let [, m, y] = parts;
+    const [, m] = parts;
+    let [, , y] = parts;
     if (y < 100) y += 2000;
     return `${MONTHS_ES[m - 1].slice(0, 3).toUpperCase()} ${y}`;
   };

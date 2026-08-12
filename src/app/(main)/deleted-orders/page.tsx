@@ -314,7 +314,7 @@ export default function DeletedOrdersPage() {
             <AlertDialogTitle>¿Restaurar orden?</AlertDialogTitle>
             <AlertDialogDescription>
               ¿Estás seguro de que deseas restaurar la orden <strong>{orderToRestore?.orderName}</strong>?
-              Su estado cambiará a "editado" y volverá a aparecer en la lista principal.
+              Su estado cambiará a &quot;editado&quot; y volverá a aparecer en la lista principal.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

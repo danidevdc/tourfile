@@ -176,7 +176,8 @@ export async function getServiceOrdersByFileAndGuide(
   items.sort((a, b) => {
     const parseDate = (s: string) => {
       const parts = s.split('/').map(Number);
-      let [d, m, y] = parts;
+      const [d, m] = parts;
+      let [, , y] = parts;
       if (y < 100) y += 2000;
       return new Date(y, m - 1, d).getTime();
     };
@@ -416,7 +417,8 @@ export async function getAvailableMonthsForGuide(guideName: string): Promise<Gui
     for (const svc of services) {
       if (!svc.fecha) continue;
       const parts = svc.fecha.split('/').map(Number);
-      let [, m, y] = parts;
+      const [, m] = parts;
+      let [, , y] = parts;
       if (y < 100) y += 2000;
       if (!m || !y) continue;
       if (!map.has(y)) map.set(y, new Set());
@@ -460,7 +462,8 @@ function buildRowsFromOrders(
     const hasServiceInMonth = services.some(svc => {
       if (!svc.fecha) return false;
       const parts = svc.fecha.split('/').map(Number);
-      let [, m, y] = parts;
+      const [, m] = parts;
+      let [, , y] = parts;
       if (y < 100) y += 2000;
       return m === month && y === year;
     });

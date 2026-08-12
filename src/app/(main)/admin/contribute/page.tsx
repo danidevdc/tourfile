@@ -304,7 +304,7 @@ export default function ContributeDataPage() {
           <>
             <RadioGroup defaultValue="propio" onValueChange={(val: 'propio' | 'externo') => setDriverType(val)} className="flex items-center space-x-4">
               <div className="flex items-center space-x-2"><RadioGroupItem value="propio" id="r-propio" /><Label htmlFor="r-propio">Propio</Label></div>
-              <div className="flex items-center space-x-2"><RadioGroupItem value="externo" id="r-externo" /><Label htmlFor="r-externo">Externo (se añade 'CONT ')</Label></div>
+              <div className="flex items-center space-x-2"><RadioGroupItem value="externo" id="r-externo" /><Label htmlFor="r-externo">Externo (se añade &apos;CONT &apos;)</Label></div>
             </RadioGroup>
             <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Nombre del nuevo chofer..." onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)} />
           </>
@@ -430,7 +430,7 @@ export default function ContributeDataPage() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Se eliminará permanentemente "{type === 'guides' ? item.fullName : type === 'flights' ? item.flightNumber : item.name}". Esta acción no se puede deshacer.
+                                  Se eliminará permanentemente &quot;{type === 'guides' ? item.fullName : type === 'flights' ? item.flightNumber : item.name}&quot;. Esta acción no se puede deshacer.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>

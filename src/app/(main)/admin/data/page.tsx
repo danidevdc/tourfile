@@ -537,7 +537,7 @@ export default function DataManagementPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="externo" id="r-externo" />
-                <Label htmlFor="r-externo">Externo (Nombre. Se añadirá prefijo 'CONT ')</Label>
+                <Label htmlFor="r-externo">Externo (Nombre. Se añadirá prefijo &apos;CONT &apos;)</Label>
               </div>
             </RadioGroup>
         )}
@@ -678,7 +678,7 @@ export default function DataManagementPage() {
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                    Se eliminará permanentemente "{displayName(itemToDelete)}". Esta acción no se puede deshacer.
+                                    Se eliminará permanentemente &quot;{displayName(itemToDelete)}&quot;. Esta acción no se puede deshacer.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>

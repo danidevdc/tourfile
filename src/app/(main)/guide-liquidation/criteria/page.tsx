@@ -400,7 +400,7 @@ export default function LiquidationCriteriaPage() {
                 No hay precios configurados todavía
               </p>
               <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, letterSpacing: "0.04em" }}>
-                Presioná "Analizar órdenes" para que el sistema detecte tus actividades reales<br />y genere una tabla de precios sugeridos que podés editar.
+                Presioná &quot;Analizar órdenes&quot; para que el sistema detecte tus actividades reales<br />y genere una tabla de precios sugeridos que podés editar.
               </p>
             </div>
             <button onClick={runAnalysis} style={{ height: "40px", padding: "0 24px", borderRadius: "8px", background: BLUE, border: "none", color: "white", fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.06em", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}>
@@ -550,7 +550,7 @@ export default function LiquidationCriteriaPage() {
         {analyzed && !analyzing && activityStats.length === 0 && priceMatrix.size > 0 && (
           <div style={{ border: `1px solid ${CSS.border}`, borderRadius: "10px", padding: "24px", background: CSS.card }}>
             <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, textAlign: "center" }}>
-              Hay {priceMatrix.size} precios guardados. Presioná "Re-analizar órdenes" para ver la tabla completa.
+              Hay {priceMatrix.size} precios guardados. Presioná &quot;Re-analizar órdenes&quot; para ver la tabla completa.
             </p>
           </div>
         )}
@@ -594,7 +594,7 @@ export default function LiquidationCriteriaPage() {
                       </p>
                     ) : filtered.length === 0 ? (
                       <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: CSS.mutedFg, padding: "12px 8px" }}>
-                        Sin resultados para "{addActivitySearch}"
+                        Sin resultados para &quot;{addActivitySearch}&quot;
                       </p>
                     ) : filtered.map((a) => {
                       const isSelected = addActivityValue === a.name;

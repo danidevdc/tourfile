@@ -230,7 +230,7 @@ export function MonthlyDownloadModal({ isOpen, onClose }: MonthlyDownloadModalPr
                 <DialogHeader>
                     <DialogTitle>Descarga Masiva Mensual</DialogTitle>
                     <DialogDescription>
-                        Selecciona el mes y año según el nombre del archivo (Ej: "ODS ... DICIEMBRE 2025").
+                        Selecciona el mes y año según el nombre del archivo (Ej: &quot;ODS ... DICIEMBRE 2025&quot;).
                     </DialogDescription>
                 </DialogHeader>
 

@@ -74,6 +74,8 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.23",
     "genkit-cli": "^1.8.0",
     "jsdom": "^28.0.0",
     "postcss": "^8",
