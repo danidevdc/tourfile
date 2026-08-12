@@ -22,7 +22,10 @@ env:
   - variable: AEROAPI_KEY
     value: 'BMwuOBNM6LoW1yR5vs6SO4eqQXVrhhXf'
   - variable: NEXT_PUBLIC_ADMIN_EMAIL
-    value: 'daniish77@gmail.com'
+    secret: NEXT_PUBLIC_ADMIN_EMAIL
+    availability:
+      - BUILD
+      - RUNTIME
 build:
   require-buildpacks:
     - google.nodejs.npm
