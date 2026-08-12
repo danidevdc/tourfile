@@ -19,7 +19,7 @@ env:
     value: 'G-84YTFWL6VQ'
   - variable: NEXT_PUBLIC_DOWNLOAD_PIN
     value: '020725'
-  - variable: NEXT_PUBLIC_AEROAPI_KEY
+  - variable: AEROAPI_KEY
     value: 'BMwuOBNM6LoW1yR5vs6SO4eqQXVrhhXf'
 build:
   require-buildpacks:

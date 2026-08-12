@@ -14,9 +14,9 @@ const FLIGHTAWARE_TOO_FAR_FUTURE_ERROR = 'FLIGHTAWARE_TOO_FAR_FUTURE';
 type FlightStatusTone = NonNullable<FindFlightOutput['statusTone']>;
 
 function getApiKey(): string {
-  const apiKey = process.env.NEXT_PUBLIC_AEROAPI_KEY;
+  const apiKey = process.env.AEROAPI_KEY;
   if (!apiKey) {
-    throw new Error("AeroAPI key is missing. Please set NEXT_PUBLIC_AEROAPI_KEY in your .env file.");
+    throw new Error("AeroAPI key is missing. Please set AEROAPI_KEY in your .env file.");
   }
   return apiKey;
 }
