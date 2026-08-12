@@ -4,7 +4,6 @@
 import { useState, useEffect, useRef, useMemo, type ChangeEvent } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import * as XLSX from 'xlsx';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -189,9 +188,10 @@ export function ServiceOrderGeneratorSheet({
 
     const processAndStoreFile = (file: File) => {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                const XLSX = await import('xlsx');
                 const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                 const sheetName = "Hoja1";
                 const worksheet = workbook.Sheets[sheetName];
@@ -225,24 +225,27 @@ export function ServiceOrderGeneratorSheet({
     }
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const storedFile = sessionStorage.getItem(SESSION_STORAGE_FILE_KEY);
-            const storedFileName = sessionStorage.getItem(SESSION_STORAGE_FILENAME_KEY);
-            if (storedFile && storedFileName) {
-                try {
-                    const byteString = atob(storedFile);
-                    const byteNumbers = new Array(byteString.length);
-                    for (let i = 0; i < byteString.length; i++) byteNumbers[i] = byteString.charCodeAt(i);
-                    const byteArray = new Uint8Array(byteNumbers);
-                    const file = new File([new Blob([byteArray])], storedFileName);
-                    setSelectedFile({ name: file.name });
-                    const workbook = XLSX.read(byteArray, { type: 'array', cellDates: true });
-                    setExcelData(XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, blankrows: false, defval: null }));
-                } catch (e) {
-                    clearFile();
-                }
+        if (typeof window === 'undefined') return;
+        const storedFile = sessionStorage.getItem(SESSION_STORAGE_FILE_KEY);
+        const storedFileName = sessionStorage.getItem(SESSION_STORAGE_FILENAME_KEY);
+        if (!storedFile || !storedFileName) return;
+
+        (async () => {
+            try {
+                const byteString = atob(storedFile);
+                const byteNumbers = new Array(byteString.length);
+                for (let i = 0; i < byteString.length; i++) byteNumbers[i] = byteString.charCodeAt(i);
+                const byteArray = new Uint8Array(byteNumbers);
+                const file = new File([new Blob([byteArray])], storedFileName);
+                setSelectedFile({ name: file.name });
+                const XLSX = await import('xlsx');
+                const workbook = XLSX.read(byteArray, { type: 'array', cellDates: true });
+                setExcelData(XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, blankrows: false, defval: null }));
+            } catch (e) {
+                clearFile();
             }
-        }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {

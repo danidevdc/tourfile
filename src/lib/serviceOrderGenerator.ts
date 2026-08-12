@@ -1,6 +1,6 @@
 
 
-import ExcelJS from 'exceljs';
+import type ExcelJS from 'exceljs';
 
 export interface ServiceOrderData {
   guia: string;
@@ -27,6 +27,7 @@ export interface ServiceItem {
 }
 
 export async function generateServiceOrderExcel(data: ServiceOrderData): Promise<Awaited<ReturnType<ExcelJS.Xlsx['writeBuffer']>>> {
+  const { default: ExcelJS } = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Orden de Servicios');
 
