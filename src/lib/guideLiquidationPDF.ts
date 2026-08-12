@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf';
+import type jsPDF from 'jspdf';
 import type { GuideLiquidation } from './guideLiquidationService';
 import { CRILLON_LOGO_B64 } from './crillonLogo';
 import { agency } from '@/config/agency';
@@ -108,6 +108,7 @@ export async function generateLiquidationPDF(liquidation: GuideLiquidation): Pro
 }
 
 export async function buildLiquidationPDFUrl(liquidation: GuideLiquidation): Promise<string> {
+  const { default: jsPDF } = await import('jspdf');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
 
   const PW = 595.28;
