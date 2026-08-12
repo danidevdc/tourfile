@@ -17,6 +17,7 @@ import { getServiceOrderRules, type ServiceOrderRule } from '@/lib/serviceOrderR
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { generateServicesFromExcelColumn } from '@/lib/serviceOrderProcessor';
 import { saveServiceOrder, saveServiceOrderWithSplit, saveServiceOrderInSplitMode } from '@/lib/serviceOrderStorage';
+import { findFileInExcelData, sortServiceItems, type ExcelMatrix } from '@/lib/serviceOrderGeneratorHelpers';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -302,107 +303,31 @@ export function ServiceOrderGeneratorSheet({
         setIsProcessingSearch(true); setFileSearchStatus("searching");
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        let found = false, fileColumnIndex = -1, rowIdxWhereFileNumberFound = -1;
-        const fileNumberToSearch = fileNumberInput.trim().toUpperCase();
-        // Si el usuario escribió solo dígitos (sin el prefijo, ej. "109860" en vez de
-        // "CTFI109860"), se busca por sufijo numérico. Solo se acepta si es
-        // inequívoco: distintos files pueden compartir el mismo número con
-        // prefijos distintos, así que un match ambiguo no se resuelve solo.
-        const isDigitsOnlySearch = /^\d+$/.test(fileNumberToSearch);
+        const result = findFileInExcelData(excelData as ExcelMatrix, fileNumberInput, hotels);
 
-        const numCols = excelData.reduce((max, row) => Math.max(max, row ? row.length : 0), 0);
-
-        for (let j = 0; j < numCols; j++) {
-            for (let i = 0; i < excelData.length; i++) {
-                if (excelData[i] && excelData[i][j] && String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch) {
-                    found = true; fileColumnIndex = j; rowIdxWhereFileNumberFound = i; break;
-                }
-            }
-            if (found) break;
+        if (!result.found && result.ambiguous) {
+            setIsProcessingSearch(false);
+            setFileSearchStatus("error");
+            toast({
+                title: "Número de File Ambiguo",
+                description: `Se encontraron varios files terminados en "${fileNumberInput.trim().toUpperCase()}" (${result.distinctValues.join(", ")}). Ingresa el número completo con su prefijo.`,
+                variant: "destructive",
+            });
+            return;
         }
 
-        let realFileNumber: string | null = null;
-
-        if (!found && isDigitsOnlySearch) {
-            const suffixMatches: { row: number; col: number; value: string }[] = [];
-            for (let j = 0; j < numCols; j++) {
-                for (let i = 0; i < excelData.length; i++) {
-                    const cellValue = excelData[i] && excelData[i][j];
-                    if (cellValue !== undefined && cellValue !== null) {
-                        const cellText = String(cellValue).trim().toUpperCase();
-                        if (cellText.endsWith(fileNumberToSearch) && /^[A-Z]*\d+$/.test(cellText)) {
-                            suffixMatches.push({ row: i, col: j, value: cellText });
-                        }
-                    }
-                }
-            }
-
-            const distinctValues = new Set(suffixMatches.map(m => m.value));
-            if (distinctValues.size === 1) {
-                fileColumnIndex = suffixMatches[0].col;
-                rowIdxWhereFileNumberFound = suffixMatches[0].row;
-                realFileNumber = suffixMatches[0].value;
-                found = true;
-            } else if (distinctValues.size > 1) {
-                setIsProcessingSearch(false);
-                setFileSearchStatus("error");
-                toast({
-                    title: "Número de File Ambiguo",
-                    description: `Se encontraron varios files terminados en "${fileNumberToSearch}" (${Array.from(distinctValues).join(", ")}). Ingresa el número completo con su prefijo.`,
-                    variant: "destructive",
-                });
-                return;
-            }
-        }
-
-        if (found) {
+        if (result.found) {
             setFileSearchStatus("found");
-            setFoundFileColumnIndex(fileColumnIndex);
-
-            const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[fileColumnIndex] || "No encontrado").toUpperCase();
-
-            let pax = "N/A";
-            for (let i = rowIdxWhereFileNumberFound + 1; i < excelData.length && i < rowIdxWhereFileNumberFound + 10; i++) {
-                const paxRaw = excelData[i]?.[fileColumnIndex];
-                if (paxRaw !== null && paxRaw !== undefined) {
-                    const paxValue = String(paxRaw).trim();
-                    const paxRegex = /^\d{1,3}(\s*\+\s*\d{1,3})?$/;
-                    if (paxRegex.test(paxValue)) { pax = paxValue; break; }
-                }
-            }
-
-            let hotelName = "";
-            // Busca SOLO en la columna del file, acumulando todos los hoteles encontrados
-            const allFoundHotels = new Set<string>();
-            
-            for (let i = 0; i < excelData.length; i++) {
-                const cellText = String(excelData[i]?.[fileColumnIndex] || "").toUpperCase().trim();
-                
-                // Busca todos los hoteles de la BD en esta celda
-                hotels.forEach(h => {
-                    if (cellText.includes(h.name.toUpperCase())) {
-                        allFoundHotels.add(h.name);
-                    }
-                });
-            }
-            
-            if (allFoundHotels.size > 0) {
-                // Priorizar no-POSADA
-                const nonPosadaHotels = Array.from(allFoundHotels).filter(h => h.toUpperCase() !== 'POSADA');
-                const hotelsToPick = nonPosadaHotels.length > 0 ? nonPosadaHotels : Array.from(allFoundHotels);
-                
-                // Entre los hoteles a seleccionar, escoger el más largo (más específico)
-                hotelName = hotelsToPick.sort((a, b) => b.length - a.length)[0];
-            }
+            setFoundFileColumnIndex(result.fileColumnIndex);
 
             setOrderData((prev: ServiceOrderData) => ({
                 ...prev,
                 // Si se encontró por sufijo numérico, usar el número de file real
                 // del Excel (con prefijo), no los dígitos que el usuario tecleó.
-                file: realFileNumber ?? prev.file,
-                ref: groupName, nPax: pax, hotel: hotelName, services: [],
+                file: result.realFileNumber ?? prev.file,
+                ref: result.groupName, nPax: result.pax, hotel: result.hotelName, services: [],
             }));
-            toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}, Hotel: ${hotelName || 'No encontrado'}`, variant: "success" as any, duration: 5000 });
+            toast({ title: "Búsqueda Exitosa", description: `Grupo: ${result.groupName}, PAX: ${result.pax}, Hotel: ${result.hotelName || 'No encontrado'}`, variant: "success" as any, duration: 5000 });
 
         } else {
             setFileSearchStatus("not_found");
@@ -593,24 +518,6 @@ export function ServiceOrderGeneratorSheet({
             newSelection.delete(index);
         }
         setSelectedServices(newSelection);
-    };
-
-    const sortServiceItems = (items: ServiceItem[]) => {
-        return [...items].sort((a, b) => {
-            try {
-                const dateA = a.fecha ? parse(a.fecha, "dd/MM/yyyy", new Date()).getTime() : 0;
-                const dateB = b.fecha ? parse(b.fecha, "dd/MM/yyyy", new Date()).getTime() : 0;
-                if (dateA !== dateB) return dateA - dateB;
-            } catch { }
-
-            const hasTimeA = a.hora && a.hora.trim() !== '';
-            const hasTimeB = b.hora && b.hora.trim() !== '';
-
-            if (hasTimeA && !hasTimeB) return -1;
-            if (!hasTimeA && hasTimeB) return 1;
-            if (hasTimeA && hasTimeB) return a.hora.localeCompare(b.hora);
-            return 0;
-        });
     };
 
     // Automatic sorting with debounce
