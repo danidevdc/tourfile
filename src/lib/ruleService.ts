@@ -11,6 +11,7 @@ import {
   where,
   limit,
 } from 'firebase/firestore';
+import type { AgencyCity } from '@/config/agency';
 
 export interface ExpenseRule {
   id: string; // Firestore document ID
@@ -18,7 +19,7 @@ export interface ExpenseRule {
   detail: string; // Expense detail to put in the report
   unitPrice: number;
   quantityFormula: string; // e.g., "=$G$3", "=$G$3+1", "1"
-  city: 'La Paz' | 'Uyuni';
+  city: AgencyCity;
   isActive: boolean;
   order: number; // For sorting purposes
   vobOps?: string; // Optional field
@@ -67,7 +68,7 @@ export async function initializeDefaultRules(): Promise<void> {
 }
 
 
-export async function getExpenseRulesFromFirestore(city: 'La Paz' | 'Uyuni'): Promise<ExpenseRule[]> {
+export async function getExpenseRulesFromFirestore(city: AgencyCity): Promise<ExpenseRule[]> {
   if (!db) throw new Error("Firestore not initialized");
   const rulesRef = collection(db, 'expenseRules');
   const q = query(rulesRef, where('city', '==', city));

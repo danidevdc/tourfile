@@ -81,7 +81,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ADMIN_EMAIL = 'daniish77@gmail.com';
+// Set via NEXT_PUBLIC_ADMIN_EMAIL — the email that gets isAdmin:true on
+// self-registration. This is a UX convenience only; Firestore rules are
+// what actually enforce admin access, not this client-side check.
+export const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? '';
 const INACTIVITY_TIMEOUT_MS = 4 * 60 * 60 * 1000;
 const SESSION_ID_KEY = 'app_session_id';
 

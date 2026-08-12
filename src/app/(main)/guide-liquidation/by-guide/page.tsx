@@ -30,6 +30,7 @@ import { EditLiqModal } from "@/components/guide-liquidation/EditLiqModal";
 import { PayModal } from "@/components/guide-liquidation/PayModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { formatMoney } from "@/config/agency";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const CSS = {
@@ -295,8 +296,6 @@ export default function LiquidationByGuidePage() {
     } finally { setGenerating(false); }
   };
 
-  const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
-
   return (
     <div style={{ minHeight: "100vh", background: CSS.bg, fontFamily: "'Space Grotesk', sans-serif" }}>
       <style>{`
@@ -498,7 +497,7 @@ export default function LiquidationByGuidePage() {
 
                   {/* Total */}
                   <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 700, color: liq ? GREEN : CSS.mutedFg }}>
-                    {liq ? `Bs. ${fmt(liq.total)}` : "—"}
+                    {liq ? formatMoney(liq.total) : "—"}
                   </span>
 
                   {/* Status */}

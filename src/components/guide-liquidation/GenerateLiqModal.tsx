@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { InfoCard } from "./InfoCard";
 import { IdiomaPills } from "./IdiomaPills";
 import type { LiqStatus } from "./StatusBadge";
+import { formatMoney } from "@/config/agency";
 
 const CSS = {
   bg: "hsl(var(--background))",
@@ -60,7 +61,6 @@ export function GenerateLiqModal({ fileRow, guideName, suggested, criteriaRules,
   }, []);
 
   const total = items.reduce((s, it) => s + (it.checked ? (it.monto || 0) : 0), 0);
-  const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.55)", padding: "20px" }}>
@@ -90,7 +90,7 @@ export function GenerateLiqModal({ fileRow, guideName, suggested, criteriaRules,
             { label: "File", value: fileRow.fileNumber },
             { label: "Pasajero", value: fileRow.paxName || "—" },
             { label: "N° Pax", value: fileRow.paxCount || "—" },
-            { label: "Total", value: `Bs. ${fmt(total)}`, accent: GREEN },
+            { label: "Total", value: formatMoney(total), accent: GREEN },
           ]} />
 
           {/* Idioma selector */}
@@ -145,7 +145,7 @@ export function GenerateLiqModal({ fileRow, guideName, suggested, criteriaRules,
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "1px" }}>
             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "9px", letterSpacing: "0.1em", color: CSS.mutedFg, textTransform: "uppercase" as const }}>Total a pagar</span>
             <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: GREEN, lineHeight: 1 }}>
-              Bs. {fmt(total)}
+              {formatMoney(total)}
             </span>
           </div>
         </div>

@@ -14,6 +14,7 @@ import {
 import { GuideLiquidationTable } from "@/components/guide-liquidation/GuideLiquidationTable";
 import { useToast } from "@/hooks/use-toast";
 import { InfoCard } from "./InfoCard";
+import { formatMoney } from "@/config/agency";
 
 const CSS = {
   bg: "hsl(var(--background))",
@@ -51,7 +52,6 @@ export function EditLiqModal({ liqId, onSaved, onCancel }: {
   }, []);
 
   const total = items.reduce((s, i) => s + (i.checked ? (i.monto || 0) : 0), 0);
-  const fmt   = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
 
   const doSave = async () => {
     if (!liq) return;
@@ -107,7 +107,7 @@ export function EditLiqModal({ liqId, onSaved, onCancel }: {
                   { label: "Guía", value: liq.guideName, accent: CSS.fg },
                   { label: "File", value: liq.fileNumber },
                   { label: "Pasajero", value: liq.paxName || "—" },
-                  { label: "Total actual", value: `Bs. ${fmt(total)}`, accent: GREEN },
+                  { label: "Total actual", value: formatMoney(total), accent: GREEN },
                 ]} />
                 <GuideLiquidationTable items={items} onItemChange={handleChange} readOnly={false} hideColumns={["file", "paxName"]} maxHeight="calc(100vh - 380px)" />
               </>
@@ -119,7 +119,7 @@ export function EditLiqModal({ liqId, onSaved, onCancel }: {
             <div style={{ padding: "16px 24px", borderTop: `1px solid ${CSS.border}`, background: CSS.card, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", letterSpacing: "0.06em", color: CSS.mutedFg, textTransform: "uppercase" as const }}>Total a pagar</span>
               <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "24px", fontWeight: 700, color: GREEN }}>
-                Bs. {fmt(total)}
+                {formatMoney(total)}
               </span>
             </div>
           )}

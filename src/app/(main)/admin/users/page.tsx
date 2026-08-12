@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, type UserProfile } from '@/hooks/useAuth';
+import { useAuth, type UserProfile, ADMIN_EMAIL } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -126,7 +126,7 @@ export default function AdminUsersPage() {
       return;
     }
     
-    if (userToDelete.email === 'daniish77@gmail.com' && userToDelete.uid !== currentUser?.uid) {
+    if (userToDelete.email === ADMIN_EMAIL && userToDelete.uid !== currentUser?.uid) {
         toast({ title: "Acción no permitida", description: "No se puede eliminar la cuenta de administrador principal.", variant: "destructive" });
         setUserToDelete(null);
         return;
@@ -220,7 +220,7 @@ export default function AdminUsersPage() {
                                 variant="destructive"
                                 size="icon"
                                 title="Eliminar Perfil de Usuario"
-                                disabled={user.uid === currentUser?.uid || (user.email === 'daniish77@gmail.com' && user.uid !== currentUser?.uid)}
+                                disabled={user.uid === currentUser?.uid || (user.email === ADMIN_EMAIL && user.uid !== currentUser?.uid)}
                                 onClick={() => setUserToDelete(user)}
                               >
                                 <Trash2 className="h-4 w-4" />

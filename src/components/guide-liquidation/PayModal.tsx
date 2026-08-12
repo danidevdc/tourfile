@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Loader2, X } from "lucide-react";
 import type { GuideLiquidation } from "@/lib/guideLiquidationService";
+import { formatMoney } from "@/config/agency";
 
 const CSS = {
   card: "hsl(var(--card))",
@@ -15,7 +16,6 @@ export function PayModal({ liq, onConfirm, onCancel, loading }: {
   liq: GuideLiquidation; onConfirm: (date: string) => void; onCancel: () => void; loading: boolean;
 }) {
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
-  const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
@@ -27,7 +27,7 @@ export function PayModal({ liq, onConfirm, onCancel, loading }: {
               {liq.guideName} · {liq.liquidationNumber}
             </p>
             <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: GREEN, marginTop: "10px" }}>
-              Bs. {fmt(liq.total)}
+              {formatMoney(liq.total)}
             </p>
           </div>
           <button onClick={onCancel} style={{ width: "30px", height: "30px", borderRadius: "6px", border: "1px solid #ef444433", background: "#ef44440d", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms" }}>

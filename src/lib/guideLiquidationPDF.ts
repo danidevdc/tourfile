@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import type { GuideLiquidation } from './guideLiquidationService';
 import { CRILLON_LOGO_B64 } from './crillonLogo';
+import { agency } from '@/config/agency';
 
 // ── Nothing Design System — Print / Light Mode tokens ──────────────────────
 // "Printed technical manual. Off-white paper, black ink."
@@ -73,7 +74,7 @@ function drawTableHeader(
   const nroPaxHeaderX = ML + COL_FECHA + COL_HORA + COL_SERVICIO + COL_PAX_NAME + COL_NRO_PAX - 4;
   doc.text('NRO PAX', nroPaxHeaderX, Y + HEAD_H / 2 + 2.5, { align: 'right' });
 
-  doc.text('MONTO (Bs.)', PW - MR - 8, Y + HEAD_H / 2 + 2.5, { align: 'right' });
+  doc.text(`MONTO (${agency.currency.symbol})`, PW - MR - 8, Y + HEAD_H / 2 + 2.5, { align: 'right' });
 }
 
 function loadGrayscaleLogo(): Promise<{ b64: string; w: number; h: number }> {
@@ -230,8 +231,8 @@ export async function buildLiquidationPDFUrl(liquidation: GuideLiquidation): Pro
   text(doc, ND_TEXT_PRIMARY);
   doc.text('TOTAL A LIQUIDAR', TOTAL_X + TOTAL_W / 2, TOTAL_Y + 9.5, { align: 'center' });
 
-  // "Bs." unit label
-  spaceMonoLabel(doc, 'Bs.', TOTAL_X + TOTAL_W / 2, TOTAL_Y + 30, { align: 'center' });
+  // Currency unit label
+  spaceMonoLabel(doc, agency.currency.symbol, TOTAL_X + TOTAL_W / 2, TOTAL_Y + 30, { align: 'center' });
 
   // Amount — secondary hero
   doc.setFont('courier', 'bold');
@@ -345,7 +346,7 @@ export async function buildLiquidationPDFUrl(liquidation: GuideLiquidation): Pro
   doc.setFont('courier', 'bold');
   doc.setFontSize(12);
   text(doc, ND_BLACK);
-  doc.text(`Bs. ${liquidation.total.toFixed(2)}`, PW - MR - 8, totalMidY, { align: 'right' });
+  doc.text(`${agency.currency.symbol} ${liquidation.total.toFixed(2)}`, PW - MR - 8, totalMidY, { align: 'right' });
 
   Y += TOTAL_ROW_H;
 
