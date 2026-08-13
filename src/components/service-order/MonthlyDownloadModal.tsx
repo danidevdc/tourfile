@@ -208,7 +208,7 @@ export function MonthlyDownloadModal({ isOpen, onClose }: MonthlyDownloadModalPr
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
 
-            toast({ title: "Éxito", description: `${count} órdenes descargadas correctamente.`, variant: "success" as any });
+            toast({ title: "Éxito", description: `${count} órdenes descargadas correctamente.`, variant: "success" });
             onClose();
 
         } catch (error) {

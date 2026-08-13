@@ -238,7 +238,7 @@ export default function DataManagementPage() {
                 observations: newFlightObs.trim()
             };
             const docRef = await createFlight(flightData);
-            toast({ title: "Éxito", description: `Vuelo añadido correctamente.`, variant: "success" as any });
+            toast({ title: "Éxito", description: `Vuelo añadido correctamente.`, variant: "success" });
             setNewFlightNumber('');
             setNewFlightTime('');
             setNewFlightObs('');
@@ -295,7 +295,7 @@ export default function DataManagementPage() {
         setDrivers(prev => [...prev, { id: ref.id, name: driverNameToSave }].sort((a, b) => a.name.localeCompare(b.name)));
       }
 
-      toast({ title: "Éxito", description: `${type.slice(0, -1)} añadido correctamente.`, variant: "success" as any });
+      toast({ title: "Éxito", description: `${type.slice(0, -1)} añadido correctamente.`, variant: "success" });
       setNewItemName('');
       setNewItemLastName('');
       // Optimización: Ya no recargamos desde Firebase, actualizamos estado local arriba
@@ -334,7 +334,7 @@ export default function DataManagementPage() {
         setFlights(prev => prev.filter(f => f.id !== id));
       }
 
-      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", variant: "success" as any });
+      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", variant: "success" });
       // Optimización: Ya no recargamos desde Firebase, actualizamos estado local arriba
     } catch (error) {
        toast({ title: "Error", description: `No se pudo eliminar el registro.`, variant: "destructive" });
@@ -370,7 +370,7 @@ export default function DataManagementPage() {
         setFlights(prev => prev.filter(f => !selectedIds.includes(f.id)));
       }
 
-      toast({ title: "Eliminación Exitosa", description: `Se eliminaron ${selectedIds.length} registros.`, variant: "success" as any });
+      toast({ title: "Eliminación Exitosa", description: `Se eliminaron ${selectedIds.length} registros.`, variant: "success" });
       setSelectedItems(prev => ({...prev, [activeTab]: new Set()})); // Clear selection
       // Optimización: Ya no recargamos desde Firebase, actualizamos estado local arriba
     } catch (error) {
@@ -450,7 +450,7 @@ export default function DataManagementPage() {
           if (records.length === 0) {
             toast({ title: "Archivo Vacío o Formato Incorrecto", description: "Asegúrate que el archivo Excel tenga las columnas correctas ('nombre' y 'apellido' para guías, 'nombre' para los demás, 'numero de vuelo', 'hora', 'observaciones' para vuelos).", variant: "destructive", duration: 7000 });
           } else {
-            toast({ title: "Carga Exitosa", description: `Se procesaron ${records.length} registros desde el archivo.`, variant: "success" as any });
+            toast({ title: "Carga Exitosa", description: `Se procesaron ${records.length} registros desde el archivo.`, variant: "success" });
 
             // Optimización: Solo recargar la colección específica que se subió
             if (type === 'guides') {

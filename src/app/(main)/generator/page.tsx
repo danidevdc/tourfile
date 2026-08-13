@@ -137,7 +137,7 @@ export default function GeneratorPage() {
         toast({
           title: "Archivo Seleccionado",
           description: file.name,
-          variant: "success" as any,
+          variant: "success",
         });
 
         const reader = new FileReader();
@@ -206,7 +206,7 @@ export default function GeneratorPage() {
     toast({
       title: "Lista Limpiada",
       description: "Todos los reportes generados han sido eliminados de la lista.",
-      variant: "success" as any,
+      variant: "success",
     });
   };
 
@@ -371,7 +371,7 @@ export default function GeneratorPage() {
           toast({
             title: "Búsqueda Exitosa",
             description: `Nombre de file: ${groupName}`,
-            variant: "success" as any,
+            variant: "success",
           });
         } else {
           setCurrentPaxCount("N/A");
@@ -472,7 +472,7 @@ export default function GeneratorPage() {
     toast({
       title: "Reporte Añadido",
       description: `Se añadió el reporte para el file ${newReport.fileNumber} a la lista.`,
-      variant: "success" as any,
+      variant: "success",
     });
     setIsProcessingGeneration(false);
   }
@@ -487,7 +487,7 @@ export default function GeneratorPage() {
     toast({
       title: "Reporte Eliminado",
       description: "El reporte ha sido eliminado de la lista.",
-      variant: "success" as any,
+      variant: "success",
     });
   };
 
@@ -542,7 +542,7 @@ export default function GeneratorPage() {
       toast({
         title: 'Descarga Exitosa',
         description: `Se descargó el reporte para el file ${report.fileNumber}.`,
-        variant: 'success' as any,
+        variant: 'success',
       });
 
       if (currentUser?.uid) {
@@ -645,7 +645,7 @@ export default function GeneratorPage() {
       toast({
         title: "Descarga Completa",
         description: `El archivo .zip con ${files.length} reportes ha sido descargado.`,
-        variant: "success" as any,
+        variant: "success",
       });
 
       // Optimización: Guardar todos los reportes en una sola operación batch

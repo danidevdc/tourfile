@@ -50,7 +50,7 @@ export async function copiarVistaPreviaAlClipboard(
     toast?.({
         title: "✅ Imagen Copiada",
         description: "La vista previa ha sido copiada. Pégala con Ctrl+V.",
-        variant: "success" as any,
+        variant: "success",
         duration: 5000,
     });
     return true;

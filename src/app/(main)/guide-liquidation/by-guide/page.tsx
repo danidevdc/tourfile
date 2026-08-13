@@ -259,7 +259,7 @@ export default function LiquidationByGuidePage() {
         if (norm(r.fileNumber) !== norm(payTarget.fileNumber)) return r;
         return { ...r, liqStatus: 'PAGADO' as LiqStatus, liq: paidLiq };
       }));
-      toast({ title: "Pago registrado", description: `${payTarget.guideName} · ${payTarget.liquidationNumber}`, variant: "success" as any });
+      toast({ title: "Pago registrado", description: `${payTarget.guideName} · ${payTarget.liquidationNumber}`, variant: "success" });
       setPayTarget(null);
       silentRefresh();
     } catch (e) {
@@ -287,7 +287,7 @@ export default function LiquidationByGuidePage() {
         if (norm(r.fileNumber) !== norm(savedFileNumber)) return r;
         return { ...r, liqStatus: 'SOLICITADO' as LiqStatus, liq: saved };
       }));
-      toast({ title: "Liquidación guardada", description: `File ${savedFileNumber} · ${IDIOMA_LABELS[idioma]}`, variant: "success" as any });
+      toast({ title: "Liquidación guardada", description: `File ${savedFileNumber} · ${IDIOMA_LABELS[idioma]}`, variant: "success" });
       setLiqTarget(null);
       silentRefresh();
     } catch (e) {

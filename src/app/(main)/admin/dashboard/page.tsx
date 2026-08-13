@@ -218,7 +218,7 @@ export default function AdminDashboardPage() {
     setSavingUid(uid);
     try {
       await setUserModules(uid, userModules[uid] || []);
-      toast({ title: "Módulos guardados", variant: "success" as any });
+      toast({ title: "Módulos guardados", variant: "success" });
     } catch {
       toast({ title: "Error", description: "No se pudieron guardar los módulos.", variant: "destructive" });
     } finally {

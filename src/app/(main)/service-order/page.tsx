@@ -428,7 +428,7 @@ export default function ServiceOrderListPage() {
     setIsSaving(true);
     try {
       await saveEditedServiceOrder(orderToEdit, updatedOrderData, currentUser.email);
-      toast({ title: "Éxito", description: "La orden ha sido actualizada y/o dividida exitosamente.", variant: "success" as any });
+      toast({ title: "Éxito", description: "La orden ha sido actualizada y/o dividida exitosamente.", variant: "success" });
       await fetchOrders(); // Wait for orders to load before closing modal
       setIsEditModalOpen(false);
       setOrderToEdit(null);
@@ -532,7 +532,7 @@ export default function ServiceOrderListPage() {
 
     try {
       await deleteServiceOrder(orderToDelete.id, currentUser.email);
-      toast({ title: "Éxito", description: `La orden "${getBaseName(orderToDelete.orderName)}" ha sido marcada como eliminada.`, variant: "success" as any });
+      toast({ title: "Éxito", description: `La orden "${getBaseName(orderToDelete.orderName)}" ha sido marcada como eliminada.`, variant: "success" });
 
       setOrders(prevOrders =>
         prevOrders.map(o =>
@@ -555,7 +555,7 @@ export default function ServiceOrderListPage() {
 
     try {
       await deleteBulkServiceOrders(idsToDelete, currentUser.email);
-      toast({ title: "Eliminación Exitosa", description: `${idsToDelete.length} órdenes marcadas como eliminadas.`, variant: "success" as any });
+      toast({ title: "Eliminación Exitosa", description: `${idsToDelete.length} órdenes marcadas como eliminadas.`, variant: "success" });
       setSelectedOrderIds(new Set());
 
       // Optimización: Actualizar estado local en lugar de recargar desde Firebase

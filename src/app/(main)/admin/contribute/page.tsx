@@ -130,7 +130,7 @@ export default function ContributeDataPage() {
           time: newFlightTime.trim(),
           observations: newFlightObs.trim()
         });
-        toast({ title: "¡Gracias!", description: `Vuelo añadido correctamente.`, variant: "success" as any });
+        toast({ title: "¡Gracias!", description: `Vuelo añadido correctamente.`, variant: "success" });
         setNewFlightNumber(''); setNewFlightTime(''); setNewFlightObs('');
       } else {
         const name = newItemName.trim().toUpperCase();
@@ -166,7 +166,7 @@ export default function ContributeDataPage() {
         else if (type === 'buses') await createBus(name);
         else if (type === 'drivers') await createDriver(finalNameToSave);
 
-        toast({ title: "¡Gracias!", description: `Tu contribución ha sido añadida.`, variant: "success" as any });
+        toast({ title: "¡Gracias!", description: `Tu contribución ha sido añadida.`, variant: "success" });
         setNewItemName(''); setNewItemLastName('');
       }
       await fetchData();
@@ -192,7 +192,7 @@ export default function ContributeDataPage() {
       else if (itemToDelete.type === 'buses') await deleteBus(id);
 
 
-      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", variant: "success" as any });
+      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", variant: "success" });
       await fetchData();
     } catch (error) {
       toast({ title: "Error", description: `No se pudo eliminar el registro.`, variant: "destructive" });
@@ -229,7 +229,7 @@ export default function ContributeDataPage() {
       else if (type === 'flights') await updateFlight(id, { flightNumber: newValues.flightNumber, time: newValues.time, observations: newValues.observations });
       else if (type === 'buses') await updateBus(id, newValues.name);
 
-      toast({ title: "Guardado", description: "El registro ha sido actualizado.", variant: "success" as any });
+      toast({ title: "Guardado", description: "El registro ha sido actualizado.", variant: "success" });
       await fetchData();
     } catch (error) {
       toast({ title: "Error", description: `No se pudo guardar el registro.`, variant: "destructive" });

@@ -135,7 +135,7 @@ export default function AdminUsersPage() {
     try {
       await deleteUserFromFirestore(userToDelete.uid);
       setUsers(prevUsers => prevUsers.filter(user => user.uid !== userToDelete.uid));
-      toast({ title: "Usuario Eliminado", description: "El perfil del usuario ha sido eliminado. La cuenta de autenticación debe ser eliminada manually desde Firebase Console.", variant: "success" as any, duration: 7000 });
+      toast({ title: "Usuario Eliminado", description: "El perfil del usuario ha sido eliminado. La cuenta de autenticación debe ser eliminada manually desde Firebase Console.", variant: "success", duration: 7000 });
 
     } catch (error) {
       // Error toast is handled within deleteUserFromFirestore

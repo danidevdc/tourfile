@@ -272,7 +272,7 @@ export function ServiceOrderGeneratorSheet({
         const file = event.target.files?.[0];
         if (file) {
             setSelectedFile({ name: file.name });
-            toast({ title: "Archivo Seleccionado", variant: "success" as any });
+            toast({ title: "Archivo Seleccionado", variant: "success" });
             processAndStoreFile(file);
         }
         if (event.target) event.target.value = "";
@@ -327,7 +327,7 @@ export function ServiceOrderGeneratorSheet({
                 file: result.realFileNumber ?? prev.file,
                 ref: result.groupName, nPax: result.pax, hotel: result.hotelName, services: [],
             }));
-            toast({ title: "Búsqueda Exitosa", description: `Grupo: ${result.groupName}, PAX: ${result.pax}, Hotel: ${result.hotelName || 'No encontrado'}`, variant: "success" as any, duration: 5000 });
+            toast({ title: "Búsqueda Exitosa", description: `Grupo: ${result.groupName}, PAX: ${result.pax}, Hotel: ${result.hotelName || 'No encontrado'}`, variant: "success", duration: 5000 });
 
         } else {
             setFileSearchStatus("not_found");
@@ -369,7 +369,7 @@ export function ServiceOrderGeneratorSheet({
 
         const sortedGenerated = sortServiceItems(generatedServicesWithDetails);
         setOrderData((prev: ServiceOrderData) => ({ ...prev, services: sortedGenerated }));
-        toast({ title: "Generación Exitosa", description: `Se generaron ${sortedGenerated.length} servicios ordenados.`, variant: "success" as any, duration: 5000 });
+        toast({ title: "Generación Exitosa", description: `Se generaron ${sortedGenerated.length} servicios ordenados.`, variant: "success", duration: 5000 });
     };
 
     const handleInputChange = (field: keyof ServiceOrderData, value: string) => {
@@ -478,14 +478,14 @@ export function ServiceOrderGeneratorSheet({
             // If split mode is enabled and conditions are met, use split mode
             if (isSplitMode && splitModeStatus.canEnableSplit) {
                 await saveServiceOrderInSplitMode(orderData, currentUser.email);
-                toast({ title: "Éxito", description: "Orden de servicio separada guardada exitosamente (1 para guía, 1 para chofer).", variant: "success" as any });
+                toast({ title: "Éxito", description: "Orden de servicio separada guardada exitosamente (1 para guía, 1 para chofer).", variant: "success" });
             } else {
                 // Otherwise, use the automatic split function
                 await saveServiceOrderWithSplit(orderData, currentUser.email);
                 const message = splitModeStatus.willBeDivided
                     ? "Orden de servicio guardada y dividida exitosamente."
                     : "Orden de servicio guardada exitosamente.";
-                toast({ title: "Éxito", description: message, variant: "success" as any });
+                toast({ title: "Éxito", description: message, variant: "success" });
             }
             onSave();
         } catch (error: any) {
