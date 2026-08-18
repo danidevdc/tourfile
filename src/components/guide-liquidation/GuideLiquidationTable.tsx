@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchX } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { LiquidationItem } from "@/lib/guideLiquidationService";
 
@@ -17,9 +18,10 @@ export function GuideLiquidationTable({ items, onItemChange, readOnly = false, h
   if (items.length === 0) {
     return (
       <div
-        className="border border-border bg-card flex flex-col items-center justify-center"
-        style={{ borderRadius: "8px", minHeight: "192px", gap: "8px" }}
+        className="border border-dashed border-border bg-card flex flex-col items-center justify-center"
+        style={{ borderRadius: "8px", minHeight: "192px", gap: "10px" }}
       >
+        <SearchX className="text-muted-foreground/40" size={28} strokeWidth={1.5} />
         <span
           style={{
             fontFamily: "'Space Mono', monospace",
@@ -29,7 +31,7 @@ export function GuideLiquidationTable({ items, onItemChange, readOnly = false, h
           }}
           className="text-muted-foreground/60"
         >
-          [ Sin servicios ]
+          Sin servicios cargados
         </span>
         <span
           style={{
@@ -38,7 +40,7 @@ export function GuideLiquidationTable({ items, onItemChange, readOnly = false, h
           }}
           className="text-muted-foreground/50"
         >
-          Ingresá un File y seleccioná un Guía para buscar los servicios.
+          Ingresá un File arriba y presioná buscar para traer los servicios del guía.
         </span>
       </div>
     );

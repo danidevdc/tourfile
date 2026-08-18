@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Printer, Search, Pencil, X, CheckCircle2, Loader2, Trash2 } from "lucide-react";
-import { getAllLiquidations, payLiquidation, deleteLiquidation, type GuideLiquidation } from "@/lib/guideLiquidationService";
+import { getAllLiquidations, payLiquidation, deleteLiquidation, getLiquidationDisplayStatus, type GuideLiquidation } from "@/lib/guideLiquidationService";
 import { buildLiquidationPDFUrl } from "@/lib/guideLiquidationPDF";
 import { LiquidationPDFPreviewModal } from "@/components/guide-liquidation/LiquidationPDFPreviewModal";
 import { useAuth } from "@/hooks/useAuth";
@@ -66,9 +66,12 @@ function PayModal({ liq, onConfirm, onCancel, loading }: {
 }
 
 function StatusBadge({ liq }: { liq: GuideLiquidation }) {
-  const isPagado = !!liq.paymentDate;
+  const isPagado = getLiquidationDisplayStatus(liq) === "PAGADO";
   const label    = isPagado ? "PAGADO" : "SOLICITADO";
-  const color    = isPagado ? "#16a34a" : "#f59e0b";
+  // Border/dot use the brand amber; text uses a darker shade — #f59e0b fails
+  // WCAG AA contrast (2.15:1) as small bold text on light backgrounds.
+  const color     = isPagado ? "#16a34a" : "#f59e0b";
+  const textColor = isPagado ? "#16a34a" : "#b45309";
 
   if (isPagado) {
     return (
@@ -91,7 +94,7 @@ function StatusBadge({ liq }: { liq: GuideLiquidation }) {
   }
 
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 8px", borderRadius: "4px", border: `1px solid ${color}55`, background: `${color}12`, fontFamily: "'Space Mono', monospace", fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color, whiteSpace: "nowrap" as const }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 8px", borderRadius: "4px", border: `1px solid ${color}55`, background: `${color}12`, fontFamily: "'Space Mono', monospace", fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: textColor, whiteSpace: "nowrap" as const }}>
       <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0, animation: "nd-pulse 2s ease-in-out infinite" }} />
       {label}
     </span>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, FileText, TrendingUp, Calendar, Users, Printer, History, Settings2, Pencil, UserCheck, CheckCircle2, Loader2, X, Trash2 } from "lucide-react";
-import { getDashboardStats, payLiquidation, deleteLiquidation, type LiquidationDashboardStats, type GuideLiquidation } from "@/lib/guideLiquidationService";
+import { getDashboardStats, payLiquidation, deleteLiquidation, getLiquidationDisplayStatus, type LiquidationDashboardStats, type GuideLiquidation } from "@/lib/guideLiquidationService";
 import { buildLiquidationPDFUrl } from "@/lib/guideLiquidationPDF";
 import { LiquidationPDFPreviewModal } from "@/components/guide-liquidation/LiquidationPDFPreviewModal";
 import { useAuth } from "@/hooks/useAuth";
@@ -87,11 +87,12 @@ function ActionCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        flex: "1 1 220px",
+        position: "relative",
+        flex: primary ? "1.4 1 260px" : "1 1 220px",
         background: primary
           ? (hovered ? `${accent}22` : `${accent}14`)
           : (hovered ? `${accent}18` : `${accent}0e`),
-        border: `1.5px solid ${accent}${hovered ? "77" : "33"}`,
+        border: `${primary ? 2 : 1.5}px solid ${accent}${primary ? (hovered ? "aa" : "66") : (hovered ? "77" : "33")}`,
         borderRadius: "10px",
         padding: "20px 24px",
         display: "flex",
@@ -101,8 +102,20 @@ function ActionCard({
         transition: "all 150ms ease-out",
         textAlign: "left" as const,
         minWidth: 0,
+        boxShadow: primary ? `0 1px 0 ${accent}18` : "none",
       }}
     >
+      {primary && (
+        <span style={{
+          position: "absolute", top: "-9px", left: "20px",
+          background: accent, color: "white",
+          fontFamily: "'Space Mono', monospace", fontSize: "8.5px",
+          fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const,
+          padding: "2px 8px", borderRadius: "999px",
+        }}>
+          Más usado
+        </span>
+      )}
       <div style={{
         width: "44px", height: "44px", borderRadius: "10px",
         background: `${accent}28`,
@@ -126,9 +139,12 @@ function ActionCard({
 }
 
 function StatusBadge({ liq }: { liq: GuideLiquidation }) {
-  const isPagado = !!liq.paymentDate;
+  const isPagado = getLiquidationDisplayStatus(liq) === "PAGADO";
   const label    = isPagado ? "PAGADO" : "SOLICITADO";
-  const color    = isPagado ? "#16a34a" : "#f59e0b";
+  // Border/dot use the brand amber; text uses a darker shade — #f59e0b fails
+  // WCAG AA contrast (2.15:1) as small bold text on light backgrounds.
+  const color     = isPagado ? "#16a34a" : "#f59e0b";
+  const textColor = isPagado ? "#16a34a" : "#b45309";
 
   if (isPagado) {
     return (
@@ -158,7 +174,7 @@ function StatusBadge({ liq }: { liq: GuideLiquidation }) {
       fontFamily: "'Space Mono', monospace", fontSize: "9px",
       fontWeight: 700, letterSpacing: "0.08em",
       textTransform: "uppercase" as const,
-      color, whiteSpace: "nowrap" as const,
+      color: textColor, whiteSpace: "nowrap" as const,
     }}>
       <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0, animation: "nd-pulse 2s ease-in-out infinite" }} />
       {label}

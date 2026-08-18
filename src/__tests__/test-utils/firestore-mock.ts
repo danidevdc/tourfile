@@ -174,7 +174,8 @@ export function serverTimestamp() {
 export async function runTransaction(_db: any, updateFn: any) {
   const tx = {
     get: async (ref: any) => await getDoc(ref),
-    update: async (ref: any, updates: any) => await updateDoc(ref, updates)
+    set: (ref: any, data: any, opts?: any) => { setDoc(ref, data, opts); },
+    update: (ref: any, updates: any) => { updateDoc(ref, updates); },
   };
   return updateFn(tx);
 }

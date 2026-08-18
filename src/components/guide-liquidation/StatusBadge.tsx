@@ -1,5 +1,7 @@
 const GREEN = "#16a34a";
 const AMBER = "#f59e0b";
+// Darker shade for text: #f59e0b fails WCAG AA contrast (2.15:1) as small bold text on light backgrounds.
+const AMBER_TEXT = "#b45309";
 const RED = "#ef4444";
 
 export type LiqStatus = 'SIN LIQUIDAR' | 'SOLICITADO' | 'PAGADO';
@@ -48,7 +50,7 @@ export function StatusBadge({ status }: { status: LiqStatus }) {
       border: `1px solid ${AMBER}55`, background: `${AMBER}14`,
       fontFamily: "'Space Mono', monospace", fontSize: "9px",
       fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const,
-      color: AMBER, whiteSpace: "nowrap" as const,
+      color: AMBER_TEXT, whiteSpace: "nowrap" as const,
     }}>
       <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: AMBER, display: "inline-block", flexShrink: 0, animation: "nd-pulse 2s ease-in-out infinite" }} />
       SOLICITADO

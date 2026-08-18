@@ -136,6 +136,11 @@ describe('formatters', () => {
       expect(parseDateDDMMYY('15-01-24')).toBeNull();
       expect(parseDateDDMMYY('24/01')).toBeNull();
     });
+
+    it('should return null for a day that does not exist in the given month', () => {
+      // February never has 31 days — must not silently roll over into March.
+      expect(parseDateDDMMYY('31/02/25')).toBeNull();
+    });
   });
 
   describe('normalizeTime', () => {

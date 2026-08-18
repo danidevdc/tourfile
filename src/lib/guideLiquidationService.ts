@@ -13,11 +13,15 @@ import {
   query,
   orderBy,
   limit,
+  startAfter,
   serverTimestamp,
+  runTransaction,
   Timestamp,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { getAllServiceOrders, markOrdersWithLiquidation, unmarkOrdersWithLiquidation } from '@/lib/serviceOrderStorage';
 import { getGuidesFromFirestore } from '@/lib/serviceOrderMasterData';
+import { parseDateDDMMYY } from '@/lib/formatters';
 
 // --- Types ---
 
@@ -42,7 +46,8 @@ export interface GuideLiquidation {
   id: string;
   liquidationNumber: string;
   fileNumber: string;
-  guideId: string;
+  /** Normalized guide name used as a natural key — NOT a Firestore document uid. */
+  guideKey: string;
   guideName: string;
   paxName: string;
   paxCount: number;
@@ -53,6 +58,19 @@ export interface GuideLiquidation {
   paidAt?: Date;
   paymentDate?: string;
   items: LiquidationItem[];
+}
+
+/**
+ * Derives the liquidation's real-world status from `paymentDate`, which is the
+ * field every screen in this module actually keys off of. The stored `status`
+ * field is set to 'Liquidado' as soon as a liquidation is saved (not when it's
+ * paid), so it cannot distinguish "Solicitado" from "Pagado" on its own —
+ * always prefer this helper over reading `status` directly for display.
+ */
+export function getLiquidationDisplayStatus(liq: Pick<GuideLiquidation, 'status' | 'paymentDate'>): OrderLiqStatus | 'ANULADO' {
+  if (liq.status === 'Anulado') return 'ANULADO';
+  if (liq.status === 'Sin Liquidar') return 'SIN LIQUIDAR';
+  return liq.paymentDate ? 'PAGADO' : 'SOLICITADO';
 }
 
 export interface StoredServiceOrderForLiquidation {
@@ -74,12 +92,41 @@ export interface StoredServiceOrderForLiquidation {
 // --- Helpers ---
 
 function padNumber(n: number): string {
-  return n.toString().padStart(2, '0');
+  return n.toString().padStart(3, '0');
 }
 
+/**
+ * Prefix for generated liquidation numbers.
+ * Switch to 'LIQ' the day this module goes live — every liquidation created
+ * under 'TEST' is understood to be a test record, never a real one.
+ */
+const LIQUIDATION_NUMBER_PREFIX = 'TEST';
+
+const LIQUIDATION_COUNTER_COL = 'counters';
+const LIQUIDATION_COUNTER_DOC = 'guideLiquidation';
+
+/**
+ * Atomically reserves the next liquidation number for the current prefix.
+ * Counting is scoped per-prefix so switching TEST → LIQ restarts numbering at 001
+ * instead of continuing from however many test records were created.
+ */
 async function getNextLiquidationNumber(): Promise<string> {
-  // TODO: remove this when going live — fixed number for testing on develop
-  return 'LIQ-000';
+  if (!db) throw new Error('Firestore not initialized.');
+  const counterRef = doc(db, LIQUIDATION_COUNTER_COL, LIQUIDATION_COUNTER_DOC);
+
+  const nextSeq = await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(counterRef);
+    if (!snap.exists()) {
+      transaction.set(counterRef, { [LIQUIDATION_NUMBER_PREFIX]: 1 });
+      return 1;
+    }
+    const data = snap.data() as Record<string, number>;
+    const next = (data[LIQUIDATION_NUMBER_PREFIX] ?? 0) + 1;
+    transaction.update(counterRef, { [LIQUIDATION_NUMBER_PREFIX]: next });
+    return next;
+  });
+
+  return `${LIQUIDATION_NUMBER_PREFIX}-${padNumber(nextSeq)}`;
 }
 
 function timestampToDate(val: unknown): Date {
@@ -172,50 +219,89 @@ export async function getServiceOrdersByFileAndGuide(
     }
   }
 
-  // Sort by date ascending (format dd/MM/yy or dd/MM/yyyy)
+  // Sort by date ascending (format dd/MM/yy or dd/MM/yyyy); invalid dates sort last.
   items.sort((a, b) => {
-    const parseDate = (s: string) => {
-      const parts = s.split('/').map(Number);
-      const [d, m] = parts;
-      let [, , y] = parts;
-      if (y < 100) y += 2000;
-      return new Date(y, m - 1, d).getTime();
-    };
-    return parseDate(a.fecha) - parseDate(b.fecha);
+    const da = parseDateDDMMYY(a.fecha)?.getTime() ?? Infinity;
+    const db = parseDateDDMMYY(b.fecha)?.getTime() ?? Infinity;
+    return da - db;
   });
 
   return items;
 }
 
+/** Maps a Firestore guideLiquidations document into a GuideLiquidation. */
+function mapLiquidationDoc(d: { id: string; data: () => Record<string, unknown> }): GuideLiquidation {
+  const data = d.data();
+  return {
+    id: d.id,
+    liquidationNumber: (data.liquidationNumber as string) ?? '',
+    fileNumber: (data.fileNumber as string) ?? '',
+    // Fall back to the legacy `guideId` field name for documents written before the rename.
+    guideKey: (data.guideKey as string) ?? (data.guideId as string) ?? '',
+    guideName: (data.guideName as string) ?? '',
+    paxName: (data.paxName as string) ?? '',
+    paxCount: (data.paxCount as number) ?? 0,
+    status: (data.status as LiquidationStatus) ?? 'Sin Liquidar',
+    total: (data.total as number) ?? 0,
+    createdBy: (data.createdBy as string) ?? '',
+    createdAt: timestampToDate(data.createdAt),
+    paidAt: data.paidAt ? timestampToDate(data.paidAt) : undefined,
+    paymentDate: (data.paymentDate as string) ?? undefined,
+    items: (data.items as LiquidationItem[]) ?? [],
+  };
+}
+
+/**
+ * Safety cap for getAllLiquidations(). This function backs dashboard aggregates
+ * (getDashboardStats, getLiquidationsByFile, getLiquidationsByGuide) which need the
+ * full dataset to compute correctly — so it isn't paginated. This cap only prevents
+ * an unbounded read if the collection grows far beyond expected volume; for a paged
+ * listing UI use getLiquidationsPaginated() instead.
+ */
+const ALL_LIQUIDATIONS_CAP = 2000;
+
 /**
  * Get all liquidations, ordered by creation date descending.
+ * Used internally by getLiquidationsByFile, getLiquidationsByGuide and getDashboardStats,
+ * which need the complete dataset. For a paged UI listing, use getLiquidationsPaginated().
  */
 export async function getAllLiquidations(): Promise<GuideLiquidation[]> {
   if (!db) throw new Error('Firestore not initialized.');
   const q = query(
     collection(db, 'guideLiquidations'),
-    orderBy('createdAt', 'desc')
+    orderBy('createdAt', 'desc'),
+    limit(ALL_LIQUIDATIONS_CAP)
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      liquidationNumber: data.liquidationNumber ?? '',
-      fileNumber: data.fileNumber ?? '',
-      guideId: data.guideId ?? '',
-      guideName: data.guideName ?? '',
-      paxName: data.paxName ?? '',
-      paxCount: data.paxCount ?? 0,
-      status: data.status ?? 'Sin Liquidar',
-      total: data.total ?? 0,
-      createdBy: data.createdBy ?? '',
-      createdAt: timestampToDate(data.createdAt),
-      paidAt: data.paidAt ? timestampToDate(data.paidAt) : undefined,
-      paymentDate: data.paymentDate ?? undefined,
-      items: data.items ?? [],
-    };
-  });
+  if (snapshot.size >= ALL_LIQUIDATIONS_CAP) {
+    console.warn(`getAllLiquidations() hit its ${ALL_LIQUIDATIONS_CAP}-doc cap — dashboard aggregates may be incomplete.`);
+  }
+  return snapshot.docs.map(mapLiquidationDoc);
+}
+
+/**
+ * Get a page of liquidations ordered by creation date descending, for listing UIs.
+ * Pass the previous call's lastDoc back in to fetch the next page.
+ */
+export async function getLiquidationsPaginated(
+  pageSize: number = 20,
+  cursor: QueryDocumentSnapshot | null = null
+): Promise<{ liquidations: GuideLiquidation[]; lastDoc: QueryDocumentSnapshot | null; hasMore: boolean }> {
+  if (!db) throw new Error('Firestore not initialized.');
+  let q = query(
+    collection(db, 'guideLiquidations'),
+    orderBy('createdAt', 'desc'),
+    limit(pageSize)
+  );
+  if (cursor) {
+    q = query(q, startAfter(cursor));
+  }
+  const snapshot = await getDocs(q);
+  return {
+    liquidations: snapshot.docs.map(mapLiquidationDoc),
+    lastDoc: snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null,
+    hasMore: snapshot.docs.length === pageSize,
+  };
 }
 
 /**
@@ -224,32 +310,8 @@ export async function getAllLiquidations(): Promise<GuideLiquidation[]> {
 export async function getLiquidationsByFile(fileNumber: string): Promise<GuideLiquidation[]> {
   if (!db) throw new Error('Firestore not initialized.');
   const normalized = normalizeFileNumber(fileNumber);
-  const q = query(
-    collection(db, 'guideLiquidations'),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs
-    .map((d) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        liquidationNumber: data.liquidationNumber ?? '',
-        fileNumber: data.fileNumber ?? '',
-        guideId: data.guideId ?? '',
-        guideName: data.guideName ?? '',
-        paxName: data.paxName ?? '',
-        paxCount: data.paxCount ?? 0,
-        status: data.status ?? 'Sin Liquidar',
-        total: data.total ?? 0,
-        createdBy: data.createdBy ?? '',
-        createdAt: timestampToDate(data.createdAt),
-        paidAt: data.paidAt ? timestampToDate(data.paidAt) : undefined,
-        paymentDate: data.paymentDate ?? undefined,
-        items: data.items ?? [],
-      } as GuideLiquidation;
-    })
-    .filter((l) => normalizeFileNumber(l.fileNumber) === normalized);
+  const all = await getAllLiquidations();
+  return all.filter((l) => normalizeFileNumber(l.fileNumber) === normalized);
 }
 
 /**
@@ -258,7 +320,7 @@ export async function getLiquidationsByFile(fileNumber: string): Promise<GuideLi
  */
 export async function saveLiquidation(payload: {
   fileNumber: string;
-  guideId: string;
+  guideKey: string;
   guideName: string;
   paxName: string;
   paxCount: number;
@@ -268,12 +330,12 @@ export async function saveLiquidation(payload: {
   if (!db) throw new Error('Firestore not initialized.');
 
   const liquidationNumber = await getNextLiquidationNumber();
-  const total = payload.items.reduce((sum, item) => sum + (item.monto || 0), 0);
+  const total = payload.items.reduce((sum, item) => sum + (item.checked ? (item.monto || 0) : 0), 0);
 
   const docData = {
     liquidationNumber,
     fileNumber: payload.fileNumber,
-    guideId: payload.guideId,
+    guideKey: payload.guideKey,
     guideName: payload.guideName,
     paxName: payload.paxName,
     paxCount: payload.paxCount,
@@ -304,24 +366,9 @@ export async function saveLiquidation(payload: {
  */
 export async function getLiquidationById(id: string): Promise<GuideLiquidation | null> {
   if (!db) throw new Error('Firestore not initialized.');
-  const { getDoc } = await import('firebase/firestore');
   const snap = await getDoc(doc(db, 'guideLiquidations', id));
   if (!snap.exists()) return null;
-  const data = snap.data();
-  return {
-    id: snap.id,
-    liquidationNumber: data.liquidationNumber ?? '',
-    fileNumber: data.fileNumber ?? '',
-    guideId: data.guideId ?? '',
-    guideName: data.guideName ?? '',
-    paxName: data.paxName ?? '',
-    paxCount: data.paxCount ?? 0,
-    status: data.status ?? 'Sin Liquidar',
-    total: data.total ?? 0,
-    createdBy: data.createdBy ?? '',
-    createdAt: timestampToDate(data.createdAt),
-    items: data.items ?? [],
-  };
+  return mapLiquidationDoc(snap);
 }
 
 /**
@@ -332,7 +379,7 @@ export async function updateLiquidation(
   payload: { items: LiquidationItem[]; paxName: string; paxCount: number }
 ): Promise<void> {
   if (!db) throw new Error('Firestore not initialized.');
-  const total = payload.items.reduce((sum, item) => sum + (item.monto || 0), 0);
+  const total = payload.items.reduce((sum, item) => sum + (item.checked ? (item.monto || 0) : 0), 0);
   await updateDoc(doc(db, 'guideLiquidations', id), {
     items: payload.items,
     paxName: payload.paxName,
@@ -415,12 +462,10 @@ export async function getAvailableMonthsForGuide(guideName: string): Promise<Gui
 
     const services = order.data.services ?? [];
     for (const svc of services) {
-      if (!svc.fecha) continue;
-      const parts = svc.fecha.split('/').map(Number);
-      const [, m] = parts;
-      let [, , y] = parts;
-      if (y < 100) y += 2000;
-      if (!m || !y) continue;
+      const parsed = parseDateDDMMYY(svc.fecha ?? '');
+      if (!parsed) continue;
+      const y = parsed.getUTCFullYear();
+      const m = parsed.getUTCMonth() + 1;
       if (!map.has(y)) map.set(y, new Set());
       map.get(y)!.add(m);
     }
@@ -460,12 +505,9 @@ function buildRowsFromOrders(
 
     const services = order.data.services ?? [];
     const hasServiceInMonth = services.some(svc => {
-      if (!svc.fecha) return false;
-      const parts = svc.fecha.split('/').map(Number);
-      const [, m] = parts;
-      let [, , y] = parts;
-      if (y < 100) y += 2000;
-      return m === month && y === year;
+      const parsed = parseDateDDMMYY(svc.fecha ?? '');
+      if (!parsed) return false;
+      return parsed.getUTCMonth() + 1 === month && parsed.getUTCFullYear() === year;
     });
     if (!hasServiceInMonth) continue;
 

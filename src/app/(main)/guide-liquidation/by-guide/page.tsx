@@ -274,7 +274,7 @@ export default function LiquidationByGuidePage() {
     try {
       const saved = await saveLiquidation({
         fileNumber: savedFileNumber,
-        guideId: selectedGuide,
+        guideKey: selectedGuide,
         guideName: selectedGuide,
         paxName: liqTarget.paxName,
         paxCount: liqTarget.paxCount,
