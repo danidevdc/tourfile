@@ -7,6 +7,7 @@ import {
   matchNaabolFlight,
   normalizeDate,
   MISMATCH_THRESHOLD_MINUTES,
+  shouldAttemptAeroApiFallback,
 } from '@/lib/flightMonitorParsing';
 import type { NaabolMonitorFlight } from '@/ai/flows/flight-monitor-flow';
 
@@ -129,6 +130,14 @@ describe('getRowLiveState', () => {
     const naabol = buildNaabolFlight();
     expect(getRowLiveState({ naabol, deltaMinutes: MISMATCH_THRESHOLD_MINUTES })).toBe('live-mismatch');
     expect(getRowLiveState({ naabol, deltaMinutes: -MISMATCH_THRESHOLD_MINUTES - 5 })).toBe('live-mismatch');
+  });
+});
+
+describe('shouldAttemptAeroApiFallback', () => {
+  it('only attempts FlightAware when NAABOL has no result and the flight is overdue', () => {
+    expect(shouldAttemptAeroApiFallback({ serviceDate: '18/08/2026', serviceTime: '09:00', naabol: undefined }, '18/08/2026', 9 * 60 + 30, 50)).toBe(false);
+    expect(shouldAttemptAeroApiFallback({ serviceDate: '18/08/2026', serviceTime: '09:00', naabol: undefined }, '18/08/2026', 9 * 60 + 55, 50)).toBe(true);
+    expect(shouldAttemptAeroApiFallback({ serviceDate: '18/08/2026', serviceTime: '09:00', naabol: buildNaabolFlight() }, '18/08/2026', 9 * 60 + 55, 50)).toBe(false);
   });
 });
 

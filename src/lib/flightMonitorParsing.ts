@@ -232,6 +232,19 @@ export function matchNaabolFlight(
   return byOperation[0];
 }
 
+export function shouldAttemptAeroApiFallback(
+  row: { serviceDate: string; serviceTime: string; naabol?: NaabolMonitorFlight },
+  today: string,
+  nowMinutes: number,
+  fallbackMarginMinutes: number
+): boolean {
+  if (row.naabol) return false;
+  if (row.serviceDate !== today) return false;
+  const serviceMinutes = timeToMinutes(row.serviceTime);
+  if (serviceMinutes === null) return false;
+  return nowMinutes - serviceMinutes >= fallbackMarginMinutes;
+}
+
 export function getRowLiveState(row: { naabol?: NaabolMonitorFlight; deltaMinutes: number | null }): RowLiveState {
   if (!row.naabol) return "pending";
   if (row.deltaMinutes === null) return "live-match";
