@@ -7,6 +7,33 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.4.0] - 2026-09-11
+
+### ✨ Nuevas funciones
+
+- **Liquidación de guías mejorada**
+  - Numeración correlativa atómica para evitar duplicados cuando se crean liquidaciones al mismo tiempo.
+  - Paginación y límites de consulta para reducir lecturas innecesarias.
+  - El total se calcula solo con los servicios seleccionados.
+  - Compatibilidad con registros antiguos mediante búsqueda alternativa por guía.
+
+### 🛠️ Correcciones
+
+- **Órdenes automatizadas de traslados aéreos**
+  - Los códigos de vuelo del Excel se validan contra el catálogo cargado de vuelos antes de generar una orden.
+  - `TRF IN` acepta solo vuelos que llegan a La Paz y `TRF OUT` solo vuelos que salen de La Paz.
+  - Se admiten códigos compuestos como `OB777/685` y se informa cuántos traslados fueron omitidos por no coincidir.
+
+- **Monitor de vuelos**
+  - La consulta pagada a AeroAPI queda limitada a actualizaciones manuales de vuelos vencidos sin datos de NAABOL, evitando consumo automático innecesario.
+
+### 📦 Notas de lanzamiento
+
+- La numeración de liquidaciones continúa con el prefijo `TEST`; la activación del prefijo productivo `LIQ` debe realizarse como un cambio independiente cuando el módulo entre oficialmente en operación.
+- No se requieren migraciones de datos para esta versión.
+
+---
+
 ## [3.3.0] - 2026-08-12
 
 ### 🔒 Seguridad
