@@ -14,7 +14,7 @@ import {
 } from '@/lib/serviceOrderService';
 import { getServiceOrderRules, type ServiceOrderRule } from '@/lib/serviceOrderRuleService';
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
-import { generateServicesFromExcelColumn } from '@/lib/serviceOrderProcessor';
+import { generateServicesFromExcelColumnWithDiagnostics } from '@/lib/serviceOrderProcessor';
 import { saveServiceOrder, saveServiceOrderWithSplit, saveServiceOrderInSplitMode } from '@/lib/serviceOrderStorage';
 import { findFileInExcelData, sortServiceItems, type ExcelMatrix } from '@/lib/serviceOrderGeneratorHelpers';
 
@@ -357,7 +357,14 @@ export function ServiceOrderGeneratorSheet({
             toast({ title: "Información Requerida", description: "Por favor, selecciona Guía, Bus y Chofer antes de generar servicios.", variant: "destructive", duration: 5000 }); return;
         }
 
-        const generatedServicesRaw = generateServicesFromExcelColumn(excelData, foundFileColumnIndex, serviceOrderRules, activities, flights);
+        const generationResult = generateServicesFromExcelColumnWithDiagnostics(
+            excelData,
+            foundFileColumnIndex,
+            serviceOrderRules,
+            activities,
+            flights
+        );
+        const generatedServicesRaw = generationResult.services;
 
         const generatedServicesWithDetails = generatedServicesRaw.map(service => ({
             ...service,
@@ -369,7 +376,16 @@ export function ServiceOrderGeneratorSheet({
 
         const sortedGenerated = sortServiceItems(generatedServicesWithDetails);
         setOrderData((prev: ServiceOrderData) => ({ ...prev, services: sortedGenerated }));
-        toast({ title: "Generación Exitosa", description: `Se generaron ${sortedGenerated.length} servicios ordenados.`, variant: "success", duration: 5000 });
+        const omittedTransfers = generationResult.skippedTransfers.length;
+        const omittedMessage = omittedTransfers > 0
+            ? ` Se omitieron ${omittedTransfers} traslados sin un vuelo de La Paz compatible.`
+            : '';
+        toast({
+            title: "Generación Exitosa",
+            description: `Se generaron ${sortedGenerated.length} servicios ordenados.${omittedMessage}`,
+            variant: "success",
+            duration: omittedTransfers > 0 ? 8000 : 5000,
+        });
     };
 
     const handleInputChange = (field: keyof ServiceOrderData, value: string) => {
