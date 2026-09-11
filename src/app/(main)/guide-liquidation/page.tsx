@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, FileText, TrendingUp, Calendar, Users, Printer, History, Settings2, Pencil, UserCheck, CheckCircle2, Loader2, X, Trash2 } from "lucide-react";
-import { getDashboardStats, payLiquidation, deleteLiquidation, type LiquidationDashboardStats, type GuideLiquidation } from "@/lib/guideLiquidationService";
+import { getDashboardStats, payLiquidation, deleteLiquidation, getLiquidationDisplayStatus, type LiquidationDashboardStats, type GuideLiquidation } from "@/lib/guideLiquidationService";
 import { buildLiquidationPDFUrl } from "@/lib/guideLiquidationPDF";
 import { LiquidationPDFPreviewModal } from "@/components/guide-liquidation/LiquidationPDFPreviewModal";
 import { useAuth } from "@/hooks/useAuth";
+import { formatMoney } from "@/config/agency";
 
 const TOKEN = {
   blue:   "#0991ea",
@@ -86,11 +87,12 @@ function ActionCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        flex: "1 1 220px",
+        position: "relative",
+        flex: primary ? "1.4 1 260px" : "1 1 220px",
         background: primary
           ? (hovered ? `${accent}22` : `${accent}14`)
           : (hovered ? `${accent}18` : `${accent}0e`),
-        border: `1.5px solid ${accent}${hovered ? "77" : "33"}`,
+        border: `${primary ? 2 : 1.5}px solid ${accent}${primary ? (hovered ? "aa" : "66") : (hovered ? "77" : "33")}`,
         borderRadius: "10px",
         padding: "20px 24px",
         display: "flex",
@@ -100,8 +102,20 @@ function ActionCard({
         transition: "all 150ms ease-out",
         textAlign: "left" as const,
         minWidth: 0,
+        boxShadow: primary ? `0 1px 0 ${accent}18` : "none",
       }}
     >
+      {primary && (
+        <span style={{
+          position: "absolute", top: "-9px", left: "20px",
+          background: accent, color: "white",
+          fontFamily: "'Space Mono', monospace", fontSize: "8.5px",
+          fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const,
+          padding: "2px 8px", borderRadius: "999px",
+        }}>
+          Más usado
+        </span>
+      )}
       <div style={{
         width: "44px", height: "44px", borderRadius: "10px",
         background: `${accent}28`,
@@ -125,9 +139,12 @@ function ActionCard({
 }
 
 function StatusBadge({ liq }: { liq: GuideLiquidation }) {
-  const isPagado = !!liq.paymentDate;
+  const isPagado = getLiquidationDisplayStatus(liq) === "PAGADO";
   const label    = isPagado ? "PAGADO" : "SOLICITADO";
-  const color    = isPagado ? "#16a34a" : "#f59e0b";
+  // Border/dot use the brand amber; text uses a darker shade — #f59e0b fails
+  // WCAG AA contrast (2.15:1) as small bold text on light backgrounds.
+  const color     = isPagado ? "#16a34a" : "#f59e0b";
+  const textColor = isPagado ? "#16a34a" : "#b45309";
 
   if (isPagado) {
     return (
@@ -157,7 +174,7 @@ function StatusBadge({ liq }: { liq: GuideLiquidation }) {
       fontFamily: "'Space Mono', monospace", fontSize: "9px",
       fontWeight: 700, letterSpacing: "0.08em",
       textTransform: "uppercase" as const,
-      color, whiteSpace: "nowrap" as const,
+      color: textColor, whiteSpace: "nowrap" as const,
     }}>
       <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0, animation: "nd-pulse 2s ease-in-out infinite" }} />
       {label}
@@ -168,8 +185,6 @@ function StatusBadge({ liq }: { liq: GuideLiquidation }) {
 function DeleteModal({ liq, onConfirm, onCancel, loading }: {
   liq: GuideLiquidation; onConfirm: () => void; onCancel: () => void; loading: boolean;
 }) {
-  const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
-
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
       <div style={{ background: CSS.card, border: `1px solid ${CSS.border}`, borderRadius: "12px", padding: "28px 32px", width: "380px", display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -180,7 +195,7 @@ function DeleteModal({ liq, onConfirm, onCancel, loading }: {
               {liq.guideName} · {liq.liquidationNumber}
             </p>
             <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: "#ef4444", marginTop: "10px" }}>
-              Bs. {fmt(liq.total)}
+              {formatMoney(liq.total)}
             </p>
           </div>
           <button onClick={onCancel} style={{ width: "30px", height: "30px", borderRadius: "6px", border: "1px solid #ef444433", background: "#ef44440d", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms" }}>
@@ -212,7 +227,6 @@ function PayModal({ liq, onConfirm, onCancel, loading }: {
   liq: GuideLiquidation; onConfirm: (date: string) => void; onCancel: () => void; loading: boolean;
 }) {
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
-  const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2 });
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
@@ -224,7 +238,7 @@ function PayModal({ liq, onConfirm, onCancel, loading }: {
               {liq.guideName} · {liq.liquidationNumber}
             </p>
             <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: TOKEN.green, marginTop: "10px" }}>
-              Bs. {fmt(liq.total)}
+              {formatMoney(liq.total)}
             </p>
           </div>
           <button onClick={onCancel} style={{ width: "30px", height: "30px", borderRadius: "6px", border: "1px solid #ef444433", background: "#ef44440d", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 150ms" }}>
@@ -364,14 +378,13 @@ export default function GuideLiquidationDashboardPage() {
     }
   };
 
-  const fmt = (n: number) => n.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
   const MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
   const fmtServiceMonth = (liq: GuideLiquidation): string => {
     const first = liq.items?.[0]?.fecha;
     if (!first) return "—";
     const parts = first.split("/").map(Number);
-    let [, m, y] = parts;
+    const [, m] = parts;
+    let [, , y] = parts;
     if (y < 100) y += 2000;
     return `${MONTHS_ES[m - 1].slice(0, 3).toUpperCase()} ${y}`;
   };
@@ -462,7 +475,7 @@ export default function GuideLiquidationDashboardPage() {
         {/* ── Stat cards ── */}
         <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
           <StatCard icon={FileText} label="Total Liquidaciones" value={loading ? "—" : String(stats?.total ?? 0)} sub="todas las liquidaciones" accent={TOKEN.blue} />
-          <StatCard icon={TrendingUp} label="Monto Total" value={loading ? "—" : `Bs. ${fmt(stats?.montoTotal ?? 0)}`} sub="suma de liquidaciones" accent="#7c3aed" />
+          <StatCard icon={TrendingUp} label="Monto Total" value={loading ? "—" : formatMoney(stats?.montoTotal ?? 0)} sub="suma de liquidaciones" accent="#7c3aed" />
           <StatCard icon={Calendar} label="Este Mes" value={loading ? "—" : String(stats?.esteMes ?? 0)} sub="liquidaciones del mes" accent={TOKEN.amber} />
           <StatCard icon={Users} label="Guías Liquidados" value={loading ? "—" : String(stats?.guiasUnicas ?? 0)} sub="guías únicos" accent={TOKEN.green} />
         </div>
@@ -561,7 +574,7 @@ export default function GuideLiquidationDashboardPage() {
                   {liq.fileNumber}
                 </span>
                 <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 700, color: CSS.fg }}>
-                  Bs. {fmt(liq.total)}
+                  {formatMoney(liq.total)}
                 </span>
                 {/* Estado + gap visual antes del botón */}
                 <div style={{ display: "flex", alignItems: "center" }}>

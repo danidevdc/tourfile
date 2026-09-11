@@ -25,6 +25,7 @@ import {
   getTimingDifferenceMessage,
   matchNaabolFlight,
   normalizeDate,
+  shouldAttemptAeroApiFallback,
   timeToMinutes,
   type OperationType,
   type RowLiveState,
@@ -201,11 +202,12 @@ function getAeroApiFallbackKey(row: { flightDigits: string; serviceDate: string 
 // manana/pasado manana, porque AeroAPI tampoco es tracking en tiempo real
 // para vuelos futuros y NAABOL nunca tuvo esos datos para empezar.
 function isInGrayZone(row: FlightMonitorRow, today: string, nowMinutes: number): boolean {
-  if (row.naabol) return false;
-  if (row.serviceDate !== today) return false;
-  const serviceMinutes = timeToMinutes(row.serviceTime);
-  if (serviceMinutes === null) return false;
-  return nowMinutes - serviceMinutes >= AEROAPI_FALLBACK_MARGIN_MINUTES;
+  return shouldAttemptAeroApiFallback(
+    { serviceDate: row.serviceDate, serviceTime: row.serviceTime, naabol: row.naabol },
+    today,
+    nowMinutes,
+    AEROAPI_FALLBACK_MARGIN_MINUTES
+  );
 }
 
 function dateDdMmYyyyToIso(value: string): string {
@@ -398,6 +400,7 @@ export default function FlightMonitorPage() {
 
   const lastKnownFlightsRef = useRef<Map<string, { flight: NaabolMonitorFlight; lastSeenAt: number }>>(new Map());
   const aeroApiInFlightRef = useRef<Set<string>>(new Set());
+  const attemptedAeroApiFallbackRef = useRef<Set<string>>(new Set());
 
   const today = getLaPazToday(now);
   const allowedDates = useMemo(
@@ -478,40 +481,22 @@ export default function FlightMonitorPage() {
     await Promise.all([loadOrders(forceRefresh), loadNaabolSnapshot()]);
   }, [loadOrders, loadNaabolSnapshot]);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!canOpen) {
-      router.replace("/");
-      return;
-    }
-    refreshAll();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, canOpen]);
-
-  useEffect(() => {
-    const interval = setInterval(() => setNow(new Date(Date.now() + networkOffsetMs)), 1000);
-    return () => clearInterval(interval);
-  }, [networkOffsetMs]);
-
-  useEffect(() => {
-    if (!canOpen) return;
-    const interval = setInterval(() => { loadNaabolSnapshot(); }, NAABOL_POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [canOpen, loadNaabolSnapshot]);
-
   const rows = useMemo(() => buildRows(orders, naabolFlights, allowedDates, now), [orders, naabolFlights, allowedDates, now]);
   const allTodayRows = useMemo(() => buildRows(orders, naabolFlights, allowedDates, now, false), [orders, naabolFlights, allowedDates, now]);
 
-  useEffect(() => {
+  const triggerAeroApiFallbackForEligibleRows = useCallback((manual = false) => {
+    if (!manual) return;
+
     const nowMinutes = getLaPazMinutes(now);
     const candidate = allTodayRows.find((row) => {
       if (!isInGrayZone(row, today, nowMinutes)) return false;
       const key = getAeroApiFallbackKey(row);
-      return !aeroApiFallback.has(key) && !aeroApiInFlightRef.current.has(key);
+      return !attemptedAeroApiFallbackRef.current.has(key) && !aeroApiInFlightRef.current.has(key);
     });
     if (!candidate) return;
 
     const key = getAeroApiFallbackKey(candidate);
+    attemptedAeroApiFallbackRef.current.add(key);
     aeroApiInFlightRef.current.add(key);
     setAeroApiFallback((prev) => new Map(prev).set(key, { status: "loading" }));
 
@@ -545,7 +530,32 @@ export default function FlightMonitorPage() {
         aeroApiInFlightRef.current.delete(key);
       }
     })();
-  }, [allTodayRows, today, now, aeroApiFallback]);
+  }, [allTodayRows, today, now]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!canOpen) {
+      router.replace("/");
+      return;
+    }
+    refreshAll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, canOpen]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date(Date.now() + networkOffsetMs)), 1000);
+    return () => clearInterval(interval);
+  }, [networkOffsetMs]);
+
+  useEffect(() => {
+    if (!canOpen) return;
+    const interval = setInterval(() => { loadNaabolSnapshot(); }, NAABOL_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [canOpen, loadNaabolSnapshot]);
+
+  useEffect(() => {
+    triggerAeroApiFallbackForEligibleRows(false);
+  }, [triggerAeroApiFallbackForEligibleRows]);
 
   const expiredCount = Math.max(
     allTodayRows.filter((row) => row.serviceDate === today).length -
@@ -638,7 +648,14 @@ export default function FlightMonitorPage() {
             <div>
               <CardTitle>Órdenes con vuelos próximos</CardTitle>
             </div>
-            <Button className="h-11 px-5 shadow-md" onClick={() => refreshAll(true)} disabled={isLoading}>
+            <Button
+              className="h-11 px-5 shadow-md"
+              onClick={async () => {
+                await refreshAll(true);
+                triggerAeroApiFallbackForEligibleRows(true);
+              }}
+              disabled={isLoading}
+            >
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               Actualizar estados
             </Button>

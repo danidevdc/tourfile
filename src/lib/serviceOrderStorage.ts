@@ -656,7 +656,7 @@ export async function getTotalServiceOrdersCount(options: { since?: Date } = {})
         )
         : query(ordersRef, where('isRoot', '==', true));
     const rootSnapshot = await getCountFromServer(rootQuery);
-    let rootCount = rootSnapshot.data().count;
+    const rootCount = rootSnapshot.data().count;
 
     if (options.since) {
         logger.debug(`📊 getTotalServiceOrdersCount() - Counted ${rootCount} recent root orders.`);

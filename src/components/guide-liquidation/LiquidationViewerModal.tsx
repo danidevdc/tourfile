@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { getLiquidationsByFile, deleteLiquidation, type GuideLiquidation } from "@/lib/guideLiquidationService";
+import { getLiquidationsByFile, deleteLiquidation, getLiquidationDisplayStatus, type GuideLiquidation } from "@/lib/guideLiquidationService";
 import { buildLiquidationPDFUrl } from "@/lib/guideLiquidationPDF";
 import { LiquidationPDFPreviewModal } from "./LiquidationPDFPreviewModal";
 
@@ -106,12 +106,14 @@ export function LiquidationViewerModal({ fileNumber, open, onClose, onLastDelete
                 <div className="flex items-center gap-2">
                   <span
                     className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${
-                      liq.status === "Liquidado"
+                      getLiquidationDisplayStatus(liq) === "PAGADO"
                         ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        : getLiquidationDisplayStatus(liq) === "SOLICITADO"
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                         : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
                     }`}
                   >
-                    {liq.status}
+                    {getLiquidationDisplayStatus(liq)}
                   </span>
                   <Button
                     variant="outline"

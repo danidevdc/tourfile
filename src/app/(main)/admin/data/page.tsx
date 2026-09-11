@@ -4,6 +4,7 @@
 import { useEffect, useState, useRef, type ChangeEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
+import type { DocumentReference } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -237,7 +238,7 @@ export default function DataManagementPage() {
                 observations: newFlightObs.trim()
             };
             const docRef = await createFlight(flightData);
-            toast({ title: "Éxito", description: `Vuelo añadido correctamente.`, variant: "success" as any });
+            toast({ title: "Éxito", description: `Vuelo añadido correctamente.`, variant: "success" });
             setNewFlightNumber('');
             setNewFlightTime('');
             setNewFlightObs('');
@@ -268,29 +269,33 @@ export default function DataManagementPage() {
 
     setIsSubmitting(true);
     try {
-      let docRef;
+      let docRef: DocumentReference | undefined;
       if (type === 'hotels') {
-        docRef = await createHotel(name);
-        setHotels(prev => [...prev, { id: docRef.id, name }].sort((a, b) => a.name.localeCompare(b.name)));
+        const ref = await createHotel(name);
+        docRef = ref;
+        setHotels(prev => [...prev, { id: ref.id, name }].sort((a, b) => a.name.localeCompare(b.name)));
       }
       else if (type === 'activities') {
-        docRef = await createActivity(name);
-        setActivities(prev => [...prev, { id: docRef.id, name }].sort((a, b) => a.name.localeCompare(b.name)));
+        const ref = await createActivity(name);
+        docRef = ref;
+        setActivities(prev => [...prev, { id: ref.id, name }].sort((a, b) => a.name.localeCompare(b.name)));
       }
       else if (type === 'guides') {
-        docRef = await createGuide({ firstName: name, lastName: lastName });
+        const ref = await createGuide({ firstName: name, lastName: lastName });
+        docRef = ref;
         const fullName = `${name} ${lastName}`.trim();
-        setGuides(prev => [...prev, { uid: docRef.id, firstName: name, lastName: lastName, fullName }].sort((a, b) => a.fullName.localeCompare(b.fullName)));
+        setGuides(prev => [...prev, { uid: ref.id, firstName: name, lastName: lastName, fullName }].sort((a, b) => a.fullName.localeCompare(b.fullName)));
       }
       else if (type === 'drivers') {
         const driverNameToSave = driverType === 'externo' && !name.startsWith('CONT ')
             ? `CONT ${name}`
             : name;
-        docRef = await createDriver(driverNameToSave);
-        setDrivers(prev => [...prev, { id: docRef.id, name: driverNameToSave }].sort((a, b) => a.name.localeCompare(b.name)));
+        const ref = await createDriver(driverNameToSave);
+        docRef = ref;
+        setDrivers(prev => [...prev, { id: ref.id, name: driverNameToSave }].sort((a, b) => a.name.localeCompare(b.name)));
       }
 
-      toast({ title: "Éxito", description: `${type.slice(0, -1)} añadido correctamente.`, variant: "success" as any });
+      toast({ title: "Éxito", description: `${type.slice(0, -1)} añadido correctamente.`, variant: "success" });
       setNewItemName('');
       setNewItemLastName('');
       // Optimización: Ya no recargamos desde Firebase, actualizamos estado local arriba
@@ -329,7 +334,7 @@ export default function DataManagementPage() {
         setFlights(prev => prev.filter(f => f.id !== id));
       }
 
-      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", variant: "success" as any });
+      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", variant: "success" });
       // Optimización: Ya no recargamos desde Firebase, actualizamos estado local arriba
     } catch (error) {
        toast({ title: "Error", description: `No se pudo eliminar el registro.`, variant: "destructive" });
@@ -365,7 +370,7 @@ export default function DataManagementPage() {
         setFlights(prev => prev.filter(f => !selectedIds.includes(f.id)));
       }
 
-      toast({ title: "Eliminación Exitosa", description: `Se eliminaron ${selectedIds.length} registros.`, variant: "success" as any });
+      toast({ title: "Eliminación Exitosa", description: `Se eliminaron ${selectedIds.length} registros.`, variant: "success" });
       setSelectedItems(prev => ({...prev, [activeTab]: new Set()})); // Clear selection
       // Optimización: Ya no recargamos desde Firebase, actualizamos estado local arriba
     } catch (error) {
@@ -445,7 +450,7 @@ export default function DataManagementPage() {
           if (records.length === 0) {
             toast({ title: "Archivo Vacío o Formato Incorrecto", description: "Asegúrate que el archivo Excel tenga las columnas correctas ('nombre' y 'apellido' para guías, 'nombre' para los demás, 'numero de vuelo', 'hora', 'observaciones' para vuelos).", variant: "destructive", duration: 7000 });
           } else {
-            toast({ title: "Carga Exitosa", description: `Se procesaron ${records.length} registros desde el archivo.`, variant: "success" as any });
+            toast({ title: "Carga Exitosa", description: `Se procesaron ${records.length} registros desde el archivo.`, variant: "success" });
 
             // Optimización: Solo recargar la colección específica que se subió
             if (type === 'guides') {
@@ -532,7 +537,7 @@ export default function DataManagementPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="externo" id="r-externo" />
-                <Label htmlFor="r-externo">Externo (Nombre. Se añadirá prefijo 'CONT ')</Label>
+                <Label htmlFor="r-externo">Externo (Nombre. Se añadirá prefijo &apos;CONT &apos;)</Label>
               </div>
             </RadioGroup>
         )}
@@ -568,7 +573,7 @@ export default function DataManagementPage() {
   );
 
   const renderTable = <T extends Item>(data: T[], type: DataType) => {
-    const displayName = (item: T) => {
+    const displayName = (item: Item | ItemToDelete) => {
         if ('fullName' in item && item.fullName) return item.fullName;
         if ('flightNumber' in item && item.flightNumber) return item.flightNumber;
         if ('name' in item && item.name) return item.name;
@@ -652,7 +657,7 @@ export default function DataManagementPage() {
                             />
                         </TableCell>
                         <TableCell className="font-medium flex items-center gap-2">
-                        {isDuplicate && <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" title="Registro duplicado"/>}
+                        {isDuplicate && <span title="Registro duplicado"><AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" /></span>}
                         {displayName(item)}
                         </TableCell>
                         {type === 'flights' && 'time' in item && (
@@ -673,7 +678,7 @@ export default function DataManagementPage() {
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                    Se eliminará permanentemente "{displayName(itemToDelete)}". Esta acción no se puede deshacer.
+                                    Se eliminará permanentemente &quot;{displayName(itemToDelete)}&quot;. Esta acción no se puede deshacer.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>

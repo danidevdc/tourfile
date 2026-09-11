@@ -58,10 +58,11 @@ import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPre
 import { getGuidesFromFirestore, getDriversFromFirestore, getHotelsFromFirestore, getActivitiesFromFirestore, getFlightsFromFirestore, getBusesFromFirestore, type ServiceOrderGuide, type Driver, type Hotel, type Activity, type PredefinedFlight, type Bus } from "@/lib/serviceOrderService";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ServiceOrderMobileCard } from "@/components/service-order/ServiceOrderMobileCard";
+import { agency } from "@/config/agency";
 
 
 const defaultObsText = '';
-const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS REALIZADOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA\nLA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
+const defaultNotaText = agency.defaultServiceOrderNote;
 
 const initialOrderDataState: ServiceOrderData = {
   guia: '', file: '', ref: '', nPax: '', hotel: '', services: [],
@@ -427,7 +428,7 @@ export default function ServiceOrderListPage() {
     setIsSaving(true);
     try {
       await saveEditedServiceOrder(orderToEdit, updatedOrderData, currentUser.email);
-      toast({ title: "Éxito", description: "La orden ha sido actualizada y/o dividida exitosamente.", variant: "success" as any });
+      toast({ title: "Éxito", description: "La orden ha sido actualizada y/o dividida exitosamente.", variant: "success" });
       await fetchOrders(); // Wait for orders to load before closing modal
       setIsEditModalOpen(false);
       setOrderToEdit(null);
@@ -531,7 +532,7 @@ export default function ServiceOrderListPage() {
 
     try {
       await deleteServiceOrder(orderToDelete.id, currentUser.email);
-      toast({ title: "Éxito", description: `La orden "${getBaseName(orderToDelete.orderName)}" ha sido marcada como eliminada.`, variant: "success" as any });
+      toast({ title: "Éxito", description: `La orden "${getBaseName(orderToDelete.orderName)}" ha sido marcada como eliminada.`, variant: "success" });
 
       setOrders(prevOrders =>
         prevOrders.map(o =>
@@ -554,7 +555,7 @@ export default function ServiceOrderListPage() {
 
     try {
       await deleteBulkServiceOrders(idsToDelete, currentUser.email);
-      toast({ title: "Eliminación Exitosa", description: `${idsToDelete.length} órdenes marcadas como eliminadas.`, variant: "success" as any });
+      toast({ title: "Eliminación Exitosa", description: `${idsToDelete.length} órdenes marcadas como eliminadas.`, variant: "success" });
       setSelectedOrderIds(new Set());
 
       // Optimización: Actualizar estado local en lugar de recargar desde Firebase

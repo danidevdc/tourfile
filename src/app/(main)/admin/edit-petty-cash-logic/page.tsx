@@ -107,7 +107,7 @@ export default function EditPettyCashLogicPage() {
     
     if (ruleToDelete.id.startsWith('new_')) {
       setRules(prev => prev.filter(r => r.id !== ruleToDelete.id));
-      toast({ title: "Regla Removida", description: "La nueva regla ha sido descartada.", variant: "success" as any });
+      toast({ title: "Regla Removida", description: "La nueva regla ha sido descartada.", variant: "success" });
       setRuleToDelete(null);
       return;
     }
@@ -115,7 +115,7 @@ export default function EditPettyCashLogicPage() {
     try {
       await deleteExpenseRuleFromFirestore(ruleToDelete.id);
       setRules(prev => prev.filter(r => r.id !== ruleToDelete.id));
-      toast({ title: "Regla Eliminada", description: "La regla ha sido eliminada permanentemente.", variant: "success" as any });
+      toast({ title: "Regla Eliminada", description: "La regla ha sido eliminada permanentemente.", variant: "success" });
     } catch (error) {
       toast({ title: "Error", description: "No se pudo eliminar la regla.", variant: "destructive" });
     } finally {
@@ -135,7 +135,7 @@ export default function EditPettyCashLogicPage() {
       await saveExpenseRulesToFirestore(rules);
       const fetchedRules = await getExpenseRulesFromFirestore('La Paz');
       setRules(fetchedRules.sort((a, b) => a.order - b.order));
-      toast({ title: "Éxito", description: "Todas las reglas han sido guardadas.", variant: "success" as any });
+      toast({ title: "Éxito", description: "Todas las reglas han sido guardadas.", variant: "success" });
     } catch (error) {
       toast({ title: "Error al Guardar", description: "No se pudieron guardar los cambios.", variant: "destructive" });
     } finally {

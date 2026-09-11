@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, type UserProfile } from '@/hooks/useAuth';
+import { useAuth, type UserProfile, ADMIN_EMAIL } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -103,7 +103,7 @@ export default function AdminUsersPage() {
         monthlyData: {
           'Julio': julioCount,
           ...monthlyData
-        },
+        } as { [month: string]: number },
       };
     });
   }, [users, monthlyReportCounts, reportMonths]);
@@ -126,7 +126,7 @@ export default function AdminUsersPage() {
       return;
     }
     
-    if (userToDelete.email === 'daniish77@gmail.com' && userToDelete.uid !== currentUser?.uid) {
+    if (userToDelete.email === ADMIN_EMAIL && userToDelete.uid !== currentUser?.uid) {
         toast({ title: "Acción no permitida", description: "No se puede eliminar la cuenta de administrador principal.", variant: "destructive" });
         setUserToDelete(null);
         return;
@@ -135,7 +135,7 @@ export default function AdminUsersPage() {
     try {
       await deleteUserFromFirestore(userToDelete.uid);
       setUsers(prevUsers => prevUsers.filter(user => user.uid !== userToDelete.uid));
-      toast({ title: "Usuario Eliminado", description: "El perfil del usuario ha sido eliminado. La cuenta de autenticación debe ser eliminada manually desde Firebase Console.", variant: "success" as any, duration: 7000 });
+      toast({ title: "Usuario Eliminado", description: "El perfil del usuario ha sido eliminado. La cuenta de autenticación debe ser eliminada manually desde Firebase Console.", variant: "success", duration: 7000 });
 
     } catch (error) {
       // Error toast is handled within deleteUserFromFirestore
@@ -198,9 +198,9 @@ export default function AdminUsersPage() {
                       <TableCell className="font-medium">{user.email}</TableCell>
                       <TableCell className="text-center">
                         {user.isAdmin ? (
-                          <ShieldCheck className="h-5 w-5 text-green-500 mx-auto" title="Administrador" />
+                          <span title="Administrador"><ShieldCheck className="h-5 w-5 text-green-500 mx-auto" /></span>
                         ) : (
-                          <ShieldOff className="h-5 w-5 text-muted-foreground mx-auto" title="Usuario regular" />
+                          <span title="Usuario regular"><ShieldOff className="h-5 w-5 text-muted-foreground mx-auto" /></span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -220,7 +220,7 @@ export default function AdminUsersPage() {
                                 variant="destructive"
                                 size="icon"
                                 title="Eliminar Perfil de Usuario"
-                                disabled={user.uid === currentUser?.uid || (user.email === 'daniish77@gmail.com' && user.uid !== currentUser?.uid)}
+                                disabled={user.uid === currentUser?.uid || (user.email === ADMIN_EMAIL && user.uid !== currentUser?.uid)}
                                 onClick={() => setUserToDelete(user)}
                               >
                                 <Trash2 className="h-4 w-4" />

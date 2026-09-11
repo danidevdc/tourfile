@@ -130,7 +130,7 @@ export default function ContributeDataPage() {
           time: newFlightTime.trim(),
           observations: newFlightObs.trim()
         });
-        toast({ title: "¡Gracias!", description: `Vuelo añadido correctamente.`, variant: "success" as any });
+        toast({ title: "¡Gracias!", description: `Vuelo añadido correctamente.`, variant: "success" });
         setNewFlightNumber(''); setNewFlightTime(''); setNewFlightObs('');
       } else {
         const name = newItemName.trim().toUpperCase();
@@ -166,7 +166,7 @@ export default function ContributeDataPage() {
         else if (type === 'buses') await createBus(name);
         else if (type === 'drivers') await createDriver(finalNameToSave);
 
-        toast({ title: "¡Gracias!", description: `Tu contribución ha sido añadida.`, variant: "success" as any });
+        toast({ title: "¡Gracias!", description: `Tu contribución ha sido añadida.`, variant: "success" });
         setNewItemName(''); setNewItemLastName('');
       }
       await fetchData();
@@ -192,7 +192,7 @@ export default function ContributeDataPage() {
       else if (itemToDelete.type === 'buses') await deleteBus(id);
 
 
-      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", variant: "success" as any });
+      toast({ title: "Eliminado", description: "El registro ha sido eliminado.", variant: "success" });
       await fetchData();
     } catch (error) {
       toast({ title: "Error", description: `No se pudo eliminar el registro.`, variant: "destructive" });
@@ -229,7 +229,7 @@ export default function ContributeDataPage() {
       else if (type === 'flights') await updateFlight(id, { flightNumber: newValues.flightNumber, time: newValues.time, observations: newValues.observations });
       else if (type === 'buses') await updateBus(id, newValues.name);
 
-      toast({ title: "Guardado", description: "El registro ha sido actualizado.", variant: "success" as any });
+      toast({ title: "Guardado", description: "El registro ha sido actualizado.", variant: "success" });
       await fetchData();
     } catch (error) {
       toast({ title: "Error", description: `No se pudo guardar el registro.`, variant: "destructive" });
@@ -304,7 +304,7 @@ export default function ContributeDataPage() {
           <>
             <RadioGroup defaultValue="propio" onValueChange={(val: 'propio' | 'externo') => setDriverType(val)} className="flex items-center space-x-4">
               <div className="flex items-center space-x-2"><RadioGroupItem value="propio" id="r-propio" /><Label htmlFor="r-propio">Propio</Label></div>
-              <div className="flex items-center space-x-2"><RadioGroupItem value="externo" id="r-externo" /><Label htmlFor="r-externo">Externo (se añade 'CONT ')</Label></div>
+              <div className="flex items-center space-x-2"><RadioGroupItem value="externo" id="r-externo" /><Label htmlFor="r-externo">Externo (se añade &apos;CONT &apos;)</Label></div>
             </RadioGroup>
             <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Nombre del nuevo chofer..." onKeyDown={(e) => e.key === 'Enter' && handleAddItem(type)} />
           </>
@@ -387,7 +387,7 @@ export default function ContributeDataPage() {
                               <TableCell><Input value={editingValues[id].observations} onChange={(e) => handleEditingChange(id, 'observations', e.target.value)} /></TableCell>
                             </>
                           ) : (
-                            <TableCell colSpan={type === 'guides' || type === 'flights' ? 3 : 1}>
+                            <TableCell colSpan={1}>
                               <Input value={editingValues[id].name} onChange={(e) => handleEditingChange(id, 'name', e.target.value.toUpperCase())} />
                             </TableCell>
                           )}
@@ -430,7 +430,7 @@ export default function ContributeDataPage() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Se eliminará permanentemente "{type === 'guides' ? item.fullName : type === 'flights' ? item.flightNumber : item.name}". Esta acción no se puede deshacer.
+                                  Se eliminará permanentemente &quot;{type === 'guides' ? item.fullName : type === 'flights' ? item.flightNumber : item.name}&quot;. Esta acción no se puede deshacer.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>

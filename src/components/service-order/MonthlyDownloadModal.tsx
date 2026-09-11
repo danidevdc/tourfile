@@ -208,7 +208,7 @@ export function MonthlyDownloadModal({ isOpen, onClose }: MonthlyDownloadModalPr
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
 
-            toast({ title: "Éxito", description: `${count} órdenes descargadas correctamente.`, variant: "success" as any });
+            toast({ title: "Éxito", description: `${count} órdenes descargadas correctamente.`, variant: "success" });
             onClose();
 
         } catch (error) {
@@ -230,7 +230,7 @@ export function MonthlyDownloadModal({ isOpen, onClose }: MonthlyDownloadModalPr
                 <DialogHeader>
                     <DialogTitle>Descarga Masiva Mensual</DialogTitle>
                     <DialogDescription>
-                        Selecciona el mes y año según el nombre del archivo (Ej: "ODS ... DICIEMBRE 2025").
+                        Selecciona el mes y año según el nombre del archivo (Ej: &quot;ODS ... DICIEMBRE 2025&quot;).
                     </DialogDescription>
                 </DialogHeader>
 

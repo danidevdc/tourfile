@@ -67,7 +67,6 @@ export function resolveQuantity(quantityStr: string, paxNumber: number): number 
     try {
       const expression = formulaWithPax.substring(1);
       if (/^[\d\s()+\-*/.]+$/.test(expression)) {
-        // eslint-disable-next-line no-new-func
         const result = new Function(`return ${expression}`)() as number;
         return isNaN(result) ? 1 : result;
       } else {

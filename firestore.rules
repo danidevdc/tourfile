@@ -32,8 +32,12 @@ service cloud.firestore {
     // --- User Profiles ---
     // Users can only read/update their own profile. Admins have special access.
     match /userProfiles/{userId} {
-      // Any authenticated user can create their own profile during registration.
-      allow create: if request.auth != null && request.auth.uid == userId;
+      // Any authenticated user can create their own profile during registration,
+      // but cannot self-assign admin rights or module access — those must be
+      // granted later by an existing admin via update.
+      allow create: if request.auth != null && request.auth.uid == userId &&
+        request.resource.data.isAdmin != true &&
+        (!('modules' in request.resource.data) || request.resource.data.modules.size() == 0);
 
       // Users can read their own profile. Admins can read any profile.
       allow read: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true);
@@ -46,24 +50,32 @@ service cloud.firestore {
     }
 
     // --- Master Data (Guides, Hotels, etc.) ---
-    // Anyone logged in can read/write/update/delete.
+    // Anyone logged in can read (needed to build service orders).
+    // Only admins or users with the 'aportar-datos' module can write/delete —
+    // these are shared catalogs, not per-user data.
     match /guides/{docId} {
-      allow read, write, update, delete: if isAuth();
+      allow read: if isAuth();
+      allow write, update, delete: if isAdmin() || hasModule('aportar-datos');
     }
     match /hotels/{docId} {
-      allow read, write, update, delete: if isAuth();
+      allow read: if isAuth();
+      allow write, update, delete: if isAdmin() || hasModule('aportar-datos');
     }
     match /drivers/{docId} {
-      allow read, write, update, delete: if isAuth();
+      allow read: if isAuth();
+      allow write, update, delete: if isAdmin() || hasModule('aportar-datos');
     }
     match /activities/{activityId} {
-      allow read, write, update, delete: if isAuth();
+      allow read: if isAuth();
+      allow write, update, delete: if isAdmin() || hasModule('aportar-datos');
     }
     match /flights/{flightId} {
-      allow read, write, update, delete: if isAuth();
+      allow read: if isAuth();
+      allow write, update, delete: if isAdmin() || hasModule('aportar-datos');
     }
     match /buses/{busId} {
-      allow read, write, update, delete: if isAuth();
+      allow read: if isAuth();
+      allow write, update, delete: if isAdmin() || hasModule('aportar-datos');
     }
 
     // --- Business Logic Rules ---

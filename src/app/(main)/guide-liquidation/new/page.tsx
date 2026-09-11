@@ -98,7 +98,7 @@ export default function GuideLiquidationNewPage() {
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  const [liquidationNumber, setLiquidationNumber] = useState("LIQ-000");
+  const [liquidationNumber, setLiquidationNumber] = useState("—");
   const [items, setItems] = useState<LiquidationItem[]>([]);
   const [savedLiquidation, setSavedLiquidation] = useState<GuideLiquidation | null>(null);
   const [pageStatus, setPageStatus] = useState<PageStatus>("idle");
@@ -122,15 +122,6 @@ export default function GuideLiquidationNewPage() {
   useEffect(() => {
     getLiquidationCriteria().catch(console.error).then((r) => { if (r) setCriteriaRules(r); });
   }, []);
-
-  useEffect(() => {
-    fetchNextNumber().then(setLiquidationNumber);
-  }, []);
-
-async function fetchNextNumber(): Promise<string> {
-    // TODO: remove this when going live — fixed number for testing on develop
-    return "LIQ-000";
-  }
 
   // When guide changes, load suggested idioma
   useEffect(() => {
@@ -252,7 +243,7 @@ async function fetchNextNumber(): Promise<string> {
     try {
       const saved = await saveLiquidation({
         fileNumber: currentFile,
-        guideId: currentGuideName,
+        guideKey: currentGuideName,
         guideName: currentGuideName,
         paxName,
         paxCount,
@@ -265,8 +256,7 @@ async function fetchNextNumber(): Promise<string> {
       if (idioma && currentGuideId) {
         recordGuideIdioma(currentGuideId, currentGuideName, idioma).catch(console.error);
       }
-      const nextNum = await fetchNextNumber();
-      setLiquidationNumber(nextNum);
+      setLiquidationNumber("—");
       toast({ title: "Liquidación guardada", description: `${saved.liquidationNumber} — Total: Bs. ${saved.total.toFixed(2)}` });
     } catch (err) {
       console.error(err);
@@ -282,7 +272,7 @@ async function fetchNextNumber(): Promise<string> {
       id: "",
       liquidationNumber,
       fileNumber: currentFile,
-      guideId: currentGuideName,
+      guideKey: currentGuideName,
       guideName: currentGuideName,
       paxName,
       paxCount,
@@ -409,7 +399,7 @@ async function fetchNextNumber(): Promise<string> {
             ) : pageStatus === "saved" ? (
               <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "6px 14px", borderRadius: "6px", border: "1px solid #f59e0b55", backgroundColor: "#f59e0b0f" }}>
                 <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#f59e0b", display: "inline-block", flexShrink: 0 }} />
-                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#f59e0b" }}>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#b45309" }}>
                   SOLICITADO
                 </span>
               </div>

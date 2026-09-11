@@ -1,21 +1,94 @@
 
 "use client";
 
-import * as XLSX from 'xlsx';
 import type { ServiceOrderRule } from './serviceOrderRuleService';
 import type { Activity, PredefinedFlight, ServiceItem } from './serviceOrderService';
-import { normalizeExcelCell, getExcelColumn } from './excel-utils';
-import { getValidDateFromExcelCell, isValidTime } from './validators';
-import { formatDateDDMMYYYY, normalizeTime } from './formatters';
+import { getValidDateFromExcelCell } from './validators';
+import { formatDateDDMMYYYY } from './formatters';
+
+export type SkippedTransferReason =
+  | 'NO_FLIGHT_CODE'
+  | 'FLIGHT_NOT_IN_DATABASE'
+  | 'DIRECTION_MISMATCH';
+
+export interface SkippedTransfer {
+  rowNumber: number;
+  activity: string;
+  activityText: string;
+  detectedFlightNumbers: string[];
+  reason: SkippedTransferReason;
+}
+
+export interface ServiceGenerationResult {
+  services: ServiceItem[];
+  skippedTransfers: SkippedTransfer[];
+}
+
+type AirportTransferType = 'TRF IN' | 'TRF OUT';
+
+const FLIGHT_PREFIX_ALIASES: Record<string, string> = {
+  AVA: 'AV',
+  AV: 'AV',
+  BOV: 'OB',
+  BO: 'OB',
+  OB: 'OB',
+  LAN: 'LA',
+  LA: 'LA',
+  ECO: 'ECO',
+  '8J': '8J',
+};
+
+const FLIGHT_CODE_PATTERN = /(?:^|[^A-Z0-9])(AVA|BOV|LAN|ECO|AV|BO|OB|LA|8J)\s*(\d{1,4})(?:\s*\/\s*(\d{1,4}))?/gi;
+
+const normalizeFlightCode = (value: string): string => {
+  const compact = value.replace(/[\s/-]/g, '').toUpperCase();
+  const match = compact.match(/^([A-Z0-9]{2,3})(\d{1,4})$/);
+  if (!match) return compact;
+  return `${FLIGHT_PREFIX_ALIASES[match[1]] || match[1]}${match[2]}`;
+};
 
 /**
- * Normalizes a string for comparison by removing spaces and slashes and converting to uppercase.
- * @param str The string to normalize.
- * @returns The normalized string.
+ * Extracts explicit airline flight codes without treating times, dates or PNR
+ * digits as flights. Shorthand such as OB777/685 becomes OB777 + OB685.
  */
-const normalizeComparisonString = (str: string): string => {
-    return str.replace(/[\s/]/g, '').toUpperCase();
+export function extractFlightCodes(activityText: string): string[] {
+  const detected: string[] = [];
+  const seen = new Set<string>();
+  const matcher = new RegExp(FLIGHT_CODE_PATTERN.source, FLIGHT_CODE_PATTERN.flags);
+  let match: RegExpExecArray | null;
+
+  while ((match = matcher.exec(activityText)) !== null) {
+    const prefix = FLIGHT_PREFIX_ALIASES[match[1].toUpperCase()] || match[1].toUpperCase();
+    const codes = [`${prefix}${match[2]}`];
+    if (match[3]) codes.push(`${prefix}${match[3]}`);
+
+    for (const code of codes) {
+      if (!seen.has(code)) {
+        seen.add(code);
+        detected.push(code);
+      }
+    }
+  }
+
+  return detected;
 }
+
+const getAirportTransferType = (activity: string): AirportTransferType | null => {
+  const normalized = activity.trim().toUpperCase();
+  if (normalized === 'TRF IN') return 'TRF IN';
+  if (normalized === 'TRF OUT') return 'TRF OUT';
+  return null;
+};
+
+const isFlightDirectionCompatible = (
+  flight: PredefinedFlight,
+  transferType: AirportTransferType
+): boolean => {
+  const observations = (flight.observations || '').toUpperCase();
+  return transferType === 'TRF IN'
+    ? observations.includes('LLEGA')
+    : observations.includes('SALE');
+};
 
 /**
  * Checks if a value from an Excel cell is a valid date (either a Date object or an Excel serial number).
@@ -45,13 +118,42 @@ export function generateServicesFromExcelColumn(
   activities: Activity[],
   flights: PredefinedFlight[]
 ): ServiceItem[] {
+  return generateServicesFromExcelColumnWithDiagnostics(
+    excelData,
+    fileColumnIndex,
+    rules,
+    activities,
+    flights
+  ).services;
+}
+
+/**
+ * Detailed variant used by the generator UI. Airport transfers are emitted only
+ * when the Tourplan row contains a flight present in the LPB master-data list
+ * and its observation agrees with the transfer direction.
+ */
+export function generateServicesFromExcelColumnWithDiagnostics(
+  excelData: any[][] | null,
+  fileColumnIndex: number,
+  rules: ServiceOrderRule[],
+  _activities: Activity[],
+  flights: PredefinedFlight[]
+): ServiceGenerationResult {
   if (!excelData || fileColumnIndex === -1) {
-    return [];
+    return { services: [], skippedTransfers: [] };
   }
 
   const generatedServices: ServiceItem[] = [];
+  const skippedTransfers: SkippedTransfer[] = [];
   const activeRules = rules.filter(r => r.isActive).sort((a, b) => b.keyword.length - a.keyword.length); 
-  const activityMap = new Map(activities.map(a => [a.name.toUpperCase(), a]));
+  const flightsByCode = new Map<string, PredefinedFlight[]>();
+
+  for (const flight of flights) {
+    const normalizedCode = normalizeFlightCode(flight.flightNumber);
+    const existing = flightsByCode.get(normalizedCode) || [];
+    existing.push(flight);
+    flightsByCode.set(normalizedCode, existing);
+  }
   
   let currentDate: string = ''; // Variable to hold the last seen date
 
@@ -73,26 +175,46 @@ export function generateServicesFromExcelColumn(
     if (activityText) {
       for (const rule of activeRules) {
         if (activityText.includes(rule.keyword.toUpperCase())) {
-          
-          const matchedActivity = activityMap.get(rule.activity.toUpperCase());
-          // let suggestedTime = matchedActivity?.suggestedTime || ''; // DISABLED LEARNING FEATURE
           let suggestedTime = '';
           let detectedFlight: PredefinedFlight | null = null;
-          
-          const isTransfer = rule.activity.toUpperCase().includes('TRF');
-          if (isTransfer) {
-              const normalizedActivityText = normalizeComparisonString(activityText);
-              let bestMatch: PredefinedFlight | null = null;
 
-              for (const flight of flights) {
-                  const normalizedFlightNumber = normalizeComparisonString(flight.flightNumber);
-                  if (normalizedActivityText.includes(normalizedFlightNumber)) {
-                      if (!bestMatch || normalizedFlightNumber.length > normalizeComparisonString(bestMatch.flightNumber).length) {
-                          bestMatch = flight;
-                      }
-                  }
+          const transferType = getAirportTransferType(rule.activity);
+          if (transferType) {
+            const detectedFlightNumbers = extractFlightCodes(activityText);
+            const databaseMatches = detectedFlightNumbers.flatMap(
+              code => flightsByCode.get(normalizeFlightCode(code)) || []
+            );
+
+            // The last leg normally arrives at LPB; the first normally leaves it.
+            const orderedCodes = transferType === 'TRF IN'
+              ? [...detectedFlightNumbers].reverse()
+              : detectedFlightNumbers;
+
+            for (const code of orderedCodes) {
+              const compatibleFlight = (flightsByCode.get(normalizeFlightCode(code)) || [])
+                .find(flight => isFlightDirectionCompatible(flight, transferType));
+              if (compatibleFlight) {
+                detectedFlight = compatibleFlight;
+                break;
               }
-              detectedFlight = bestMatch;
+            }
+
+            if (!detectedFlight) {
+              const reason: SkippedTransferReason = detectedFlightNumbers.length === 0
+                ? 'NO_FLIGHT_CODE'
+                : databaseMatches.length === 0
+                  ? 'FLIGHT_NOT_IN_DATABASE'
+                  : 'DIRECTION_MISMATCH';
+
+              skippedTransfers.push({
+                rowNumber: i + 1,
+                activity: rule.activity,
+                activityText,
+                detectedFlightNumbers,
+                reason,
+              });
+              continue;
+            }
           }
 
           if (detectedFlight) {
@@ -114,7 +236,10 @@ export function generateServicesFromExcelColumn(
     }
   }
 
-  return deduplicateServices(generatedServices);
+  return {
+    services: deduplicateServices(generatedServices),
+    skippedTransfers,
+  };
 }
 
 /**

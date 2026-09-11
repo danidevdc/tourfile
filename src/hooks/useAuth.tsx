@@ -81,7 +81,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ADMIN_EMAIL = 'daniish77@gmail.com';
+// Set via NEXT_PUBLIC_ADMIN_EMAIL — the email that gets isAdmin:true on
+// self-registration. This is a UX convenience only; Firestore rules are
+// what actually enforce admin access, not this client-side check.
+export const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? '';
 const INACTIVITY_TIMEOUT_MS = 4 * 60 * 60 * 1000;
 const SESSION_ID_KEY = 'app_session_id';
 
@@ -252,7 +255,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
         activityLog: [],
         generatedReportsCount: 0,
       });
-      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}. Por favor, inicia sesión.`, variant: "success" as any });
+      toast({ title: "Registro Exitoso", description: `Cuenta creada para ${targetEmail}. Por favor, inicia sesión.`, variant: "success" });
       if (auth.currentUser) await signOut(auth);
       router.push('/login');
     } catch (error: any) {
@@ -269,7 +272,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       await fbSendPasswordResetEmail(auth, emailForReset.trim());
-      toast({ title: "Correo de Recuperación Enviado", description: `Si una cuenta existe para ${emailForReset}, se ha enviado un correo.`, duration: 7000, variant: "success" as any });
+      toast({ title: "Correo de Recuperación Enviado", description: `Si una cuenta existe para ${emailForReset}, se ha enviado un correo.`, duration: 7000, variant: "success" });
     } catch (error: any) {
       toast({ title: "Error", description: "No se pudo enviar el correo de recuperación.", variant: "destructive" });
     } finally {
@@ -310,7 +313,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       throw new Error("Cannot delete own user profile.");
     }
     await deleteDoc(doc(db, 'userProfiles', uidToDelete));
-    toast({ title: 'Perfil Eliminado', variant: "success" as any });
+    toast({ title: 'Perfil Eliminado', variant: "success" });
   };
   
   const value: AuthContextType = {

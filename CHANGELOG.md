@@ -7,6 +7,104 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.4.0] - 2026-09-11
+
+### ✨ Nuevas funciones
+
+- **Liquidación de guías mejorada**
+  - Numeración correlativa atómica para evitar duplicados cuando se crean liquidaciones al mismo tiempo.
+  - Paginación y límites de consulta para reducir lecturas innecesarias.
+  - El total se calcula solo con los servicios seleccionados.
+  - Compatibilidad con registros antiguos mediante búsqueda alternativa por guía.
+
+### 🛠️ Correcciones
+
+- **Órdenes automatizadas de traslados aéreos**
+  - Los códigos de vuelo del Excel se validan contra el catálogo cargado de vuelos antes de generar una orden.
+  - `TRF IN` acepta solo vuelos que llegan a La Paz y `TRF OUT` solo vuelos que salen de La Paz.
+  - Se admiten códigos compuestos como `OB777/685` y se informa cuántos traslados fueron omitidos por no coincidir.
+
+- **Monitor de vuelos**
+  - La consulta pagada a AeroAPI queda limitada a actualizaciones manuales de vuelos vencidos sin datos de NAABOL, evitando consumo automático innecesario.
+
+### 📦 Notas de lanzamiento
+
+- La numeración de liquidaciones continúa con el prefijo `TEST`; la activación del prefijo productivo `LIQ` debe realizarse como un cambio independiente cuando el módulo entre oficialmente en operación.
+- No se requieren migraciones de datos para esta versión.
+
+---
+
+## [3.3.0] - 2026-08-12
+
+### 🔒 Seguridad
+
+- **Firestore Rules: catálogos maestros ya no borrables por cualquier autenticado**
+  - PROBLEMA: `guides`, `hotels`, `drivers`, `activities`, `flights`, `buses` permitían `write/update/delete` a cualquier usuario autenticado, sin distinción de rol
+  - SOLUCIÓN: lectura sigue abierta a todos los autenticados (la necesitan para armar órdenes); escritura/borrado ahora requiere `isAdmin()` o el módulo `aportar-datos`
+
+- **Firestore Rules: `userProfiles.create` ya no permite auto-escalación de privilegios**
+  - PROBLEMA: un usuario que llamara al SDK de Firestore directamente (no solo vía la UI de registro) podía en teoría auto-asignarse `isAdmin: true` o `modules` en su propio documento al crearlo
+  - SOLUCIÓN: el `create` ahora exige `isAdmin != true` y `modules` vacío; esos campos solo se setean después vía `update` por un admin existente
+
+- **`AEROAPI_KEY` renombrada, ya no pública innecesariamente**
+  - PROBLEMA: era una API key de pago (FlightAware AeroAPI) usada solo dentro de un Server Action, con prefijo `NEXT_PUBLIC_` sin necesidad
+  - SOLUCIÓN: renombrada a `AEROAPI_KEY` (sin prefijo) en código, `apphosting.yaml` y `.env.local`
+
+- **`NEXT_PUBLIC_ADMIN_EMAIL` movida a Secret Manager**
+  - PROBLEMA: el email del admin principal estaba hardcodeado en 3 archivos de código y en texto plano en `apphosting.yaml` (versionado en git para siempre)
+  - SOLUCIÓN: `apphosting.yaml` ahora referencia el secreto vía Secret Manager (`availability: BUILD + RUNTIME`); código lee `process.env.NEXT_PUBLIC_ADMIN_EMAIL`
+
+### ⚡ Performance
+
+- **Lazy-load de `xlsx`/`exceljs` en `/service-order`**
+  - PROBLEMA: `ServiceOrderGeneratorSheet` importaba XLSX de forma estática y siempre estaba montado en la página (solo oculto/mostrado), así que la librería (~300-400kB) se descargaba en cada visita aunque nunca se subiera un Excel
+  - SOLUCIÓN: `import type` para las anotaciones de tipo, `await import(...)` justo antes de usar el valor real
+  - IMPACTO: `/service-order` 865kB → 641kB, home `/` 587kB → 333kB
+
+- **Lazy-load de `jspdf` en el módulo de liquidaciones**
+  - PROBLEMA: mismo patrón — `guideLiquidationPDF.ts` se importa desde 6 páginas, cargando jsPDF siempre aunque el usuario nunca imprima
+  - IMPACTO: `/guide-liquidation`, `/by-guide`, `/history`, `/new`, `/edit/[id]` bajaron ~127kB cada una; `/service-order` bajó otros 126kB adicionales (515kB final, -40% desde el inicio del día)
+
+### 🔧 Refactoring
+
+- **`src/config/agency.ts`: centraliza branding/moneda/ciudades**
+  - PROBLEMA: moneda "Bs." y locale `es-BO` copy-pasteados en 10+ archivos; texto del mensaje de WhatsApp duplicado (con nombre de una persona real) en 2 archivos; ciudades `'La Paz' | 'Uyuni'` hardcodeadas como union type de TypeScript
+  - SOLUCIÓN: nuevo módulo central con `agency.name`, `agency.currency`, `agency.cities`, `agency.defaultServiceOrderNote`, y `formatMoney()`; tipo `AgencyCity` reemplaza el union type hardcodeado
+  - No es multi-tenant real (requeriría `tenantId` en Firestore), pero reduce clonar el proyecto para otro cliente a "editar un archivo y redeployar" en vez de buscar-reemplazar en ~15 archivos
+
+- **`by-guide/page.tsx`: separado en 7 componentes propios**
+  - 923 → 525 líneas; `StatusBadge`, `IconBtn`, `IdiomaPills`, `InfoCard`, `GenerateLiqModal`, `EditLiqModal`, `PayModal` extraídos a `src/components/guide-liquidation/`
+  - Sin cambio de comportamiento — mismos props, mismos efectos
+
+- **`ServiceOrderGeneratorSheet.tsx`: lógica de búsqueda de Excel extraída con tests**
+  - `findFileInExcelData` y `sortServiceItems` movidas a `src/lib/serviceOrderGeneratorHelpers.ts`, con 14 tests de regresión nuevos que capturan el comportamiento actual (match exacto, sufijo ambiguo, PAX con formato "10 + 2", hotel POSADA vs no-POSADA, orden por fecha/hora)
+  - Primer paso antes de dividir el componente completo (1129 líneas) — el estado de sincronización guía/bus/chofer↔tabla queda para una sesión dedicada
+
+- **45 casteos `as any` innecesarios eliminados**
+  - PROBLEMA: `variant: "success" as any` copy-pasteado en 15 archivos; el tipo `Toast` ya soportaba `"success"` sin el cast
+  - Quedan ~108 usos de `any` documentados como deuda técnica (manejo de errores, parseo de Excel, requieren revisión caso por caso)
+
+- **Código muerto eliminado**: `ServiceOrderPDFDocument.tsx` y `ServiceOrderPDFLayout.tsx` (642 líneas, huérfanos, dependían de un paquete no instalado), `components/ui/sidebar.tsx` (709 líneas, 0 referencias en el proyecto), `src/hooks/useAuth.ts.old`
+
+### 🏗️ CI/Infraestructura
+
+- **32 errores de TypeScript corregidos** — el proyecto compilaba con `typescript.ignoreBuildErrors: true`, ocultando errores reales acumulados (funciones que no devolvían lo esperado, imports rotos, un bug de control de acceso donde `getIntermediateUserEmail` comparaba un string contra un array y siempre fallaba)
+- **ESLint activado** — nunca había corrido (`next lint` pedía un prompt interactivo nunca resuelto); ahora usa flat config (`eslint.config.mjs`), con `eslint.ignoreDuringBuilds` también removido de `next.config.ts`
+- **CI ampliado**: el workflow de GitHub Actions solo corría `npm run test:unit`; ahora corre `typecheck`, `lint`, `test:unit` y `build` en cada push/PR a `develop`/`master`
+- **`tsconfig.json` excluye `functions/`** — causaba que el build fallara en Firebase App Hosting (`functions/` es un sub-proyecto independiente con `firebase-admin` en su propio `node_modules`, no tipado por el `tsconfig` de la app)
+
+### ⚠️ Breaking Changes
+
+- **Firestore Rules**: usuarios autenticados sin el módulo `aportar-datos` (y sin ser admin) ya no pueden crear, editar ni borrar guías, hoteles, choferes, actividades, vuelos o buses — antes cualquier cuenta autenticada podía. Si algún flujo dependía de esto, requiere asignar el módulo `aportar-datos` a esos usuarios.
+
+### 🎯 Migración desde v3.2.x
+
+- Antes del próximo deploy en Firebase App Hosting, crear el secreto `NEXT_PUBLIC_ADMIN_EMAIL` en Secret Manager y otorgar acceso al backend: `firebase apphosting:secrets:grantaccess NEXT_PUBLIC_ADMIN_EMAIL --project tourfileprocessor --backend <nombre-backend>`
+- Rotar la clave de AeroAPI en el dashboard de FlightAware, ya que estuvo expuesta con el prefijo `NEXT_PUBLIC_` hasta esta versión
+- Revisar que ningún usuario no-admin dependa de poder editar catálogos maestros sin el módulo `aportar-datos`
+
+---
+
 ## [3.2.0] - 2026-04-23
 
 ### ✨ Agregado

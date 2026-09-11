@@ -1,6 +1,6 @@
 
 
-import ExcelJS from 'exceljs';
+import type ExcelJS from 'exceljs';
 
 export interface ServiceOrderData {
   guia: string;
@@ -26,7 +26,8 @@ export interface ServiceItem {
   observaciones?: string;
 }
 
-export async function generateServiceOrderExcel(data: ServiceOrderData): Promise<Buffer> {
+export async function generateServiceOrderExcel(data: ServiceOrderData): Promise<Awaited<ReturnType<ExcelJS.Xlsx['writeBuffer']>>> {
+  const { default: ExcelJS } = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Orden de Servicios');
 
@@ -73,7 +74,7 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   const tableBodyCellStyle: Partial<ExcelJS.Style> = {
     font: { name: 'Calibri', size: 11 },
     alignment: { vertical: 'middle', wrapText: true, horizontal: 'left' }, // Default to left
-    border: { left: dotted, right: dotted, bottom: { style: 'none' }, top: { style: 'none' } }
+    border: { left: dotted, right: dotted }
   };
 
   const tableBottomBorderStyle: Partial<ExcelJS.Borders> = { bottom: thin };
@@ -256,6 +257,5 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
 
 
   // Export
-  const buffer = await workbook.xlsx.writeBuffer();
-  return buffer as Buffer;
+  return workbook.xlsx.writeBuffer();
 }

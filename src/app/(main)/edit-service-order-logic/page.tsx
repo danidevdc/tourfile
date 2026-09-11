@@ -30,7 +30,7 @@ import {
   type ServiceOrderRule,
 } from '@/lib/serviceOrderRuleService';
 import { getActivitiesFromFirestore, type Activity } from '@/lib/serviceOrderService';
-import { getIntermediateUserEmail } from '@/lib/appConfigService';
+import { getIntermediateUserEmails } from '@/lib/appConfigService';
 import { Switch } from '@/components/ui/switch';
 
 
@@ -59,8 +59,8 @@ export default function EditServiceOrderLogicPage() {
         }
 
         try {
-            const intermediateEmail = await getIntermediateUserEmail();
-            if (currentUser?.email && currentUser.email === intermediateEmail) {
+            const intermediateEmails = await getIntermediateUserEmails();
+            if (currentUser?.email && intermediateEmails.includes(currentUser.email)) {
                 setHasPermission(true);
             } else {
                 setHasPermission(false);
@@ -131,7 +131,7 @@ export default function EditServiceOrderLogicPage() {
     
     if (ruleToDelete.id.startsWith('new_')) {
       setRules(prev => prev.filter(r => r.id !== ruleToDelete.id));
-      toast({ title: "Regla Removida", description: "La nueva regla ha sido descartada.", variant: "success" as any });
+      toast({ title: "Regla Removida", description: "La nueva regla ha sido descartada.", variant: "success" });
       setRuleToDelete(null);
       return;
     }
@@ -139,7 +139,7 @@ export default function EditServiceOrderLogicPage() {
     try {
       await deleteServiceOrderRule(ruleToDelete.id);
       setRules(prev => prev.filter(r => r.id !== ruleToDelete.id));
-      toast({ title: "Regla Eliminada", description: "La regla ha sido eliminada permanentemente.", variant: "success" as any });
+      toast({ title: "Regla Eliminada", description: "La regla ha sido eliminada permanentemente.", variant: "success" });
     } catch (error) {
       toast({ title: "Error", description: "No se pudo eliminar la regla.", variant: "destructive" });
     } finally {
@@ -158,7 +158,7 @@ export default function EditServiceOrderLogicPage() {
       const fetchedRules = await getServiceOrderRules();
       setRules(fetchedRules.sort((a, b) => a.order - b.order));
       
-      toast({ title: "Éxito", description: "Todas las reglas han sido guardadas.", variant: "success" as any });
+      toast({ title: "Éxito", description: "Todas las reglas han sido guardadas.", variant: "success" });
     } catch (error) {
       toast({ title: "Error al Guardar", description: "No se pudieron guardar los cambios.", variant: "destructive" });
     } finally {

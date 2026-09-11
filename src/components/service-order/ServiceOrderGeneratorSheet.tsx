@@ -4,7 +4,6 @@
 import { useState, useEffect, useRef, useMemo, type ChangeEvent } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import * as XLSX from 'xlsx';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -15,8 +14,9 @@ import {
 } from '@/lib/serviceOrderService';
 import { getServiceOrderRules, type ServiceOrderRule } from '@/lib/serviceOrderRuleService';
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
-import { generateServicesFromExcelColumn } from '@/lib/serviceOrderProcessor';
+import { generateServicesFromExcelColumnWithDiagnostics } from '@/lib/serviceOrderProcessor';
 import { saveServiceOrder, saveServiceOrderWithSplit, saveServiceOrderInSplitMode } from '@/lib/serviceOrderStorage';
+import { findFileInExcelData, sortServiceItems, type ExcelMatrix } from '@/lib/serviceOrderGeneratorHelpers';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,9 +37,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 const initialNewServiceState: ServiceItem = {
     fecha: '', hora: '', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
 };
-
-const defaultObsText = '';
-const defaultNotaText = 'TODOS LOS GUÍAS DEBEN ENVIAR UN INFORME DIARIO POR WHATSAPP A LA SEÑORA JUDITH SOBRE LOS SERVICIOS REALIZADOS.\nGUIA DEBE PRESENTAR COPIA DE PASAPORTE DE PAX DESPUES DE CADA SERVICIO JUNTO A SU LIQUIDACION Y CAJA CHICA\nLA CAJA CHICA CUBRE 1 BOTELLA DE AGUA POR DÍA PARA CADA PAX, GUÍA Y CHOFER. NO INCLUYE TRANSFERS NI SERVICIOS EN EL LAGO.';
 
 const SESSION_STORAGE_FILE_KEY = 'serviceOrderProgramFile_v2';
 const SESSION_STORAGE_FILENAME_KEY = 'serviceOrderProgramFileName_v2';
@@ -188,9 +185,10 @@ export function ServiceOrderGeneratorSheet({
 
     const processAndStoreFile = (file: File) => {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                const XLSX = await import('xlsx');
                 const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                 const sheetName = "Hoja1";
                 const worksheet = workbook.Sheets[sheetName];
@@ -224,24 +222,27 @@ export function ServiceOrderGeneratorSheet({
     }
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const storedFile = sessionStorage.getItem(SESSION_STORAGE_FILE_KEY);
-            const storedFileName = sessionStorage.getItem(SESSION_STORAGE_FILENAME_KEY);
-            if (storedFile && storedFileName) {
-                try {
-                    const byteString = atob(storedFile);
-                    const byteNumbers = new Array(byteString.length);
-                    for (let i = 0; i < byteString.length; i++) byteNumbers[i] = byteString.charCodeAt(i);
-                    const byteArray = new Uint8Array(byteNumbers);
-                    const file = new File([new Blob([byteArray])], storedFileName);
-                    setSelectedFile({ name: file.name });
-                    const workbook = XLSX.read(byteArray, { type: 'array', cellDates: true });
-                    setExcelData(XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, blankrows: false, defval: null }));
-                } catch (e) {
-                    clearFile();
-                }
+        if (typeof window === 'undefined') return;
+        const storedFile = sessionStorage.getItem(SESSION_STORAGE_FILE_KEY);
+        const storedFileName = sessionStorage.getItem(SESSION_STORAGE_FILENAME_KEY);
+        if (!storedFile || !storedFileName) return;
+
+        (async () => {
+            try {
+                const byteString = atob(storedFile);
+                const byteNumbers = new Array(byteString.length);
+                for (let i = 0; i < byteString.length; i++) byteNumbers[i] = byteString.charCodeAt(i);
+                const byteArray = new Uint8Array(byteNumbers);
+                const file = new File([new Blob([byteArray])], storedFileName);
+                setSelectedFile({ name: file.name });
+                const XLSX = await import('xlsx');
+                const workbook = XLSX.read(byteArray, { type: 'array', cellDates: true });
+                setExcelData(XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, blankrows: false, defval: null }));
+            } catch (e) {
+                clearFile();
             }
-        }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -271,7 +272,7 @@ export function ServiceOrderGeneratorSheet({
         const file = event.target.files?.[0];
         if (file) {
             setSelectedFile({ name: file.name });
-            toast({ title: "Archivo Seleccionado", variant: "success" as any });
+            toast({ title: "Archivo Seleccionado", variant: "success" });
             processAndStoreFile(file);
         }
         if (event.target) event.target.value = "";
@@ -302,107 +303,31 @@ export function ServiceOrderGeneratorSheet({
         setIsProcessingSearch(true); setFileSearchStatus("searching");
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        let found = false, fileColumnIndex = -1, rowIdxWhereFileNumberFound = -1;
-        const fileNumberToSearch = fileNumberInput.trim().toUpperCase();
-        // Si el usuario escribió solo dígitos (sin el prefijo, ej. "109860" en vez de
-        // "CTFI109860"), se busca por sufijo numérico. Solo se acepta si es
-        // inequívoco: distintos files pueden compartir el mismo número con
-        // prefijos distintos, así que un match ambiguo no se resuelve solo.
-        const isDigitsOnlySearch = /^\d+$/.test(fileNumberToSearch);
+        const result = findFileInExcelData(excelData as ExcelMatrix, fileNumberInput, hotels);
 
-        const numCols = excelData.reduce((max, row) => Math.max(max, row ? row.length : 0), 0);
-
-        for (let j = 0; j < numCols; j++) {
-            for (let i = 0; i < excelData.length; i++) {
-                if (excelData[i] && excelData[i][j] && String(excelData[i][j]).trim().toUpperCase() === fileNumberToSearch) {
-                    found = true; fileColumnIndex = j; rowIdxWhereFileNumberFound = i; break;
-                }
-            }
-            if (found) break;
+        if (!result.found && result.ambiguous) {
+            setIsProcessingSearch(false);
+            setFileSearchStatus("error");
+            toast({
+                title: "Número de File Ambiguo",
+                description: `Se encontraron varios files terminados en "${fileNumberInput.trim().toUpperCase()}" (${result.distinctValues.join(", ")}). Ingresa el número completo con su prefijo.`,
+                variant: "destructive",
+            });
+            return;
         }
 
-        let realFileNumber: string | null = null;
-
-        if (!found && isDigitsOnlySearch) {
-            const suffixMatches: { row: number; col: number; value: string }[] = [];
-            for (let j = 0; j < numCols; j++) {
-                for (let i = 0; i < excelData.length; i++) {
-                    const cellValue = excelData[i] && excelData[i][j];
-                    if (cellValue !== undefined && cellValue !== null) {
-                        const cellText = String(cellValue).trim().toUpperCase();
-                        if (cellText.endsWith(fileNumberToSearch) && /^[A-Z]*\d+$/.test(cellText)) {
-                            suffixMatches.push({ row: i, col: j, value: cellText });
-                        }
-                    }
-                }
-            }
-
-            const distinctValues = new Set(suffixMatches.map(m => m.value));
-            if (distinctValues.size === 1) {
-                fileColumnIndex = suffixMatches[0].col;
-                rowIdxWhereFileNumberFound = suffixMatches[0].row;
-                realFileNumber = suffixMatches[0].value;
-                found = true;
-            } else if (distinctValues.size > 1) {
-                setIsProcessingSearch(false);
-                setFileSearchStatus("error");
-                toast({
-                    title: "Número de File Ambiguo",
-                    description: `Se encontraron varios files terminados en "${fileNumberToSearch}" (${Array.from(distinctValues).join(", ")}). Ingresa el número completo con su prefijo.`,
-                    variant: "destructive",
-                });
-                return;
-            }
-        }
-
-        if (found) {
+        if (result.found) {
             setFileSearchStatus("found");
-            setFoundFileColumnIndex(fileColumnIndex);
-
-            const groupName = String(excelData[rowIdxWhereFileNumberFound + 1]?.[fileColumnIndex] || "No encontrado").toUpperCase();
-
-            let pax = "N/A";
-            for (let i = rowIdxWhereFileNumberFound + 1; i < excelData.length && i < rowIdxWhereFileNumberFound + 10; i++) {
-                const paxRaw = excelData[i]?.[fileColumnIndex];
-                if (paxRaw !== null && paxRaw !== undefined) {
-                    const paxValue = String(paxRaw).trim();
-                    const paxRegex = /^\d{1,3}(\s*\+\s*\d{1,3})?$/;
-                    if (paxRegex.test(paxValue)) { pax = paxValue; break; }
-                }
-            }
-
-            let hotelName = "";
-            // Busca SOLO en la columna del file, acumulando todos los hoteles encontrados
-            const allFoundHotels = new Set<string>();
-            
-            for (let i = 0; i < excelData.length; i++) {
-                const cellText = String(excelData[i]?.[fileColumnIndex] || "").toUpperCase().trim();
-                
-                // Busca todos los hoteles de la BD en esta celda
-                hotels.forEach(h => {
-                    if (cellText.includes(h.name.toUpperCase())) {
-                        allFoundHotels.add(h.name);
-                    }
-                });
-            }
-            
-            if (allFoundHotels.size > 0) {
-                // Priorizar no-POSADA
-                const nonPosadaHotels = Array.from(allFoundHotels).filter(h => h.toUpperCase() !== 'POSADA');
-                const hotelsToPick = nonPosadaHotels.length > 0 ? nonPosadaHotels : Array.from(allFoundHotels);
-                
-                // Entre los hoteles a seleccionar, escoger el más largo (más específico)
-                hotelName = hotelsToPick.sort((a, b) => b.length - a.length)[0];
-            }
+            setFoundFileColumnIndex(result.fileColumnIndex);
 
             setOrderData((prev: ServiceOrderData) => ({
                 ...prev,
                 // Si se encontró por sufijo numérico, usar el número de file real
                 // del Excel (con prefijo), no los dígitos que el usuario tecleó.
-                file: realFileNumber ?? prev.file,
-                ref: groupName, nPax: pax, hotel: hotelName, services: [],
+                file: result.realFileNumber ?? prev.file,
+                ref: result.groupName, nPax: result.pax, hotel: result.hotelName, services: [],
             }));
-            toast({ title: "Búsqueda Exitosa", description: `Grupo: ${groupName}, PAX: ${pax}, Hotel: ${hotelName || 'No encontrado'}`, variant: "success" as any, duration: 5000 });
+            toast({ title: "Búsqueda Exitosa", description: `Grupo: ${result.groupName}, PAX: ${result.pax}, Hotel: ${result.hotelName || 'No encontrado'}`, variant: "success", duration: 5000 });
 
         } else {
             setFileSearchStatus("not_found");
@@ -432,7 +357,14 @@ export function ServiceOrderGeneratorSheet({
             toast({ title: "Información Requerida", description: "Por favor, selecciona Guía, Bus y Chofer antes de generar servicios.", variant: "destructive", duration: 5000 }); return;
         }
 
-        const generatedServicesRaw = generateServicesFromExcelColumn(excelData, foundFileColumnIndex, serviceOrderRules, activities, flights);
+        const generationResult = generateServicesFromExcelColumnWithDiagnostics(
+            excelData,
+            foundFileColumnIndex,
+            serviceOrderRules,
+            activities,
+            flights
+        );
+        const generatedServicesRaw = generationResult.services;
 
         const generatedServicesWithDetails = generatedServicesRaw.map(service => ({
             ...service,
@@ -444,7 +376,16 @@ export function ServiceOrderGeneratorSheet({
 
         const sortedGenerated = sortServiceItems(generatedServicesWithDetails);
         setOrderData((prev: ServiceOrderData) => ({ ...prev, services: sortedGenerated }));
-        toast({ title: "Generación Exitosa", description: `Se generaron ${sortedGenerated.length} servicios ordenados.`, variant: "success" as any, duration: 5000 });
+        const omittedTransfers = generationResult.skippedTransfers.length;
+        const omittedMessage = omittedTransfers > 0
+            ? ` Se omitieron ${omittedTransfers} traslados sin un vuelo de La Paz compatible.`
+            : '';
+        toast({
+            title: "Generación Exitosa",
+            description: `Se generaron ${sortedGenerated.length} servicios ordenados.${omittedMessage}`,
+            variant: "success",
+            duration: omittedTransfers > 0 ? 8000 : 5000,
+        });
     };
 
     const handleInputChange = (field: keyof ServiceOrderData, value: string) => {
@@ -553,14 +494,14 @@ export function ServiceOrderGeneratorSheet({
             // If split mode is enabled and conditions are met, use split mode
             if (isSplitMode && splitModeStatus.canEnableSplit) {
                 await saveServiceOrderInSplitMode(orderData, currentUser.email);
-                toast({ title: "Éxito", description: "Orden de servicio separada guardada exitosamente (1 para guía, 1 para chofer).", variant: "success" as any });
+                toast({ title: "Éxito", description: "Orden de servicio separada guardada exitosamente (1 para guía, 1 para chofer).", variant: "success" });
             } else {
                 // Otherwise, use the automatic split function
                 await saveServiceOrderWithSplit(orderData, currentUser.email);
                 const message = splitModeStatus.willBeDivided
                     ? "Orden de servicio guardada y dividida exitosamente."
                     : "Orden de servicio guardada exitosamente.";
-                toast({ title: "Éxito", description: message, variant: "success" as any });
+                toast({ title: "Éxito", description: message, variant: "success" });
             }
             onSave();
         } catch (error: any) {
@@ -593,24 +534,6 @@ export function ServiceOrderGeneratorSheet({
             newSelection.delete(index);
         }
         setSelectedServices(newSelection);
-    };
-
-    const sortServiceItems = (items: ServiceItem[]) => {
-        return [...items].sort((a, b) => {
-            try {
-                const dateA = a.fecha ? parse(a.fecha, "dd/MM/yyyy", new Date()).getTime() : 0;
-                const dateB = b.fecha ? parse(b.fecha, "dd/MM/yyyy", new Date()).getTime() : 0;
-                if (dateA !== dateB) return dateA - dateB;
-            } catch { }
-
-            const hasTimeA = a.hora && a.hora.trim() !== '';
-            const hasTimeB = b.hora && b.hora.trim() !== '';
-
-            if (hasTimeA && !hasTimeB) return -1;
-            if (!hasTimeA && hasTimeB) return 1;
-            if (hasTimeA && hasTimeB) return a.hora.localeCompare(b.hora);
-            return 0;
-        });
     };
 
     // Automatic sorting with debounce

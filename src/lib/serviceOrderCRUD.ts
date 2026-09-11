@@ -41,6 +41,7 @@ export const createGuide = async (guide: { firstName: string; lastName: string }
   });
   await batch.commit();
   clearMasterDataCache();
+  return ref;
 };
 
 export const updateGuide = async (id: string, data: { firstName: string; lastName: string }) => {
@@ -76,6 +77,7 @@ export const createHotel = async (name: string) => {
   });
   await batch.commit();
   clearMasterDataCache();
+  return ref;
 };
 
 export const updateHotel = async (id: string, name: string) => {
@@ -111,6 +113,7 @@ export const createActivity = async (name: string) => {
   });
   await batch.commit();
   clearMasterDataCache();
+  return ref;
 };
 
 export const updateActivity = async (id: string, name: string) => {
@@ -146,6 +149,7 @@ export const createDriver = async (name: string) => {
   });
   await batch.commit();
   clearMasterDataCache();
+  return ref;
 };
 
 export const updateDriver = async (id: string, name: string) => {
@@ -188,6 +192,7 @@ export const createFlight = async (flight: Omit<PredefinedFlight, 'id'>) => {
   });
   await batch.commit();
   clearMasterDataCache();
+  return ref;
 };
 
 export const updateFlight = async (id: string, data: Omit<PredefinedFlight, 'id'>) => {
