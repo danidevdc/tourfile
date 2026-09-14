@@ -13,17 +13,6 @@ import {
   ChevronDown, User, Car, Calendar, MoreVertical, Receipt
 } from 'lucide-react';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -54,7 +43,6 @@ interface ServiceOrderMobileCardProps {
   onDelete: (order: StoredServiceOrder) => void;
   onViewLiquidation?: (fileNumber: string) => void;
   getStatusBadge: (order: StoredServiceOrder, childCount?: number) => React.ReactNode;
-  getDeletionDescription: (order: StoredServiceOrder) => string;
 }
 
 export function ServiceOrderMobileCard({
@@ -77,7 +65,6 @@ export function ServiceOrderMobileCard({
   onDelete,
   onViewLiquidation,
   getStatusBadge,
-  getDeletionDescription,
 }: ServiceOrderMobileCardProps) {
   const childCount = childOrders.length;
   const isDeleted = order.status === 'eliminado' || order.status === 'cancelado';
@@ -198,8 +185,8 @@ export function ServiceOrderMobileCard({
 
           <Separator />
 
-          {/* Actions Section - Icon Only Buttons */}
-          <div className="flex items-center justify-start gap-2 flex-wrap">
+          {/* Keep the primary actions visible; secondary actions never wrap below. */}
+          <div className="flex items-center gap-2">
             {/* Vista Previa */}
             <Button
               variant="outline"
@@ -223,88 +210,15 @@ export function ServiceOrderMobileCard({
               <FilePenLine className="h-5 w-5" />
             </Button>
 
-            {/* Descargar Excel */}
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => onDownload(order)}
-              disabled={isDownloadingId === order.id || isDeleted}
-              className="h-10 w-10 touch-target text-green-600 border-green-600/50 hover:bg-green-100/80 disabled:opacity-50"
-              title="Descargar Excel"
-            >
-              {isDownloadingId === order.id ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <FileDown className="h-5 w-5" />
-              )}
-            </Button>
-
-            {/* PDF (solo admin) */}
-            {isCurrentUserAdmin && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => onPrint(order)}
-                disabled={isPrintingPdfId === order.id || isDeleted}
-                className="h-10 w-10 touch-target text-red-600 border-red-600/50 hover:bg-red-100/80 disabled:opacity-50"
-                title="Imprimir PDF"
-              >
-                {isPrintingPdfId === order.id ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Printer className="h-5 w-5" />
-                )}
-              </Button>
-            )}
-
-            {/* Ver Liquidación */}
-            {order.hasLiquidation && order.data?.file && onViewLiquidation && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => onViewLiquidation(order.data.file)}
-                className="h-10 w-10 touch-target text-cyan-600 border-cyan-500/50 hover:bg-cyan-100/80 dark:text-cyan-400 dark:border-cyan-400/50 dark:hover:bg-cyan-950/40"
-                title="Ver Liquidación"
-              >
-                <Receipt className="h-5 w-5" />
-              </Button>
-            )}
-
-            {/* Eliminar */}
-            {!isDeleted && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    disabled={!canDelete}
-                    className="h-10 w-10 touch-target text-destructive border-destructive/50 hover:bg-destructive/10 disabled:opacity-50"
-                    title="Eliminar Orden"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-base">
-                      ¿Estás seguro de eliminar esta orden?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-sm">
-                      {getDeletionDescription(order)}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                    <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => onDelete(order)}
-                      className="w-full sm:w-auto bg-destructive hover:bg-destructive/90"
-                    >
-                      Sí, eliminar
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-10 gap-1 px-3" aria-label="Más acciones de la orden"><MoreVertical className="h-4 w-4" /> Más</Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-48">
+                <DropdownMenuItem onSelect={() => onDownload(order)} disabled={isDownloadingId === order.id || isDeleted}><FileDown className="h-4 w-4" /> Descargar Excel</DropdownMenuItem>
+                {isCurrentUserAdmin && <DropdownMenuItem onSelect={() => onPrint(order)} disabled={isPrintingPdfId === order.id || isDeleted}><Printer className="h-4 w-4" /> Imprimir PDF</DropdownMenuItem>}
+                {order.hasLiquidation && order.data?.file && onViewLiquidation && <DropdownMenuItem onSelect={() => onViewLiquidation(order.data.file)}><Receipt className="h-4 w-4" /> Ver liquidación</DropdownMenuItem>}
+                {!isDeleted && <><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => onDelete(order)} disabled={!canDelete} className="text-destructive focus:text-destructive"><Trash2 className="h-4 w-4" /> Eliminar orden</DropdownMenuItem></>}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>
