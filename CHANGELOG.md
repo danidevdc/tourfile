@@ -7,6 +7,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.4.1] - 2026-09-14
+
+### Mejoras en órdenes de servicio
+
+- Antes de guardar, se comprueba que haya file, guía y al menos un servicio con fecha y actividad; una confirmación muestra el resumen de la orden.
+- Los traslados omitidos al generar servicios quedan visibles con su fila, vuelo y motivo hasta cambiar el file o regenerar.
+- La creación manual y automatizada tienen títulos distintos; el botón de generación indica qué dato falta en lugar de mostrar un progreso engañoso.
+- En móvil y tablet, los servicios se revisan y editan en tarjetas en vez de una tabla de diez columnas.
+- En el listado, “Ver” y “Editar” quedan visibles; Excel, PDF, liquidación y eliminación se agrupan en “Más”. La eliminación usa una sola confirmación en escritorio y móvil.
+- La creación manual tiene un botón con texto y el buscador explica qué campos admite.
+
+---
+
 ## [3.4.0] - 2026-09-11
 
 ### ✨ Nuevas funciones
