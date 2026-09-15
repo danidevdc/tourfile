@@ -153,7 +153,7 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
   return (
     <>
       <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-        <DialogContent className="h-[100dvh] w-screen max-w-none max-h-[100dvh] rounded-none border-0 p-0 flex flex-col gap-0 md:h-auto md:w-full md:max-w-[90vw] md:max-h-[95vh] md:rounded-lg md:border xl:max-w-[1250px]">
+        <DialogContent className="h-[100dvh] w-screen max-w-none max-h-[100dvh] rounded-none border-0 p-0 flex flex-col gap-0 md:h-[95vh] md:w-full md:max-w-[90vw] md:rounded-lg md:border xl:max-w-[1250px]">
           <DialogHeader className="flex-shrink-0 border-b px-4 py-3 pr-12 md:py-2">
             <DialogTitle className="text-left text-base md:sr-only">Vista previa de la orden</DialogTitle>
             <DialogDescription className="sr-only">Vista previa de la orden de servicio con detalles completos</DialogDescription>
