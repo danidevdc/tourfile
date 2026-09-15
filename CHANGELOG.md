@@ -7,6 +7,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.4.7] - 2026-09-15
+
+### Corrección de captura móvil
+
+- La imagen se genera usando el tamaño real de la orden, ignorando el zoom visual del visor, para evitar PNG recortados al compartirlos.
+
+---
+
 ## [3.4.6] - 2026-09-15
 
 ### Corrección visual del visor web

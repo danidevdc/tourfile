@@ -13,6 +13,10 @@ export async function crearBlobVistaPrevia(captureNode: HTMLElement): Promise<Bl
   const blob = await domToBlob(captureNode, {
     scale: 2,
     backgroundColor: '#ffffff',
+    // The preview is rendered inside a scaled mobile wrapper. modern-screenshot
+    // otherwise uses getBoundingClientRect() and captures only the zoomed area.
+    width: captureNode.scrollWidth || captureNode.offsetWidth,
+    height: captureNode.scrollHeight || captureNode.offsetHeight,
   });
 
   if (!blob) {
