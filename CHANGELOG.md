@@ -7,6 +7,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.4.5] - 2026-09-15
+
+### Compartir órdenes desde móvil
+
+- El botón móvil vuelve a llamarse “Compartir” y abre el panel nativo para elegir WhatsApp u otra aplicación.
+- Si el dispositivo no permite compartir el archivo, se guarda automáticamente el PNG como respaldo.
+- Se eliminó el intento de copiar imágenes al portapapeles en móviles.
+
+---
+
 ## [3.4.4] - 2026-09-15
 
 ### Compartir órdenes desde móvil
