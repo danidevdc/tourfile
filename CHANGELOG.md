@@ -7,6 +7,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.4.6] - 2026-09-15
+
+### Corrección visual del visor web
+
+- Los botones del pie del modal vuelven a alinearse a la derecha en escritorio; en móvil conservan el ancho cómodo.
+
+---
+
 ## [3.4.5] - 2026-09-15
 
 ### Compartir órdenes desde móvil

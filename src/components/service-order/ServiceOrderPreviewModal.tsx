@@ -285,7 +285,7 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
               </div>
             </div>
           </div>
-          <DialogFooter className="flex-shrink-0 flex-row justify-stretch gap-2 border-t bg-background p-3 md:justify-start md:p-4">
+          <DialogFooter className="flex-shrink-0 flex-row justify-stretch gap-2 border-t bg-background p-3 md:justify-end md:p-4">
             {showCopyButton && (
               <Button
                 type="button"
