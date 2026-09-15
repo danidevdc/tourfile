@@ -7,6 +7,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.4.2] - 2026-09-14
+
+### Correcciones en órdenes de servicio
+
+- Las acciones vuelven a mostrarse directamente en una sola fila, incluida la eliminación, sin el botón “Más”.
+- El botón “Nueva orden” conserva su tamaño y sombra al pasar el mouse y usa un estado azul suave coherente con la interfaz.
+- En móvil, la vista previa se abre a pantalla completa, se ajusta al ancho y permite acercar, alejar y navegar por toda la orden.
+- En móvil, la imagen se prepara antes de pulsar el botón y se envía mediante el menú nativo de compartir; si el navegador no lo permite, se descarga un PNG como alternativa.
+- Descargar o cancelar el envío ya no marca la orden como enviada.
+
+---
+
 ## [3.4.1] - 2026-09-14
 
 ### Mejoras en órdenes de servicio
