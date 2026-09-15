@@ -54,16 +54,6 @@ export async function copiarVistaPreviaAlClipboard(
 
   try {
     const blob = preparedBlob ?? await crearBlobVistaPrevia(captureNode);
-    if (isMobileDevice()) {
-      downloadBlob(blob);
-      toast?.({
-        title: 'Imagen guardada',
-        description: 'Adjunta esta imagen desde Fotos o Archivos en WhatsApp.',
-        variant: 'success',
-        duration: 6000,
-      });
-      return 'downloaded';
-    }
     const imageFile = new File([blob], 'orden-de-servicio.png', { type: 'image/png' });
 
     if (isMobileDevice() && navigator.share) {
@@ -88,6 +78,17 @@ export async function copiarVistaPreviaAlClipboard(
           console.warn('El menú para compartir no estuvo disponible; se usará el método alternativo.', error);
         }
       }
+    }
+
+    if (isMobileDevice()) {
+      downloadBlob(blob);
+      toast?.({
+        title: 'Imagen guardada',
+        description: 'El navegador no pudo abrir compartir. Adjunta esta imagen desde Fotos o Archivos en WhatsApp.',
+        variant: 'success',
+        duration: 6000,
+      });
+      return 'downloaded';
     }
 
     const ClipboardItemClass = window.ClipboardItem;

@@ -13,7 +13,7 @@ import { copiarVistaPreviaAlClipboard, crearBlobVistaPrevia, previewImageWasSent
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogClose, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Loader2, Minus, Plus, Scan } from "lucide-react";
+import { Loader2, Minus, Plus, Scan, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ServiceOrderPreviewModalProps {
@@ -294,8 +294,8 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
                 onClick={handleCopy}
                 disabled={isCopying || isPreparingImage}
               >
-                {isCopying || isPreparingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isMobile ? <Download className="mr-2 h-4 w-4" /> : <FaWhatsapp className="mr-2 h-4 w-4" />}
-                {isPreparingImage ? 'Preparando imagen...' : isMobile ? 'Guardar imagen' : 'Copiar imagen a WhatsApp'}
+                {isCopying || isPreparingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isMobile ? <Share2 className="mr-2 h-4 w-4" /> : <FaWhatsapp className="mr-2 h-4 w-4" />}
+                {isPreparingImage ? 'Preparando imagen...' : isMobile ? 'Compartir' : 'Copiar imagen a WhatsApp'}
               </Button>
             )}
             <DialogClose asChild>
