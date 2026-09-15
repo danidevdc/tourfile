@@ -4,7 +4,7 @@
 
 import { parseDateDDMMYYYY } from "./formatters";
 import type { StoredServiceOrder } from "./serviceOrderStorage";
-import { copiarVistaPreviaAlClipboard } from "./copyPreview";
+import { copiarVistaPreviaAlClipboard, previewImageWasSent } from "./copyPreview";
 
 const generateOrderHtml = (orderData: StoredServiceOrder['data']): string => {
     const { guia, file, ref, nPax, hotel, services, observations, nota } = orderData;
@@ -191,12 +191,16 @@ export function showSimplePreviewModal(order: StoredServiceOrder, onStatusUpdate
 
     copyButton.onclick = async () => {
         statusIndicator.innerHTML = '<div class="spinner"></div>';
-        const success = await copiarVistaPreviaAlClipboard(previewWrapper);
-        if (success) {
+        const result = await copiarVistaPreviaAlClipboard(previewWrapper);
+        if (previewImageWasSent(result)) {
             statusIndicator.innerHTML = '<span class="check">✓</span>';
             if (onStatusUpdate) {
                 onStatusUpdate(order.id);
             }
+        } else if (result === 'downloaded') {
+            statusIndicator.innerHTML = '<span class="check">✓</span>';
+        } else if (result === 'cancelled') {
+            statusIndicator.innerHTML = '';
         } else {
             statusIndicator.innerHTML = '<span class="cross">✗</span>';
         }

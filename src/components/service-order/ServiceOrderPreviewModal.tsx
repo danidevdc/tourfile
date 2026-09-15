@@ -8,12 +8,12 @@ import { FaWhatsapp } from "react-icons/fa";
 
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
-import { copiarVistaPreviaAlClipboard } from "@/lib/copyPreview";
+import { copiarVistaPreviaAlClipboard, crearBlobVistaPrevia, previewImageWasSent } from "@/lib/copyPreview";
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogClose, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import { Loader2, Minus, Plus, Scan } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ServiceOrderPreviewModalProps {
@@ -25,8 +25,15 @@ interface ServiceOrderPreviewModalProps {
 function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { order: StoredServiceOrder, onClose: () => void, showCopyButton: boolean, onStatusUpdate?: (orderId: string) => void }) {
   const { data } = order;
   const captureRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [isCopying, setIsCopying] = useState(false);
+  const [isPreparingImage, setIsPreparingImage] = useState(false);
+  const [preparedBlob, setPreparedBlob] = useState<Blob | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [fitZoom, setFitZoom] = useState(1);
+  const [captureHeight, setCaptureHeight] = useState(0);
 
   const processedData = useMemo(() => {
     // Collect all unique guides from services, including the main guide
@@ -72,6 +79,60 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
     return { displayGuide, sortedServices, totalTarifa };
   }, [data]);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const updateMobile = () => setIsMobile(mediaQuery.matches);
+    updateMobile();
+    mediaQuery.addEventListener('change', updateMobile);
+    return () => mediaQuery.removeEventListener('change', updateMobile);
+  }, []);
+
+  useEffect(() => {
+    const captureNode = captureRef.current;
+    const viewportNode = viewportRef.current;
+    if (!captureNode || !viewportNode) return;
+
+    const updatePreviewSize = () => {
+      setCaptureHeight(captureNode.scrollHeight);
+      const nextFit = isMobile
+        ? Math.min(Math.max((viewportNode.clientWidth - 8) / 1200, 0.2), 1)
+        : 1;
+      setFitZoom(nextFit);
+      setZoom(nextFit);
+    };
+
+    updatePreviewSize();
+    const observer = new ResizeObserver(updatePreviewSize);
+    observer.observe(captureNode);
+    observer.observe(viewportNode);
+    return () => observer.disconnect();
+  }, [isMobile, processedData]);
+
+  useEffect(() => {
+    const captureNode = captureRef.current;
+    if (!captureNode || !showCopyButton) return;
+
+    let cancelled = false;
+    const prepareImage = async () => {
+      setIsPreparingImage(true);
+      setPreparedBlob(null);
+      try {
+        const blob = await crearBlobVistaPrevia(captureNode);
+        if (!cancelled) setPreparedBlob(blob);
+      } catch (error) {
+        console.error('No se pudo preparar la imagen de la orden:', error);
+      } finally {
+        if (!cancelled) setIsPreparingImage(false);
+      }
+    };
+
+    const frameId = window.requestAnimationFrame(() => void prepareImage());
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [order.id, processedData, showCopyButton]);
+
   const handleCopy = async () => {
     if (!captureRef.current) {
       toast({
@@ -82,8 +143,8 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
       return;
     }
     setIsCopying(true);
-    const success = await copiarVistaPreviaAlClipboard(captureRef.current, toast);
-    if (success && onStatusUpdate) {
+    const result = await copiarVistaPreviaAlClipboard(captureRef.current, toast, preparedBlob);
+    if (previewImageWasSent(result) && onStatusUpdate) {
       onStatusUpdate(order.id);
     }
     setIsCopying(false);
@@ -92,16 +153,30 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
   return (
     <>
       <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-        <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[1250px] w-full flex flex-col max-h-[95vh] p-0">
-          <DialogHeader className="mobile-padding border-b flex-shrink-0">
-            <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
+        <DialogContent className="h-[100dvh] w-screen max-w-none max-h-[100dvh] rounded-none border-0 p-0 flex flex-col gap-0 md:h-auto md:w-full md:max-w-[90vw] md:max-h-[95vh] md:rounded-lg md:border xl:max-w-[1250px]">
+          <DialogHeader className="flex-shrink-0 border-b px-4 py-3 pr-12 md:py-2">
+            <DialogTitle className="text-left text-base md:sr-only">Vista previa de la orden</DialogTitle>
             <DialogDescription className="sr-only">Vista previa de la orden de servicio con detalles completos</DialogDescription>
           </DialogHeader>
 
-          <div className="overflow-auto min-h-0 mobile-padding">
-            <div ref={captureRef} className={cn(
-              "bg-white text-zinc-900 uppercase w-[1200px] mx-auto pt-[3px] pb-[5px] px-[10px]",
-            )}>
+          <div className="flex items-center justify-center gap-2 border-b bg-muted/40 px-3 py-2 md:hidden">
+            <Button type="button" variant="outline" size="icon" className="h-9 w-9" aria-label="Alejar" onClick={() => setZoom(current => Math.max(0.2, current - 0.1))} disabled={zoom <= 0.2}>
+              <Minus className="h-4 w-4" />
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="min-w-28 gap-2" onClick={() => setZoom(fitZoom)}>
+              <Scan className="h-4 w-4" /> Ajustar {Math.round(zoom * 100)}%
+            </Button>
+            <Button type="button" variant="outline" size="icon" className="h-9 w-9" aria-label="Acercar" onClick={() => setZoom(current => Math.min(1.5, current + 0.1))} disabled={zoom >= 1.5}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div ref={viewportRef} className="min-h-0 flex-1 overflow-auto bg-zinc-200 p-1 [touch-action:pan-x_pan-y_pinch-zoom] md:p-4 dark:bg-zinc-900">
+            <div className="mx-auto" style={{ width: 1200 * zoom, height: captureHeight * zoom }}>
+              <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: 1200 }}>
+                <div ref={captureRef} className={cn(
+                  "bg-white text-zinc-900 uppercase w-[1200px] pt-[3px] pb-[5px] px-[10px]",
+                )}>
               <div className="relative">
                 <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
                   ORDEN DE SERVICIO
@@ -206,19 +281,21 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
                   <InfoBlock title="NOTA:" text={data.nota} />
                 </div>
               </div>
+                </div>
+              </div>
             </div>
           </div>
-          <DialogFooter className="flex-shrink-0 flex justify-start gap-2 border-t bg-background p-4">
+          <DialogFooter className="flex-shrink-0 flex-row justify-stretch gap-2 border-t bg-background p-3 md:justify-start md:p-4">
             {showCopyButton && (
               <Button
                 type="button"
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="flex-1 bg-green-600 text-white hover:bg-green-700 md:flex-none"
                 size="sm"
                 onClick={handleCopy}
-                disabled={isCopying}
+                disabled={isCopying || isPreparingImage}
               >
-                {isCopying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FaWhatsapp className="mr-2 h-4 w-4" />}
-                Copiar imagen a WhatsApp
+                {isCopying || isPreparingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FaWhatsapp className="mr-2 h-4 w-4" />}
+                {isPreparingImage ? 'Preparando imagen...' : isMobile ? 'Compartir en WhatsApp' : 'Copiar imagen a WhatsApp'}
               </Button>
             )}
             <DialogClose asChild>
