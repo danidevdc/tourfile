@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.4.3] - 2026-09-14
+
+### Corrección del visor web
+
+- Se restauró una altura estable para el modal de vista previa en escritorio, evitando que el contenido se comprima en una franja.
+- El modo de pantalla completa y los controles de zoom continúan limitados a dispositivos móviles.
+
+---
+
 ## [3.4.2] - 2026-09-14
 
 ### Correcciones en órdenes de servicio
