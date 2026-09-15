@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.4.4] - 2026-09-15
+
+### Compartir órdenes desde móvil
+
+- En teléfonos, el botón ahora se llama “Guardar imagen” y descarga directamente el PNG de la orden para adjuntarlo en WhatsApp.
+- Se evita solicitar compartir o copiar al portapapeles en móvil, donde iOS puede bloquear esas APIs.
+
+---
+
 ## [3.4.3] - 2026-09-14
 
 ### Corrección del visor web
