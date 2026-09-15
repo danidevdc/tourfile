@@ -36,7 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown, ChevronLeft, ChevronRight, Image, Split, User, Car, CheckCircle2, XCircle, RefreshCw, Database, ClipboardEdit, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Receipt, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown, ChevronLeft, ChevronRight, Image, Split, User, Car, CheckCircle2, XCircle, RefreshCw, Database, ClipboardEdit, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Receipt } from "lucide-react";
 import { LiquidationViewerModal } from "@/components/guide-liquidation/LiquidationViewerModal";
 import { PlaneSpinner } from "@/components/ui/plane-spinner";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +52,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ServiceOrderGeneratorSheet } from "@/components/service-order/ServiceOrderGeneratorSheet";
 import { ServiceOrderEditModal } from "@/components/service-order/ServiceOrderEditModal";
 import ServiceOrderPreviewModal from "@/components/service-order/ServiceOrderPreviewModal";
@@ -760,18 +759,13 @@ export default function ServiceOrderListPage() {
     const isDeleted = order.status === 'eliminado' || order.status === 'cancelado';
 
     return (
-      <div className="flex items-center gap-1.5 whitespace-nowrap">
+      <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap">
         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" aria-label="Ver orden" onClick={() => handlePreviewOrderClick(order)} className="h-9 w-9 text-primary border-primary/50 hover:bg-primary/10"><Eye className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Vista previa (WhatsApp)</TooltipContent></Tooltip>
         <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" aria-label="Editar orden" onClick={() => handleEditOrderClick(order)} disabled={!canEdit || isDeleted} className="h-9 w-9 text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80"><FilePenLine className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-9 gap-1.5 px-2.5" aria-label="Más acciones de la orden"><MoreHorizontal className="h-4 w-4" /><span>Más</span></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-48">
-            <DropdownMenuItem onSelect={() => handleDownloadExcel(order)} disabled={isDownloadingId === order.id || isDeleted}><FileDown className="h-4 w-4" /> Descargar Excel</DropdownMenuItem>
-            {isCurrentUserAdmin && <DropdownMenuItem onSelect={() => handlePrintToPdf(order)} disabled={isPrintingPdfId === order.id || isDeleted}><Printer className="h-4 w-4" /> Imprimir PDF</DropdownMenuItem>}
-            {canAccessLiquidation && order.hasLiquidation && order.data?.file && <DropdownMenuItem onSelect={() => setLiquidationViewerFile(order.data.file)}><Receipt className="h-4 w-4" /> Ver liquidación</DropdownMenuItem>}
-            {!isDeleted && <><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => setOrderToDelete(order)} disabled={!canDelete} className="text-destructive focus:text-destructive"><Trash2 className="h-4 w-4" /> Eliminar orden</DropdownMenuItem></>}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {canAccessLiquidation && order.hasLiquidation && order.data?.file && <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" aria-label="Ver liquidación" onClick={() => setLiquidationViewerFile(order.data.file)} className="h-9 w-9 text-cyan-600 border-cyan-500/50 hover:bg-cyan-50"><Receipt className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Ver liquidación</TooltipContent></Tooltip>}
+        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" aria-label="Descargar Excel" onClick={() => handleDownloadExcel(order)} disabled={isDownloadingId === order.id || isDeleted} className="h-9 w-9 text-green-600 border-green-600/50 hover:bg-green-50">{isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent>Descargar Excel</TooltipContent></Tooltip>
+        {isCurrentUserAdmin && <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" aria-label="Imprimir PDF" onClick={() => handlePrintToPdf(order)} disabled={isPrintingPdfId === order.id || isDeleted} className="h-9 w-9 text-red-600 border-red-600/50 hover:bg-red-50">{isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent>Imprimir PDF</TooltipContent></Tooltip>}
+        {!isDeleted && <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" aria-label="Eliminar orden" onClick={() => setOrderToDelete(order)} disabled={!canDelete} className="h-9 w-9 text-destructive border-destructive/50 hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Eliminar orden</TooltipContent></Tooltip>}
       </div>
     );
   };
@@ -831,7 +825,7 @@ export default function ServiceOrderListPage() {
                     size="sm"
                     variant="outline"
                     aria-label="Nueva Orden de Servicio"
-                    className="h-12 sm:h-14 rounded-xl border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/50 shadow-md touch-target shrink-0 gap-2 px-3"
+                    className="h-12 sm:h-14 rounded-xl border-sky-300 bg-white text-sky-700 shadow-sm touch-target shrink-0 gap-2 px-3 hover:scale-100 hover:shadow-sm focus-visible:scale-100 focus-visible:shadow-sm hover:border-sky-400 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-700 dark:bg-slate-950 dark:text-sky-300 dark:hover:bg-sky-950/40 dark:hover:text-sky-200"
                   >
                     <FilePlus className="h-5 w-5" />
                     <span>Nueva orden</span>
@@ -1027,7 +1021,7 @@ export default function ServiceOrderListPage() {
                     <TableHead className="w-[120px] border-r border-border/40 cursor-pointer hover:bg-muted/50" onClick={() => handleSort('createdAt')}>
                       Fecha de registro{getSortIcon('createdAt')}
                     </TableHead>
-                    <TableHead className="w-[158px] min-w-[158px] text-left">Acciones</TableHead>
+                    <TableHead className="w-[242px] min-w-[242px] text-left">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

@@ -10,15 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import {
   Eye, FilePenLine, FileDown, Printer, Trash2, Loader2,
-  ChevronDown, User, Car, Calendar, MoreVertical, Receipt
+  ChevronDown, User, Car, Calendar, Receipt
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { shortPerson } from "@/lib/serviceOrderFamily";
 import type { StoredServiceOrder } from '@/lib/serviceOrderStorage';
@@ -185,8 +178,7 @@ export function ServiceOrderMobileCard({
 
           <Separator />
 
-          {/* Keep the primary actions visible; secondary actions never wrap below. */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1">
             {/* Vista Previa */}
             <Button
               variant="outline"
@@ -210,15 +202,10 @@ export function ServiceOrderMobileCard({
               <FilePenLine className="h-5 w-5" />
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-10 gap-1 px-3" aria-label="Más acciones de la orden"><MoreVertical className="h-4 w-4" /> Más</Button></DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-48">
-                <DropdownMenuItem onSelect={() => onDownload(order)} disabled={isDownloadingId === order.id || isDeleted}><FileDown className="h-4 w-4" /> Descargar Excel</DropdownMenuItem>
-                {isCurrentUserAdmin && <DropdownMenuItem onSelect={() => onPrint(order)} disabled={isPrintingPdfId === order.id || isDeleted}><Printer className="h-4 w-4" /> Imprimir PDF</DropdownMenuItem>}
-                {order.hasLiquidation && order.data?.file && onViewLiquidation && <DropdownMenuItem onSelect={() => onViewLiquidation(order.data.file)}><Receipt className="h-4 w-4" /> Ver liquidación</DropdownMenuItem>}
-                {!isDeleted && <><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => onDelete(order)} disabled={!canDelete} className="text-destructive focus:text-destructive"><Trash2 className="h-4 w-4" /> Eliminar orden</DropdownMenuItem></>}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button variant="outline" size="icon" onClick={() => onDownload(order)} disabled={isDownloadingId === order.id || isDeleted} className="h-10 w-10 shrink-0 touch-target text-green-600 border-green-600/50 hover:bg-green-50" title="Descargar Excel">{isDownloadingId === order.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileDown className="h-5 w-5" />}</Button>
+            {isCurrentUserAdmin && <Button variant="outline" size="icon" onClick={() => onPrint(order)} disabled={isPrintingPdfId === order.id || isDeleted} className="h-10 w-10 shrink-0 touch-target text-red-600 border-red-600/50 hover:bg-red-50" title="Imprimir PDF">{isPrintingPdfId === order.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}</Button>}
+            {order.hasLiquidation && order.data?.file && onViewLiquidation && <Button variant="outline" size="icon" onClick={() => onViewLiquidation(order.data.file)} className="h-10 w-10 shrink-0 touch-target text-cyan-600 border-cyan-500/50 hover:bg-cyan-50" title="Ver liquidación"><Receipt className="h-5 w-5" /></Button>}
+            {!isDeleted && <Button variant="outline" size="icon" onClick={() => onDelete(order)} disabled={!canDelete} className="h-10 w-10 shrink-0 touch-target text-destructive border-destructive/50 hover:bg-destructive/10" title="Eliminar orden"><Trash2 className="h-5 w-5" /></Button>}
           </div>
         </CardContent>
       </Card>
@@ -269,8 +256,7 @@ export function ServiceOrderMobileCard({
 
               <Separator className="my-2" />
 
-              {/* Child Actions - Icon Only */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1">
                 <Button
                   variant="outline"
                   size="icon"
@@ -307,38 +293,8 @@ export function ServiceOrderMobileCard({
                   )}
                 </Button>
 
-                {/* Dropdown for more actions */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon" className="h-9 w-9 touch-target" title="Más opciones">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    {isCurrentUserAdmin && (
-                      <DropdownMenuItem
-                        onClick={() => onPrint(child)}
-                        disabled={isPrintingPdfId === child.id || isChildDeleted}
-                        className="cursor-pointer"
-                      >
-                        <Printer className="h-4 w-4 mr-2" />
-                        Imprimir PDF
-                      </DropdownMenuItem>
-                    )}
-                    {!isChildDeleted && canDelete && (
-                      <>
-                        {isCurrentUserAdmin && <DropdownMenuSeparator />}
-                        <DropdownMenuItem
-                          onClick={() => onDelete(child)}
-                          className="cursor-pointer text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {isCurrentUserAdmin && <Button variant="outline" size="icon" onClick={() => onPrint(child)} disabled={isPrintingPdfId === child.id || isChildDeleted} className="h-9 w-9 shrink-0 touch-target text-red-600" title="Imprimir PDF">{isPrintingPdfId === child.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}</Button>}
+                {!isChildDeleted && canDelete && <Button variant="outline" size="icon" onClick={() => onDelete(child)} className="h-9 w-9 shrink-0 touch-target text-destructive border-destructive/50" title="Eliminar"><Trash2 className="h-4 w-4" /></Button>}
               </div>
             </CardContent>
           </Card>
