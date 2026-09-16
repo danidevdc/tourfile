@@ -3,6 +3,7 @@
 
 import { useMemo, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import type { CSSProperties, TouchEvent } from "react";
 import { parseDateDDMMYYYY } from "@/lib/formatters";
 import { FaWhatsapp } from "react-icons/fa";
 
@@ -34,6 +35,33 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
   const [zoom, setZoom] = useState(1);
   const [fitZoom, setFitZoom] = useState(1);
   const [captureHeight, setCaptureHeight] = useState(0);
+  const pinchRef = useRef({ active: false, startDistance: 0, startZoom: 1 });
+
+  const getTouchDistance = (touches: TouchEvent<HTMLDivElement>['touches']) => {
+    const first = touches[0];
+    const second = touches[1];
+    return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+  };
+
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 2) return;
+    pinchRef.current = {
+      active: true,
+      startDistance: getTouchDistance(event.touches),
+      startZoom: zoom,
+    };
+  };
+
+  const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (!pinchRef.current.active || event.touches.length !== 2) return;
+    event.preventDefault();
+    const distanceRatio = getTouchDistance(event.touches) / pinchRef.current.startDistance;
+    setZoom(Math.min(1.5, Math.max(0.2, pinchRef.current.startZoom * distanceRatio)));
+  };
+
+  const handleTouchEnd = () => {
+    pinchRef.current.active = false;
+  };
 
   const processedData = useMemo(() => {
     // Collect all unique guides from services, including the main guide
@@ -88,24 +116,37 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
   }, []);
 
   useEffect(() => {
-    const captureNode = captureRef.current;
-    const viewportNode = viewportRef.current;
-    if (!captureNode || !viewportNode) return;
+    let observer: ResizeObserver | undefined;
+    let retryId: number | undefined;
 
-    const updatePreviewSize = () => {
-      setCaptureHeight(captureNode.scrollHeight);
-      const nextFit = isMobile
-        ? Math.min(Math.max((viewportNode.clientWidth - 8) / 1200, 0.2), 1)
-        : 1;
-      setFitZoom(nextFit);
-      setZoom(nextFit);
+    const setupMeasurement = () => {
+      const captureNode = captureRef.current;
+      const viewportNode = viewportRef.current;
+      if (!captureNode || !viewportNode) {
+        retryId = window.setTimeout(setupMeasurement, 50);
+        return;
+      }
+
+      const updatePreviewSize = () => {
+        setCaptureHeight(captureNode.scrollHeight);
+        const nextFit = isMobile
+          ? Math.min(Math.max((viewportNode.clientWidth - 8) / 1200, 0.2), 1)
+          : 1;
+        setFitZoom(nextFit);
+        setZoom(nextFit);
+      };
+
+      updatePreviewSize();
+      observer = new ResizeObserver(updatePreviewSize);
+      observer.observe(captureNode);
+      observer.observe(viewportNode);
     };
 
-    updatePreviewSize();
-    const observer = new ResizeObserver(updatePreviewSize);
-    observer.observe(captureNode);
-    observer.observe(viewportNode);
-    return () => observer.disconnect();
+    setupMeasurement();
+    return () => {
+      if (retryId) window.clearTimeout(retryId);
+      observer?.disconnect();
+    };
   }, [isMobile, processedData]);
 
   useEffect(() => {
@@ -153,29 +194,29 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
   return (
     <>
       <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-        <DialogContent className="h-[100dvh] w-screen max-w-none max-h-[100dvh] rounded-none border-0 p-0 flex flex-col gap-0 md:h-[95vh] md:w-full md:max-w-[90vw] md:rounded-lg md:border xl:max-w-[1250px]">
-          <DialogHeader className="flex-shrink-0 border-b px-4 py-3 pr-12 md:py-2">
-            <DialogTitle className="text-left text-base md:sr-only">Vista previa de la orden</DialogTitle>
-            <DialogDescription className="sr-only">Vista previa de la orden de servicio con detalles completos</DialogDescription>
+        <DialogContent showClose={false} style={{ '--modal-height': `${Math.max(captureHeight * zoom + 96, 616)}px` } as CSSProperties} overlayClassName="bg-slate-950/25 dark:bg-slate-950/40" className="h-[100dvh] w-screen max-w-none max-h-[100dvh] overflow-hidden rounded-none border-0 bg-white/25 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.24),inset_0_1px_0_rgba(255,255,255,0.8)] ring-1 ring-white/80 backdrop-blur-2xl backdrop-saturate-150 flex flex-col gap-0 dark:bg-slate-950/25 dark:ring-white/20 md:h-[var(--modal-height)] md:max-h-[95vh] md:w-full md:max-w-[90vw] md:rounded-2xl md:border xl:max-w-[1250px]">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Vista previa de la orden</DialogTitle>
+            <DialogDescription>Vista previa de la orden de servicio con detalles completos</DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-center justify-center gap-2 border-b bg-muted/40 px-3 py-2 md:hidden">
-            <Button type="button" variant="outline" size="icon" className="h-9 w-9" aria-label="Alejar" onClick={() => setZoom(current => Math.max(0.2, current - 0.1))} disabled={zoom <= 0.2}>
+          <div className="flex items-center justify-center gap-2 border-b border-slate-200/80 bg-white/80 px-3 py-2.5 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 md:hidden">
+            <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-lg shadow-sm" aria-label="Alejar" onClick={() => setZoom(current => Math.max(0.2, current - 0.1))} disabled={zoom <= 0.2}>
               <Minus className="h-4 w-4" />
             </Button>
-            <Button type="button" variant="outline" size="sm" className="min-w-28 gap-2" onClick={() => setZoom(fitZoom)}>
+            <Button type="button" variant="outline" size="sm" className="min-w-32 rounded-lg border-slate-300 bg-white font-medium shadow-sm dark:border-slate-700 dark:bg-slate-900" onClick={() => setZoom(fitZoom)}>
               <Scan className="h-4 w-4" /> Ajustar {Math.round(zoom * 100)}%
             </Button>
-            <Button type="button" variant="outline" size="icon" className="h-9 w-9" aria-label="Acercar" onClick={() => setZoom(current => Math.min(1.5, current + 0.1))} disabled={zoom >= 1.5}>
+            <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-lg shadow-sm" aria-label="Acercar" onClick={() => setZoom(current => Math.min(1.5, current + 0.1))} disabled={zoom >= 1.5}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
 
-          <div ref={viewportRef} className="min-h-0 flex-1 overflow-auto bg-zinc-200 p-1 [touch-action:pan-x_pan-y_pinch-zoom] md:p-4 dark:bg-zinc-900">
+          <div ref={viewportRef} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} style={{ '--preview-height': `${Math.max(captureHeight * zoom + 32, 520)}px` } as CSSProperties} className="min-h-0 flex-1 overflow-auto bg-white/20 p-1 backdrop-blur-md backdrop-saturate-150 [touch-action:pan-x_pan-y] md:flex-1 md:bg-white/15 md:p-4 md:dark:bg-white/5">
             <div className="mx-auto" style={{ width: 1200 * zoom, height: captureHeight * zoom }}>
               <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: 1200 }}>
                 <div ref={captureRef} className={cn(
-                  "bg-white text-zinc-900 uppercase w-[1200px] pt-[3px] pb-[5px] px-[10px]",
+                  "bg-white text-zinc-900 uppercase w-[1200px] rounded-xl pt-[3px] pb-[5px] px-[10px]",
                 )}>
               <div className="relative">
                 <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
@@ -285,11 +326,11 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
               </div>
             </div>
           </div>
-          <DialogFooter className="flex-shrink-0 flex-row justify-stretch gap-2 border-t bg-background p-3 md:justify-end md:p-4">
+          <DialogFooter className="flex-shrink-0 flex-row justify-stretch gap-2 border-t border-white/55 bg-white/5 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,0.55)] backdrop-blur-xl backdrop-saturate-150 dark:border-white/15 dark:bg-white/[0.03] md:justify-end md:p-4">
             {showCopyButton && (
               <Button
                 type="button"
-                className="flex-1 bg-green-600 text-white hover:bg-green-700 md:flex-none"
+                className="flex-1 bg-green-600 text-white shadow-[0_0_12px_rgba(34,197,94,0.38)] hover:bg-green-700 hover:shadow-[0_0_16px_rgba(34,197,94,0.5)] md:flex-none"
                 size="sm"
                 onClick={handleCopy}
                 disabled={isCopying || isPreparingImage}
@@ -299,7 +340,7 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
               </Button>
             )}
             <DialogClose asChild>
-              <Button type="button" variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={onClose}>Cerrar</Button>
+              <Button type="button" variant="default" size="sm" className="bg-blue-600 text-white shadow-[0_0_12px_rgba(59,130,246,0.38)] hover:bg-blue-700 hover:shadow-[0_0_16px_rgba(59,130,246,0.5)]" onClick={onClose}>Cerrar</Button>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
