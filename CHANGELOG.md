@@ -7,6 +7,84 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.4.8] - 2026-09-16
+
+### Optimización del visor de órdenes
+
+- Se evita que el modal de vista previa aparezca con un tamaño intermedio durante su apertura.
+- El visor espera su primera medición para mostrarse con dimensiones estables.
+
+---
+
+## [3.4.7] - 2026-09-15
+
+### Corrección de captura móvil
+
+- La imagen se genera usando el tamaño real de la orden, ignorando el zoom visual del visor, para evitar PNG recortados al compartirlos.
+
+---
+
+## [3.4.6] - 2026-09-15
+
+### Corrección visual del visor web
+
+- Los botones del pie del modal vuelven a alinearse a la derecha en escritorio; en móvil conservan el ancho cómodo.
+
+---
+
+## [3.4.5] - 2026-09-15
+
+### Compartir órdenes desde móvil
+
+- El botón móvil vuelve a llamarse “Compartir” y abre el panel nativo para elegir WhatsApp u otra aplicación.
+- Si el dispositivo no permite compartir el archivo, se guarda automáticamente el PNG como respaldo.
+- Se eliminó el intento de copiar imágenes al portapapeles en móviles.
+
+---
+
+## [3.4.4] - 2026-09-15
+
+### Compartir órdenes desde móvil
+
+- En teléfonos, el botón ahora se llama “Guardar imagen” y descarga directamente el PNG de la orden para adjuntarlo en WhatsApp.
+- Se evita solicitar compartir o copiar al portapapeles en móvil, donde iOS puede bloquear esas APIs.
+
+---
+
+## [3.4.3] - 2026-09-14
+
+### Corrección del visor web
+
+- Se restauró una altura estable para el modal de vista previa en escritorio, evitando que el contenido se comprima en una franja.
+- El modo de pantalla completa y los controles de zoom continúan limitados a dispositivos móviles.
+
+---
+
+## [3.4.2] - 2026-09-14
+
+### Correcciones en órdenes de servicio
+
+- Las acciones vuelven a mostrarse directamente en una sola fila, incluida la eliminación, sin el botón “Más”.
+- El botón “Nueva orden” conserva su tamaño y sombra al pasar el mouse y usa un estado azul suave coherente con la interfaz.
+- En móvil, la vista previa se abre a pantalla completa, se ajusta al ancho y permite acercar, alejar y navegar por toda la orden.
+- En móvil, la imagen se prepara antes de pulsar el botón y se envía mediante el menú nativo de compartir; si el navegador no lo permite, se descarga un PNG como alternativa.
+- Descargar o cancelar el envío ya no marca la orden como enviada.
+
+---
+
+## [3.4.1] - 2026-09-14
+
+### Mejoras en órdenes de servicio
+
+- Antes de guardar, se comprueba que haya file, guía y al menos un servicio con fecha y actividad; una confirmación muestra el resumen de la orden.
+- Los traslados omitidos al generar servicios quedan visibles con su fila, vuelo y motivo hasta cambiar el file o regenerar.
+- La creación manual y automatizada tienen títulos distintos; el botón de generación indica qué dato falta en lugar de mostrar un progreso engañoso.
+- En móvil y tablet, los servicios se revisan y editan en tarjetas en vez de una tabla de diez columnas.
+- En el listado, “Ver” y “Editar” quedan visibles; Excel, PDF, liquidación y eliminación se agrupan en “Más”. La eliminación usa una sola confirmación en escritorio y móvil.
+- La creación manual tiene un botón con texto y el buscador explica qué campos admite.
+
+---
+
 ## [3.4.0] - 2026-09-11
 
 ### ✨ Nuevas funciones

@@ -14,7 +14,8 @@ import {
 } from '@/lib/serviceOrderService';
 import { getServiceOrderRules, type ServiceOrderRule } from '@/lib/serviceOrderRuleService';
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
-import { generateServicesFromExcelColumnWithDiagnostics } from '@/lib/serviceOrderProcessor';
+import { generateServicesFromExcelColumnWithDiagnostics, type SkippedTransfer } from '@/lib/serviceOrderProcessor';
+import { getServiceOrderDraftError } from '@/lib/serviceOrderDraftValidation';
 import { saveServiceOrder, saveServiceOrderWithSplit, saveServiceOrderInSplitMode } from '@/lib/serviceOrderStorage';
 import { findFileInExcelData, sortServiceItems, type ExcelMatrix } from '@/lib/serviceOrderGeneratorHelpers';
 
@@ -25,7 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser, CheckCircle, UserPlus, Car, Split, FileSpreadsheet, X, Lock, Pencil, UsersRound, ChevronDown, CirclePlus } from "lucide-react";
+import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser, CheckCircle, UserPlus, Car, Split, FileSpreadsheet, X, Lock, Pencil, UsersRound, ChevronDown, CirclePlus, AlertTriangle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { FileSearchStatus } from "@/lib/report-generator";
@@ -33,6 +34,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const initialNewServiceState: ServiceItem = {
     fecha: '', hora: '', servicio: '', vuelo: '', guia: '', bus: '', chofer: '', observaciones: ''
@@ -66,6 +68,8 @@ export function ServiceOrderGeneratorSheet({
 
     const [isSaving, setIsSaving] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(false);
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
+    const [generationSummary, setGenerationSummary] = useState<{ generatedCount: number; skippedTransfers: SkippedTransfer[] } | null>(null);
 
     const [ownDrivers, setOwnDrivers] = useState<Driver[]>([]);
     const [externalDrivers, setExternalDrivers] = useState<Driver[]>([]);
@@ -212,6 +216,7 @@ export function ServiceOrderGeneratorSheet({
 
     const handleClearForm = () => {
         onClearAndNew(); // This resets the main order data object in the parent
+        setGenerationSummary(null);
         setBusTypeSelection('');
         setChoferSelection('');
         setNewService(initialNewServiceState);
@@ -271,6 +276,7 @@ export function ServiceOrderGeneratorSheet({
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
+            setGenerationSummary(null);
             setSelectedFile({ name: file.name });
             toast({ title: "Archivo Seleccionado", variant: "success" });
             processAndStoreFile(file);
@@ -279,6 +285,7 @@ export function ServiceOrderGeneratorSheet({
     };
 
     const clearFile = () => {
+        setGenerationSummary(null);
         setSelectedFile(null); setExcelData(null); setFileSearchStatus("idle");
         setOrderData({ ...orderData, file: '', ref: '', nPax: '', services: [] });
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -288,6 +295,7 @@ export function ServiceOrderGeneratorSheet({
     };
 
     const handleSearchFile = async (fileNumberOverride?: string) => {
+        setGenerationSummary(null);
         const fileNumberInput = fileNumberOverride ?? orderData.file;
         if (!selectedFile || !excelData || !fileNumberInput) {
             toast({ title: "Datos incompletos", description: "Selecciona un archivo e ingresa un número de file.", variant: "destructive" }); return;
@@ -376,6 +384,7 @@ export function ServiceOrderGeneratorSheet({
 
         const sortedGenerated = sortServiceItems(generatedServicesWithDetails);
         setOrderData((prev: ServiceOrderData) => ({ ...prev, services: sortedGenerated }));
+        setGenerationSummary({ generatedCount: sortedGenerated.length, skippedTransfers: generationResult.skippedTransfers });
         const omittedTransfers = generationResult.skippedTransfers.length;
         const omittedMessage = omittedTransfers > 0
             ? ` Se omitieron ${omittedTransfers} traslados sin un vuelo de La Paz compatible.`
@@ -486,8 +495,9 @@ export function ServiceOrderGeneratorSheet({
     };
 
     const handleSaveOrder = async () => {
-        if (!orderData.guia || !orderData.file || !currentUser?.email) {
-            toast({ title: "Datos Requeridos", description: "El guía y el número de file son obligatorios.", variant: "destructive" }); return;
+        const draftError = getServiceOrderDraftError(orderData);
+        if (draftError || !currentUser?.email) {
+            toast({ title: "Revisa la orden", description: draftError || "Inicia sesión antes de guardar.", variant: "destructive" }); return;
         }
         setIsSaving(true);
         try {
@@ -503,12 +513,23 @@ export function ServiceOrderGeneratorSheet({
                     : "Orden de servicio guardada exitosamente.";
                 toast({ title: "Éxito", description: message, variant: "success" });
             }
+            setIsReviewOpen(false);
+            setGenerationSummary(null);
             onSave();
         } catch (error: any) {
             toast({ title: "Error", description: error.message || "No se pudo guardar la orden de servicio.", variant: "destructive" });
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const handleReviewOrder = () => {
+        const draftError = getServiceOrderDraftError(orderData);
+        if (draftError) {
+            toast({ title: "Revisa la orden", description: draftError, variant: "destructive" });
+            return;
+        }
+        setIsReviewOpen(true);
     };
 
     const handleApplyDateToSelected = () => {
@@ -594,7 +615,7 @@ export function ServiceOrderGeneratorSheet({
                 <TooltipProvider>
                 <SheetHeader className="space-y-0">
                     <SheetTitle className="text-2xl font-headline text-primary">
-                        Generar Orden Automatizada
+                        {isAutomatedMode ? 'Generar orden automatizada' : 'Nueva orden de servicio'}
                     </SheetTitle>
                 </SheetHeader>
                 <div className="flex-grow min-h-0 overflow-y-auto mobile-padding relative -mt-2">
@@ -748,25 +769,26 @@ export function ServiceOrderGeneratorSheet({
                                     />
                                 </div>
                                 {isAutomatedMode && (() => {
-                                    const readyCount = [!!orderData.guia, !!busTypeSelection, !!choferSelection].filter(Boolean).length;
-                                    const progressPct = (readyCount / 3) * 100;
-                                    const isReady = fileSearchStatus === "found" && readyCount === 3;
+                                    const pending = [
+                                        fileSearchStatus !== 'found' && 'buscar un file válido',
+                                        !orderData.guia && 'elegir guía',
+                                        !busTypeSelection && 'elegir bus',
+                                        !choferSelection && 'elegir chofer',
+                                    ].filter(Boolean);
+                                    const isReady = pending.length === 0;
                                     return (
-                                        <div className={cn("col-span-2 flex items-center rounded-md", isReady && "animate-pulse-glow-green")}>
+                                        <div className="col-span-2 space-y-1">
                                             <Button
                                                 onClick={handleGenerateServices}
                                                 disabled={!isReady}
-                                                className="relative w-full h-10 overflow-hidden bg-zinc-400 dark:bg-zinc-700 text-white hover:bg-zinc-400 dark:hover:bg-zinc-700 disabled:opacity-100"
+                                                className="w-full h-10 bg-green-600 hover:bg-green-700 text-white"
                                             >
-                                                <span
-                                                    className="absolute inset-y-0 left-0 bg-green-600 transition-all duration-300 ease-out"
-                                                    style={{ width: `${progressPct}%` }}
-                                                />
-                                                <span className="relative z-10 flex items-center">
+                                                <span className="flex items-center">
                                                     <CheckCircle className="mr-2 h-5 w-5" />
                                                     Generar Servicios
                                                 </span>
                                             </Button>
+                                            {!isReady && <p className="text-xs text-muted-foreground" role="status">Falta: {pending.join(', ')}.</p>}
                                         </div>
                                     );
                                 })()}
@@ -914,9 +936,27 @@ export function ServiceOrderGeneratorSheet({
                             )}
                         </div>
 
+                        {generationSummary && (
+                            <div className={cn('rounded-lg border p-3 text-sm', generationSummary.skippedTransfers.length > 0 ? 'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100' : 'border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-100')} role="status">
+                                <div className="flex items-start gap-2 font-medium">
+                                    {generationSummary.skippedTransfers.length > 0 ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />}
+                                    <span>{generationSummary.generatedCount} servicios generados. {generationSummary.skippedTransfers.length > 0 ? `${generationSummary.skippedTransfers.length} traslados omitidos; revisa antes de guardar.` : 'No se omitieron traslados.'}</span>
+                                </div>
+                                {generationSummary.skippedTransfers.length > 0 && (
+                                    <ul className="mt-2 ml-6 list-disc space-y-1 text-xs">
+                                        {generationSummary.skippedTransfers.map((transfer) => (
+                                            <li key={`${transfer.rowNumber}-${transfer.activity}`}>
+                                                Fila {transfer.rowNumber}: {transfer.activity} {transfer.detectedFlightNumbers.length > 0 ? `(${transfer.detectedFlightNumbers.join(', ')})` : '(sin código de vuelo)'} — {transfer.reason === 'DIRECTION_MISMATCH' ? 'dirección incompatible' : transfer.reason === 'FLIGHT_NOT_IN_DATABASE' ? 'vuelo no registrado' : 'sin código de vuelo'}.
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        )}
+
                         <div>
                             <h3 className="font-semibold mobile-text-base mb-2 px-1">Resumen ({orderData.services.length} servicios)</h3>
-                            <div className="max-h-96 overflow-y-auto overflow-x-auto rounded-lg border bg-card ring-2 ring-blue-200 dark:ring-blue-500/30 shadow-[0_0_0_4px_rgba(47,111,237,0.10)]">
+                            <div className="hidden lg:block max-h-96 overflow-y-auto overflow-x-auto rounded-lg border bg-card ring-2 ring-blue-200 dark:ring-blue-500/30 shadow-[0_0_0_4px_rgba(47,111,237,0.10)]">
                                 <Table>
                                     <TableHeader className="sticky top-0 bg-primary/10 z-10 hover:bg-primary/10">
                                         <TableRow className="border-b-primary/20">
@@ -1060,6 +1100,36 @@ export function ServiceOrderGeneratorSheet({
                                     </TableBody>
                                 </Table>
                             </div>
+                            <div className="space-y-3 lg:hidden">
+                                {orderData.services.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed bg-card p-6 text-center text-sm text-muted-foreground">Aún no hay servicios. Genera los del Excel o añade uno manualmente.</div>
+                                ) : orderData.services.map((service, index) => {
+                                    const isTransfer = service.servicio?.toUpperCase().includes('TRF') || service.servicio?.toUpperCase().includes('APTO');
+                                    return (
+                                        <article key={service.id || index} className="rounded-xl border bg-card p-3 shadow-sm space-y-3">
+                                            <div className="flex items-center justify-between gap-2 border-b pb-2">
+                                                <div className="flex min-w-0 items-center gap-2">
+                                                    <Checkbox checked={selectedServices.has(index)} onCheckedChange={(checked) => handleSelectService(index, !!checked)} aria-label={`Seleccionar servicio ${index + 1}`} />
+                                                    <span className="truncate text-sm font-semibold">Servicio {index + 1}{service.servicio ? ` · ${service.servicio}` : ''}</span>
+                                                </div>
+                                                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-destructive" onClick={() => removeServiceRow(index)} aria-label={`Quitar servicio ${index + 1}`}><XCircle className="h-4 w-4" /></Button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div><Label htmlFor={`service-date-${index}`}>Fecha</Label><Input id={`service-date-${index}`} type="date" value={service.fecha ? format(parse(service.fecha, 'dd/MM/yyyy', new Date()), 'yyyy-MM-dd') : ''} onChange={(e) => handleServiceSummaryChange(index, 'fecha', e.target.value ? format(parse(e.target.value, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '')} className="mt-1" /></div>
+                                                <div><Label htmlFor={`service-time-${index}`}>Hora</Label><Input id={`service-time-${index}`} value={service.hora} onChange={(e) => handleSummaryTimeChange(index, e.target.value)} onBlur={(e) => handleSummaryTimeBlur(index, e.target.value)} placeholder="HH:mm" maxLength={5} className="mt-1" /></div>
+                                            </div>
+                                            <div><Label>Actividad</Label><Combobox options={activityOptions} value={service.servicio || ''} onSelect={(value) => handleServiceSummaryChange(index, 'servicio', value)} placeholder="Buscar actividad..." className="mt-1" /></div>
+                                            {isTransfer && <div><Label>Vuelo</Label><Combobox options={flights.map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})` }))} value={service.vuelo || ''} onSelect={(value) => handleServiceSummaryChange(index, 'vuelo', value)} placeholder="Seleccionar vuelo..." className="mt-1" /></div>}
+                                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                                <div><Label>Guía</Label><Select value={service.guia || orderData.guia || 'NONE'} onValueChange={(value) => handleServiceSummaryChange(index, 'guia', value === 'NONE' ? '' : value)}><SelectTrigger className="mt-1"><SelectValue placeholder="Guía..." /></SelectTrigger><SelectContent>{serviceGuideOptions.map(g => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}</SelectContent></Select></div>
+                                                <div><Label>Bus</Label><Select value={service.bus || 'NONE'} onValueChange={(value) => handleServiceSummaryChange(index, 'bus', value === 'NONE' ? '' : value)}><SelectTrigger className="mt-1"><SelectValue placeholder="Bus..." /></SelectTrigger><SelectContent><SelectItem value="NONE">Ninguno</SelectItem><SelectItem value="SIN BUS">Sin bus (a pie)</SelectItem>{busOptions.map(b => <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>)}<SelectItem value="CONT.">Contratado</SelectItem></SelectContent></Select></div>
+                                                <div><Label>Chofer</Label><Select value={service.chofer || 'NONE'} onValueChange={(value) => handleServiceSummaryChange(index, 'chofer', value === 'NONE' ? '' : value)}><SelectTrigger className="mt-1"><SelectValue placeholder="Chofer..." /></SelectTrigger><SelectContent>{serviceDriverOptions.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent></Select></div>
+                                            </div>
+                                            <div><Label htmlFor={`service-notes-${index}`}>Observaciones</Label><Input id={`service-notes-${index}`} value={service.observaciones || ''} onChange={(e) => handleServiceSummaryChange(index, 'observaciones', e.target.value)} className="mt-1" /></div>
+                                        </article>
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         <div className="p-3 sm:p-4 border rounded-lg bg-card">
@@ -1102,7 +1172,7 @@ export function ServiceOrderGeneratorSheet({
                         </div>
                     )}
                 </div>
-                <div className="pt-4 border-t gap-2 flex justify-end items-center">
+                <div className="pt-4 border-t gap-2 flex flex-wrap justify-end items-center">
                     <Button variant="outline" onClick={handleClearForm} className="mr-auto border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
                         <Eraser className="mr-2 h-4 w-4" />
                         Limpiar Formulario
@@ -1139,11 +1209,33 @@ export function ServiceOrderGeneratorSheet({
                         </TooltipContent>
                     </Tooltip>
                     <Button variant="outline" onClick={onClose} className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">Cerrar</Button>
-                    <Button onClick={handleSaveOrder} disabled={isSaving || isLoadingData}>
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Guardar Orden
+                    <Button onClick={handleReviewOrder} disabled={isSaving || isLoadingData}>
+                        <Save className="mr-2 h-4 w-4" />
+                        Revisar y guardar
                     </Button>
                 </div>
+                <AlertDialog open={isReviewOpen} onOpenChange={setIsReviewOpen}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Confirmar orden de servicio</AlertDialogTitle>
+                            <AlertDialogDescription>Comprueba los datos antes de guardar. Esta acción creará la orden en la base de datos.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                            <dt className="text-muted-foreground">File</dt><dd className="font-medium break-all">{orderData.file}</dd>
+                            <dt className="text-muted-foreground">Guía</dt><dd className="font-medium">{orderData.guia}</dd>
+                            <dt className="text-muted-foreground">Servicios</dt><dd className="font-medium">{orderData.services.length}</dd>
+                            <dt className="text-muted-foreground">Modalidad</dt><dd className="font-medium">{isSplitMode && splitModeStatus.canEnableSplit ? 'Orden separada para guía y chofer' : splitModeStatus.willBeDivided ? 'División automática por responsable' : 'Orden normal'}</dd>
+                        </dl>
+                        {generationSummary && generationSummary.skippedTransfers.length > 0 && <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">Atención: {generationSummary.skippedTransfers.length} traslados no se incluyeron. Puedes volver al resumen para revisarlos.</p>}
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isSaving}>Volver a revisar</AlertDialogCancel>
+                            <AlertDialogAction disabled={isSaving} onClick={(event) => { event.preventDefault(); void handleSaveOrder(); }}>
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Confirmar y guardar
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
                 </TooltipProvider>
             </SheetContent>
         </Sheet>

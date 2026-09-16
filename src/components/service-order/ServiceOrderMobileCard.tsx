@@ -10,26 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import {
   Eye, FilePenLine, FileDown, Printer, Trash2, Loader2,
-  ChevronDown, User, Car, Calendar, MoreVertical, Receipt
+  ChevronDown, User, Car, Calendar, Receipt
 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { shortPerson } from "@/lib/serviceOrderFamily";
 import type { StoredServiceOrder } from '@/lib/serviceOrderStorage';
@@ -54,7 +36,6 @@ interface ServiceOrderMobileCardProps {
   onDelete: (order: StoredServiceOrder) => void;
   onViewLiquidation?: (fileNumber: string) => void;
   getStatusBadge: (order: StoredServiceOrder, childCount?: number) => React.ReactNode;
-  getDeletionDescription: (order: StoredServiceOrder) => string;
 }
 
 export function ServiceOrderMobileCard({
@@ -77,7 +58,6 @@ export function ServiceOrderMobileCard({
   onDelete,
   onViewLiquidation,
   getStatusBadge,
-  getDeletionDescription,
 }: ServiceOrderMobileCardProps) {
   const childCount = childOrders.length;
   const isDeleted = order.status === 'eliminado' || order.status === 'cancelado';
@@ -198,8 +178,7 @@ export function ServiceOrderMobileCard({
 
           <Separator />
 
-          {/* Actions Section - Icon Only Buttons */}
-          <div className="flex items-center justify-start gap-2 flex-wrap">
+          <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1">
             {/* Vista Previa */}
             <Button
               variant="outline"
@@ -223,88 +202,10 @@ export function ServiceOrderMobileCard({
               <FilePenLine className="h-5 w-5" />
             </Button>
 
-            {/* Descargar Excel */}
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => onDownload(order)}
-              disabled={isDownloadingId === order.id || isDeleted}
-              className="h-10 w-10 touch-target text-green-600 border-green-600/50 hover:bg-green-100/80 disabled:opacity-50"
-              title="Descargar Excel"
-            >
-              {isDownloadingId === order.id ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <FileDown className="h-5 w-5" />
-              )}
-            </Button>
-
-            {/* PDF (solo admin) */}
-            {isCurrentUserAdmin && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => onPrint(order)}
-                disabled={isPrintingPdfId === order.id || isDeleted}
-                className="h-10 w-10 touch-target text-red-600 border-red-600/50 hover:bg-red-100/80 disabled:opacity-50"
-                title="Imprimir PDF"
-              >
-                {isPrintingPdfId === order.id ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Printer className="h-5 w-5" />
-                )}
-              </Button>
-            )}
-
-            {/* Ver Liquidación */}
-            {order.hasLiquidation && order.data?.file && onViewLiquidation && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => onViewLiquidation(order.data.file)}
-                className="h-10 w-10 touch-target text-cyan-600 border-cyan-500/50 hover:bg-cyan-100/80 dark:text-cyan-400 dark:border-cyan-400/50 dark:hover:bg-cyan-950/40"
-                title="Ver Liquidación"
-              >
-                <Receipt className="h-5 w-5" />
-              </Button>
-            )}
-
-            {/* Eliminar */}
-            {!isDeleted && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    disabled={!canDelete}
-                    className="h-10 w-10 touch-target text-destructive border-destructive/50 hover:bg-destructive/10 disabled:opacity-50"
-                    title="Eliminar Orden"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-base">
-                      ¿Estás seguro de eliminar esta orden?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-sm">
-                      {getDeletionDescription(order)}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                    <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => onDelete(order)}
-                      className="w-full sm:w-auto bg-destructive hover:bg-destructive/90"
-                    >
-                      Sí, eliminar
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
+            <Button variant="outline" size="icon" onClick={() => onDownload(order)} disabled={isDownloadingId === order.id || isDeleted} className="h-10 w-10 shrink-0 touch-target text-green-600 border-green-600/50 hover:bg-green-50" title="Descargar Excel">{isDownloadingId === order.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileDown className="h-5 w-5" />}</Button>
+            {isCurrentUserAdmin && <Button variant="outline" size="icon" onClick={() => onPrint(order)} disabled={isPrintingPdfId === order.id || isDeleted} className="h-10 w-10 shrink-0 touch-target text-red-600 border-red-600/50 hover:bg-red-50" title="Imprimir PDF">{isPrintingPdfId === order.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}</Button>}
+            {order.hasLiquidation && order.data?.file && onViewLiquidation && <Button variant="outline" size="icon" onClick={() => onViewLiquidation(order.data.file)} className="h-10 w-10 shrink-0 touch-target text-cyan-600 border-cyan-500/50 hover:bg-cyan-50" title="Ver liquidación"><Receipt className="h-5 w-5" /></Button>}
+            {!isDeleted && <Button variant="outline" size="icon" onClick={() => onDelete(order)} disabled={!canDelete} className="h-10 w-10 shrink-0 touch-target text-destructive border-destructive/50 hover:bg-destructive/10" title="Eliminar orden"><Trash2 className="h-5 w-5" /></Button>}
           </div>
         </CardContent>
       </Card>
@@ -355,8 +256,7 @@ export function ServiceOrderMobileCard({
 
               <Separator className="my-2" />
 
-              {/* Child Actions - Icon Only */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1">
                 <Button
                   variant="outline"
                   size="icon"
@@ -393,38 +293,8 @@ export function ServiceOrderMobileCard({
                   )}
                 </Button>
 
-                {/* Dropdown for more actions */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon" className="h-9 w-9 touch-target" title="Más opciones">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    {isCurrentUserAdmin && (
-                      <DropdownMenuItem
-                        onClick={() => onPrint(child)}
-                        disabled={isPrintingPdfId === child.id || isChildDeleted}
-                        className="cursor-pointer"
-                      >
-                        <Printer className="h-4 w-4 mr-2" />
-                        Imprimir PDF
-                      </DropdownMenuItem>
-                    )}
-                    {!isChildDeleted && canDelete && (
-                      <>
-                        {isCurrentUserAdmin && <DropdownMenuSeparator />}
-                        <DropdownMenuItem
-                          onClick={() => onDelete(child)}
-                          className="cursor-pointer text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {isCurrentUserAdmin && <Button variant="outline" size="icon" onClick={() => onPrint(child)} disabled={isPrintingPdfId === child.id || isChildDeleted} className="h-9 w-9 shrink-0 touch-target text-red-600" title="Imprimir PDF">{isPrintingPdfId === child.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}</Button>}
+                {!isChildDeleted && canDelete && <Button variant="outline" size="icon" onClick={() => onDelete(child)} className="h-9 w-9 shrink-0 touch-target text-destructive border-destructive/50" title="Eliminar"><Trash2 className="h-4 w-4" /></Button>}
               </div>
             </CardContent>
           </Card>

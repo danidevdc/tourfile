@@ -3,17 +3,18 @@
 
 import { useMemo, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import type { CSSProperties, TouchEvent } from "react";
 import { parseDateDDMMYYYY } from "@/lib/formatters";
 import { FaWhatsapp } from "react-icons/fa";
 
 import { type StoredServiceOrder } from "@/lib/serviceOrderStorage";
 import { cn } from "@/lib/utils";
-import { copiarVistaPreviaAlClipboard } from "@/lib/copyPreview";
+import { copiarVistaPreviaAlClipboard, crearBlobVistaPrevia, previewImageWasSent } from "@/lib/copyPreview";
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogClose, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import { Loader2, Minus, Plus, Scan, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ServiceOrderPreviewModalProps {
@@ -25,8 +26,43 @@ interface ServiceOrderPreviewModalProps {
 function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { order: StoredServiceOrder, onClose: () => void, showCopyButton: boolean, onStatusUpdate?: (orderId: string) => void }) {
   const { data } = order;
   const captureRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [isCopying, setIsCopying] = useState(false);
+  const [isPreparingImage, setIsPreparingImage] = useState(false);
+  const [preparedBlob, setPreparedBlob] = useState<Blob | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [fitZoom, setFitZoom] = useState(1);
+  const [captureHeight, setCaptureHeight] = useState(0);
+  const [previewReady, setPreviewReady] = useState(false);
+  const pinchRef = useRef({ active: false, startDistance: 0, startZoom: 1 });
+
+  const getTouchDistance = (touches: TouchEvent<HTMLDivElement>['touches']) => {
+    const first = touches[0];
+    const second = touches[1];
+    return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+  };
+
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 2) return;
+    pinchRef.current = {
+      active: true,
+      startDistance: getTouchDistance(event.touches),
+      startZoom: zoom,
+    };
+  };
+
+  const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (!pinchRef.current.active || event.touches.length !== 2) return;
+    event.preventDefault();
+    const distanceRatio = getTouchDistance(event.touches) / pinchRef.current.startDistance;
+    setZoom(Math.min(1.5, Math.max(0.2, pinchRef.current.startZoom * distanceRatio)));
+  };
+
+  const handleTouchEnd = () => {
+    pinchRef.current.active = false;
+  };
 
   const processedData = useMemo(() => {
     // Collect all unique guides from services, including the main guide
@@ -72,6 +108,75 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
     return { displayGuide, sortedServices, totalTarifa };
   }, [data]);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const updateMobile = () => setIsMobile(mediaQuery.matches);
+    updateMobile();
+    mediaQuery.addEventListener('change', updateMobile);
+    return () => mediaQuery.removeEventListener('change', updateMobile);
+  }, []);
+
+  useEffect(() => {
+    let observer: ResizeObserver | undefined;
+    let retryId: number | undefined;
+    setPreviewReady(false);
+
+    const setupMeasurement = () => {
+      const captureNode = captureRef.current;
+      const viewportNode = viewportRef.current;
+      if (!captureNode || !viewportNode) {
+        retryId = window.setTimeout(setupMeasurement, 50);
+        return;
+      }
+
+      const updatePreviewSize = () => {
+        setCaptureHeight(captureNode.scrollHeight);
+        setPreviewReady(true);
+        const nextFit = isMobile
+          ? Math.min(Math.max((viewportNode.clientWidth - 8) / 1200, 0.2), 1)
+          : 1;
+        setFitZoom(nextFit);
+        setZoom(nextFit);
+      };
+
+      updatePreviewSize();
+      observer = new ResizeObserver(updatePreviewSize);
+      observer.observe(captureNode);
+      observer.observe(viewportNode);
+    };
+
+    setupMeasurement();
+    return () => {
+      if (retryId) window.clearTimeout(retryId);
+      observer?.disconnect();
+    };
+  }, [isMobile, processedData]);
+
+  useEffect(() => {
+    const captureNode = captureRef.current;
+    if (!captureNode || !showCopyButton) return;
+
+    let cancelled = false;
+    const prepareImage = async () => {
+      setIsPreparingImage(true);
+      setPreparedBlob(null);
+      try {
+        const blob = await crearBlobVistaPrevia(captureNode);
+        if (!cancelled) setPreparedBlob(blob);
+      } catch (error) {
+        console.error('No se pudo preparar la imagen de la orden:', error);
+      } finally {
+        if (!cancelled) setIsPreparingImage(false);
+      }
+    };
+
+    const frameId = window.requestAnimationFrame(() => void prepareImage());
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [order.id, processedData, showCopyButton]);
+
   const handleCopy = async () => {
     if (!captureRef.current) {
       toast({
@@ -82,8 +187,8 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
       return;
     }
     setIsCopying(true);
-    const success = await copiarVistaPreviaAlClipboard(captureRef.current, toast);
-    if (success && onStatusUpdate) {
+    const result = await copiarVistaPreviaAlClipboard(captureRef.current, toast, preparedBlob);
+    if (previewImageWasSent(result) && onStatusUpdate) {
       onStatusUpdate(order.id);
     }
     setIsCopying(false);
@@ -92,16 +197,30 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
   return (
     <>
       <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-        <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[1250px] w-full flex flex-col max-h-[95vh] p-0">
-          <DialogHeader className="mobile-padding border-b flex-shrink-0">
-            <DialogTitle className="sr-only">Orden de Servicio: {order.orderName}</DialogTitle>
-            <DialogDescription className="sr-only">Vista previa de la orden de servicio con detalles completos</DialogDescription>
+        <DialogContent showClose={false} style={{ '--modal-height': `${Math.max(captureHeight * zoom + 96, 616)}px`, opacity: previewReady ? 1 : 0 } as CSSProperties} overlayClassName="bg-slate-950/25 dark:bg-slate-950/40" className="h-[100dvh] w-screen max-w-none max-h-[100dvh] overflow-hidden rounded-none border-0 bg-white/25 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.24),inset_0_1px_0_rgba(255,255,255,0.8)] ring-1 ring-white/80 backdrop-blur-2xl backdrop-saturate-150 transition-opacity duration-150 flex flex-col gap-0 dark:bg-slate-950/25 dark:ring-white/20 md:h-[var(--modal-height)] md:max-h-[95vh] md:w-full md:max-w-[90vw] md:rounded-2xl md:border xl:max-w-[1250px]">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Vista previa de la orden</DialogTitle>
+            <DialogDescription>Vista previa de la orden de servicio con detalles completos</DialogDescription>
           </DialogHeader>
 
-          <div className="overflow-auto min-h-0 mobile-padding">
-            <div ref={captureRef} className={cn(
-              "bg-white text-zinc-900 uppercase w-[1200px] mx-auto pt-[3px] pb-[5px] px-[10px]",
-            )}>
+          <div className="flex items-center justify-center gap-2 border-b border-slate-200/80 bg-white/80 px-3 py-2.5 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 md:hidden">
+            <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-lg shadow-sm" aria-label="Alejar" onClick={() => setZoom(current => Math.max(0.2, current - 0.1))} disabled={zoom <= 0.2}>
+              <Minus className="h-4 w-4" />
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="min-w-32 rounded-lg border-slate-300 bg-white font-medium shadow-sm dark:border-slate-700 dark:bg-slate-900" onClick={() => setZoom(fitZoom)}>
+              <Scan className="h-4 w-4" /> Ajustar {Math.round(zoom * 100)}%
+            </Button>
+            <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-lg shadow-sm" aria-label="Acercar" onClick={() => setZoom(current => Math.min(1.5, current + 0.1))} disabled={zoom >= 1.5}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div ref={viewportRef} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} style={{ '--preview-height': `${Math.max(captureHeight * zoom + 32, 520)}px` } as CSSProperties} className="min-h-0 flex-1 overflow-auto bg-white/20 p-1 backdrop-blur-md backdrop-saturate-150 [touch-action:pan-x_pan-y] md:flex-1 md:bg-white/15 md:p-4 md:dark:bg-white/5">
+            <div className="mx-auto" style={{ width: 1200 * zoom, height: captureHeight * zoom }}>
+              <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: 1200 }}>
+                <div ref={captureRef} className={cn(
+                  "bg-white text-zinc-900 uppercase w-[1200px] rounded-xl pt-[3px] pb-[5px] px-[10px]",
+                )}>
               <div className="relative">
                 <div className="pt-4 pb-3 flex items-center justify-center font-bold text-2xl">
                   ORDEN DE SERVICIO
@@ -206,23 +325,25 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
                   <InfoBlock title="NOTA:" text={data.nota} />
                 </div>
               </div>
+                </div>
+              </div>
             </div>
           </div>
-          <DialogFooter className="flex-shrink-0 flex justify-start gap-2 border-t bg-background p-4">
+          <DialogFooter className="flex-shrink-0 flex-row justify-stretch gap-2 border-t border-white/55 bg-white/5 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,0.55)] backdrop-blur-xl backdrop-saturate-150 dark:border-white/15 dark:bg-white/[0.03] md:justify-end md:p-4">
             {showCopyButton && (
               <Button
                 type="button"
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="flex-1 bg-green-600 text-white shadow-[0_0_12px_rgba(34,197,94,0.38)] hover:bg-green-700 hover:shadow-[0_0_16px_rgba(34,197,94,0.5)] md:flex-none"
                 size="sm"
                 onClick={handleCopy}
-                disabled={isCopying}
+                disabled={isCopying || isPreparingImage}
               >
-                {isCopying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FaWhatsapp className="mr-2 h-4 w-4" />}
-                Copiar imagen a WhatsApp
+                {isCopying || isPreparingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isMobile ? <Share2 className="mr-2 h-4 w-4" /> : <FaWhatsapp className="mr-2 h-4 w-4" />}
+                {isPreparingImage ? 'Preparando imagen...' : isMobile ? 'Compartir' : 'Copiar imagen a WhatsApp'}
               </Button>
             )}
             <DialogClose asChild>
-              <Button type="button" variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={onClose}>Cerrar</Button>
+              <Button type="button" variant="default" size="sm" className="bg-blue-600 text-white shadow-[0_0_12px_rgba(59,130,246,0.38)] hover:bg-blue-700 hover:shadow-[0_0_16px_rgba(59,130,246,0.5)]" onClick={onClose}>Cerrar</Button>
             </DialogClose>
           </DialogFooter>
         </DialogContent>

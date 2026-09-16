@@ -1,68 +1,129 @@
-
-import React from 'react';
 import type { Toast } from '@/hooks/use-toast';
 
+export type PreviewImageResult = 'copied' | 'shared' | 'downloaded' | 'cancelled' | 'failed';
+
+export function previewImageWasSent(result: PreviewImageResult): boolean {
+  return result === 'copied' || result === 'shared';
+}
+
+export async function crearBlobVistaPrevia(captureNode: HTMLElement): Promise<Blob> {
+  const { domToBlob } = await import('modern-screenshot');
+  await document.fonts?.ready;
+
+  const blob = await domToBlob(captureNode, {
+    scale: 2,
+    backgroundColor: '#ffffff',
+    // The preview is rendered inside a scaled mobile wrapper. modern-screenshot
+    // otherwise uses getBoundingClientRect() and captures only the zoomed area.
+    width: captureNode.scrollWidth || captureNode.offsetWidth,
+    height: captureNode.scrollHeight || captureNode.offsetHeight,
+  });
+
+  if (!blob) {
+    throw new Error('No se pudo generar la imagen de la orden.');
+  }
+
+  return blob;
+}
+
+function isMobileDevice(): boolean {
+  return window.matchMedia?.('(pointer: coarse)').matches
+    || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+function downloadBlob(blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `orden-de-servicio-${Date.now()}.png`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export async function copiarVistaPreviaAlClipboard(
-    captureNode: HTMLElement | null, // Accept HTMLElement or null
-    toast?: (props: Toast) => void
-): Promise<boolean> {
-  console.log("[copyPreview] Starting copy process. Node:", captureNode);
+  captureNode: HTMLElement | null,
+  toast?: (props: Toast) => void,
+  preparedBlob?: Blob | null,
+): Promise<PreviewImageResult> {
   if (!captureNode) {
-    console.error("[copyPreview] Capture node is missing.");
     toast?.({
-        title: "Error de Captura",
-        description: "El elemento a capturar no fue encontrado.",
-        variant: "destructive"
+      title: 'Error de captura',
+      description: 'No se encontró la orden para generar la imagen.',
+      variant: 'destructive',
     });
-    return false;
+    return 'failed';
   }
 
   try {
-    const { domToBlob } = await import("modern-screenshot");
+    const blob = preparedBlob ?? await crearBlobVistaPrevia(captureNode);
+    const imageFile = new File([blob], 'orden-de-servicio.png', { type: 'image/png' });
 
-    console.log("[copyPreview] Fonts are ready. Calling modern-screenshot...");
-    await (document as any).fonts?.ready;
+    if (isMobileDevice() && navigator.share) {
+      const shareData: ShareData = {
+        title: 'Orden de servicio',
+        files: [imageFile],
+      };
 
-    const blob = await domToBlob(captureNode, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-    });
-
-    if (!blob) {
-        throw new Error("No se pudo generar el blob de la imagen.");
+      if (!navigator.canShare || navigator.canShare(shareData)) {
+        try {
+          await navigator.share(shareData);
+          toast?.({
+            title: 'Imagen compartida',
+            description: 'La orden se compartió correctamente.',
+            variant: 'success',
+          });
+          return 'shared';
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            return 'cancelled';
+          }
+          console.warn('El menú para compartir no estuvo disponible; se usará el método alternativo.', error);
+        }
+      }
     }
-    console.log("[copyPreview] Blob generated:", blob);
 
-    const ClipboardItemAny = (window as any).ClipboardItem;
-    if (!ClipboardItemAny || !navigator.clipboard?.write) {
-        throw new Error("La API del portapapeles no es compatible o no está permitida en este navegador.");
+    if (isMobileDevice()) {
+      downloadBlob(blob);
+      toast?.({
+        title: 'Imagen guardada',
+        description: 'El navegador no pudo abrir compartir. Adjunta esta imagen desde Fotos o Archivos en WhatsApp.',
+        variant: 'success',
+        duration: 6000,
+      });
+      return 'downloaded';
     }
-    
-    if (!document.hasFocus()) {
-       throw new Error("La ventana no está enfocada. Por favor, haz clic en la página e intenta de nuevo.");
-    }
-    
-    console.log("[copyPreview] Attempting to write to clipboard...");
-    const item = new ClipboardItemAny({ "image/png": blob });
-    await navigator.clipboard.write([item]);
-    console.log("[copyPreview] Successfully wrote to clipboard.");
 
-    toast?.({
-        title: "✅ Imagen Copiada",
-        description: "La vista previa ha sido copiada. Pégala con Ctrl+V.",
-        variant: "success",
+    const ClipboardItemClass = window.ClipboardItem;
+    if (ClipboardItemClass && navigator.clipboard?.write && document.hasFocus()) {
+      const item = new ClipboardItemClass({ 'image/png': blob });
+      await navigator.clipboard.write([item]);
+      toast?.({
+        title: 'Imagen copiada',
+        description: 'La vista previa está lista para pegarla en WhatsApp.',
+        variant: 'success',
         duration: 5000,
-    });
-    return true;
+      });
+      return 'copied';
+    }
 
-  } catch (err) {
-    console.error("Error al copiar al portapapeles:", err);
+    downloadBlob(blob);
     toast?.({
-        title: "Copia Fallida",
-        description: (err as Error).message || "No se pudo copiar la imagen. Intenta de nuevo.",
-        variant: "destructive",
-        duration: 5000,
+      title: 'Imagen descargada',
+      description: 'Tu navegador no permite copiar imágenes. Adjunta el PNG descargado en WhatsApp.',
+      variant: 'default',
+      duration: 6000,
     });
-    return false;
+    return 'downloaded';
+  } catch (error) {
+    console.error('Error al compartir la vista previa:', error);
+    toast?.({
+      title: 'No se pudo compartir',
+      description: (error as Error).message || 'Intenta nuevamente desde un navegador actualizado.',
+      variant: 'destructive',
+      duration: 5000,
+    });
+    return 'failed';
   }
 }

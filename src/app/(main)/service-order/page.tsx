@@ -759,19 +759,13 @@ export default function ServiceOrderListPage() {
     const isDeleted = order.status === 'eliminado' || order.status === 'cancelado';
 
     return (
-      <div className="text-left space-x-1">
-        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePreviewOrderClick(order)} className="text-primary border-primary/50 hover:bg-primary/10 hover:text-primary h-8 w-8 p-0"><Eye className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Vista Previa (WhatsApp)</p></TooltipContent></Tooltip>
-        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleEditOrderClick(order)} disabled={!canEdit || isDeleted} className="text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0"><FilePenLine className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Editar</p></TooltipContent></Tooltip>
-        {canAccessLiquidation && order.hasLiquidation && order.data?.file && (<Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => setLiquidationViewerFile(order.data.file)} className="text-cyan-600 border-cyan-500/50 hover:bg-cyan-100/80 hover:text-cyan-700 dark:text-cyan-400 dark:border-cyan-400/50 dark:hover:bg-cyan-950/40 h-8 w-8 p-0"><Receipt className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Ver Liquidación</p></TooltipContent></Tooltip>)}
-        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handleDownloadExcel(order)} disabled={isDownloadingId === order.id || isDeleted} className="text-green-600 border-green-600/50 hover:bg-green-100/80 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0">{isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent><p>Descargar Excel</p></TooltipContent></Tooltip>
-        {isCurrentUserAdmin && (<Tooltip><TooltipTrigger asChild><Button variant="outline" size="sm" onClick={() => handlePrintToPdf(order)} disabled={isPrintingPdfId === order.id || isDeleted} className="text-red-600 border-red-600/50 hover:bg-red-100/80 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50 h-8 w-8 p-0">{isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent><p>Imprimir PDF</p></TooltipContent></Tooltip>)}
-        {!isDeleted && (<AlertDialog>
-          <Tooltip><TooltipTrigger asChild><AlertDialogTrigger asChild><Button variant="destructive" size="sm" disabled={!canDelete} onClick={() => setOrderToDelete(order)} className="h-8 w-8 p-0"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger></TooltipTrigger><TooltipContent><p>Eliminar Orden</p></TooltipContent></Tooltip>
-          {orderToDelete && orderToDelete.id === order.id && (<AlertDialogContent>
-            <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de eliminar esta orden?</AlertDialogTitle><AlertDialogDescription>{getDeletionAlertDescription()}</AlertDialogDescription></AlertDialogHeader>
-            <AlertDialogFooter><AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cerrar</AlertDialogCancel><AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">Sí, eliminar</AlertDialogAction></AlertDialogFooter>
-          </AlertDialogContent>)}
-        </AlertDialog>)}
+      <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap">
+        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" aria-label="Ver orden" onClick={() => handlePreviewOrderClick(order)} className="h-9 w-9 text-primary border-primary/50 hover:bg-primary/10"><Eye className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Vista previa (WhatsApp)</TooltipContent></Tooltip>
+        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" aria-label="Editar orden" onClick={() => handleEditOrderClick(order)} disabled={!canEdit || isDeleted} className="h-9 w-9 text-indigo-600 border-indigo-600/50 hover:bg-indigo-100/80"><FilePenLine className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+        {canAccessLiquidation && order.hasLiquidation && order.data?.file && <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" aria-label="Ver liquidación" onClick={() => setLiquidationViewerFile(order.data.file)} className="h-9 w-9 text-cyan-600 border-cyan-500/50 hover:bg-cyan-50"><Receipt className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Ver liquidación</TooltipContent></Tooltip>}
+        <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" aria-label="Descargar Excel" onClick={() => handleDownloadExcel(order)} disabled={isDownloadingId === order.id || isDeleted} className="h-9 w-9 text-green-600 border-green-600/50 hover:bg-green-50">{isDownloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent>Descargar Excel</TooltipContent></Tooltip>
+        {isCurrentUserAdmin && <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" aria-label="Imprimir PDF" onClick={() => handlePrintToPdf(order)} disabled={isPrintingPdfId === order.id || isDeleted} className="h-9 w-9 text-red-600 border-red-600/50 hover:bg-red-50">{isPrintingPdfId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent>Imprimir PDF</TooltipContent></Tooltip>}
+        {!isDeleted && <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" aria-label="Eliminar orden" onClick={() => setOrderToDelete(order)} disabled={!canDelete} className="h-9 w-9 text-destructive border-destructive/50 hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Eliminar orden</TooltipContent></Tooltip>}
       </div>
     );
   };
@@ -828,12 +822,13 @@ export default function ServiceOrderListPage() {
                 <TooltipTrigger asChild>
                   <Button
                     onClick={handleNewOrderClick}
-                    size="icon"
+                    size="sm"
                     variant="outline"
                     aria-label="Nueva Orden de Servicio"
-                    className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl border-primary/30 text-primary hover:bg-transparent hover:text-primary/80 dark:hover:text-primary/80 hover:border-primary/50 shadow-md touch-target shrink-0"
+                    className="h-12 sm:h-14 rounded-xl border-sky-300 bg-white text-sky-700 shadow-sm touch-target shrink-0 gap-2 px-3 hover:scale-100 hover:shadow-sm focus-visible:scale-100 focus-visible:shadow-sm hover:border-sky-400 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-700 dark:bg-slate-950 dark:text-sky-300 dark:hover:bg-sky-950/40 dark:hover:text-sky-200"
                   >
-                    <FilePlus className="h-6 w-6 sm:h-7 sm:w-7" />
+                    <FilePlus className="h-5 w-5" />
+                    <span>Nueva orden</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent><p>Nueva Orden de Servicio</p></TooltipContent>
@@ -909,7 +904,7 @@ export default function ServiceOrderListPage() {
                   <div className="relative flex-grow">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Escribe y presiona Enter..."
+                      placeholder="Buscar por file, orden o responsable..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       onKeyDown={(e) => {
@@ -998,7 +993,6 @@ export default function ServiceOrderListPage() {
                     onDelete={setOrderToDelete}
                     onViewLiquidation={canAccessLiquidation ? (file) => setLiquidationViewerFile(file) : undefined}
                     getStatusBadge={getStatusBadge}
-                    getDeletionDescription={getDeletionAlertDescription}
                   />
                 );
               }) : (
@@ -1027,7 +1021,7 @@ export default function ServiceOrderListPage() {
                     <TableHead className="w-[120px] border-r border-border/40 cursor-pointer hover:bg-muted/50" onClick={() => handleSort('createdAt')}>
                       Fecha de registro{getSortIcon('createdAt')}
                     </TableHead>
-                    <TableHead className="text-left">Acciones</TableHead>
+                    <TableHead className="w-[242px] min-w-[242px] text-left">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1077,7 +1071,7 @@ export default function ServiceOrderListPage() {
                           <TableCell className="border-r border-border/40">{getStatusBadge(parent, childCount)}</TableCell>
                           <TableCell className="border-r border-border/40">{parent.createdBy}</TableCell>
                           <TableCell className="border-r border-border/40">{format(parent.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
-                          <TableCell>{renderOrderActions(parent)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{renderOrderActions(parent)}</TableCell>
                         </TableRow>
 
                         {isExpanded && children.map(child => {
@@ -1102,7 +1096,7 @@ export default function ServiceOrderListPage() {
                               <TableCell className="border-r border-border/40">{getStatusBadge(child)}</TableCell>
                               <TableCell className="border-r border-border/40">{child.createdBy}</TableCell>
                               <TableCell className="border-r border-border/40">{format(child.createdAt, 'dd/MM/yyyy', { locale: es })}</TableCell>
-                              <TableCell>{renderOrderActions(child)}</TableCell>
+                              <TableCell className="whitespace-nowrap">{renderOrderActions(child)}</TableCell>
                             </TableRow>
                           );
                         })}
@@ -1204,6 +1198,13 @@ export default function ServiceOrderListPage() {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => { if (!open) setOrderToDelete(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de eliminar esta orden?</AlertDialogTitle><AlertDialogDescription>{getDeletionAlertDescription()}</AlertDialogDescription></AlertDialogHeader>
+            <AlertDialogFooter><AlertDialogCancel>Cerrar</AlertDialogCancel><AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">Sí, eliminar</AlertDialogAction></AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {isEditModalOpen && orderToEdit && (
           <ServiceOrderEditModal
