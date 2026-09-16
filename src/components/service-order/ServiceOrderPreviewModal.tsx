@@ -35,6 +35,7 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
   const [zoom, setZoom] = useState(1);
   const [fitZoom, setFitZoom] = useState(1);
   const [captureHeight, setCaptureHeight] = useState(0);
+  const [previewReady, setPreviewReady] = useState(false);
   const pinchRef = useRef({ active: false, startDistance: 0, startZoom: 1 });
 
   const getTouchDistance = (touches: TouchEvent<HTMLDivElement>['touches']) => {
@@ -118,6 +119,7 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
   useEffect(() => {
     let observer: ResizeObserver | undefined;
     let retryId: number | undefined;
+    setPreviewReady(false);
 
     const setupMeasurement = () => {
       const captureNode = captureRef.current;
@@ -129,6 +131,7 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
 
       const updatePreviewSize = () => {
         setCaptureHeight(captureNode.scrollHeight);
+        setPreviewReady(true);
         const nextFit = isMobile
           ? Math.min(Math.max((viewportNode.clientWidth - 8) / 1200, 0.2), 1)
           : 1;
@@ -194,7 +197,7 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
   return (
     <>
       <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-        <DialogContent showClose={false} style={{ '--modal-height': `${Math.max(captureHeight * zoom + 96, 616)}px` } as CSSProperties} overlayClassName="bg-slate-950/25 dark:bg-slate-950/40" className="h-[100dvh] w-screen max-w-none max-h-[100dvh] overflow-hidden rounded-none border-0 bg-white/25 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.24),inset_0_1px_0_rgba(255,255,255,0.8)] ring-1 ring-white/80 backdrop-blur-2xl backdrop-saturate-150 flex flex-col gap-0 dark:bg-slate-950/25 dark:ring-white/20 md:h-[var(--modal-height)] md:max-h-[95vh] md:w-full md:max-w-[90vw] md:rounded-2xl md:border xl:max-w-[1250px]">
+        <DialogContent showClose={false} style={{ '--modal-height': `${Math.max(captureHeight * zoom + 96, 616)}px`, opacity: previewReady ? 1 : 0 } as CSSProperties} overlayClassName="bg-slate-950/25 dark:bg-slate-950/40" className="h-[100dvh] w-screen max-w-none max-h-[100dvh] overflow-hidden rounded-none border-0 bg-white/25 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.24),inset_0_1px_0_rgba(255,255,255,0.8)] ring-1 ring-white/80 backdrop-blur-2xl backdrop-saturate-150 transition-opacity duration-150 flex flex-col gap-0 dark:bg-slate-950/25 dark:ring-white/20 md:h-[var(--modal-height)] md:max-h-[95vh] md:w-full md:max-w-[90vw] md:rounded-2xl md:border xl:max-w-[1250px]">
           <DialogHeader className="sr-only">
             <DialogTitle>Vista previa de la orden</DialogTitle>
             <DialogDescription>Vista previa de la orden de servicio con detalles completos</DialogDescription>
