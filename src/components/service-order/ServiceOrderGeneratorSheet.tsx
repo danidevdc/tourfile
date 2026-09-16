@@ -393,7 +393,7 @@ export function ServiceOrderGeneratorSheet({
             title: "Generación Exitosa",
             description: `Se generaron ${sortedGenerated.length} servicios ordenados.${omittedMessage}`,
             variant: "success",
-            duration: omittedTransfers > 0 ? 8000 : 5000,
+            duration: 5000,
         });
     };
 
