@@ -90,6 +90,10 @@ const isFlightDirectionCompatible = (
     : observations.includes('SALE');
 };
 
+const hasLpbConnection = (activityText: string): boolean => {
+  return /\bLPB\b/i.test(activityText);
+};
+
 /**
  * Checks if a value from an Excel cell is a valid date (either a Date object or an Excel serial number).
  * @param cellValue The value from the cell.
@@ -184,6 +188,9 @@ export function generateServicesFromExcelColumnWithDiagnostics(
             const databaseMatches = detectedFlightNumbers.flatMap(
               code => flightsByCode.get(normalizeFlightCode(code)) || []
             );
+            const unknownFlightNumbers = detectedFlightNumbers.filter(
+              code => !flightsByCode.has(normalizeFlightCode(code))
+            );
 
             // The last leg normally arrives at LPB; the first normally leaves it.
             const orderedCodes = transferType === 'TRF IN'
@@ -200,19 +207,26 @@ export function generateServicesFromExcelColumnWithDiagnostics(
             }
 
             if (!detectedFlight) {
-              const reason: SkippedTransferReason = detectedFlightNumbers.length === 0
-                ? 'NO_FLIGHT_CODE'
-                : databaseMatches.length === 0
+              // Interior flights are intentionally ignored when they are not
+              // in the LPB flight master data. Warn only when the route itself
+              // indicates a La Paz connection and an explicit flight code is
+              // missing from the database.
+              const shouldReport = detectedFlightNumbers.length > 0 && hasLpbConnection(activityText);
+              if (shouldReport) {
+                const reason: SkippedTransferReason = unknownFlightNumbers.length > 0
                   ? 'FLIGHT_NOT_IN_DATABASE'
-                  : 'DIRECTION_MISMATCH';
+                  : databaseMatches.length > 0
+                    ? 'DIRECTION_MISMATCH'
+                    : 'FLIGHT_NOT_IN_DATABASE';
 
-              skippedTransfers.push({
-                rowNumber: i + 1,
-                activity: rule.activity,
-                activityText,
-                detectedFlightNumbers,
-                reason,
-              });
+                skippedTransfers.push({
+                  rowNumber: i + 1,
+                  activity: rule.activity,
+                  activityText,
+                  detectedFlightNumbers,
+                  reason,
+                });
+              }
               continue;
             }
           }

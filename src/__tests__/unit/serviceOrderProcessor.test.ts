@@ -61,15 +61,41 @@ describe('generateServicesFromExcelColumnWithDiagnostics', () => {
       hora: '14:45',
       observaciones: 'LLEGA A LA PAZ',
     });
-    expect(result.skippedTransfers.map(item => item.reason)).toEqual([
-      'FLIGHT_NOT_IN_DATABASE',
-      'NO_FLIGHT_CODE',
-    ]);
+    expect(result.skippedTransfers.map(item => item.reason)).toEqual([]);
+  });
+
+  it('does not warn for an unknown interior flight without an LPB connection', () => {
+    const result = generateServicesFromExcelColumnWithDiagnostics(
+      [[null, 'Private transfer from airport to hotel - OB735 GRU/VVI']],
+      1,
+      [transferRule('TRF IN')],
+      [],
+      []
+    );
+
+    expect(result.services).toEqual([]);
+    expect(result.skippedTransfers).toEqual([]);
+  });
+
+  it('warns when an unknown flight is explicitly connected to LPB', () => {
+    const result = generateServicesFromExcelColumnWithDiagnostics(
+      [[null, 'Private transfer from airport to hotel - OB735 GRU/LPB']],
+      1,
+      [transferRule('TRF IN')],
+      [],
+      []
+    );
+
+    expect(result.services).toEqual([]);
+    expect(result.skippedTransfers[0]).toMatchObject({
+      detectedFlightNumbers: ['OB735'],
+      reason: 'FLIGHT_NOT_IN_DATABASE',
+    });
   });
 
   it('rejects a known flight when its direction conflicts with the transfer', () => {
     const result = generateServicesFromExcelColumnWithDiagnostics(
-      [[null, 'Private transfer from airport to hotel - OB735 GRU/VVI']],
+      [[null, 'Private transfer from airport to hotel - OB735 GRU/LPB']],
       1,
       [transferRule('TRF IN')],
       [],
