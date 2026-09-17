@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.4.9] - 2026-09-17
+
+### Validación de vuelos conectados con La Paz
+
+- Las advertencias de vuelos no registrados se muestran únicamente cuando la ruta incluye `LPB`.
+- Los vuelos interiores no registrados ya no generan avisos innecesarios.
+
+---
+
 ## [3.4.8] - 2026-09-16
 
 ### Optimización del visor de órdenes
