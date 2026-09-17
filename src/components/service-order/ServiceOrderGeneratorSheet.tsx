@@ -940,7 +940,7 @@ export function ServiceOrderGeneratorSheet({
                             <div className={cn('rounded-lg border p-3 text-sm', generationSummary.skippedTransfers.length > 0 ? 'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100' : 'border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-100')} role="status">
                                 <div className="flex items-start gap-2 font-medium">
                                     {generationSummary.skippedTransfers.length > 0 ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />}
-                                    <span>{generationSummary.generatedCount} servicios generados. {generationSummary.skippedTransfers.length > 0 ? `${generationSummary.skippedTransfers.length} traslados omitidos; revisa antes de guardar.` : 'No se omitieron traslados.'}</span>
+                                    <span>{generationSummary.generatedCount} servicios generados{generationSummary.skippedTransfers.length > 0 ? `. ${generationSummary.skippedTransfers.length} traslados omitidos; revisa antes de guardar.` : '.'}</span>
                                 </div>
                                 {generationSummary.skippedTransfers.length > 0 && (
                                     <ul className="mt-2 ml-6 list-disc space-y-1 text-xs">
