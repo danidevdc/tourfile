@@ -422,12 +422,12 @@ export default function ServiceOrderListPage() {
     setIsPreviewModalOpen(true);
   };
 
-  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData) => {
+  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData, options?: { splitSeparated?: boolean }) => {
     if (!orderToEdit || !currentUser?.email || isSaving) return;
 
     setIsSaving(true);
     try {
-      await saveEditedServiceOrder(orderToEdit, updatedOrderData, currentUser.email);
+      await saveEditedServiceOrder(orderToEdit, updatedOrderData, currentUser.email, options?.splitSeparated);
       toast({ title: "Éxito", description: "La orden ha sido actualizada y/o dividida exitosamente.", variant: "success" });
       await fetchOrders(); // Wait for orders to load before closing modal
       setIsEditModalOpen(false);

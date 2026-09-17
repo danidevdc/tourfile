@@ -14,10 +14,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Combobox, ComboboxOption } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, X, XCircle, PlusCircle, UserPlus, Car, Loader2 } from "lucide-react";
+import { Save, X, XCircle, PlusCircle, UserPlus, Car, Loader2, Split } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "../ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Switch } from "@/components/ui/switch";
 
 
 interface ServiceOrderEditModalProps {
@@ -28,7 +29,7 @@ interface ServiceOrderEditModalProps {
   flights: PredefinedFlight[];
   hotels: Hotel[];
   buses: Bus[];
-  onSave: (updatedOrderData: ServiceOrderData) => void;
+  onSave: (updatedOrderData: ServiceOrderData, options?: { splitSeparated?: boolean }) => void;
   onClose: () => void;
   isSaving?: boolean;
 }
@@ -44,6 +45,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
   const [additionalGuides, setAdditionalGuides] = useState<string[]>([]);
   const [additionalDrivers, setAdditionalDrivers] = useState<string[]>([]);
+  const [isSplitMode, setIsSplitMode] = useState(false);
 
   const isChildOrder = !!order.splitFrom;
 
@@ -55,6 +57,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
     const allDriversInServices = new Set(order.data.services.map(s => s.chofer).filter(Boolean) as string[]);
     setAdditionalDrivers(Array.from(allDriversInServices));
+    setIsSplitMode(order.data.isSplitSeparated === true);
 
     const servicesWithIds = order.data.services.map(s => ({
       ...s,
@@ -135,7 +138,7 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
   };
 
   const handleSaveClick = () => {
-    onSave(editableOrderData);
+    onSave(editableOrderData, { splitSeparated: isSplitMode });
   };
 
   const handleNewServiceTimeChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -243,6 +246,18 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
   const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim();
 
+  const totalGuides = new Set(
+    editableOrderData.services
+      .map(service => service.guia || editableOrderData.guia)
+      .filter(Boolean)
+  ).size;
+  const totalDrivers = new Set(
+    editableOrderData.services
+      .filter(service => service.chofer && service.chofer.toUpperCase() !== 'NONE' && service.bus?.toUpperCase() !== 'SIN BUS')
+      .map(service => service.chofer)
+  ).size;
+  const canEnableSplit = totalGuides === 1 && totalDrivers === 1;
+
   // Calculate total from tarifa column
   const totalTarifa = useMemo(() => {
     return editableOrderData.services.reduce((sum, service) => {
@@ -289,6 +304,23 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
               <div className="flex items-center gap-2 flex-wrap">
                 {additionalDrivers.map(d => <div key={d} className="flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-full px-2 py-0.5"><Button variant="ghost" size="icon" className="h-4 w-4 text-green-500" onClick={() => setAdditionalDrivers(additionalDrivers.filter(ad => ad !== d))}><XCircle size={14} /></Button><span>{d}</span></div>)}
               </div>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-purple-300 bg-purple-50 px-3 py-2 dark:border-purple-500/40 dark:bg-purple-950/30">
+                <div className="flex items-center gap-2">
+                  <Split className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <div>
+                    <Label htmlFor="edit-split-mode" className="cursor-pointer text-sm font-medium text-purple-900 dark:text-purple-100">Orden Separada</Label>
+                    <p className="text-xs text-purple-700 dark:text-purple-200">Crea una copia para el guía y otra para el chofer.</p>
+                  </div>
+                </div>
+                <Switch
+                  id="edit-split-mode"
+                  checked={isSplitMode}
+                  onCheckedChange={setIsSplitMode}
+                  disabled={!canEnableSplit}
+                  className="data-[state=checked]:bg-purple-600 data-[state=unchecked]:bg-purple-200 dark:data-[state=unchecked]:bg-purple-900/60"
+                />
+              </div>
+              {!canEnableSplit && <p className="text-xs text-muted-foreground">Disponible únicamente con 1 guía y 1 chofer asignados.</p>}
             </div>
           )}
 

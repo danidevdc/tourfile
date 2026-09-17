@@ -302,7 +302,8 @@ export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, cre
 export async function saveEditedServiceOrder(
     originalOrder: StoredServiceOrder,
     updatedData: ServiceOrderData,
-    userEmail: string
+    userEmail: string,
+    splitSeparated?: boolean
 ): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
 
@@ -315,7 +316,7 @@ export async function saveEditedServiceOrder(
 
     saveLocks.add(lockKey);
     try {
-        await _performSaveEditedServiceOrder(originalOrder, updatedData, userEmail);
+        await _performSaveEditedServiceOrder(originalOrder, updatedData, userEmail, splitSeparated);
     } finally {
         saveLocks.delete(lockKey);
     }
@@ -324,7 +325,8 @@ export async function saveEditedServiceOrder(
 async function _performSaveEditedServiceOrder(
     originalOrder: StoredServiceOrder,
     updatedData: ServiceOrderData,
-    userEmail: string
+    userEmail: string,
+    splitSeparated?: boolean
 ): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
 
@@ -377,8 +379,11 @@ async function _performSaveEditedServiceOrder(
 
         const needsSplit = guideServiceMap.size > 1 || driverServiceMap.size > 1;
         const wasSplitSeparated = originalOrder.data.isSplitSeparated === true;
+        const shouldSplitSeparated = (splitSeparated ?? wasSplitSeparated)
+            && guideServiceMap.size === 1
+            && driverServiceMap.size === 1;
 
-        if (!needsSplit) {
+        if (!needsSplit && !shouldSplitSeparated) {
             // If no split is needed, just update the main order and ensure it's not marked as a split parent.
             batch.update(parentRef, {
                 data: { ...updatedData, isSplitParent: false, isSplitSeparated: false }, // Explicitly set flags to false
@@ -386,7 +391,7 @@ async function _performSaveEditedServiceOrder(
                 status: 'editado',
                 updatedAt: serverTimestamp()
             });
-        } else if (wasSplitSeparated && guideServiceMap.size === 1 && driverServiceMap.size === 1) {
+        } else if (shouldSplitSeparated) {
             // Special case: was split separated and still has 1 guide + 1 driver
             // Recreate as split separated (2 identical child orders)
             const guide = Array.from(guideServiceMap.keys())[0];
