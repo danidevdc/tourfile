@@ -29,6 +29,17 @@
   to { opacity: 1; }
 }
 
+@keyframes duplicate-order-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.12); }
+  50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.24); }
+}
+
+.duplicate-order-pulse { animation: duplicate-order-pulse 1.8s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .duplicate-order-pulse { animation: none; }
+}
+
 /* Fallback for browsers without View Transitions */
 @supports not (view-transition-name: root) {
   :root {
