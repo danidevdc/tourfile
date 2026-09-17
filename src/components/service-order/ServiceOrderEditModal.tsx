@@ -258,6 +258,10 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
   ).size;
   const canEnableSplit = totalGuides === 1 && totalDrivers === 1;
 
+  useEffect(() => {
+    if (!canEnableSplit && isSplitMode) setIsSplitMode(false);
+  }, [canEnableSplit, isSplitMode]);
+
   // Calculate total from tarifa column
   const totalTarifa = useMemo(() => {
     return editableOrderData.services.reduce((sum, service) => {
@@ -304,23 +308,23 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
               <div className="flex items-center gap-2 flex-wrap">
                 {additionalDrivers.map(d => <div key={d} className="flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-full px-2 py-0.5"><Button variant="ghost" size="icon" className="h-4 w-4 text-green-500" onClick={() => setAdditionalDrivers(additionalDrivers.filter(ad => ad !== d))}><XCircle size={14} /></Button><span>{d}</span></div>)}
               </div>
-              <div className="flex items-center justify-between gap-3 rounded-md border border-purple-300 bg-purple-50 px-3 py-2 dark:border-purple-500/40 dark:bg-purple-950/30">
-                <div className="flex items-center gap-2">
-                  <Split className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                  <div>
-                    <Label htmlFor="edit-split-mode" className="cursor-pointer text-sm font-medium text-purple-900 dark:text-purple-100">Orden Separada</Label>
-                    <p className="text-xs text-purple-700 dark:text-purple-200">Crea una copia para el guía y otra para el chofer.</p>
+              {canEnableSplit && (
+                <div className="flex items-center justify-between gap-3 rounded-md border border-purple-300 bg-purple-50 px-3 py-2 dark:border-purple-500/40 dark:bg-purple-950/30">
+                  <div className="flex items-center gap-2">
+                    <Split className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                    <div>
+                      <Label htmlFor="edit-split-mode" className="cursor-pointer text-sm font-medium text-purple-900 dark:text-purple-100">Orden Separada</Label>
+                      <p className="text-xs text-purple-700 dark:text-purple-200">Crea una copia para el guía y otra para el chofer.</p>
+                    </div>
                   </div>
+                  <Switch
+                    id="edit-split-mode"
+                    checked={isSplitMode}
+                    onCheckedChange={setIsSplitMode}
+                    className="data-[state=checked]:bg-purple-600 data-[state=unchecked]:bg-purple-200 dark:data-[state=unchecked]:bg-purple-900/60"
+                  />
                 </div>
-                <Switch
-                  id="edit-split-mode"
-                  checked={isSplitMode}
-                  onCheckedChange={setIsSplitMode}
-                  disabled={!canEnableSplit}
-                  className="data-[state=checked]:bg-purple-600 data-[state=unchecked]:bg-purple-200 dark:data-[state=unchecked]:bg-purple-900/60"
-                />
-              </div>
-              {!canEnableSplit && <p className="text-xs text-muted-foreground">Disponible únicamente con 1 guía y 1 chofer asignados.</p>}
+              )}
             </div>
           )}
 
