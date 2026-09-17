@@ -288,6 +288,31 @@ export async function searchRecentOrdersByFileCode(fileCode: string): Promise<St
 }
 
 /**
+ * Busca órdenes raíz activas con coincidencia exacta de file.
+ * Las órdenes hijas se excluyen para que una orden dividida cuente una sola vez.
+ */
+export async function findActiveRootOrdersByExactFile(fileCode: string): Promise<StoredServiceOrder[]> {
+  if (!db) throw new Error("Firestore not initialized.");
+
+  const normalizedFile = fileCode.trim().toUpperCase();
+  if (!normalizedFile) return [];
+
+  const ordersRef = collection(db, 'serviceOrders');
+  const q = query(ordersRef, where('data.file', '==', normalizedFile));
+  const snapshot = await getDocs(q);
+
+  const matches = snapshot.docs
+    .filter(docSnap => {
+      const data = docSnap.data();
+      return !data.splitFrom && data.status !== 'eliminado';
+    })
+    .map(docSnap => mapOrderDoc(docSnap));
+
+  logger.debug(`🔍 Verificación de duplicado para file "${normalizedFile}" - ${snapshot.size} lecturas`);
+  return matches;
+}
+
+/**
  * Busca órdenes recientes (últimos N días) - para texto general
  */
 export async function searchRecentOrders(searchTerm: string, daysBack: number = 30): Promise<StoredServiceOrder[]> {

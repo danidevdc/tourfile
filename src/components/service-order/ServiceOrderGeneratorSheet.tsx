@@ -16,7 +16,8 @@ import { getServiceOrderRules, type ServiceOrderRule } from '@/lib/serviceOrderR
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { generateServicesFromExcelColumnWithDiagnostics, type SkippedTransfer } from '@/lib/serviceOrderProcessor';
 import { getServiceOrderDraftError } from '@/lib/serviceOrderDraftValidation';
-import { saveServiceOrder, saveServiceOrderWithSplit, saveServiceOrderInSplitMode } from '@/lib/serviceOrderStorage';
+import { saveServiceOrderWithSplit, saveServiceOrderInSplitMode, type StoredServiceOrder } from '@/lib/serviceOrderStorage';
+import { findActiveRootOrdersByExactFile } from '@/lib/serviceOrderSearch';
 import { findFileInExcelData, sortServiceItems, type ExcelMatrix } from '@/lib/serviceOrderGeneratorHelpers';
 
 import { Button } from "@/components/ui/button";
@@ -68,7 +69,9 @@ export function ServiceOrderGeneratorSheet({
 
     const [isSaving, setIsSaving] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(false);
-    const [isReviewOpen, setIsReviewOpen] = useState(false);
+    const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
+    const [duplicateOrders, setDuplicateOrders] = useState<StoredServiceOrder[]>([]);
+    const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
     const [generationSummary, setGenerationSummary] = useState<{ generatedCount: number; skippedTransfers: SkippedTransfer[] } | null>(null);
 
     const [ownDrivers, setOwnDrivers] = useState<Driver[]>([]);
@@ -494,11 +497,29 @@ export function ServiceOrderGeneratorSheet({
         setOrderData({ ...orderData, services: orderData.services.filter((_, i) => i !== index) });
     };
 
-    const handleSaveOrder = async () => {
+    const handleSaveOrder = async (skipDuplicateCheck = false) => {
         const draftError = getServiceOrderDraftError(orderData);
         if (draftError || !currentUser?.email) {
             toast({ title: "Revisa la orden", description: draftError || "Inicia sesión antes de guardar.", variant: "destructive" }); return;
         }
+
+        if (!skipDuplicateCheck) {
+            setIsCheckingDuplicate(true);
+            try {
+                const matches = await findActiveRootOrdersByExactFile(orderData.file);
+                if (matches.length > 0) {
+                    setDuplicateOrders(matches);
+                    setIsDuplicateOpen(true);
+                    return;
+                }
+            } catch (error: any) {
+                toast({ title: "No se pudo verificar el file", description: error.message || "Intenta nuevamente.", variant: "destructive" });
+                return;
+            } finally {
+                setIsCheckingDuplicate(false);
+            }
+        }
+
         setIsSaving(true);
         try {
             // If split mode is enabled and conditions are met, use split mode
@@ -513,7 +534,7 @@ export function ServiceOrderGeneratorSheet({
                     : "Orden de servicio guardada exitosamente.";
                 toast({ title: "Éxito", description: message, variant: "success" });
             }
-            setIsReviewOpen(false);
+            setIsDuplicateOpen(false);
             setGenerationSummary(null);
             onSave();
         } catch (error: any) {
@@ -521,15 +542,6 @@ export function ServiceOrderGeneratorSheet({
         } finally {
             setIsSaving(false);
         }
-    };
-
-    const handleReviewOrder = () => {
-        const draftError = getServiceOrderDraftError(orderData);
-        if (draftError) {
-            toast({ title: "Revisa la orden", description: draftError, variant: "destructive" });
-            return;
-        }
-        setIsReviewOpen(true);
     };
 
     const handleApplyDateToSelected = () => {
@@ -1209,29 +1221,33 @@ export function ServiceOrderGeneratorSheet({
                         </TooltipContent>
                     </Tooltip>
                     <Button variant="outline" onClick={onClose} className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">Cerrar</Button>
-                    <Button onClick={handleReviewOrder} disabled={isSaving || isLoadingData}>
+                    <Button onClick={() => void handleSaveOrder()} disabled={isSaving || isLoadingData || isCheckingDuplicate}>
                         <Save className="mr-2 h-4 w-4" />
-                        Revisar y guardar
+                        {isCheckingDuplicate ? 'Verificando file...' : 'Guardar orden'}
                     </Button>
                 </div>
-                <AlertDialog open={isReviewOpen} onOpenChange={setIsReviewOpen}>
+                <AlertDialog open={isDuplicateOpen} onOpenChange={setIsDuplicateOpen}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Confirmar orden de servicio</AlertDialogTitle>
-                            <AlertDialogDescription>Comprueba los datos antes de guardar. Esta acción creará la orden en la base de datos.</AlertDialogDescription>
+                            <AlertDialogTitle>Ya existe una orden con este file</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Se encontraron {duplicateOrders.length === 1 ? 'estos datos' : 'estas órdenes'} para el file <strong>{orderData.file}</strong>. ¿Estás seguro de que deseas crear otra?
+                            </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                            <dt className="text-muted-foreground">File</dt><dd className="font-medium break-all">{orderData.file}</dd>
-                            <dt className="text-muted-foreground">Guía</dt><dd className="font-medium">{orderData.guia}</dd>
-                            <dt className="text-muted-foreground">Servicios</dt><dd className="font-medium">{orderData.services.length}</dd>
-                            <dt className="text-muted-foreground">Modalidad</dt><dd className="font-medium">{isSplitMode && splitModeStatus.canEnableSplit ? 'Orden separada para guía y chofer' : splitModeStatus.willBeDivided ? 'División automática por responsable' : 'Orden normal'}</dd>
-                        </dl>
+                        <ul className="max-h-48 space-y-2 overflow-y-auto rounded-md border bg-muted/30 p-3 text-sm">
+                            {duplicateOrders.map(existingOrder => (
+                                <li key={existingOrder.id} className="flex items-center justify-between gap-3">
+                                    <span className="font-medium">{existingOrder.orderName.replace(/_/g, ' ')}</span>
+                                    <span className="shrink-0 text-muted-foreground">{format(existingOrder.createdAt, 'dd/MM/yyyy')}</span>
+                                </li>
+                            ))}
+                        </ul>
                         {generationSummary && generationSummary.skippedTransfers.length > 0 && <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">Atención: {generationSummary.skippedTransfers.length} traslados no se incluyeron. Puedes volver al resumen para revisarlos.</p>}
                         <AlertDialogFooter>
-                            <AlertDialogCancel disabled={isSaving}>Volver a revisar</AlertDialogCancel>
-                            <AlertDialogAction disabled={isSaving} onClick={(event) => { event.preventDefault(); void handleSaveOrder(); }}>
+                            <AlertDialogCancel disabled={isSaving}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction disabled={isSaving} onClick={(event) => { event.preventDefault(); setIsDuplicateOpen(false); void handleSaveOrder(true); }}>
                                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Confirmar y guardar
+                                Crear de todas formas
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
