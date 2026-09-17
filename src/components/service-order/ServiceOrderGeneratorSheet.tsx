@@ -1236,7 +1236,7 @@ export function ServiceOrderGeneratorSheet({
                         </AlertDialogHeader>
                         <ul className="max-h-48 space-y-2 overflow-y-auto rounded-md border bg-muted/30 p-3 text-sm">
                             {duplicateOrders.map(existingOrder => (
-                                <li key={existingOrder.id} className="flex items-center justify-between gap-3">
+                                <li key={existingOrder.id} className="duplicate-order-pulse flex items-center justify-between gap-3 rounded-md border border-red-400 bg-red-50/70 px-2 py-1.5 text-red-950 dark:border-red-500/70 dark:bg-red-950/30 dark:text-red-100">
                                     <span className="font-medium">{existingOrder.orderName.replace(/_/g, ' ')}</span>
                                     <span className="shrink-0 text-muted-foreground">{format(existingOrder.createdAt, 'dd/MM/yyyy')}</span>
                                 </li>
@@ -1244,7 +1244,7 @@ export function ServiceOrderGeneratorSheet({
                         </ul>
                         {generationSummary && generationSummary.skippedTransfers.length > 0 && <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">Atención: {generationSummary.skippedTransfers.length} traslados no se incluyeron. Puedes volver al resumen para revisarlos.</p>}
                         <AlertDialogFooter>
-                            <AlertDialogCancel disabled={isSaving}>Cancelar</AlertDialogCancel>
+                            <AlertDialogCancel disabled={isSaving} className="border-red-400 text-red-600 shadow-[0_0_10px_rgba(239,68,68,0.18)] hover:bg-red-50 hover:text-red-700 dark:border-red-500/70 dark:text-red-300 dark:hover:bg-red-950/40">Cancelar</AlertDialogCancel>
                             <AlertDialogAction disabled={isSaving} onClick={(event) => { event.preventDefault(); setIsDuplicateOpen(false); void handleSaveOrder(true); }}>
                                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Crear de todas formas
