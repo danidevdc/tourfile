@@ -53,7 +53,20 @@ export interface StoredServiceOrder {
     createdBy: string;
     createdAt: Date;
     updatedAt?: Date;
-    data: ServiceOrderData & { isSplitParent?: boolean; isSplitSeparated?: boolean; responsible?: { guia?: string; chofer?: string }; splitKey?: string; };
+    data: ServiceOrderData & {
+        isSplitParent?: boolean;
+        isSplitSeparated?: boolean;
+        isSplitDuplicated?: boolean;
+        responsible?: { guia?: string; chofer?: string };
+        splitKey?: string;
+        /**
+         * Responsables que recibieron copia en modo "Duplicar Órdenes" (principal +
+         * adicionales declarados en la UI). Se guarda en el padre para poder volver a
+         * mostrarlos (y quitarlos) al editar, ya que los adicionales no siempre existen
+         * en los servicios. `null` cuando la orden no está duplicada.
+         */
+        splitResponsibles?: { guides?: string[]; drivers?: string[] } | null;
+    };
     status: OrderStatus;
     deletedBy?: string;
     splitFrom?: string;
@@ -110,6 +123,46 @@ function extractAllResponsibles(orderData: ServiceOrderData): string[] {
     return Array.from(responsibles).sort();
 }
 
+/**
+ * Resolve la lista única de guías y choferes que deben recibir una copia de la
+ * orden en modo "Duplicar Órdenes".
+ * Combina los responsables declarados en la UI (principal + adicionales) con los
+ * que aparecen en los servicios, para que nadie se quede sin su orden.
+ */
+function resolveResponsibles(
+    orderData: ServiceOrderData,
+    declared?: { guides?: string[]; drivers?: string[] }
+): { guides: string[]; drivers: string[] } {
+    const guides = new Set<string>();
+    const drivers = new Set<string>();
+
+    const addGuide = (guide?: string | null) => {
+        const value = (guide || '').trim();
+        if (!value) return;
+        const upper = value.toUpperCase();
+        if (upper === 'NONE' || upper === 'SIN GUIA PRINCIPAL') return;
+        guides.add(value);
+    };
+
+    const addDriver = (driver?: string | null, bus?: string) => {
+        const value = (driver || '').trim();
+        if (!value || value.toUpperCase() === 'NONE') return;
+        if ((bus || '').toUpperCase() === 'SIN BUS') return;
+        drivers.add(value);
+    };
+
+    addGuide(orderData.guia);
+    orderData.services?.forEach(service => {
+        addGuide(service.guia);
+        addDriver(service.chofer, service.bus);
+    });
+
+    declared?.guides?.forEach(addGuide);
+    declared?.drivers?.forEach(driver => addDriver(driver));
+
+    return { guides: Array.from(guides).sort(), drivers: Array.from(drivers).sort() };
+}
+
 export async function saveServiceOrder(orderData: ServiceOrderData, createdByEmail: string, orderName?: string, splitFromId?: string): Promise<string> {
     if (!db) throw new Error("Firestore not initialized.");
 
@@ -135,12 +188,80 @@ export async function saveServiceOrder(orderData: ServiceOrderData, createdByEma
     return docRef.id;
 }
 
+/** Valor de bus/tipo que marca un servicio como "por asignar" (TBA). */
+export const TBA_BUS_TYPE = 'TBA';
+
+/** ¿Este bus/tipo es TBA (por asignar)? */
+export const isTbaBus = (bus?: string): boolean =>
+    (bus || '').trim().toUpperCase() === TBA_BUS_TYPE;
+
+/** ¿Este servicio tiene bus/tipo TBA? */
+export const isTbaService = (service: { bus?: string }): boolean => isTbaBus(service.bus);
+
+/**
+ * ¿Hay servicios con bus/tipo TBA mezclados con el resto?
+ * Solo se divide por TBA cuando hay "TBA" y también servicios sin TBA:
+ * si TODOS son TBA no hay nada que separar.
+ */
+export const hasTbaSplitServices = (services: Array<{ bus?: string }> = []): boolean => {
+    const tbaCount = services.filter(isTbaService).length;
+    return tbaCount > 0 && tbaCount < services.length;
+};
+
+/** Nombre de la copia que agrupa los servicios TBA (mismo formato que el resto de copias). */
+const tbaChildName = (parentBaseName: string) => childNameFrom(parentBaseName, null, TBA_BUS_TYPE);
+
+/**
+ * Crea la copia con los servicios TBA de una orden padre.
+ * El campo `guia` de esa copia queda con las guías de esos servicios.
+ */
+function addTbaChildOrder(
+    batch: ReturnType<typeof writeBatch>,
+    parentBaseName: string,
+    parentId: string,
+    orderData: ServiceOrderData,
+    tbaServices: ServiceOrderData['services'],
+    meta: { createdBy: string; createdAt?: unknown }
+) {
+    if (tbaServices.length === 0) return;
+
+    const guidesList = tbaServices
+        .map(s => (s.guia || orderData.guia)?.trim())
+        .filter((g): g is string => Boolean(g));
+    const guidesString = Array.from(new Set(guidesList)).join(', ') || orderData.guia || '';
+
+    const childDataPayload = {
+        ...orderData,
+        services: tbaServices,
+        guia: guidesString,
+        isSplitSeparated: false,
+        isSplitDuplicated: false,
+    } as ServiceOrderData;
+
+    batch.set(doc(collection(db!, 'serviceOrders')), {
+        data: childDataPayload,
+        orderName: tbaChildName(parentBaseName),
+        allResponsibles: extractAllResponsibles(childDataPayload),
+        splitFrom: parentId,
+        createdBy: meta.createdBy,
+        createdAt: meta.createdAt ?? serverTimestamp(),
+        status: 'creado',
+        updatedAt: serverTimestamp(),
+    });
+}
+
 /**
  * Saves a service order in "Split Mode" - creates identical orders for both guide and driver.
  * This is only used when exactly 1 guide and 1 driver are assigned and split mode is enabled.
  */
 export async function saveServiceOrderInSplitMode(orderData: ServiceOrderData, createdByEmail: string): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
+
+    // Con servicios TBA mezclados manda la división automática (crea la orden TBA).
+    if (hasTbaSplitServices(orderData.services)) {
+        await saveServiceOrderWithSplit(orderData, createdByEmail);
+        return;
+    }
 
     const batch = writeBatch(db);
     const parentBaseName = formatOrderName(getFirstDateFromServices(orderData.services), orderData.file);
@@ -193,6 +314,91 @@ export async function saveServiceOrderInSplitMode(orderData: ServiceOrderData, c
 }
 
 /**
+ * Guarda una orden creando una copia IDÉNTICA por cada guía y cada chofer
+ * asignado (switch ámbar "Duplicar Órdenes").
+ *
+ * A diferencia de la división automática, cada hija conserva TODOS los servicios;
+ * lo único que cambia es el responsable:
+ *  - hijas de guía: `guia` = ese guía
+ *  - hijas de chofer: `guia` = todos los guías unidos por coma
+ *
+ * @param responsibles Responsables declarados en la UI (principal + adicionales).
+ */
+export async function saveServiceOrderDuplicated(
+    orderData: ServiceOrderData,
+    createdByEmail: string,
+    responsibles?: { guides?: string[]; drivers?: string[] }
+): Promise<void> {
+    if (!db) throw new Error("Firestore not initialized.");
+
+    // Con servicios TBA mezclados manda la división automática (crea la orden TBA).
+    if (hasTbaSplitServices(orderData.services)) {
+        await saveServiceOrderWithSplit(orderData, createdByEmail);
+        return;
+    }
+
+    const { guides, drivers } = resolveResponsibles(orderData, responsibles);
+
+    // Sin responsibles no hay nada que duplicar: guardado normal.
+    if (guides.length === 0 && drivers.length === 0) {
+        await saveServiceOrderWithSplit(orderData, createdByEmail);
+        return;
+    }
+
+    const batch = writeBatch(db);
+    const parentBaseName = formatOrderName(getFirstDateFromServices(orderData.services), orderData.file);
+    const guidesString = guides.join(', ');
+
+    // Padre marcado como familia duplicada
+    const parentRef = doc(collection(db, 'serviceOrders'));
+    const parentId = parentRef.id;
+    batch.set(parentRef, {
+        orderName: parentBaseName,
+        createdBy: createdByEmail,
+        data: { ...orderData, isSplitParent: true, isSplitSeparated: true, isSplitDuplicated: true, splitResponsibles: { guides, drivers } },
+        status: 'creado',
+        isRoot: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        allResponsibles: extractAllResponsibles(orderData),
+    });
+
+    // Una copia completa por cada guía (los servicios quedan a nombre de ese guía)
+    for (const guide of guides) {
+        const guideServices = orderData.services.map(service => ({ ...service, guia: guide }));
+        const childDataPayload = { ...orderData, services: guideServices, guia: guide, isSplitParent: false, isSplitSeparated: true, isSplitDuplicated: true };
+        batch.set(doc(collection(db, 'serviceOrders')), {
+            data: childDataPayload,
+            orderName: childNameFrom(parentBaseName, guide, null),
+            allResponsibles: extractAllResponsibles(childDataPayload),
+            splitFrom: parentId,
+            createdBy: createdByEmail,
+            createdAt: serverTimestamp(),
+            status: 'creado',
+            updatedAt: serverTimestamp(),
+        });
+    }
+
+    // Una copia completa por cada chofer (encabezado y filas con todos los guías)
+    for (const driver of drivers) {
+        const driverServices = orderData.services.map(service => ({ ...service, guia: guidesString }));
+        const childDataPayload = { ...orderData, services: driverServices, guia: guidesString, isSplitParent: false, isSplitSeparated: true, isSplitDuplicated: true };
+        batch.set(doc(collection(db, 'serviceOrders')), {
+            data: childDataPayload,
+            orderName: childNameFrom(parentBaseName, null, driver),
+            allResponsibles: extractAllResponsibles(orderData),
+            splitFrom: parentId,
+            createdBy: createdByEmail,
+            createdAt: serverTimestamp(),
+            status: 'creado',
+            updatedAt: serverTimestamp(),
+        });
+    }
+
+    await batch.commit();
+}
+
+/**
  * Saves a new service order and automatically splits it if multiple guides/drivers are assigned.
  * This mimics the behavior of saveEditedServiceOrder but for new orders.
  */
@@ -208,6 +414,9 @@ export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, cre
 
     const mainGuide = orderData.guia || "SIN GUIA PRINCIPAL";
 
+    // Servicios con bus/tipo TBA: van a su propia copia (no al grupo de choferes)
+    const tbaServices = orderData.services.filter(isTbaService);
+
     orderData.services.forEach(service => {
         const guideKey = service.guia || mainGuide;
         if (guideKey && guideKey !== "SIN GUIA PRINCIPAL") {
@@ -215,13 +424,15 @@ export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, cre
             guideServiceMap.get(guideKey)!.push(service);
         }
 
+        if (isTbaService(service)) return; // se separan en la copia TBA
+
         if (service.chofer && service.chofer !== 'NONE' && service.bus?.toUpperCase() !== 'SIN BUS') {
             if (!driverServiceMap.has(service.chofer)) driverServiceMap.set(service.chofer, []);
             driverServiceMap.get(service.chofer)!.push(service);
         }
     });
 
-    const needsSplit = guideServiceMap.size > 1 || driverServiceMap.size > 1;
+    const needsSplit = guideServiceMap.size > 1 || driverServiceMap.size > 1 || hasTbaSplitServices(orderData.services);
 
     if (!needsSplit) {
         // No split needed, create a single order
@@ -294,16 +505,28 @@ export async function saveServiceOrderWithSplit(orderData: ServiceOrderData, cre
                 updatedAt: serverTimestamp()
             });
         }
+
+        // Copia con los servicios de bus/tipo TBA (por asignar)
+        addTbaChildOrder(batch, parentBaseName, parentId, orderData, tbaServices, { createdBy: createdByEmail });
     }
 
     await batch.commit();
+}
+
+export interface SaveEditedOrderOptions {
+    /** Switch morado "Orden Separada" (1 guía + 1 chofer): 2 copias idénticas. */
+    splitSeparated?: boolean;
+    /** Switch ámbar "Duplicar Órdenes": una copia idéntica por cada responsable. */
+    duplicated?: boolean;
+    /** Responsibles declarados en la UI (principal + adicionales). */
+    responsibles?: { guides?: string[]; drivers?: string[] };
 }
 
 export async function saveEditedServiceOrder(
     originalOrder: StoredServiceOrder,
     updatedData: ServiceOrderData,
     userEmail: string,
-    splitSeparated?: boolean
+    options?: SaveEditedOrderOptions
 ): Promise<void> {
     if (!db) throw new Error("Firestore not initialized.");
 
@@ -316,7 +539,7 @@ export async function saveEditedServiceOrder(
 
     saveLocks.add(lockKey);
     try {
-        await _performSaveEditedServiceOrder(originalOrder, updatedData, userEmail, splitSeparated);
+        await _performSaveEditedServiceOrder(originalOrder, updatedData, userEmail, options);
     } finally {
         saveLocks.delete(lockKey);
     }
@@ -326,8 +549,10 @@ async function _performSaveEditedServiceOrder(
     originalOrder: StoredServiceOrder,
     updatedData: ServiceOrderData,
     userEmail: string,
-    splitSeparated?: boolean
+    options?: SaveEditedOrderOptions
 ): Promise<void> {
+    const splitSeparated = options?.splitSeparated;
+    const responsibles = options?.responsibles;
     if (!db) throw new Error("Firestore not initialized.");
 
     // --- NEW LOGIC: Check if we are editing a child or a parent ---
@@ -364,6 +589,9 @@ async function _performSaveEditedServiceOrder(
 
         const mainGuide = updatedData.guia || "SIN GUIA PRINCIPAL";
 
+        // Servicios con bus/tipo TBA: van a su propia copia (no al grupo de choferes)
+        const tbaServices = updatedData.services.filter(isTbaService);
+
         updatedData.services.forEach(service => {
             const guideKey = service.guia || mainGuide;
             if (guideKey && guideKey !== "SIN GUIA PRINCIPAL") {
@@ -371,22 +599,85 @@ async function _performSaveEditedServiceOrder(
                 guideServiceMap.get(guideKey)!.push(service);
             }
 
+            if (isTbaService(service)) return; // se separan en la copia TBA
+
             if (service.chofer && service.chofer !== 'NONE' && service.bus?.toUpperCase() !== 'SIN BUS') {
                 if (!driverServiceMap.has(service.chofer)) driverServiceMap.set(service.chofer, []);
                 driverServiceMap.get(service.chofer)!.push(service);
             }
         });
 
-        const needsSplit = guideServiceMap.size > 1 || driverServiceMap.size > 1;
+        const needsSplit = guideServiceMap.size > 1 || driverServiceMap.size > 1 || hasTbaSplitServices(updatedData.services);
         const wasSplitSeparated = originalOrder.data.isSplitSeparated === true;
-        const shouldSplitSeparated = (splitSeparated ?? wasSplitSeparated)
+        // Switch ámbar "Duplicar Órdenes": una copia idéntica por cada responsable.
+        // Con servicios TBA mezclados manda la división automática (crea la orden TBA).
+        const shouldDuplicate = options?.duplicated === true && !hasTbaSplitServices(updatedData.services);
+        // Si hay servicios TBA mezclados, manda la división automática (crea la orden TBA).
+        const shouldSplitSeparated = !shouldDuplicate
+            && !hasTbaSplitServices(updatedData.services)
+            && (splitSeparated ?? wasSplitSeparated)
             && guideServiceMap.size === 1
             && driverServiceMap.size === 1;
 
-        if (!needsSplit && !shouldSplitSeparated) {
+        if (shouldDuplicate) {
+            // --- Duplicar Órdenes: cada responsable recibe TODOS los servicios ---
+            const { guides, drivers } = resolveResponsibles(updatedData, responsibles);
+
+            if (guides.length === 0 && drivers.length === 0) {
+                // Sin responsibles que duplicar: la orden queda como una sola.
+                batch.update(parentRef, {
+                    data: { ...updatedData, isSplitParent: false, isSplitSeparated: false, isSplitDuplicated: false, splitResponsibles: null },
+                    allResponsibles: extractAllResponsibles(updatedData),
+                    status: 'editado',
+                    updatedAt: serverTimestamp()
+                });
+            } else {
+                const guidesString = guides.join(', ');
+
+                // Una copia completa por cada guía (los servicios quedan a nombre de ese guía)
+                for (const guide of guides) {
+                    const guideServices = updatedData.services.map(service => ({ ...service, guia: guide }));
+                    const guideChildData = { ...updatedData, services: guideServices, guia: guide, isSplitParent: false, isSplitSeparated: true, isSplitDuplicated: true };
+                    batch.set(doc(collection(db, 'serviceOrders')), {
+                        data: guideChildData,
+                        orderName: childNameFrom(parentBaseName, guide, null),
+                        allResponsibles: extractAllResponsibles(guideChildData),
+                        splitFrom: parentId,
+                        createdBy: originalOrder.createdBy,
+                        createdAt: Timestamp.fromDate(originalOrder.createdAt),
+                        status: 'creado',
+                        updatedAt: serverTimestamp()
+                    });
+                }
+
+                // Una copia completa por cada chofer (encabezado y filas con todos los guías)
+                for (const driver of drivers) {
+                    const driverServices = updatedData.services.map(service => ({ ...service, guia: guidesString }));
+                    const driverChildData = { ...updatedData, services: driverServices, guia: guidesString, isSplitParent: false, isSplitSeparated: true, isSplitDuplicated: true };
+                    batch.set(doc(collection(db, 'serviceOrders')), {
+                        data: driverChildData,
+                        orderName: childNameFrom(parentBaseName, null, driver),
+                        allResponsibles: extractAllResponsibles(updatedData),
+                        splitFrom: parentId,
+                        createdBy: originalOrder.createdBy,
+                        createdAt: Timestamp.fromDate(originalOrder.createdAt),
+                        status: 'creado',
+                        updatedAt: serverTimestamp()
+                    });
+                }
+
+                const parentData = { ...updatedData, isSplitParent: true, isSplitSeparated: true, isSplitDuplicated: true, splitResponsibles: { guides, drivers } };
+                batch.update(parentRef, {
+                    data: parentData,
+                    allResponsibles: extractAllResponsibles(parentData),
+                    status: 'editado',
+                    updatedAt: serverTimestamp()
+                });
+            }
+        } else if (!needsSplit && !shouldSplitSeparated) {
             // If no split is needed, just update the main order and ensure it's not marked as a split parent.
             batch.update(parentRef, {
-                data: { ...updatedData, isSplitParent: false, isSplitSeparated: false }, // Explicitly set flags to false
+                data: { ...updatedData, isSplitParent: false, isSplitSeparated: false, isSplitDuplicated: false, splitResponsibles: null }, // Explicitly set flags to false
                 allResponsibles: extractAllResponsibles(updatedData),
                 status: 'editado',
                 updatedAt: serverTimestamp()
@@ -400,7 +691,7 @@ async function _performSaveEditedServiceOrder(
             // Create child order for the guide (with all services)
             const guideChildName = childNameFrom(parentBaseName, guide, null);
             const guideChildRef = doc(collection(db, 'serviceOrders'));
-            const guideChildData = { ...updatedData, isSplitSeparated: true };
+            const guideChildData = { ...updatedData, isSplitSeparated: true, isSplitDuplicated: false };
             batch.set(guideChildRef, {
                 data: guideChildData,
                 orderName: guideChildName,
@@ -415,7 +706,7 @@ async function _performSaveEditedServiceOrder(
             // Create child order for the driver (with all services)
             const driverChildName = childNameFrom(parentBaseName, null, driver);
             const driverChildRef = doc(collection(db, 'serviceOrders'));
-            const driverChildData = { ...updatedData, isSplitSeparated: true };
+            const driverChildData = { ...updatedData, isSplitSeparated: true, isSplitDuplicated: false };
             batch.set(driverChildRef, {
                 data: driverChildData,
                 orderName: driverChildName,
@@ -428,7 +719,7 @@ async function _performSaveEditedServiceOrder(
             });
 
             // Update the parent order to mark it as split separated
-            const parentData = { ...updatedData, isSplitParent: true, isSplitSeparated: true };
+            const parentData = { ...updatedData, isSplitParent: true, isSplitSeparated: true, isSplitDuplicated: false, splitResponsibles: null };
             batch.update(parentRef, {
                 data: parentData,
                 allResponsibles: extractAllResponsibles(parentData),
@@ -439,7 +730,7 @@ async function _performSaveEditedServiceOrder(
             // Standard divided split: Create new children for guides and drivers
             // Create new children for guides
             for (const [guide, services] of guideServiceMap.entries()) {
-                const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guide };
+                const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guide, isSplitDuplicated: false } as ServiceOrderData;
                 const childName = childNameFrom(parentBaseName, guide, null);
                 const newDocRef = doc(collection(db, 'serviceOrders'));
                 batch.set(newDocRef, {
@@ -462,7 +753,7 @@ async function _performSaveEditedServiceOrder(
                 const guidesForDriver = Array.from(new Set(guidesList));
                 const guidesString = guidesForDriver.join(', ');
 
-                const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guidesString };
+                const childDataPayload: ServiceOrderData = { ...updatedData, services, guia: guidesString, isSplitDuplicated: false } as ServiceOrderData;
                 const childName = childNameFrom(parentBaseName, null, driver);
                 const newDocRef = doc(collection(db, 'serviceOrders'));
                 batch.set(newDocRef, {
@@ -477,8 +768,14 @@ async function _performSaveEditedServiceOrder(
                 });
             }
 
+            // Copia con los servicios de bus/tipo TBA (por asignar)
+            addTbaChildOrder(batch, parentBaseName, parentId, updatedData, tbaServices, {
+                createdBy: originalOrder.createdBy,
+                createdAt: Timestamp.fromDate(originalOrder.createdAt)
+            });
+
             // Update the parent order to mark it as a split parent (but not split separated)
-            const parentData = { ...updatedData, isSplitParent: true, isSplitSeparated: false };
+            const parentData = { ...updatedData, isSplitParent: true, isSplitSeparated: false, isSplitDuplicated: false, splitResponsibles: null };
             batch.update(parentRef, {
                 data: parentData, // Set the flag on the parent's data
                 allResponsibles: extractAllResponsibles(parentData),

@@ -75,7 +75,10 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
     }
     data.services?.forEach(service => {
       if (service.guia && service.guia.trim()) {
-        allGuides.add(service.guia.trim());
+        // Puede ser una lista ("ANA, ADRIANA") en órdenes duplicadas al chofer
+        service.guia.split(',').forEach(g => {
+          if (g.trim()) allGuides.add(g.trim());
+        });
       }
     });
 
@@ -274,7 +277,8 @@ function PrintableView({ order, onClose, showCopyButton, onStatusUpdate }: { ord
                           processedData.sortedServices.map((s, i) => {
                             const showDate = i === 0 || processedData.sortedServices[i - 1].fecha !== s.fecha;
                             const guiaCompleto = s.guia || data.guia;
-                            const guiaFirstName = (guiaCompleto || '').split(' ')[0];
+                            // Primer nombre de cada guía; soporta listas ("ANA CAMACHO, ADRIANA FERNANDEZ")
+                            const guiaFirstName = (guiaCompleto || '').split(',').map(g => g.trim().split(' ')[0]).filter(Boolean).join(', ');
                             const choferCompleto = s.chofer || '';
                             const choferSanitized = choferCompleto.replace(/^CONT\s/i, '');
                             const choferFirstName = choferSanitized.split(' ')[0];

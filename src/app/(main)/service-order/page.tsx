@@ -36,7 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown, ChevronLeft, ChevronRight, Image, Split, User, Car, CheckCircle2, XCircle, RefreshCw, Database, ClipboardEdit, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Receipt } from "lucide-react";
+import { ArrowLeft, Trash2, FilePlus, ListOrdered, Eye, Printer, Search, FilePenLine, Bot, ShieldAlert, FileDown, ChevronDown, ChevronLeft, ChevronRight, Image, Split, User, Car, CheckCircle2, XCircle, RefreshCw, Database, ClipboardEdit, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Receipt, Copy } from "lucide-react";
 import { LiquidationViewerModal } from "@/components/guide-liquidation/LiquidationViewerModal";
 import { PlaneSpinner } from "@/components/ui/plane-spinner";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +112,8 @@ export default function ServiceOrderListPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [orderToEdit, setOrderToEdit] = useState<StoredServiceOrder | null>(null);
+  // Hijas de la orden que se va a editar (para reconstruir responsables en familias antiguas)
+  const [editFamilyChildren, setEditFamilyChildren] = useState<StoredServiceOrder[]>([]);
   const [orderToPreview, setOrderToPreview] = useState<StoredServiceOrder | null>(null);
   const [intermediateOrderData, setIntermediateOrderData] = useState<ServiceOrderData>(initialOrderDataState);
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
@@ -413,6 +415,7 @@ export default function ServiceOrderListPage() {
 
   const handleEditOrderClick = (order: StoredServiceOrder) => {
     setOrderToEdit(order);
+    setEditFamilyChildren(orders.filter(o => o.splitFrom === order.id));
     setIsEditModalOpen(true);
   };
 
@@ -422,13 +425,16 @@ export default function ServiceOrderListPage() {
     setIsPreviewModalOpen(true);
   };
 
-  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData, options?: { splitSeparated?: boolean }) => {
+  const handleSaveFromEditModal = async (updatedOrderData: ServiceOrderData, options?: { splitSeparated?: boolean; duplicated?: boolean; responsibles?: { guides?: string[]; drivers?: string[] } }) => {
     if (!orderToEdit || !currentUser?.email || isSaving) return;
 
     setIsSaving(true);
     try {
-      await saveEditedServiceOrder(orderToEdit, updatedOrderData, currentUser.email, options?.splitSeparated);
-      toast({ title: "Éxito", description: "La orden ha sido actualizada y/o dividida exitosamente.", variant: "success" });
+      await saveEditedServiceOrder(orderToEdit, updatedOrderData, currentUser.email, options);
+      const description = options?.duplicated
+        ? "La orden ha sido actualizada y duplicada por cada responsable exitosamente."
+        : "La orden ha sido actualizada y/o dividida exitosamente.";
+      toast({ title: "Éxito", description, variant: "success" });
       await fetchOrders(); // Wait for orders to load before closing modal
       setIsEditModalOpen(false);
       setOrderToEdit(null);
@@ -723,10 +729,13 @@ export default function ServiceOrderListPage() {
     }
 
     if (childCount > 0) {
+      const isSplitDuplicated = order.data?.isSplitDuplicated === true;
       const isSplitSeparated = order.data?.isSplitSeparated === true;
-      const splitBadge = isSplitSeparated
-        ? <Badge className="bg-yellow-600 hover:bg-yellow-700"><Split className="h-3 w-3 mr-1" />Separada</Badge>
-        : <Badge className="bg-purple-600 hover:bg-purple-700"><Split className="h-3 w-3 mr-1" />Dividida</Badge>;
+      const splitBadge = isSplitDuplicated
+        ? <Badge className="bg-amber-500 hover:bg-amber-600"><Copy className="h-3 w-3 mr-1" />Duplicada</Badge>
+        : isSplitSeparated
+          ? <Badge className="bg-yellow-600 hover:bg-yellow-700"><Split className="h-3 w-3 mr-1" />Separada</Badge>
+          : <Badge className="bg-purple-600 hover:bg-purple-700"><Split className="h-3 w-3 mr-1" />Dividida</Badge>;
       return <div className="flex items-center gap-1">{baseBadge}{splitBadge}</div>;
     }
     return baseBadge;
@@ -1209,8 +1218,9 @@ export default function ServiceOrderListPage() {
         {isEditModalOpen && orderToEdit && (
           <ServiceOrderEditModal
             order={orderToEdit} guides={guides} activities={activities} drivers={drivers} flights={flights} hotels={hotels} buses={buses}
+            familyChildren={editFamilyChildren}
             onSave={handleSaveFromEditModal}
-            onClose={() => { setIsEditModalOpen(false); setOrderToEdit(null); }}
+            onClose={() => { setIsEditModalOpen(false); setOrderToEdit(null); setEditFamilyChildren([]); }}
             isSaving={isSaving}
           />
         )}
