@@ -4,21 +4,22 @@
 
 import { useState, useEffect, useMemo, ChangeEvent } from "react";
 import { parse, format } from "date-fns";
-import { StoredServiceOrder } from "@/lib/serviceOrderStorage";
+import { StoredServiceOrder, hasTbaSplitServices, isTbaBus } from "@/lib/serviceOrderStorage";
 import { ServiceOrderData, ServiceItem, ServiceOrderGuide, Activity, Driver, PredefinedFlight, Hotel, Bus, recordActivityTimeUsage, getSuggestedTimeForActivity } from "@/lib/serviceOrderService";
 import { cn } from "@/lib/utils";
+import { shortPerson } from "@/lib/serviceOrderFamily";
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Combobox, ComboboxOption } from "@/components/ui/combobox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, X, XCircle, PlusCircle, UserPlus, Car, Loader2, Split } from "lucide-react";
+import { Combobox, ComboboxOption, dedupeComboboxOptions } from "@/components/ui/combobox";
+import { Save, XCircle, PlusCircle, UserPlus, Car, Loader2, Split, Copy } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "../ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 interface ServiceOrderEditModalProps {
@@ -29,9 +30,11 @@ interface ServiceOrderEditModalProps {
   flights: PredefinedFlight[];
   hotels: Hotel[];
   buses: Bus[];
-  onSave: (updatedOrderData: ServiceOrderData, options?: { splitSeparated?: boolean }) => void;
+  onSave: (updatedOrderData: ServiceOrderData, options?: { splitSeparated?: boolean; duplicated?: boolean; responsibles?: { guides?: string[]; drivers?: string[] } }) => void;
   onClose: () => void;
   isSaving?: boolean;
+  /** Hijas de esta orden en la familia (para reconstruir responsables en órdenes duplicadas antiguas). */
+  familyChildren?: StoredServiceOrder[];
 }
 
 const initialNewServiceState: ServiceItem = {
@@ -39,25 +42,22 @@ const initialNewServiceState: ServiceItem = {
 };
 
 
-export function ServiceOrderEditModal({ order, guides, activities, drivers, flights, hotels, buses, onSave, onClose, isSaving = false }: ServiceOrderEditModalProps) {
+export function ServiceOrderEditModal({ order, guides, activities, drivers, flights, hotels, buses, onSave, onClose, isSaving = false, familyChildren = [] }: ServiceOrderEditModalProps) {
   const [editableOrderData, setEditableOrderData] = useState<ServiceOrderData>(JSON.parse(JSON.stringify(order.data)));
   const [newService, setNewService] = useState<ServiceItem>(initialNewServiceState);
 
   const [additionalGuides, setAdditionalGuides] = useState<string[]>([]);
   const [additionalDrivers, setAdditionalDrivers] = useState<string[]>([]);
   const [isSplitMode, setIsSplitMode] = useState(false);
+  // Switch ámbar "Duplicar Órdenes": copia idéntica por cada guía/chofer. Por defecto apagado.
+  const [isDuplicatedMode, setIsDuplicatedMode] = useState(false);
 
   const isChildOrder = !!order.splitFrom;
 
   useEffect(() => {
-    // Pre-populate additional guides and drivers from the services when the modal opens
-    const allGuidsInServices = new Set(order.data.services.map(s => s.guia).filter(Boolean) as string[]);
-    allGuidsInServices.delete(order.data.guia); // remove main guide
-    setAdditionalGuides(Array.from(allGuidsInServices));
-
-    const allDriversInServices = new Set(order.data.services.map(s => s.chofer).filter(Boolean) as string[]);
-    setAdditionalDrivers(Array.from(allDriversInServices));
-    setIsSplitMode(order.data.isSplitSeparated === true);
+    // Switches según los flags guardados en la orden
+    setIsSplitMode(order.data.isSplitSeparated === true && order.data.isSplitDuplicated !== true);
+    setIsDuplicatedMode(order.data.isSplitDuplicated === true);
 
     const servicesWithIds = order.data.services.map(s => ({
       ...s,
@@ -65,6 +65,61 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
     }));
     setEditableOrderData(JSON.parse(JSON.stringify({ ...order.data, services: servicesWithIds })));
   }, [order]);
+
+  /**
+   * Guías/choferes adicionales (los chips).
+   * Se arman desde 3 orígenes: los servicios, los responsables guardados al duplicar
+   * (`splitResponsibles`) y, en órdenes duplicadas antiguas sin ese dato, desde las
+   * hijas de la familia. Sin esto, los responsables que no estaban asignados a un
+   * servicio no aparecían al editar y no se podía volver a una orden normal.
+   */
+  useEffect(() => {
+    const guidesSet = new Set<string>();
+    const driversSet = new Set<string>();
+    // Alta sin duplicar, ignorando mayúsculas/minúsculas y espacios de sobra.
+    const addUnique = (set: Set<string>, value?: string | null) => {
+      const trimmed = (value || '').trim();
+      if (!trimmed) return;
+      const normalized = trimmed.toUpperCase();
+      for (const existing of set) {
+        if (existing.trim().toUpperCase() === normalized) return;
+      }
+      set.add(trimmed);
+    };
+
+    order.data.services.forEach(service => {
+      addUnique(guidesSet, service.guia);
+      addUnique(driversSet, service.chofer);
+    });
+
+    if (!isChildOrder) {
+      const stored = order.data.splitResponsibles;
+      if (stored) {
+        stored.guides?.forEach(guide => addUnique(guidesSet, guide));
+        stored.drivers?.forEach(driver => addUnique(driversSet, driver));
+      } else {
+        // Datos antiguos (sin splitResponsibles): reconstruir desde las hijas.
+        familyChildren.forEach(child => {
+          (child.data.guia || '').split(',').forEach(guide => addUnique(guidesSet, guide));
+
+          // El nombre del chofer solo vive en el nombre de la hija ("... — C-NOMBRE").
+          const suffix = child.orderName.split(' — ').slice(1).join(' — ');
+          suffix.split('_').forEach(part => {
+            if (!part.startsWith('C-')) return;
+            const shortName = part.slice(2);
+            // Si ese chofer ya está por otro origen, no añadimos un nombre corto suelto.
+            const alreadyKnown = Array.from(driversSet).some(driver => shortPerson(driver) === shortName);
+            if (alreadyKnown) return;
+            addUnique(driversSet, drivers.find(d => shortPerson(d.name) === shortName)?.name ?? shortName);
+          });
+        });
+      }
+    }
+
+    const mainGuide = (order.data.guia || '').trim().toUpperCase();
+    setAdditionalGuides(Array.from(guidesSet).filter(guide => guide.toUpperCase() !== mainGuide));
+    setAdditionalDrivers(Array.from(driversSet));
+  }, [order, familyChildren, isChildOrder, drivers]);
 
   const handleDataChange = (field: keyof ServiceOrderData, value: string) => {
     setEditableOrderData((prev: ServiceOrderData) => ({ ...prev, [field]: value }));
@@ -77,6 +132,11 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
   const handleServiceChange = (index: number, field: keyof ServiceItem, value: string) => {
     const updatedServices = [...editableOrderData.services];
     updatedServices[index] = { ...updatedServices[index], [field]: value };
+
+    // Bus/tipo TBA (por asignar): esa fila queda sin chofer ("Ninguno")
+    if (field === 'bus' && isTbaBus(value)) {
+      updatedServices[index].chofer = '';
+    }
 
     if (field === 'vuelo') {
       const selectedFlight = flights.find(f => f.flightNumber.toUpperCase() === value.toUpperCase());
@@ -120,14 +180,16 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
   const addNewServiceRow = () => {
     const lastService = editableOrderData.services[editableOrderData.services.length - 1];
+    const bus = newService.bus || lastService?.bus || '';
 
     const serviceToAdd: ServiceItem = {
       ...newService,
       id: crypto.randomUUID(),
       fecha: newService.fecha ? format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '',
       guia: editableOrderData.guia,
-      bus: newService.bus || lastService?.bus || '',
-      chofer: newService.chofer || lastService?.chofer || '',
+      bus,
+      // Bus/tipo TBA (por asignar): esa fila queda sin chofer
+      chofer: isTbaBus(bus) ? '' : (newService.chofer || lastService?.chofer || ''),
     };
 
     if (serviceToAdd.servicio && serviceToAdd.hora) {
@@ -138,7 +200,14 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
   };
 
   const handleSaveClick = () => {
-    onSave(editableOrderData, { splitSeparated: isSplitMode });
+    onSave(editableOrderData, {
+      splitSeparated: isSplitMode && !isDuplicatedMode,
+      duplicated: isDuplicatedMode,
+      responsibles: {
+        guides: [editableOrderData.guia, ...additionalGuides].filter(Boolean) as string[],
+        drivers: [...additionalDrivers].filter(Boolean) as string[],
+      },
+    });
   };
 
   const handleNewServiceTimeChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -210,31 +279,31 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
     return map;
   }, [editableOrderData.services]);
 
-  const allAvailableGuides = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName }));
-  const allAvailableDrivers = drivers.map(d => ({ value: d.name.toUpperCase(), label: d.name }));
+  const allAvailableGuides = dedupeComboboxOptions(guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName })));
+  const allAvailableDrivers = dedupeComboboxOptions(drivers.map(d => ({ value: d.name.toUpperCase(), label: d.name })));
 
   const assignedGuides = [editableOrderData.guia, ...additionalGuides].filter(Boolean);
-  const serviceGuideOptions = [
+  const serviceGuideOptions = dedupeComboboxOptions([
     { value: 'NONE', label: 'Ninguno' },
     ...assignedGuides.map(g => ({ value: g.toUpperCase(), label: g.toUpperCase() }))
-  ];
+  ]);
 
   const assignedDrivers = [...additionalDrivers].filter(Boolean);
-  const serviceDriverOptions = [
+  const serviceDriverOptions = dedupeComboboxOptions([
     { value: 'NONE', label: 'Ninguno' },
     ...assignedDrivers.map(d => ({ value: d.toUpperCase(), label: d.toUpperCase() }))
-  ];
+  ]);
 
-  const hotelOptions: ComboboxOption[] = hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name }));
-  const activityOptions: ComboboxOption[] = activities.map(a => ({ value: a.name.toUpperCase(), label: a.name }));
+  const hotelOptions: ComboboxOption[] = dedupeComboboxOptions(hotels.map(h => ({ value: h.name.toUpperCase(), label: h.name })));
+  const activityOptions: ComboboxOption[] = dedupeComboboxOptions(activities.map(a => ({ value: a.name.toUpperCase(), label: a.name })));
 
   const busOptions = buses.map(b => ({ value: b.name.toUpperCase(), label: b.name }));
-  const finalBusOptions = [
+  const finalBusOptions = dedupeComboboxOptions([
     { value: 'NONE', label: 'Ninguno' },
     { value: 'SIN BUS', label: 'SIN BUS (A PIE)' },
     ...busOptions,
     { value: 'CONT.', label: 'Contratado' }
-  ];
+  ]);
 
   const filteredFlightOptions = useMemo(() => {
     const createOption = (f: PredefinedFlight) => ({ value: f.flightNumber, key: f.id, label: `${f.flightNumber} (${f.time})` });
@@ -246,21 +315,35 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
   const isAddServiceDisabled = !newService.fecha.trim() || !newService.servicio.trim();
 
+  // Contadores uniformados con el modal de creación: principal + servicios + chips "adicionales".
+  // Así, agregar un guía/chofer en los adicionales habilita el switch sin necesidad de
+  // asignarlo antes a una fila de servicio.
   const totalGuides = new Set(
-    editableOrderData.services
-      .map(service => service.guia || editableOrderData.guia)
-      .filter(Boolean)
+    [editableOrderData.guia, ...editableOrderData.services.map(service => service.guia), ...additionalGuides]
+      .filter((guide): guide is string => Boolean(guide && guide.trim()))
+      .map(guide => guide.trim().toUpperCase())
   ).size;
   const totalDrivers = new Set(
-    editableOrderData.services
-      .filter(service => service.chofer && service.chofer.toUpperCase() !== 'NONE' && service.bus?.toUpperCase() !== 'SIN BUS')
-      .map(service => service.chofer)
+    [
+      ...editableOrderData.services
+        .filter(service => service.chofer && service.chofer.toUpperCase() !== 'NONE' && service.bus?.toUpperCase() !== 'SIN BUS')
+        .map(service => service.chofer),
+      ...additionalDrivers,
+    ]
+      .filter((driver): driver is string => Boolean(driver && driver.trim()))
+      .map(driver => driver.trim().toUpperCase())
   ).size;
-  const canEnableSplit = totalGuides === 1 && totalDrivers === 1;
+  // Servicios con bus/tipo TBA mezclados con el resto: la orden se divide
+  // automáticamente y se crea una orden «TBA» con esos servicios.
+  const tbaSplit = hasTbaSplitServices(editableOrderData.services);
+  const canEnableSplit = totalGuides === 1 && totalDrivers === 1 && !tbaSplit;
+  // Duplicar solo aplica cuando se dividiría (varios guías y/o varios choferes)
+  const canEnableDuplicate = (totalGuides > 1 || totalDrivers > 1) && !tbaSplit;
 
   useEffect(() => {
     if (!canEnableSplit && isSplitMode) setIsSplitMode(false);
-  }, [canEnableSplit, isSplitMode]);
+    if (!canEnableDuplicate && isDuplicatedMode) setIsDuplicatedMode(false);
+  }, [canEnableSplit, isSplitMode, canEnableDuplicate, isDuplicatedMode]);
 
   // Calculate total from tarifa column
   const totalTarifa = useMemo(() => {
@@ -284,8 +367,8 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
           {/* Main Details */}
           <div className="space-y-2 p-3 rounded-lg border bg-zinc-50 dark:bg-zinc-900/50">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="w-full"><Label htmlFor="file-edit">File</Label><Input id="file-edit" value={editableOrderData.file} onChange={(e) => handleDataChange('file', e.target.value)} className="h-9 mt-1 bg-background" /></div>
-              <div className="w-full"><Label htmlFor="ref-edit">Ref (Grupo)</Label><Input id="ref-edit" value={editableOrderData.ref} onChange={(e) => handleDataChange('ref', e.target.value)} className="h-9 mt-1 bg-background" /></div>
+              <div className="w-full"><Label htmlFor="file-edit">File</Label><Input id="file-edit" value={editableOrderData.file} onChange={(e) => handleDataChange('file', e.target.value)} readOnly={isChildOrder} tabIndex={isChildOrder ? -1 : undefined} onMouseDown={e => { if (isChildOrder) e.preventDefault(); }} className={cn("h-9 mt-1 bg-background", isChildOrder && "cursor-default opacity-70")} /></div>
+              <div className="w-full"><Label htmlFor="ref-edit">Ref (Grupo)</Label><Input id="ref-edit" value={editableOrderData.ref} onChange={(e) => handleDataChange('ref', e.target.value)} readOnly={isChildOrder} tabIndex={isChildOrder ? -1 : undefined} onMouseDown={e => { if (isChildOrder) e.preventDefault(); }} className={cn("h-9 mt-1 bg-background", isChildOrder && "cursor-default opacity-70")} /></div>
               <div className="w-full"><Label htmlFor="pax-edit">Nº Pax</Label><Input id="pax-edit" value={editableOrderData.nPax} onChange={(e) => handleDataChange('nPax', e.target.value)} className="h-9 mt-1 bg-background" /></div>
               <div className="w-full"><Label>Hotel</Label><Combobox options={hotelOptions} value={editableOrderData.hotel} onSelect={(value) => handleDataChange('hotel', value)} placeholder="Buscar hotel..." className="h-9 mt-1" triggerClassName="bg-background" /></div>
             </div>
@@ -308,23 +391,6 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
               <div className="flex items-center gap-2 flex-wrap">
                 {additionalDrivers.map(d => <div key={d} className="flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-full px-2 py-0.5"><Button variant="ghost" size="icon" className="h-4 w-4 text-green-500" onClick={() => setAdditionalDrivers(additionalDrivers.filter(ad => ad !== d))}><XCircle size={14} /></Button><span>{d}</span></div>)}
               </div>
-              {canEnableSplit && (
-                <div className="flex items-center justify-between gap-3 rounded-md border border-purple-300 bg-purple-50 px-3 py-2 dark:border-purple-500/40 dark:bg-purple-950/30">
-                  <div className="flex items-center gap-2">
-                    <Split className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                    <div>
-                      <Label htmlFor="edit-split-mode" className="cursor-pointer text-sm font-medium text-purple-900 dark:text-purple-100">Orden Separada</Label>
-                      <p className="text-xs text-purple-700 dark:text-purple-200">Crea una copia para el guía y otra para el chofer.</p>
-                    </div>
-                  </div>
-                  <Switch
-                    id="edit-split-mode"
-                    checked={isSplitMode}
-                    onCheckedChange={setIsSplitMode}
-                    className="data-[state=checked]:bg-purple-600 data-[state=unchecked]:bg-purple-200 dark:data-[state=unchecked]:bg-purple-900/60"
-                  />
-                </div>
-              )}
             </div>
           )}
 
@@ -371,9 +437,9 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Input value={s.hora || ''} onChange={(e) => handleServiceChange(originalIndex, 'hora', e.target.value)} onBlur={(e) => handleTimeBlur(originalIndex, e.target.value)} maxLength={5} placeholder="HH:mm" className="h-8 text-xs bg-background text-center" /></TableCell>
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-left"><Combobox options={activityOptions} value={s.servicio || ''} onSelect={(value) => handleServiceChange(originalIndex, 'servicio', value)} placeholder="Actividad..." className="h-8 text-xs" triggerClassName="bg-background" /></TableCell>
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Combobox options={flights.map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})` }))} value={s.vuelo || ''} onSelect={(value) => handleServiceChange(originalIndex, 'vuelo', value)} placeholder="Vuelo..." className="h-8 text-xs" triggerClassName="bg-background" disabled={!isTransfer} /></TableCell>
-                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium"><Select value={s.guia || editableOrderData.guia || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'guia', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="Guía..." /></SelectTrigger><SelectContent>{serviceGuideOptions.map(g => <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>)}</SelectContent></Select></TableCell>
-                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Select value={s.bus || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'bus', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="..." /></SelectTrigger><SelectContent>{finalBusOptions.map((t, idx) => <SelectItem key={`${t.value}-${idx}`} value={t.value} className="text-xs">{t.label}</SelectItem>)}</SelectContent></Select></TableCell>
-                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Select value={s.chofer || 'NONE'} onValueChange={(value) => handleServiceChange(originalIndex, 'chofer', value === 'NONE' ? '' : value)} disabled={isChildOrder}><SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="Chofer..." /></SelectTrigger><SelectContent>{serviceDriverOptions.map(d => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}</SelectContent></Select></TableCell>
+                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center font-medium"><Combobox options={serviceGuideOptions} value={s.guia || editableOrderData.guia || 'NONE'} onSelect={(value) => handleServiceChange(originalIndex, 'guia', value === 'NONE' ? '' : value)} placeholder="Buscar guía..." className="h-8 text-xs" triggerClassName="h-8 text-xs bg-background" disabled={isChildOrder} /></TableCell>
+                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Combobox options={finalBusOptions} value={s.bus || 'NONE'} onSelect={(value) => handleServiceChange(originalIndex, 'bus', value === 'NONE' ? '' : value)} placeholder="Buscar bus..." className="h-8 text-xs" triggerClassName="h-8 text-xs bg-background" disabled={isChildOrder} /></TableCell>
+                        <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Combobox options={serviceDriverOptions} value={s.chofer || 'NONE'} onSelect={(value) => handleServiceChange(originalIndex, 'chofer', value === 'NONE' ? '' : value)} placeholder="Buscar chofer..." className="h-8 text-xs" triggerClassName="h-8 text-xs bg-background" disabled={isChildOrder} /></TableCell>
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-center"><Input value={s.tarifa || ''} onChange={(e) => handleServiceChange(originalIndex, 'tarifa', e.target.value)} placeholder="" className="h-8 text-xs bg-background text-center" /></TableCell>
                         <TableCell className="p-1 align-middle border-r border-primary/10 text-left"><Input value={s.observaciones || ''} onChange={(e) => handleServiceChange(originalIndex, 'observaciones', e.target.value)} className="h-8 text-xs bg-background" /></TableCell>
                         <TableCell className="p-1 align-middle text-center"><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed" onClick={() => handleRemoveService(originalIndex)} disabled={!canDelete} title={canDelete ? "Eliminar servicio" : "No se puede eliminar el último servicio"}><XCircle className="h-4 w-4" /></Button></TableCell>
@@ -404,8 +470,84 @@ export function ServiceOrderEditModal({ order, guides, activities, drivers, flig
 
         </div>
 
-        <DialogFooter className="p-4 border-t bg-background">
-          <Button variant="outline" onClick={onClose} disabled={isSaving}><X className="mr-2 h-4 w-4" />Cerrar</Button>
+        <DialogFooter className="p-4 border-t bg-background flex-wrap items-center justify-end gap-2">
+          {!isChildOrder && (
+            <TooltipProvider>
+              {/* Orden Separada (switch morado) */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={cn(
+                    "flex items-center gap-3 px-4 py-2 rounded-md border border-purple-300 dark:border-purple-500/40 bg-purple-50 dark:bg-purple-950/30",
+                    !canEnableSplit && "opacity-60"
+                  )}>
+                    <div className="flex items-center gap-2">
+                      <Split className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      <Label htmlFor="edit-split-mode" className="text-sm font-medium cursor-pointer text-purple-900 dark:text-purple-100">
+                        {canEnableDuplicate || tbaSplit
+                          ? `Dividida (${totalGuides}G/${totalDrivers}C${tbaSplit ? ' · TBA' : ''})`
+                          : "Orden Separada"}
+                      </Label>
+                    </div>
+                    <Switch
+                      id="edit-split-mode"
+                      checked={isSplitMode}
+                      onCheckedChange={(checked) => { setIsSplitMode(checked); if (checked) setIsDuplicatedMode(false); }}
+                      disabled={!canEnableSplit || isDuplicatedMode}
+                      className="data-[state=checked]:bg-purple-600 data-[state=unchecked]:bg-purple-200 dark:data-[state=unchecked]:bg-purple-900/60"
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  {tbaSplit ? (
+                    <p>Hay servicios con bus/tipo TBA: la orden se dividirá automáticamente y se creará una orden «TBA» solo con esos servicios. Para usar este switch, deja todos los servicios con el mismo bus/tipo.</p>
+                  ) : canEnableSplit ? (
+                    <p>Activar para crear 2 órdenes idénticas: una para el guía y otra para el chofer. Solo disponible con 1 guía y 1 chofer.</p>
+                  ) : canEnableDuplicate ? (
+                    <p>Con más de 1 guía o chofer, la orden se dividirá automáticamente (cada responsable recibe solo sus servicios). Usa «Duplicar Órdenes» si prefieres que cada uno reciba la orden completa.</p>
+                  ) : (
+                    <p>Necesitas asignar 1 guía y 1 chofer para habilitar la orden separada.</p>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+              {/* Duplicar Órdenes (switch ámbar) */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={cn(
+                    "flex items-center gap-3 px-4 py-2 rounded-md border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-950/30",
+                    !canEnableDuplicate && "opacity-60"
+                  )}>
+                    <div className="flex items-center gap-2">
+                      <Copy className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      <Label htmlFor="edit-duplicated-mode" className="text-sm font-medium cursor-pointer text-amber-900 dark:text-amber-100">
+                        {isDuplicatedMode
+                          ? `Duplicada (${totalGuides}G/${totalDrivers}C)`
+                          : "Duplicar Órdenes"}
+                      </Label>
+                    </div>
+                    <Switch
+                      id="edit-duplicated-mode"
+                      checked={isDuplicatedMode}
+                      onCheckedChange={(checked) => { setIsDuplicatedMode(checked); if (checked) setIsSplitMode(false); }}
+                      disabled={!canEnableDuplicate}
+                      className="data-[state=checked]:bg-amber-500 data-[state=unchecked]:bg-amber-200 dark:data-[state=unchecked]:bg-amber-900/60"
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  {canEnableDuplicate ? (
+                    isDuplicatedMode
+                      ? <p>Se crearán {totalGuides + totalDrivers} órdenes idénticas con todos los servicios: {totalGuides} para guía(s) y {totalDrivers} para chofer(es). Solo cambia el nombre del responsable.</p>
+                      : <p>Apagado: la orden se dividirá y cada responsable recibirá solo sus servicios. Actívalo para que cada guía y chofer reciba la orden completa.</p>
+                  ) : tbaSplit ? (
+                    <p>Hay servicios con bus/tipo TBA: la orden se dividirá automáticamente y se creará una orden «TBA» solo con esos servicios, así que la duplicación no está disponible.</p>
+                  ) : (
+                    <p>Agrega otro guía u otro chofer para poder duplicar la orden.</p>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          <Button variant="outline" onClick={onClose} disabled={isSaving} className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">Cerrar</Button>
           <Button onClick={handleSaveClick} disabled={isSaving}>
             {isSaving ? (
               <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>

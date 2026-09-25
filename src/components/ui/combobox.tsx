@@ -39,6 +39,22 @@ interface ComboboxProps {
 }
 
 
+/**
+ * Elimina opciones repetidas por `value` (los datos maestros pueden tener
+ * nombres repetidos: p. ej. un bus "SIN BUS" además de la entrada manual).
+ * Dos opciones con la misma `value` son indistinguibles al guardar, así que
+ * se conserva solo la primera. Las opciones con `key` propia no se mezclan.
+ */
+export function dedupeComboboxOptions(options: ComboboxOption[]): ComboboxOption[] {
+  const seen = new Set<string>()
+  return options.filter((option) => {
+    const id = option.key || option.value.trim().toUpperCase()
+    if (seen.has(id)) return false
+    seen.add(id)
+    return true
+  })
+}
+
 export function Combobox({ options, value, onSelect, placeholder, notFoundMessage, className, triggerClassName, disabled = false }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -78,9 +94,9 @@ export function Combobox({ options, value, onSelect, placeholder, notFoundMessag
             >
               <CommandEmpty>{notFoundMessage || "No option found."}</CommandEmpty>
               <CommandGroup>
-                {options.map((option) => (
+                {options.map((option, index) => (
                   <CommandItem
-                    key={option.key || option.value}
+                    key={option.key || `${option.value}-${index}`}
                     value={option.value}
                     onSelect={(currentValue) => {
                       onSelect(currentValue.toUpperCase() === value.toUpperCase() ? "" : currentValue.toUpperCase())

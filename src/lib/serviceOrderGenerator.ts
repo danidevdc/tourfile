@@ -98,7 +98,10 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   }
   data.services?.forEach(service => {
     if (service.guia && service.guia.trim()) {
-      allGuides.add(service.guia.trim());
+      // Puede ser una lista ("ANA, ADRIANA") en órdenes duplicadas al chofer
+      service.guia.split(',').forEach(g => {
+        if (g.trim()) allGuides.add(g.trim());
+      });
     }
   });
   const displayGuide = allGuides.size > 0 ? Array.from(allGuides).join(', ') : '—';
@@ -145,7 +148,8 @@ export async function generateServiceOrderExcel(data: ServiceOrderData): Promise
   if (data.services?.length) {
     for (const [index, s] of data.services.entries()) {
       const guiaCompleto = s.guia || data.guia || '';
-      const guiaFirst = guiaCompleto.trim().split(/\s+/)[0] || '';
+      // Primer nombre de cada guía; soporta listas ("ANA CAMACHO, ADRIANA FERNANDEZ")
+      const guiaFirst = guiaCompleto.split(',').map(g => g.trim().split(/\s+/)[0] || '').filter(Boolean).join(', ');
       const isSameDate = s.fecha === lastDate;
 
       const row = worksheet.addRow([

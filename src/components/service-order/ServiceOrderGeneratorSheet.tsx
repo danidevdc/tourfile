@@ -16,7 +16,7 @@ import { getServiceOrderRules, type ServiceOrderRule } from '@/lib/serviceOrderR
 import { type ServiceOrderData } from '@/lib/serviceOrderGenerator';
 import { generateServicesFromExcelColumnWithDiagnostics, type SkippedTransfer } from '@/lib/serviceOrderProcessor';
 import { getServiceOrderDraftError } from '@/lib/serviceOrderDraftValidation';
-import { saveServiceOrderWithSplit, saveServiceOrderInSplitMode, type StoredServiceOrder } from '@/lib/serviceOrderStorage';
+import { saveServiceOrderWithSplit, saveServiceOrderInSplitMode, saveServiceOrderDuplicated, hasTbaSplitServices, isTbaBus, type StoredServiceOrder } from '@/lib/serviceOrderStorage';
 import { findActiveRootOrdersByExactFile } from '@/lib/serviceOrderSearch';
 import { findFileInExcelData, sortServiceItems, type ExcelMatrix } from '@/lib/serviceOrderGeneratorHelpers';
 
@@ -24,10 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Combobox } from "@/components/ui/combobox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox, dedupeComboboxOptions } from "@/components/ui/combobox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser, CheckCircle, UserPlus, Car, Split, FileSpreadsheet, X, Lock, Pencil, UsersRound, ChevronDown, CirclePlus, AlertTriangle } from "lucide-react";
+import { Loader2, PlusCircle, Upload, Search, Plane, Save, Trash2, XCircle, Eraser, CheckCircle, UserPlus, Car, Split, FileSpreadsheet, X, Lock, Pencil, UsersRound, ChevronDown, CirclePlus, AlertTriangle, Copy } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { FileSearchStatus } from "@/lib/report-generator";
@@ -131,6 +130,9 @@ export function ServiceOrderGeneratorSheet({
     const [additionalGuides, setAdditionalGuides] = useState<string[]>([]);
     const [additionalDrivers, setAdditionalDrivers] = useState<string[]>([]);
     const [isSplitMode, setIsSplitMode] = useState(false);
+    // Switch ámbar "Duplicar Órdenes": crea una copia idéntica por cada guía/chofer agregado.
+    // Por defecto siempre apagado.
+    const [isDuplicatedMode, setIsDuplicatedMode] = useState(false);
 
     // Ref y Pax (autocompletados por la búsqueda) quedan readonly por defecto;
     // cada uno se desbloquea de forma independiente con su propio ícono.
@@ -144,11 +146,31 @@ export function ServiceOrderGeneratorSheet({
         const totalGuides = orderData.guia ? 1 + additionalGuides.length : additionalGuides.length;
         const totalDrivers = choferSelection ? 1 + additionalDrivers.length : additionalDrivers.length;
 
-        const canEnableSplit = totalGuides === 1 && totalDrivers === 1;
-        const willBeDivided = totalGuides > 1 || totalDrivers > 1;
+        // Servicios con bus/tipo TBA mezclados con el resto: el sistema los separa
+        // automáticamente en su propia orden (gana sobre los dos switches).
+        const tbaSplit = hasTbaSplitServices(orderData.services);
+        const canEnableSplit = totalGuides === 1 && totalDrivers === 1 && !tbaSplit;
+        const willBeDivided = totalGuides > 1 || totalDrivers > 1 || tbaSplit;
 
-        return { canEnableSplit, willBeDivided, totalGuides, totalDrivers };
-    }, [orderData.guia, additionalGuides, choferSelection, additionalDrivers]);
+        return { canEnableSplit, willBeDivided, totalGuides, totalDrivers, tbaSplit };
+    }, [orderData.guia, orderData.services, additionalGuides, choferSelection, additionalDrivers]);
+
+    // Sincronizar cabecera→filas: solo con 1 guía y 1 chofer (independiente del TBA)
+    const canSyncSingleResponsibles = splitModeStatus.totalGuides === 1 && splitModeStatus.totalDrivers === 1;
+
+    // La duplicación solo tiene sentido cuando la orden se dividiría por responsables
+    // (>1 guía o >1 chofer) y no hay servicios TBA (entonces manda la división automática).
+    const canEnableDuplicate = (splitModeStatus.totalGuides > 1 || splitModeStatus.totalDrivers > 1) && !splitModeStatus.tbaSplit;
+
+    // Si ya no hay varios responsibles, el switch vuelve a su estado por defecto: apagado.
+    useEffect(() => {
+        if (isDuplicatedMode && !canEnableDuplicate) setIsDuplicatedMode(false);
+    }, [isDuplicatedMode, canEnableDuplicate]);
+
+    // Si ya no se puede separar (o hay servicios TBA), el switch morado se apaga.
+    useEffect(() => {
+        if (isSplitMode && !splitModeStatus.canEnableSplit) setIsSplitMode(false);
+    }, [isSplitMode, splitModeStatus.canEnableSplit]);
 
     // Cuando hay un único guía/bus/chofer asignado (sin adicionales), cambiar el
     // valor principal actualiza las filas de la tabla que aún coincidían con el
@@ -160,35 +182,38 @@ export function ServiceOrderGeneratorSheet({
     useEffect(() => {
         const prevGuia = prevGuiaRef.current;
         prevGuiaRef.current = orderData.guia;
-        if (!splitModeStatus.canEnableSplit) return;
+        if (!canSyncSingleResponsibles) return;
         if (!prevGuia || prevGuia === orderData.guia) return;
         setOrderData((prev: ServiceOrderData) => ({
             ...prev,
             services: prev.services.map(s => s.guia === prevGuia ? { ...s, guia: orderData.guia } : s),
         }));
-    }, [orderData.guia, splitModeStatus.canEnableSplit]);
+    }, [orderData.guia, canSyncSingleResponsibles]);
 
     useEffect(() => {
         const prevBus = prevBusRef.current;
         prevBusRef.current = busTypeSelection;
-        if (!splitModeStatus.canEnableSplit) return;
+        if (!canSyncSingleResponsibles) return;
         if (!prevBus || prevBus === busTypeSelection) return;
         setOrderData((prev: ServiceOrderData) => ({
             ...prev,
-            services: prev.services.map(s => s.bus === prevBus ? { ...s, bus: busTypeSelection } : s),
+            // Si el nuevo bus/tipo es TBA, esas filas quedan sin chofer ("Ninguno")
+            services: prev.services.map(s => s.bus === prevBus
+                ? { ...s, bus: busTypeSelection, ...(isTbaBus(busTypeSelection) ? { chofer: '' } : {}) }
+                : s),
         }));
-    }, [busTypeSelection, splitModeStatus.canEnableSplit]);
+    }, [busTypeSelection, canSyncSingleResponsibles]);
 
     useEffect(() => {
         const prevChofer = prevChoferRef.current;
         prevChoferRef.current = choferSelection;
-        if (!splitModeStatus.canEnableSplit) return;
+        if (!canSyncSingleResponsibles) return;
         if (!prevChofer || prevChofer === choferSelection) return;
         setOrderData((prev: ServiceOrderData) => ({
             ...prev,
             services: prev.services.map(s => s.chofer === prevChofer ? { ...s, chofer: choferSelection } : s),
         }));
-    }, [choferSelection, splitModeStatus.canEnableSplit]);
+    }, [choferSelection, canSyncSingleResponsibles]);
 
     const processAndStoreFile = (file: File) => {
         const reader = new FileReader();
@@ -364,7 +389,8 @@ export function ServiceOrderGeneratorSheet({
         const mainBus = busTypeSelection || '';
         const mainChofer = choferSelection || '';
 
-        if (!mainGuide || !mainBus || !mainChofer) {
+        // Con bus/tipo TBA el chofer es opcional: esas filas quedan en "Ninguno"
+        if (!mainGuide || !mainBus || (!mainChofer && !isTbaBus(mainBus))) {
             toast({ title: "Información Requerida", description: "Por favor, selecciona Guía, Bus y Chofer antes de generar servicios.", variant: "destructive", duration: 5000 }); return;
         }
 
@@ -382,7 +408,8 @@ export function ServiceOrderGeneratorSheet({
             id: crypto.randomUUID(),
             guia: mainGuide,
             bus: mainBus,
-            chofer: mainChofer,
+            // Bus/tipo TBA (por asignar): sin chofer
+            chofer: isTbaBus(mainBus) ? '' : mainChofer,
         }));
 
         const sortedGenerated = sortServiceItems(generatedServicesWithDetails);
@@ -417,6 +444,11 @@ export function ServiceOrderGeneratorSheet({
     const handleServiceSummaryChange = (index: number, field: keyof ServiceItem, value: string) => {
         const updatedServices = [...orderData.services];
         updatedServices[index] = { ...updatedServices[index], [field]: value };
+
+        // Bus/tipo TBA (por asignar): esa fila queda sin chofer ("Ninguno")
+        if (field === 'bus' && isTbaBus(value)) {
+            updatedServices[index].chofer = '';
+        }
 
         if (field === 'vuelo') {
             const selectedFlight = flights.find(f => f.flightNumber.toUpperCase() === value.toUpperCase());
@@ -480,13 +512,15 @@ export function ServiceOrderGeneratorSheet({
 
     const addNewServiceRow = () => {
         const lastService = orderData.services[orderData.services.length - 1];
+        const bus = busTypeSelection || lastService?.bus || '';
         const serviceToAdd: ServiceItem = {
             ...newService,
             id: crypto.randomUUID(),
             fecha: newService.fecha ? format(parse(newService.fecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : '',
             guia: orderData.guia, // Always use main guide (like EditModal)
-            bus: busTypeSelection || lastService?.bus || '',
-            chofer: choferSelection || lastService?.chofer || '',
+            bus,
+            // Bus/tipo TBA (por asignar): esa fila queda sin chofer
+            chofer: isTbaBus(bus) ? '' : (choferSelection || lastService?.chofer || ''),
         };
         recordActivityTimeUsage(serviceToAdd.servicio, serviceToAdd.hora);
         setOrderData({ ...orderData, services: [...orderData.services, serviceToAdd] });
@@ -526,12 +560,22 @@ export function ServiceOrderGeneratorSheet({
             if (isSplitMode && splitModeStatus.canEnableSplit) {
                 await saveServiceOrderInSplitMode(orderData, currentUser.email);
                 toast({ title: "Éxito", description: "Orden de servicio separada guardada exitosamente (1 para guía, 1 para chofer).", variant: "success" });
+            } else if (isDuplicatedMode && splitModeStatus.willBeDivided) {
+                // Duplicar Órdenes: una copia idéntica por cada guía y chofer agregado
+                await saveServiceOrderDuplicated(orderData, currentUser.email, {
+                    guides: [orderData.guia, ...additionalGuides].filter(Boolean) as string[],
+                    drivers: [choferSelection, ...additionalDrivers].filter(Boolean) as string[],
+                });
+                const { totalGuides, totalDrivers } = splitModeStatus;
+                toast({ title: "Éxito", description: `Orden duplicada: ${totalGuides} orden(es) para guía(s) y ${totalDrivers} para chofer(es).`, variant: "success" });
             } else {
                 // Otherwise, use the automatic split function
                 await saveServiceOrderWithSplit(orderData, currentUser.email);
-                const message = splitModeStatus.willBeDivided
-                    ? "Orden de servicio guardada y dividida exitosamente."
-                    : "Orden de servicio guardada exitosamente.";
+                const message = splitModeStatus.tbaSplit
+                    ? "Orden guardada y dividida: se creó una orden «TBA» con los servicios de bus/tipo TBA."
+                    : splitModeStatus.willBeDivided
+                        ? "Orden de servicio guardada y dividida exitosamente."
+                        : "Orden de servicio guardada exitosamente.";
                 toast({ title: "Éxito", description: message, variant: "success" });
             }
             setIsDuplicateOpen(false);
@@ -603,23 +647,30 @@ export function ServiceOrderGeneratorSheet({
     }, [newService.servicio, flights]);
 
     const busOptions = buses.map(b => ({ value: b.name.toUpperCase(), label: b.name }));
-    const finalBusOptions = [...busOptions, { value: 'CONT.', label: 'Contratado' }];
+    const finalBusOptions = dedupeComboboxOptions([...busOptions, { value: 'CONT.', label: 'Contratado' }]);
+    // Mismo listado pero con las opciones manuales (Ninguno / a pie) para las filas de servicios
+    const busCellOptions = dedupeComboboxOptions([
+        { value: 'NONE', label: 'Ninguno' },
+        { value: 'SIN BUS', label: 'SIN BUS (A PIE)' },
+        ...busOptions,
+        { value: 'CONT.', label: 'Contratado' }
+    ]);
 
     // Options for selecting guide/driver per service (from assigned ones)
     const allAvailableGuides = guides.map(g => ({ value: g.fullName.toUpperCase(), label: g.fullName, key: g.uid }));
     const allAvailableDrivers = drivers.map(d => ({ value: d.name.toUpperCase(), label: d.name, key: d.id }));
 
     const assignedGuides = [orderData.guia, ...additionalGuides].filter(Boolean);
-    const serviceGuideOptions = [
+    const serviceGuideOptions = dedupeComboboxOptions([
         { value: 'NONE', label: 'Ninguno' },
         ...assignedGuides.map(g => ({ value: g.toUpperCase(), label: g.toUpperCase() }))
-    ];
+    ]);
 
     const assignedDrivers = [choferSelection, ...additionalDrivers].filter(Boolean);
-    const serviceDriverOptions = [
+    const serviceDriverOptions = dedupeComboboxOptions([
         { value: 'NONE', label: 'Ninguno' },
         ...assignedDrivers.map(d => ({ value: d.toUpperCase(), label: d.toUpperCase() }))
-    ];
+    ]);
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
@@ -761,12 +812,14 @@ export function ServiceOrderGeneratorSheet({
                                 </div>
                                 <div className="sm:col-span-2">
                                     <Label>Bus/Tipo Chofer*</Label>
-                                    <Select value={busTypeSelection} onValueChange={setBusTypeSelection}>
-                                        <SelectTrigger className={cn("mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600", busTypeSelection && "border-green-500 font-medium")}>
-                                            <SelectValue placeholder="Seleccionar..." />
-                                        </SelectTrigger>
-                                        <SelectContent>{finalBusOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-                                    </Select>
+                                    <Combobox
+                                        options={finalBusOptions}
+                                        value={busTypeSelection}
+                                        onSelect={setBusTypeSelection}
+                                        placeholder="Buscar bus..."
+                                        className="mt-1 bg-card dark:bg-slate-800/80 dark:border-slate-600"
+                                        triggerClassName={cn("dark:bg-slate-800/80 dark:border-slate-600", busTypeSelection && "border-green-500 font-medium")}
+                                    />
                                 </div>
                                 <div className="sm:col-span-3">
                                     <Label>Chofer*</Label>
@@ -785,7 +838,8 @@ export function ServiceOrderGeneratorSheet({
                                         fileSearchStatus !== 'found' && 'buscar un file válido',
                                         !orderData.guia && 'elegir guía',
                                         !busTypeSelection && 'elegir bus',
-                                        !choferSelection && 'elegir chofer',
+                                        // Con bus/tipo TBA el chofer es opcional: esas filas van en "Ninguno"
+                                        (!isTbaBus(busTypeSelection) && !choferSelection) && 'elegir chofer',
                                     ].filter(Boolean);
                                     const isReady = pending.length === 0;
                                     return (
@@ -999,7 +1053,6 @@ export function ServiceOrderGeneratorSheet({
                                         {orderData.services.length > 0 ? (
                                             orderData.services.map((s, i) => {
                                                 const originalIndex = i;
-                                                const guiaFirstName = ((s.guia || orderData.guia) || "").split(" ")[0];
                                                 const choferName = (s.chofer || "").replace(/^CONT\s/i, '');
                                                 const isTransfer = s.servicio?.toUpperCase().includes('TRF') || s.servicio?.toUpperCase().includes('APTO');
 
@@ -1038,54 +1091,34 @@ export function ServiceOrderGeneratorSheet({
                                                             />
                                                         </TableCell>
                                                         <TableCell className="p-1 border-r border-primary/20">
-                                                            <Select
+                                                            <Combobox
+                                                                options={serviceGuideOptions}
                                                                 value={s.guia || orderData.guia || 'NONE'}
-                                                                onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'guia', value === 'NONE' ? '' : value)}
-                                                            >
-                                                                <SelectTrigger className="h-8 text-xs bg-card/80 dark:bg-slate-800/90 dark:border-slate-600">
-                                                                    <SelectValue placeholder="Guía..." className="flex-1 text-left truncate">
-                                                                        {guiaFirstName || undefined}
-                                                                    </SelectValue>
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {serviceGuideOptions.map(g => (
-                                                                        <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                                onSelect={(value) => handleServiceSummaryChange(originalIndex, 'guia', value === 'NONE' ? '' : value)}
+                                                                placeholder="Buscar guía..."
+                                                                className="h-8 text-xs"
+                                                                triggerClassName="h-8 text-xs bg-card/80 dark:bg-slate-800/90 dark:border-slate-600"
+                                                            />
                                                         </TableCell>
                                                         <TableCell className="p-1 border-r border-primary/20">
-                                                            <Select
+                                                            <Combobox
+                                                                options={busCellOptions}
                                                                 value={s.bus || 'NONE'}
-                                                                onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'bus', value === 'NONE' ? '' : value)}
-                                                            >
-                                                                <SelectTrigger className="h-8 text-xs bg-card/80 dark:bg-slate-800/90 dark:border-slate-600">
-                                                                    <SelectValue placeholder="Bus..." />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="NONE" className="text-xs">Ninguno</SelectItem>
-                                                                    <SelectItem value="SIN BUS" className="text-xs">SIN BUS (A PIE)</SelectItem>
-                                                                    {busOptions.map(b => (
-                                                                        <SelectItem key={b.value} value={b.value} className="text-xs">{b.label}</SelectItem>
-                                                                    ))}
-                                                                    <SelectItem value="CONT." className="text-xs">Contratado</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
+                                                                onSelect={(value) => handleServiceSummaryChange(originalIndex, 'bus', value === 'NONE' ? '' : value)}
+                                                                placeholder="Buscar bus..."
+                                                                className="h-8 text-xs"
+                                                                triggerClassName="h-8 text-xs bg-card/80 dark:bg-slate-800/90 dark:border-slate-600"
+                                                            />
                                                         </TableCell>
                                                         <TableCell className="p-1 border-r border-primary/20">
-                                                            <Select
+                                                            <Combobox
+                                                                options={serviceDriverOptions}
                                                                 value={s.chofer || 'NONE'}
-                                                                onValueChange={(value) => handleServiceSummaryChange(originalIndex, 'chofer', value === 'NONE' ? '' : value)}
-                                                            >
-                                                                <SelectTrigger className="h-8 text-xs bg-card/80 dark:bg-slate-800/90 dark:border-slate-600">
-                                                                    <SelectValue placeholder="Chofer..." />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {serviceDriverOptions.map(d => (
-                                                                        <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                                onSelect={(value) => handleServiceSummaryChange(originalIndex, 'chofer', value === 'NONE' ? '' : value)}
+                                                                placeholder="Buscar chofer..."
+                                                                className="h-8 text-xs"
+                                                                triggerClassName="h-8 text-xs bg-card/80 dark:bg-slate-800/90 dark:border-slate-600"
+                                                            />
                                                         </TableCell>
                                                         <TableCell className="p-1 border-r border-primary/20">
                                                             <Input
@@ -1133,9 +1166,9 @@ export function ServiceOrderGeneratorSheet({
                                             <div><Label>Actividad</Label><Combobox options={activityOptions} value={service.servicio || ''} onSelect={(value) => handleServiceSummaryChange(index, 'servicio', value)} placeholder="Buscar actividad..." className="mt-1" /></div>
                                             {isTransfer && <div><Label>Vuelo</Label><Combobox options={flights.map(f => ({ value: f.flightNumber, label: `${f.flightNumber} (${f.time})` }))} value={service.vuelo || ''} onSelect={(value) => handleServiceSummaryChange(index, 'vuelo', value)} placeholder="Seleccionar vuelo..." className="mt-1" /></div>}
                                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                                <div><Label>Guía</Label><Select value={service.guia || orderData.guia || 'NONE'} onValueChange={(value) => handleServiceSummaryChange(index, 'guia', value === 'NONE' ? '' : value)}><SelectTrigger className="mt-1"><SelectValue placeholder="Guía..." /></SelectTrigger><SelectContent>{serviceGuideOptions.map(g => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}</SelectContent></Select></div>
-                                                <div><Label>Bus</Label><Select value={service.bus || 'NONE'} onValueChange={(value) => handleServiceSummaryChange(index, 'bus', value === 'NONE' ? '' : value)}><SelectTrigger className="mt-1"><SelectValue placeholder="Bus..." /></SelectTrigger><SelectContent><SelectItem value="NONE">Ninguno</SelectItem><SelectItem value="SIN BUS">Sin bus (a pie)</SelectItem>{busOptions.map(b => <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>)}<SelectItem value="CONT.">Contratado</SelectItem></SelectContent></Select></div>
-                                                <div><Label>Chofer</Label><Select value={service.chofer || 'NONE'} onValueChange={(value) => handleServiceSummaryChange(index, 'chofer', value === 'NONE' ? '' : value)}><SelectTrigger className="mt-1"><SelectValue placeholder="Chofer..." /></SelectTrigger><SelectContent>{serviceDriverOptions.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent></Select></div>
+                                                <div><Label>Guía</Label><Combobox options={serviceGuideOptions} value={service.guia || orderData.guia || 'NONE'} onSelect={(value) => handleServiceSummaryChange(index, 'guia', value === 'NONE' ? '' : value)} placeholder="Buscar guía..." className="mt-1" /></div>
+                                                <div><Label>Bus</Label><Combobox options={busCellOptions} value={service.bus || 'NONE'} onSelect={(value) => handleServiceSummaryChange(index, 'bus', value === 'NONE' ? '' : value)} placeholder="Buscar bus..." className="mt-1" /></div>
+                                                <div><Label>Chofer</Label><Combobox options={serviceDriverOptions} value={service.chofer || 'NONE'} onSelect={(value) => handleServiceSummaryChange(index, 'chofer', value === 'NONE' ? '' : value)} placeholder="Buscar chofer..." className="mt-1" /></div>
                                             </div>
                                             <div><Label htmlFor={`service-notes-${index}`}>Observaciones</Label><Input id={`service-notes-${index}`} value={service.observaciones || ''} onChange={(e) => handleServiceSummaryChange(index, 'observaciones', e.target.value)} className="mt-1" /></div>
                                         </article>
@@ -1192,31 +1225,72 @@ export function ServiceOrderGeneratorSheet({
                     {/* Split Mode Toggle */}
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <div className="flex items-center gap-3 px-4 py-2 rounded-md border border-purple-300 dark:border-purple-500/40 bg-purple-50 dark:bg-purple-950/30">
+                            <div className={cn(
+                                "flex items-center gap-3 px-4 py-2 rounded-md border border-purple-300 dark:border-purple-500/40 bg-purple-50 dark:bg-purple-950/30",
+                                !splitModeStatus.canEnableSplit && "opacity-60"
+                            )}>
                                 <div className="flex items-center gap-2">
                                     <Split className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                                     <Label htmlFor="split-mode" className="text-sm font-medium cursor-pointer text-purple-900 dark:text-purple-100">
                                         {splitModeStatus.willBeDivided
-                                            ? `Dividida (${splitModeStatus.totalGuides}G/${splitModeStatus.totalDrivers}C)`
+                                            ? `Dividida (${splitModeStatus.totalGuides}G/${splitModeStatus.totalDrivers}C${splitModeStatus.tbaSplit ? ' · TBA' : ''})`
                                             : "Orden Separada"}
                                     </Label>
                                 </div>
                                 <Switch
                                     id="split-mode"
                                     checked={isSplitMode}
-                                    onCheckedChange={setIsSplitMode}
-                                    disabled={!splitModeStatus.canEnableSplit}
+                                    onCheckedChange={(checked) => { setIsSplitMode(checked); if (checked) setIsDuplicatedMode(false); }}
+                                    disabled={!splitModeStatus.canEnableSplit || isDuplicatedMode}
                                     className="data-[state=checked]:bg-purple-600 data-[state=unchecked]:bg-purple-200 dark:data-[state=unchecked]:bg-purple-900/60"
                                 />
                             </div>
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
-                            {splitModeStatus.canEnableSplit ? (
+                            {splitModeStatus.tbaSplit ? (
+                                <p>Hay servicios con bus/tipo TBA: la orden se dividirá automáticamente y se creará una orden «TBA» solo con esos servicios. Para usar este switch, deja todos los servicios con el mismo bus/tipo.</p>
+                            ) : splitModeStatus.canEnableSplit ? (
                                 <p>Activar para crear 2 órdenes idénticas: una para el guía y otra para el chofer. Solo disponible con 1 guía y 1 chofer.</p>
                             ) : splitModeStatus.willBeDivided ? (
-                                <p>Con más de 1 guía o chofer, la orden se dividirá automáticamente (cada responsable recibe solo sus servicios).</p>
+                                <p>Con más de 1 guía o chofer, la orden se dividirá automáticamente (cada responsable recibe solo sus servicios). Usa «Duplicar Órdenes» si prefieres que cada uno reciba la orden completa.</p>
                             ) : (
                                 <p>Necesitas asignar 1 guía y 1 chofer para habilitar la orden separada.</p>
+                            )}
+                        </TooltipContent>
+                    </Tooltip>
+                    {/* Duplicar Órdenes (switch ámbar) */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className={cn(
+                                "flex items-center gap-3 px-4 py-2 rounded-md border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-950/30",
+                                !canEnableDuplicate && "opacity-60"
+                            )}>
+                                <div className="flex items-center gap-2">
+                                    <Copy className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                                    <Label htmlFor="duplicated-mode" className="text-sm font-medium cursor-pointer text-amber-900 dark:text-amber-100">
+                                        {isDuplicatedMode
+                                            ? `Duplicada (${splitModeStatus.totalGuides}G/${splitModeStatus.totalDrivers}C)`
+                                            : "Duplicar Órdenes"}
+                                    </Label>
+                                </div>
+                                <Switch
+                                    id="duplicated-mode"
+                                    checked={isDuplicatedMode}
+                                    onCheckedChange={(checked) => { setIsDuplicatedMode(checked); if (checked) setIsSplitMode(false); }}
+                                    disabled={!canEnableDuplicate}
+                                    className="data-[state=checked]:bg-amber-500 data-[state=unchecked]:bg-amber-200 dark:data-[state=unchecked]:bg-amber-900/60"
+                                />
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                            {splitModeStatus.tbaSplit ? (
+                                <p>Hay servicios con bus/tipo TBA: la orden se dividirá automáticamente y se creará una orden «TBA» solo con esos servicios, así que este modo no está disponible.</p>
+                            ) : canEnableDuplicate ? (
+                                isDuplicatedMode
+                                    ? <p>Se crearán {splitModeStatus.totalGuides + splitModeStatus.totalDrivers} órdenes idénticas con todos los servicios: {splitModeStatus.totalGuides} para guía(s) y {splitModeStatus.totalDrivers} para chofer(es). Solo cambia el nombre del responsable.</p>
+                                    : <p>Apagado: la orden se dividirá y cada responsable recibirá solo sus servicios. Actívalo para que cada guía y chofer reciba la orden completa.</p>
+                            ) : (
+                                <p>Agrega otro guía u otro chofer para poder duplicar la orden.</p>
                             )}
                         </TooltipContent>
                     </Tooltip>
