@@ -7,6 +7,27 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [3.5.0] - 2026-09-25
+
+### Duplicación de órdenes
+
+- Nuevo interruptor ámbar «Duplicar Órdenes» en creación y edición: cada guía y chofer recibe una copia idéntica con todos los servicios; solo cambia el nombre del responsable.
+- La copia del chofer incluye el listado de guías en cada fila.
+- Los interruptores «Orden Separada» y «Duplicar Órdenes» se excluyen entre sí.
+
+### División por TBA
+
+- Si la orden tiene servicios con bus/tipo `TBA` mezclados con el resto, se divide automáticamente y se crea una orden «TBA» solo con esos servicios.
+- Las filas con bus/tipo `TBA` quedan por defecto sin chofer (`Ninguno`) y el chofer deja de ser obligatorio al generar.
+
+### Modales de órdenes
+
+- File y Ref (Grupo) no se pueden editar en órdenes hijas.
+- Buscador en los desplegables de Bus/Tipo Chofer, Guía y Chofer (creación y edición).
+- Las guías se muestran con el listado completo separado por comas en los visores y en la exportación.
+
+---
+
 ## [3.4.9] - 2026-09-17
 
 ### Validación de vuelos conectados con La Paz
