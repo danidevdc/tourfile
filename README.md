@@ -4,17 +4,46 @@
 
 **Gestión Inteligente de Operaciones Turísticas**
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-10.0-orange?style=flat-square&logo=firebase)](https://firebase.google.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.0-38bdf8?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
-[![License](https://img.shields.io/badge/License-Private-red?style=flat-square)](LICENSE)
+**Derechos:** código propietario; consulta la sección de licencia.
 
 Aplicación web integral para optimizar las operaciones de agencias de turismo, simplificando la creación de reportes de caja chica y la gestión de órdenes de servicio.
 
 [📖 Documentación](#guía-de-uso) • [🚀 Inicio Rápido](#instalación-y-configuración) • [💡 Características](#-características-principales)
 
 </div>
+
+---
+
+## El proyecto en un minuto
+
+**Autor:** [Daniel Alejandro Carrasco Apaza](https://github.com/danidevdc).
+
+Desarrollé TourFile para el área de operaciones de Crillon Tours, a partir de la necesidad de gestionar cajas chicas de guías y órdenes de trabajo para conductores y guías. La aplicación conecta información de programas turísticos con documentos operativos y catálogos de servicios.
+
+### Funciones relevantes para gestión de datos y procesos
+
+- Importación de programas desde Excel para generar reportes de caja chica y órdenes de servicio.
+- Gestión centralizada de datos maestros: guías, conductores, hoteles, actividades, vuelos y buses.
+- Configuración de reglas de negocio para relacionar actividades con servicios, tiempos y gastos.
+- Validación de formularios con Zod y manejo de datos con TypeScript.
+- Generación de documentos en Excel y PDF para apoyar el trabajo del área de operaciones.
+- Autenticación con Firebase y almacenamiento de información en Firestore.
+
+**Tecnologías:** Next.js 15, React, TypeScript, Firebase Authentication, Firestore, Tailwind CSS, React Hook Form, Zod, ExcelJS, jsPDF y Vitest.
+
+### English overview
+
+TourFile is a web application developed for Crillon Tours' Operations Department to manage guides' petty cash reports and work orders for drivers and guides. It brings together tourism itineraries, operational documents and service master data.
+
+The project covers Excel imports, master data management, configurable business rules, form validation and Excel/PDF document generation. It demonstrates the connection between tourism operations and software tools for organizing information and standardizing workflows.
+
+**Author:** Daniel Alejandro Carrasco Apaza. **Stack:** Next.js, React, TypeScript, Firebase and Tailwind CSS.
+
+[Características y guía de uso](#-características-principales) · [Instalación](#-instalación-y-configuración) · [Pruebas](./TESTING.md)
 
 ---
 
@@ -57,7 +86,7 @@ Firestore para almacenamiento escalable y sincronización en tiempo real.
 
 ### Prerrequisitos
 
-- Node.js 18+ 
+- Node.js 20 LTS o una versión compatible con Next.js 15 
 - npm o yarn
 - Cuenta de Firebase con proyecto configurado
 
@@ -65,7 +94,7 @@ Firestore para almacenamiento escalable y sincronización en tiempo real.
 
 1. **Clonar el repositorio**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/danidevdc/tourfile.git
    cd tourfile
    ```
 
@@ -104,7 +133,7 @@ Firestore para almacenamiento escalable y sincronización en tiempo real.
 | `npm run build` | Genera build de producción |
 | `npm start` | Inicia servidor de producción |
 | `npm test` | Ejecuta tests unitarios |
-| `npm run test:ui` | Ejecuta tests con interfaz visual |
+| `npm run test:ui` | Inicia Vitest en modo interactivo/watch |
 | `npm run lint` | Verifica código con ESLint |
 | `npm run typecheck` | Verifica tipos de TypeScript |
 
@@ -213,7 +242,7 @@ Ejemplo: "CITY TOUR" → Actividad "City Tour La Paz"
 ## 🛠️ Tecnologías Utilizadas
 
 ### Core
-- **⚡ Next.js 14** - Framework React con App Router
+- **⚡ Next.js 15** - Framework React con App Router
 - **📘 TypeScript 5** - Tipado estático y type-safety
 - **🔥 Firebase** - Backend as a Service
   - Authentication (autenticación de usuarios)
@@ -235,11 +264,9 @@ Ejemplo: "CITY TOUR" → Actividad "City Tour La Paz"
 
 ### Testing
 - **🧪 Vitest** - Framework de testing rápido
-- **🎭 Playwright** - Testing E2E
 
 ### Desarrollo
 - **🔧 ESLint** - Linter para calidad de código
-- **💅 Prettier** - Formateo de código (implícito)
 - **🚀 Turbopack** - Bundler de desarrollo rápido
 
 ---
@@ -266,11 +293,11 @@ tourfile/
 │   │   └── validators.ts          # Validaciones Zod
 │   ├── hooks/            # Custom React hooks
 │   ├── types/            # Definiciones TypeScript
-│   └── __tests__/        # Tests unitarios y E2E
+│   └── __tests__/        # Pruebas unitarias
 ├── public/               # Archivos estáticos
 ├── docs/                 # Documentación del proyecto
 ├── functions/            # Cloud Functions (Firebase)
-└── tests/                # Tests Playwright
+
 ```
 
 ---
@@ -298,7 +325,7 @@ tourfile/
 
 ## 📊 Versiones
 
-### v3.1.0 (Actual)
+### Notas de la versión 3.1.0
 - ✨ Nueva página de órdenes eliminadas para admin
 - ✨ Paginación mejorada con filtro de estado
 - ✨ Ordenamiento por columnas (4 campos)
@@ -307,16 +334,16 @@ tourfile/
 - ✨ Protección contra guardados duplicados
 - ⚡ Cache deshabilitado (datos siempre frescos)
 - 🐛 Fix: Paginación mostrando cantidad incorrecta
-- 🧪 131 tests unitarios pasando
+- 🧪 Pruebas unitarias con Vitest; consulta [TESTING.md](./TESTING.md).
 
 ---
 
 ## 🤝 Contribución
 
-Este es un proyecto privado. Para contribuir:
+Este repositorio es público para presentar el proyecto y su documentación. Para proponer mejoras:
 
 1. Revisar [BEST_PRACTICES.md](./BEST_PRACTICES.md)
-2. Crear branch desde `main`
+2. Crear una rama desde `master`
 3. Hacer cambios con commits descriptivos
 4. Ejecutar tests: `npm test`
 5. Verificar no hay errores: `npm run typecheck`
@@ -326,7 +353,7 @@ Este es un proyecto privado. Para contribuir:
 
 ## 📝 Licencia
 
-Este proyecto es privado y propietario. Todos los derechos reservados.
+Este proyecto es propietario. La disponibilidad pública del repositorio no modifica sus derechos ni concede una licencia de uso, modificación o distribución. Todos los derechos reservados.
 
 ---
 
