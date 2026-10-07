@@ -43,7 +43,7 @@ export default function Header() {
     <header className="flex items-center justify-between mobile-padding bg-card border-b shadow-md sticky top-0 z-50">
       {/* Logo - Always visible */}
       <div className="flex items-center gap-2">
-        <Link href="/" passHref>
+        <Link href="/home" passHref>
           <div className="flex items-center gap-0 cursor-pointer hover:opacity-90 transition-all duration-200 touch-target group">
             <Image
               src="/logo.png"
@@ -64,7 +64,7 @@ export default function Header() {
       <div className="hidden md:flex items-center gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Link href="/" passHref>
+            <Link href="/home" passHref>
               <Button variant="ghost" size="icon" className="text-primary hover:bg-muted touch-target">
                 <Home className="h-[1.2rem] w-[1.2rem]" />
                 <span className="sr-only">Ir a Inicio</span>
@@ -148,7 +148,7 @@ export default function Header() {
                 )}
 
                 {/* Navigation buttons */}
-                <Link href="/" passHref onClick={() => setIsMenuOpen(false)}>
+                <Link href="/home" passHref onClick={() => setIsMenuOpen(false)}>
                   <Button variant="outline" className="w-full justify-start touch-target text-base">
                     <Home className="h-5 w-5 mr-3" />
                     Ir a Inicio

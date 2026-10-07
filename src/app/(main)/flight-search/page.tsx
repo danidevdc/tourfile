@@ -1103,7 +1103,7 @@ export default function FlightSearchPage() {
   }
 
   if (!hasModule('vuelos')) {
-    router.replace('/');
+    router.replace('/home');
     return null;
   }
 
@@ -1112,7 +1112,7 @@ export default function FlightSearchPage() {
       <div className="nd-page-inner">
         {/* Back button */}
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/home')}
           className="nd-back-btn"
           aria-label="Volver al inicio"
         >

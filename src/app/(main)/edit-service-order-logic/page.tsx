@@ -65,13 +65,13 @@ export default function EditServiceOrderLogicPage() {
             } else {
                 setHasPermission(false);
                 toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
-                router.replace('/');
+                router.replace('/home');
             }
         } catch (error) {
             console.error("Permission check failed:", error);
             setHasPermission(false);
             toast({ title: "Error de Permisos", description: "No se pudo verificar tu nivel de acceso.", variant: "destructive" });
-            router.replace('/');
+            router.replace('/home');
         } finally {
             setIsCheckingPermission(false);
         }

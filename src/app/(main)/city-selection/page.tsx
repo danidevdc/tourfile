@@ -24,7 +24,7 @@ export default function CitySelectionPage() {
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8">
       <div className="w-full max-w-xl mb-4">
-        <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go to home" className="hover:bg-primary/90">
+        <Button variant="default" size="icon" onClick={() => router.push('/home')} aria-label="Go to home" className="hover:bg-primary/90">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>

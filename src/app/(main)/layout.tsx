@@ -35,14 +35,15 @@ export default function MainAppLayout({
       
       // If the user is NOT authenticated and the path is NOT public
       if (!isAuthenticated && !isPublicPath) {
-        logger.debug(`Redirecting to /login from protected route: ${pathname}`);
-        router.replace("/login");
+        const destination = "/login";
+        logger.debug(`Redirecting to ${destination} from protected route: ${pathname}`);
+        router.replace(destination);
         return;
       }
 
       if (isAuthenticated && !isPublicPath && !hasRequiredModule) {
         logger.debug(`Redirecting to / from module-protected route: ${pathname}`);
-        router.replace("/");
+        router.replace("/home");
       }
     }
   }, [hasRequiredModule, isLoading, isAuthenticated, pathname, router]);

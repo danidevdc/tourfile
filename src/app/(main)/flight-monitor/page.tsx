@@ -535,7 +535,7 @@ export default function FlightMonitorPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!canOpen) {
-      router.replace("/");
+      router.replace("/home");
       return;
     }
     refreshAll();
@@ -577,7 +577,7 @@ export default function FlightMonitorPage() {
     <div className="min-h-screen bg-background px-4 py-6">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
         <div className="flex items-center justify-between gap-3">
-          <Button variant="outline" size="icon" onClick={() => router.push("/")} aria-label="Volver">
+          <Button variant="outline" size="icon" onClick={() => router.push("/home")} aria-label="Volver">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </div>

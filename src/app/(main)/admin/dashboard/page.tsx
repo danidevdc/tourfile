@@ -107,7 +107,7 @@ export default function AdminDashboardPage() {
           description: "No tienes permisos para acceder a esta sección.",
           variant: "destructive",
         });
-        router.replace('/');
+        router.replace('/home');
       } else {
         const fetchData = async () => {
           setIsLoadingData(true);
@@ -242,7 +242,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] p-4 bg-background pt-8 space-y-6">
       <div className="w-full max-w-6xl mb-4">
-        <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go home">
+        <Button variant="default" size="icon" onClick={() => router.push('/home')} aria-label="Go home">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>

@@ -788,7 +788,7 @@ export default function ServiceOrderListPage() {
     <TooltipProvider>
       <div className="flex flex-col items-center justify-start min-h-[calc(100vh-5rem)] mobile-padding bg-background space-y-4 sm:space-y-6">
         <div className="w-full max-w-7xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <Button variant="default" size="icon" onClick={() => router.push('/')} aria-label="Go home" className="touch-target">
+          <Button variant="default" size="icon" onClick={() => router.push('/home')} aria-label="Go home" className="touch-target">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
