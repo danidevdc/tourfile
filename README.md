@@ -2,7 +2,7 @@
 
 <img src="public/logo.png" alt="TourFile" width="120" />
 
-# 🗂️ TourFile
+# TourFile
 
 **Generación automática de órdenes de servicio, caja chica y liquidaciones para agencias de turismo**
 
