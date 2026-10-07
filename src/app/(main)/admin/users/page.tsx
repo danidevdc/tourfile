@@ -38,7 +38,7 @@ export default function AdminUsersPage() {
     if (!authLoading) {
       if (!isCurrentUserAdmin) {
         toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive"});
-        router.replace('/'); 
+        router.replace('/home');
       } else {
         const fetchData = async () => {
           setIsLoadingData(true);

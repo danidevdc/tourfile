@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FileSpreadsheet, ArrowRight, ArrowLeft, ClipboardList, Settings, Plane, Database, Calendar, CheckCircle2, XCircle, RefreshCw, Wallet } from "lucide-react";
 import { useAuth, type AppModule } from "@/hooks/useAuth";
-import { version } from '../../../package.json';
+import { version } from '../../../../package.json';
 import { useEffect, useState } from "react";
 import { checkDatabaseConnection } from "@/lib/dbConnectionCheck";
 import { LiveTimeline } from "@/components/LiveTimeline";

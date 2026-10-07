@@ -425,7 +425,7 @@ export default function GuideLiquidationDashboardPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <button
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/home")}
               style={{
                 width: "40px", height: "40px", borderRadius: "50%",
                 border: `1px solid ${CSS.border}`,

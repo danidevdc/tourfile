@@ -104,7 +104,7 @@ export default function DeletedOrdersPage() {
     if (!authLoading && currentUser) {
       if (!isCurrentUserAdmin) {
         toast({ title: "Acceso Denegado", description: "Solo los administradores pueden ver esta página.", variant: "destructive" });
-        router.push('/');
+        router.push('/home');
         return;
       }
       fetchDeletedOrders(currentPage);

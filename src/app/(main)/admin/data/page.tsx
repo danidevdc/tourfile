@@ -143,7 +143,7 @@ export default function DataManagementPage() {
   useEffect(() => {
     if (!authLoading && !isCurrentUserAdmin) {
       toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder.", variant: "destructive" });
-      router.replace('/');
+      router.replace('/home');
     }
   }, [authLoading, isCurrentUserAdmin, router, toast]);
 

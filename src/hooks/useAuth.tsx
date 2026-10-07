@@ -225,7 +225,7 @@ function AuthProviderInternal({ children }: { children: ReactNode }) {
       const profile = await fetchUserProfile(firebaseUser.uid);
       setCurrentUser({ ...firebaseUser, profile: profile || undefined });
       sonnerToast.success('Inicio de Sesión Exitoso', { description: `¡Bienvenido de nuevo, ${profile?.email || "Usuario"}!` });
-      router.push('/');
+      router.push('/home');
     } catch (error: any) {
       let message = "Correo electrónico o contraseña incorrectos.";
       if (error.code === 'auth/user-disabled') message = "Esta cuenta de usuario ha sido deshabilitada.";

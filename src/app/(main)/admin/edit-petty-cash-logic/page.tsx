@@ -45,7 +45,7 @@ export default function EditPettyCashLogicPage() {
   useEffect(() => {
     if (!authLoading && !canEditPettyCashLogic) {
       toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder.", variant: "destructive" });
-      router.replace('/');
+      router.replace('/home');
     }
   }, [authLoading, canEditPettyCashLogic, router, toast]);
 

@@ -55,7 +55,7 @@ export default function EditServiceOrderLogicPage() {
       setHasPermission(true);
     } else {
       toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
-      router.replace('/');
+      router.replace('/home');
     }
     setIsCheckingPermission(false);
   }, [authLoading, isCurrentUserAdmin, currentUser, router, toast]);
