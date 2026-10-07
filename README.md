@@ -1,372 +1,199 @@
 <div align="center">
 
-# 🗂️ TourFile Generator
+<img src="public/logo.png" alt="TourFile" width="120" />
 
-**Gestión Inteligente de Operaciones Turísticas**
+# 🗂️ TourFile
 
-[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Firebase](https://img.shields.io/badge/Firebase-10.0-orange?style=flat-square&logo=firebase)](https://firebase.google.com/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.0-38bdf8?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
-**Derechos:** código propietario; consulta la sección de licencia.
+**Generación automática de órdenes de servicio, caja chica y liquidaciones para agencias de turismo**
 
-Aplicación web integral para optimizar las operaciones de agencias de turismo, simplificando la creación de reportes de caja chica y la gestión de órdenes de servicio.
-
-[📖 Documentación](#guía-de-uso) • [🚀 Inicio Rápido](#instalación-y-configuración) • [💡 Características](#-características-principales)
+**Autor:** [Daniel Alejandro Carrasco Apaza](https://github.com/danidevdc)
 
 </div>
 
 ---
 
-## El proyecto en un minuto
+## 📋 Sobre el proyecto
 
-**Autor:** [Daniel Alejandro Carrasco Apaza](https://github.com/danidevdc).
+TourFile es una aplicación web que reemplaza el trabajo manual de una agencia de turismo: la creación de **órdenes de servicio**, los **reportes de caja chica**, las **liquidaciones de guías** y el **seguimiento de vuelos** se resolvían antes con hojas de cálculo sueltas, mensajes de WhatsApp y llamadas. Este sistema centraliza esos cuatro flujos en una sola herramienta.
 
-Desarrollé TourFile para el área de operaciones de Crillon Tours, a partir de la necesidad de gestionar cajas chicas de guías y órdenes de trabajo para conductores y guías. La aplicación conecta información de programas turísticos con documentos operativos y catálogos de servicios.
+El problema de fondo no era "mostrar datos", sino **convertir información desordenada en documentos oficiales**: un programa mensual en Excel tiene que convertirse en una caja chica con reglas de gasto, y un itinerario tiene que convertirse en órdenes imprimibles que se reparten entre guías y choferes.
 
-### Funciones relevantes para gestión de datos y procesos
+### ⚠️ Estado del repositorio
 
-- Importación de programas desde Excel para generar reportes de caja chica y órdenes de servicio.
-- Gestión centralizada de datos maestros: guías, conductores, hoteles, actividades, vuelos y buses.
-- Configuración de reglas de negocio para relacionar actividades con servicios, tiempos y gastos.
-- Validación de formularios con Zod y manejo de datos con TypeScript.
-- Generación de documentos en Excel y PDF para apoyar el trabajo del área de operaciones.
-- Autenticación con Firebase y almacenamiento de información en Firestore.
+Este software se construyó **a medida para uso interno** y se hace público únicamente con fines de portafolio. No es un producto distribuible:
 
-**Tecnologías:** Next.js 15, React, TypeScript, Firebase Authentication, Firestore, Tailwind CSS, React Hook Form, Zod, ExcelJS, jsPDF y Vitest.
-
-### English overview
-
-TourFile is a web application developed for Crillon Tours' Operations Department to manage guides' petty cash reports and work orders for drivers and guides. It brings together tourism itineraries, operational documents and service master data.
-
-The project covers Excel imports, master data management, configurable business rules, form validation and Excel/PDF document generation. It demonstrates the connection between tourism operations and software tools for organizing information and standardizing workflows.
-
-**Author:** Daniel Alejandro Carrasco Apaza. **Stack:** Next.js, React, TypeScript, Firebase and Tailwind CSS.
-
-[Características y guía de uso](#-características-principales) · [Instalación](#-instalación-y-configuración) · [Pruebas](./TESTING.md)
+- No hay instrucciones de instalación porque **no funciona fuera del entorno original**: requiere credenciales de Firebase propias, las claves de las APIs de vuelos (FlightAware / AirLabs / NAABOL) y datos maestros de la agencia.
+- El código se lee, se estudia y se prueba — los tests corren de forma aislada sin backend.
+- Toda referencia a personas, proveedores o clientes reales fue removida o anonimizada.
 
 ---
 
-## ✨ Características Principales
+## 🖼️ Vista general
 
-### 💰 Generador de Cajas Chicas
-Procesa automáticamente archivos de programa (`.xlsx`) para generar reportes de gastos detallados, aplicando reglas de negocio personalizables.
-
-### 📋 Gestión de Órdenes de Servicio
-- Creación automatizada desde archivos Excel
-- División inteligente por guías y choferes
-- Exportación a PDF y Excel
-- Vista previa optimizada para WhatsApp
-
-### 👥 Panel de Administración
-- Dashboard con estadísticas en tiempo real
-- Gestión de datos maestros (guías, hoteles, choferes, actividades, vuelos)
-- Configuración de reglas de negocio
-- Administración de usuarios y roles
-
-### 🔐 Autenticación Segura
-Sistema completo con Firebase Authentication:
-- 🔑 Registro y login
-- 📧 Recuperación de contraseña
-- 🛡️ Validación de base de datos antes del login
-- 📱 Multi-dispositivo simultáneo
-
-### 💾 Base de Datos Centralizada
-Firestore para almacenamiento escalable y sincronización en tiempo real.
-
-### 🎨 Interfaz Moderna
-- Diseño responsivo (desktop y mobile)
-- Tema claro/oscuro
-- Componentes UI con ShadCN
-- Experiencia de usuario fluida
+<div align="center">
+<img src="docs/screenshots/inicio.png" alt="Pantalla de bienvenida de TourFile con acceso a los cinco módulos" width="820" />
+</div>
 
 ---
 
-## 🚀 Instalación y Configuración
+## ✨ Módulos principales
 
-### Prerrequisitos
+### 📋 Órdenes de Servicio — el módulo central
 
-- Node.js 20 LTS o una versión compatible con Next.js 15 
-- npm o yarn
-- Cuenta de Firebase con proyecto configurado
+El corazón del sistema. Cada orden se genera desde el programa mensual en Excel o se arma a mano, y después se administra: editar, dividir, duplicar, exportar, imprimir.
 
-### Configuración Inicial
+- **Generación automática** desde el programa: se busca el número de File y el sistema arma los servicios aplicando las reglas de negocio configuradas.
+- **Familias de órdenes** — una orden madre se puede dividir automáticamente en órdenes hijas por guía y por chofer. Toda la familia se edita y exporta como una sola, sin duplicar trabajo.
+- **Duplicación por responsable** — cada guía y chofer recibe su copia idéntica; solo cambia el nombre del responsable, y el chofer lleva el listado de guías en cada fila.
+- **División por `TBA`** — los servicios sin bus confirmado se aíslan en una orden aparte.
+- **Vista previa para WhatsApp** — una vista pensada para leerse en el celular y enviarse por mensaje.
+- **Exportación a Excel y a PDF** con plantilla de impresión profesional.
+- **Estados y badges** — `creado`, `enviado`, `impreso`, `excel`, `editado`, `cancelado`, más las marcas de `Duplicada` / `Separada` / `Dividida`.
+- **Borrado lógico + restauración** — las órdenes eliminadas no se pierden; hay una vista de papelera con un botón de restaurar.
+- **Paginación por cursor** en Firestore, con ordenamiento por columna y búsqueda inteligente por campos.
 
-1. **Clonar el repositorio**
-   ```bash
-   git clone https://github.com/danidevdc/tourfile.git
-   cd tourfile
-   ```
+### 💰 Generador de Caja Chica
 
-2. **Instalar dependencias**
-   ```bash
-   npm install
-   ```
+Convierte el programa mensual de Excel en reportes de gastos listos para entregar.
 
-3. **Configurar variables de entorno**
-   
-   Crear archivo `.env.local` en la raíz del proyecto:
-   ```env
-   NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-   NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-   ```
+- Sube el `.xlsx`, busca el File y se genera el reporte.
+- **Motores de reglas configurables** — cada regla dispara un gasto a partir del contenido del itinerario (por ejemplo, un gasto por pasajero cuando aparece determinado lugar).
+- Los reportes duplicados se marcan visualmente para evitar double-reporting.
+- Exportación individual o descarga masiva de todos los reportes en un **ZIP**.
+- Contador de reportes por usuario para medir uso real de la herramienta.
 
-4. **Iniciar servidor de desarrollo**
-   ```bash
-   npm run dev
-   ```
+### 💸 Liquidación de Guías
 
-5. **Abrir en navegador**
-   ```
-   http://localhost:9003
-   ```
+Cierra el ciclo económico: qué se le debe a cada guía y en qué estado está el pago.
 
-### Scripts Disponibles
+- **Busqueda por guía + mes + año**, que cruza automáticamente las órdenes del período con las liquidaciones existentes y marca cada File como `SIN LIQUIDAR` / `SOLICITADO` / `PAGADO`.
+- **Motor de criterios de precio** — analiza el histórico de órdenes y sugiere un precio por actividad según idioma, turno diurno/nocturno y si el grupo es de 5 personas o más. Incluye un panel **"Probar Motor"** para verificar el cálculo antes de aplicarlo.
+- Precio automático al crear una liquidación: el idioma del guía se sugiere solo y se recuerda para las siguientes.
+- Registro de pago con fecha, edición de montos línea por línea y **PDF con el logo de la agencia**.
+- Historial con filtros por estado y búsqueda por guía, File, número de liquidación o pasajero.
 
-| Comando | Descripción |
-|---------|-------------|
-| `npm run dev` | Inicia servidor de desarrollo (puerto 9003) |
-| `npm run build` | Genera build de producción |
-| `npm start` | Inicia servidor de producción |
-| `npm test` | Ejecuta tests unitarios |
-| `npm run test:ui` | Inicia Vitest en modo interactivo/watch |
-| `npm run lint` | Verifica código con ESLint |
-| `npm run typecheck` | Verifica tipos de TypeScript |
+### ✈️ Búsqueda de Vuelos
 
----
+Buscador de un vuelo por número y fecha, con estética de tablero de aeropuerto.
 
-## 📖 Guía de Uso
+- Consulta **tres proveedores** en cascada: NAABOL (tablero oficial de Bolivia), FlightAware AeroAPI y AirLabs, con preferencia por el resultado que toca `LPB`.
+- **Cuotas diarias por proveedor** controladas por transacciones en Firestore, con medidor de uso y estimación de costo consumida del crédito gratuito. Si una API falla, el sistema sigue funcionando.
+- **Caché de rutas** que guarda origen, destino, segmento y duración real de cada vuelo, para hacer las consultas siguientes más rápidas y para completar horarios incompletos.
+- Normalización de códigos de aerolínea entre IATA e ICAO (`8J`↔`ECO`, `AVA`↔`AV`, `LA`↔`LAN`, `LPE`…), validación del formato del número de vuelo y manejo de los casos límite de cada proveedor (vuelo demasiado lejano en el futuro, rate limit).
+- Todos los horarios se presentan en `America/La_Paz`.
 
-### 💰 Cajas Chicas
+### 🛫 Monitoreo de Vuelos
 
-Genera reportes de gastos automáticamente desde archivos de programa.
+Cruza las órdenes de servicio próximas contra el tablero operativo real y avisa cuando el mundo no cuadra.
 
-1. **Acceder al módulo:** Página principal → "Cajas Chicas" → Seleccionar ciudad
-2. **Subir archivo:** Cargar programa mensual (`.xlsx`)
-3. **Buscar File:** Ingresar número de File → Buscar
-4. **Configurar:** Seleccionar guía responsable
-5. **Generar:** Clic en "Generar" → Reporte aparece en lista
-6. **Exportar:** 
-   - 👁️ Visualizar detalles
-   - 📥 Descargar Excel individual
-   - 📦 Descargar múltiples en ZIP
+- Panel de **hoy, mañana y pasado mañana**, con actualización cada 75 segundos.
+- Cada fila muestra la hora esperada en la orden, la hora real en el tablero y la **diferencia entre ambas**; los descuadres quedan marcados, y los vuelos que no aparecen en el tablero también.
+- Guarda el último dato conocido de cada vuelo durante el resto del día, para que un vuelo no desaparezca solo porque el proveedor cerró su ventana.
+- Fallback a FlightAware para vuelos que ya pasaron su hora y no tienen dato del tablero.
+- **Reloj en vivo GMT-4** corregido contra el header de respuesta del proveedor, para no depender del reloj local desincronizado.
 
-### 📋 Órdenes de Servicio
+### 👑 Panel de Administración
 
-Crea y gestiona órdenes para guías y choferes.
-
-#### Crear Nueva Orden
-
-**🤖 Modo Automatizado:**
-1. Subir archivo de programa
-2. Buscar por File
-3. Sistema genera servicios automáticamente basado en reglas
-
-**✍️ Modo Manual:**
-1. Completar datos generales (File, Guía, Hotel)
-2. Añadir servicios uno por uno
-3. Configurar horarios y responsables
-
-#### Gestionar Órdenes
-
-- **👁️ Visualizar:** Vista previa optimizada para WhatsApp
-- **✏️ Editar:** Modificar itinerario y datos
-  - División automática si hay múltiples guías/choferes
-  - Protección contra ediciones duplicadas
-- **📥 Descargar Excel:** Exportar a `.xlsx`
-- **🖨️ Imprimir PDF:** Vista de impresión profesional
-- **🗑️ Eliminar:** Mover a archivo de eliminadas (solo admin)
-
-#### Filtros (Admin)
-
-- **Activas:** Órdenes en uso
-- **Todas:** Ver todas las órdenes activas
-- **Ver Eliminadas:** Página separada con órdenes archivadas
-  - Función de restauración disponible
+- **Dashboard** con estadísticas de uso y actividad reciente.
+- **Datos maestros** — guías, hoteles, choferes, actividades, vuelos, buses. CRUD completo con carga masiva desde Excel y buscador.
+- **Reglas de negocio** — edición de las reglas de caja chica y de las reglas palabra clave → actividad del generador de órdenes, con activación y borrado por regla.
+- **Gestión de usuarios** con roles y control de acceso por módulo.
 
 ---
 
-## 👑 Panel de Administración
+## 🛠️ Stack
 
-Control total sobre datos y lógica de la aplicación.
-
-### 📊 Dashboard
-- Vista general del sistema
-- Estadísticas de uso en tiempo real
-- Reportes por mes y por guía
-- Acceso rápido a todas las secciones
-
-### 🗃️ Datos Maestros
-
-Gestión centralizada de:
-- 👤 **Guías:** Registro completo con nombre y apellido
-- 🏨 **Hoteles:** Base de datos de alojamientos
-- 🚗 **Choferes:** Conductores asignados
-- 🎯 **Actividades:** Servicios con tiempos sugeridos
-- ✈️ **Vuelos:** Vuelos predefinidos con horarios
-- 🚌 **Buses:** Flota de vehículos disponibles
-
-**Funcionalidades:**
-- ✏️ CRUD completo (Crear, Leer, Actualizar, Eliminar)
-- 📤 Carga masiva desde archivos Excel
-- 🔍 Búsqueda y filtrado
-- 📝 Validación de datos
-
-### ⚙️ Configuración de Lógica
-
-**Reglas de Caja Chica:**
-```
-Ejemplo: "Si itinerario contiene 'Tiwanaku'
-         → Añadir gasto de 100 BOB por pasajero"
-```
-
-**Reglas de Órdenes de Servicio:**
-```
-Ejemplo: "CITY TOUR" → Actividad "City Tour La Paz"
-         Tiempo sugerido: 03:00 horas
-```
-
-### 👥 Gestión de Usuarios
-
-- Lista completa de usuarios registrados
-- Asignación de roles (Admin/Usuario)
-- Métricas de actividad
-- Historial de reportes generados
+| Capa | Tecnología |
+|------|-----------|
+| Framework | Next.js 15 (App Router) · React 18 · Turbopack |
+| Lenguaje | TypeScript 5 |
+| Estilos | Tailwind CSS 3.4 · ShadCN UI |
+| Backend | Firebase 10 — Auth · Firestore · Hosting · Cloud Functions |
+| Formularios | React Hook Form · Zod |
+| Datos | Recharts |
+| Archivos | SheetJS (`xlsx`) · ExcelJS · jsPDF · html2canvas · modern-screenshot · JSZip |
+| IA | Genkit + Google Gemini 2.0 Flash *(integración preparada)* |
+| Testing | Vitest · Playwright · Testing Library |
+| Calidad | ESLint · Prettier |
 
 ---
 
-## 🛠️ Tecnologías Utilizadas
+## 💡 Decisiones técnicas destacadas
 
-### Core
-- **⚡ Next.js 15** - Framework React con App Router
-- **📘 TypeScript 5** - Tipado estático y type-safety
-- **🔥 Firebase** - Backend as a Service
-  - Authentication (autenticación de usuarios)
-  - Firestore (base de datos NoSQL)
-  - Hosting (despliegue de aplicación)
-
-### Frontend
-- **🎨 Tailwind CSS** - Estilos utility-first
-- **🧩 ShadCN UI** - Componentes accesibles y personalizables
-- **📝 React Hook Form** - Manejo eficiente de formularios
-- **✅ Zod** - Validación de esquemas TypeScript-first
-- **📅 date-fns** - Manipulación de fechas
-
-### Generación de Archivos
-- **📊 xlsx** - Lectura de archivos Excel
-- **📈 exceljs** - Generación de reportes Excel
-- **📸 html2canvas** - Captura de imágenes para compartir
-- **🖨️ jsPDF** - Generación de PDFs
-
-### Testing
-- **🧪 Vitest** - Framework de testing rápido
-
-### Desarrollo
-- **🔧 ESLint** - Linter para calidad de código
-- **🚀 Turbopack** - Bundler de desarrollo rápido
+- **Un solo archivo de configuración por deploy** (`src/config/agency.ts`) concentra nombre, moneda, locale, ciudades y textos por defecto. No hay literales de branding regados por el código, así que adaptar el sistema a otra agencia es editar un archivo.
+- **Reglas como datos, no como código** — tanto las reglas de gasto como las de mapeo de actividades y los criterios de precio viven en Firestore y se editan desde la UI, sin deploy.
+- **Edición idempotente** — un lock por orden evita que dos clics guarden la misma orden dos veces.
+- **Cuotas y cachés en Firestore** — el control de consumo de APIs externas y la caché de rutas usan transacciones y expiración por fecha, de modo que funcionan con varias instancias de la app a la vez.
+- **Fallo abierto en servicios no críticos** — si el contador de cuotas falla, permite el uso en lugar de bloquear la herramienta.
+- **Zonas horarias explícitas** — `date-fns-tz` y `America/La_Paz` en cada conversión, para que un cambio de horario no corra los reportes.
+- **Borrado lógico en todo el módulo de órdenes**, con restauración y sin pérdida de datos.
 
 ---
 
-## 📁 Estructura del Proyecto
+## 🧪 Testing
+
+**215 tests unitarios** en 21 suites, cubriendo las piezas con más riesgo de regresión:
 
 ```
-tourfile/
-├── src/
-│   ├── app/              # App Router de Next.js
-│   │   ├── (main)/       # Rutas principales
-│   │   ├── api/          # API routes
-│   │   ├── login/        # Autenticación
-│   │   └── layout.tsx    # Layout raíz
-│   ├── components/       # Componentes React
-│   │   ├── ui/           # Componentes UI base (ShadCN)
-│   │   ├── auth/         # Componentes de autenticación
-│   │   ├── layout/       # Layouts y navegación
-│   │   └── service-order/ # Componentes de órdenes
-│   ├── lib/              # Lógica de negocio
-│   │   ├── firebase.ts           # Configuración Firebase
-│   │   ├── serviceOrderStorage.ts # CRUD de órdenes
-│   │   ├── reportService.ts       # Generación de reportes
-│   │   └── validators.ts          # Validaciones Zod
-│   ├── hooks/            # Custom React hooks
-│   ├── types/            # Definiciones TypeScript
-│   └── __tests__/        # Pruebas unitarias
-├── public/               # Archivos estáticos
-├── docs/                 # Documentación del proyecto
-├── functions/            # Cloud Functions (Firebase)
-
+npm test          # Vitest — unitarios
+npm run test:visual   # Playwright — regresión visual
 ```
 
----
-
-## 🔒 Seguridad y Mejores Prácticas
-
-### Protecciones Implementadas
-
-✅ **Prevención de duplicados:** Lock mechanism en guardado de órdenes  
-✅ **Validación de DB:** Verificación de conexión antes de login  
-✅ **Type-safety:** TypeScript en todo el código  
-✅ **Validación de entrada:** Zod schemas en formularios  
-✅ **Multi-dispositivo:** Sesiones concurrentes permitidas  
-✅ **Paginación optimizada:** Cursor-based para grandes datasets  
-
-### Recomendaciones
-
-📋 **Ver [BEST_PRACTICES.md](./BEST_PRACTICES.md)** para guía completa sobre:
-- Cómo hacer cambios seguros
-- Patrones a seguir
-- Debugging y testing
-- Deployment
+Los tests corren sin backend: la lógica de generación de órdenes, el procesamiento de reportes, los parsers de vuelos, los servicios de liquidación y los formatters están aislados de Firebase.
 
 ---
 
-## 📊 Versiones
+## 📁 Estructura
 
-### Notas de la versión 3.1.0
-- ✨ Nueva página de órdenes eliminadas para admin
-- ✨ Paginación mejorada con filtro de estado
-- ✨ Ordenamiento por columnas (4 campos)
-- ✨ Multi-dispositivo simultáneo
-- ✨ Validación de DB antes de login
-- ✨ Protección contra guardados duplicados
-- ⚡ Cache deshabilitado (datos siempre frescos)
-- 🐛 Fix: Paginación mostrando cantidad incorrecta
-- 🧪 Pruebas unitarias con Vitest; consulta [TESTING.md](./TESTING.md).
-
----
-
-## 🤝 Contribución
-
-Este repositorio es público para presentar el proyecto y su documentación. Para proponer mejoras:
-
-1. Revisar [BEST_PRACTICES.md](./BEST_PRACTICES.md)
-2. Crear una rama desde `master`
-3. Hacer cambios con commits descriptivos
-4. Ejecutar tests: `npm test`
-5. Verificar no hay errores: `npm run typecheck`
-6. Crear Pull Request con descripción detallada
+```
+src/
+├── app/
+│   ├── (main)/                 # Rutas de la aplicación
+│   │   ├── service-order/      # Órdenes de servicio
+│   │   ├── generator/          # Caja chica
+│   │   ├── guide-liquidation/  # Liquidaciones (by-guide, criteria, new, edit, history)
+│   │   ├── flight-search/      # Buscador de vuelos
+│   │   ├── flight-monitor/     # Monitoreo vs. tablero real
+│   │   ├── deleted-orders/     # Papelera de órdenes
+│   │   └── admin/              # Dashboard, datos maestros, reglas, usuarios
+│   ├── api/                    # Route handlers
+│   └── login · register · forgot-password · service-order-print
+├── components/                 # Componentes por dominio + UI de ShadCN
+├── lib/                        # Lógica de negocio y servicios de datos
+│   ├── serviceOrder*.ts        # Generación, consulta, CRUD, caché de órdenes
+│   ├── guideLiquidation*.ts    # Motor de criterios y PDFs
+│   ├── flight*.ts              # Parsers, cuotas y caché de rutas
+│   └── report*.ts              # Caja chica
+├── ai/                         # Integraciones de búsqueda de vuelo
+├── config/agency.ts            # Configuración del deploy
+└── __tests__/unit/             # Tests
+```
 
 ---
 
 ## 📝 Licencia
 
-Este proyecto es propietario. La disponibilidad pública del repositorio no modifica sus derechos ni concede una licencia de uso, modificación o distribución. Todos los derechos reservados.
+© TourFile · Todos los derechos reservados. Código publicado con fines informativos y de portafolio; no se concede permiso de uso comercial ni de redistribución.
 
 ---
 
-## 📞 Soporte
+## 🌐 English overview
 
-Para reportar problemas o solicitar funcionalidades, contactar al equipo de desarrollo.
+TourFile is a web application for managing tourism operations: service orders, guides'
+petty cash reports, guide settlements and flight tracking. It takes a monthly itinerary
+spreadsheet and turns it into the official documents the operations team actually needs —
+printable work orders split across guides and drivers, expense reports built from
+configurable business rules, and settlement sheets priced by a criteria engine.
+
+**Stack:** Next.js 15, React 18, TypeScript, Firebase (Auth + Firestore), Tailwind CSS,
+ExcelJS, jsPDF, Vitest and Playwright.
+
+**Author:** Daniel Alejandro Carrasco Apaza.
 
 ---
 
 <div align="center">
 
-**Hecho con ❤️ para optimizar operaciones turísticas**
-
-[⬆ Volver arriba](#-tourfile-generator)
+**Hecho con ☕ en La Paz, Bolivia**
 
 </div>
