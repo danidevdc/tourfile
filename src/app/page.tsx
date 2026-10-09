@@ -1,22 +1,19 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, ClipboardList, FileSpreadsheet, Mail, Plane, Wallet } from "lucide-react";
+import { ArrowRight, ClipboardList, FileSpreadsheet, Mail, Plane } from "lucide-react";
 import styles from "./home.module.css";
 
 export const metadata: Metadata = {
   title: "TourFile | Operaciones turísticas, conectadas",
-  description: "TourFile centraliza órdenes de servicio, vuelos, cajas chicas y liquidación de guías para equipos y operadores turísticos. Conoce el proyecto y contacta a su fundador.",
+  description: "TourFile centraliza órdenes de servicio, control de vuelos y cajas chicas para equipos y operadores turísticos. Conoce el proyecto y contacta a su fundador.",
   alternates: { canonical: "https://tourfile.lat/" },
 };
 
 const modules = [
   { icon: ClipboardList, name: "Órdenes de servicio", detail: "Organiza los servicios de cada operación y mantén la información de tu equipo en un mismo lugar." },
   { icon: Plane, name: "Control de vuelos", detail: "Consulta y coordina los vuelos que forman parte de tus programas turísticos." },
-  { icon: Wallet, name: "Liquidación de guías", detail: "Lleva el seguimiento de las liquidaciones vinculadas a tus servicios y guías." },
   { icon: FileSpreadsheet, name: "Cajas chicas", detail: "Ordena los gastos operativos y la información que necesitas para tus rendiciones." },
-  { icon: CalendarDays, name: "Timeline de órdenes", detail: "Revisa la programación de tus servicios desde una perspectiva cronológica." },
-  { icon: FileSpreadsheet, name: "Reportes mensuales", detail: "Reúne la información de tus operaciones y genera reportes para trabajar con ella." },
 ];
 
 export default function PublicHome() {
@@ -27,7 +24,7 @@ export default function PublicHome() {
         <nav aria-label="Navegación principal"><a href="#modulos">Módulos</a><a href="#nosotros">Nosotros</a><Link href="/login" className={styles.enter}>Entrar <ArrowRight size={16} /></Link></nav>
       </header>
       <main>
-        <section className={styles.hero} style={{ backgroundImage: "url('/la-paz.avif')" }}>
+        <section className={styles.hero}>
           <div className={styles.heroContent}>
             <p className={styles.eyebrow}>TECNOLOGÍA PARA LA OPERACIÓN TURÍSTICA</p>
             <h1><span className={styles.heroBrand}><Image src="/logo.png" width={76} height={76} alt="" priority />TourFile</span><span>Tu operación,<br />en un mismo lugar.</span></h1>
