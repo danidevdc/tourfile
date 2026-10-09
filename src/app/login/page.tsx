@@ -27,7 +27,7 @@ export default function LoginPage() {
               className="h-20 w-20 object-contain dark:brightness-110 dark:contrast-110"
               priority
             />
-            <h1 className="text-5xl font-bold tracking-tight translate-y-1 -ml-2" style={{ color: '#0b6fb8' }}>
+            <h1 className="text-5xl font-bold tracking-tight translate-y-1 -ml-2" style={{ color: '#42a5fe' }}>
               TourFile
             </h1>
           </div>
