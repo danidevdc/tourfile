@@ -1,53 +1,70 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ClipboardList, FileSpreadsheet, Mail, Plane } from "lucide-react";
+import { ArrowDown, ArrowRight, ChevronDown, ClipboardList, FileSpreadsheet, MapPin, Plane } from "lucide-react";
 import styles from "./home.module.css";
 import ScrollReveal from "./ScrollReveal";
 
 export const metadata: Metadata = {
   title: "TourFile | Operaciones turísticas, conectadas",
-  description: "TourFile centraliza órdenes de servicio, control de vuelos y cajas chicas para equipos y operadores turísticos. Conoce el proyecto y contacta a su fundador.",
+  description: "TourFile centraliza órdenes de servicio, control de vuelos y cajas chicas para equipos y operadores turísticos.",
   alternates: { canonical: "https://tourfile.lat/" },
 };
 
-// El color de cada módulo replica el del dashboard ((main)/home/page.tsx):
-// Cajas Chicas = teal, Órdenes de Servicio = primary, Control de Vuelos = sky.
-// `tone` fuerza el color en vez de dejarlo al :nth-child del CSS.
-// OJO: el prefijo `tone` es obligatorio — una clase `primary` suelta
-// colisiona con `.primary` (el botón) y pinta el artículo entero de azul.
 const modules = [
-  { icon: FileSpreadsheet, name: "Cajas chicas", tone: "toneTeal", detail: "Ordena los gastos operativos y la información que necesitas para tus rendiciones." },
-  { icon: ClipboardList, name: "Órdenes de servicio", tone: "tonePrimary", detail: "Organiza los servicios de cada operación y mantén la información de tu equipo en un mismo lugar." },
-  { icon: Plane, name: "Control de vuelos", tone: "toneSky", detail: "Consulta y coordina los vuelos que forman parte de tus programas turísticos." },
+  { icon: ClipboardList, name: "Órdenes de servicio", detail: "Los servicios de cada viaje, organizados y listos para coordinar." },
+  { icon: Plane, name: "Control de vuelos", detail: "La información de los vuelos que forman parte de tus programas." },
+  { icon: FileSpreadsheet, name: "Cajas chicas", detail: "Gastos operativos y reportes para tus rendiciones." },
+];
+const questions = [
+  { question: "¿Qué es TourFile?", answer: "Es una plataforma para equipos y operadores turísticos. Reúne órdenes de servicio, control de vuelos y cajas chicas en un mismo lugar." },
+  { question: "¿Cómo puedo empezar?", answer: <>Puedes <Link href="/register">crear una cuenta</Link> o <Link href="/login">entrar con tu cuenta actual</Link>. El acceso a cada módulo depende de los permisos asignados a tu usuario.</> },
+  { question: "¿Quién está detrás del proyecto?", answer: "TourFile es un proyecto independiente creado en Bolivia. Comenzó en enero de 2025 y lanzó su aplicación en junio del mismo año." },
+  { question: "¿Cómo puedo contactar a TourFile?", answer: <>Escribe a <a href="mailto:daniel.carrasco@tourfile.lat">daniel.carrasco@tourfile.lat</a> para conversar sobre tu operación o consultar acerca de la plataforma.</> },
 ];
 
 export default function PublicHome() {
   return (
-      <div className={styles.page}>
-        <ScrollReveal />
+    <div className={styles.page}>
+      <ScrollReveal />
+      <section className={styles.hero} aria-labelledby="hero-title">
+        <Image src="/la-paz.avif" alt="Paisaje de un lago y montañas bajo el cielo de Bolivia" fill priority sizes="100vw" className={styles.panorama} />
+        <div className={styles.heroShade} aria-hidden="true" />
         <header className={styles.header}>
-        <Link href="/" className={styles.brand} aria-label="TourFile, inicio"><Image src="/logo.png" width={36} height={36} alt="" />TourFile</Link>
-        <nav aria-label="Navegación principal"><a href="#modulos">Módulos</a><a href="#nosotros">Nosotros</a><Link href="/login" className={styles.enter}>Entrar <ArrowRight size={16} /></Link></nav>
-      </header>
-      <main>
-        <section className={styles.hero}>
-          <div className={styles.heroContent}>
-            <p className={styles.eyebrow}>TECNOLOGÍA PARA LA OPERACIÓN TURÍSTICA</p>
-            <h1><span className={styles.heroBrand}><Image src="/logo.png" width={76} height={76} alt="" priority />TourFile</span><span>Tu operación,<br />en un mismo lugar.</span></h1>
-            <p className={styles.intro}>Menos información dispersa. Más claridad para coordinar servicios, vuelos, guías y gastos de cada viaje.</p>
-            <div className={styles.actions}><Link href="/login" className={styles.primary}>Entrar a TourFile <ArrowRight size={18} /></Link><a href="#modulos">Conocer los módulos <ArrowRight size={17} /></a></div>
+          <Link href="/" className={styles.brand} aria-label="TourFile, inicio"><Image src="/logo.png" width={30} height={30} alt="" /><span>TourFile</span></Link>
+          <nav className={styles.navigation} aria-label="Navegación principal">
+            <a href="#modulos">Módulos</a><a href="#nosotros">El proyecto</a><a href="#preguntas">Preguntas</a><a href="mailto:daniel.carrasco@tourfile.lat">Contacto</a>
+          </nav>
+          <Link href="/login" className={styles.signIn}>Entrar <ArrowRight size={14} /></Link>
+        </header>
+        <div className={styles.heroContent}>
+          <p className={styles.eyebrow}>HECHO EN BOLIVIA. PENSADO PARA TU OPERACIÓN.</p>
+          <h1 id="hero-title">Tu operación, en un mismo lugar.</h1>
+          <p className={styles.heroIntro}>Menos información dispersa. Más claridad para coordinar servicios, vuelos, guías y gastos de cada viaje.</p>
+          <div className={styles.heroActions}>
+            <Link href="/login" className={styles.primary}>Entrar a TourFile <ArrowRight size={18} /></Link>
+            <a href="#modulos" className={styles.explore}>Explorar los módulos <ArrowDown size={15} /></a>
           </div>
-          <div className={styles.heroFoot}><span>Hecho en Bolivia. Pensado para operadores turísticos.</span><span>Desde 2025</span></div>
+        </div>
+        <div className={styles.heroFoot}><span><MapPin size={13} /> Bolivia · Desde 2025</span><a href="#modulos" aria-label="Descubrir los módulos de TourFile"><ArrowDown size={18} /></a><span>El viaje empieza mucho antes de salir.</span></div>
+      </section>
+
+      <main className={styles.main}>
+        <section id="modulos" className={styles.tools} aria-labelledby="tools-title">
+          <div className={styles.toolsHeading} data-reveal><p className={styles.sectionLabel}>01 / HERRAMIENTAS PARA EL DÍA A DÍA</p><h2 id="tools-title">Del primer servicio<br /><span>al cierre del mes.</span></h2><p>Cada parte de tu operación tiene su espacio.</p></div>
+          <div className={styles.moduleGrid}>{modules.map(({icon: Icon, name, detail}, i) => <article key={name} className={styles.module} data-reveal data-reveal-delay={String(i)}><div className={styles.moduleTop}><Icon size={25} strokeWidth={1.5} /><span>0{i + 1}</span></div><h3>{name}</h3><p>{detail}</p></article>)}</div>
         </section>
-        <section id="modulos" className={styles.modules}>
-                  <div className={styles.sectionHeading} data-reveal><p className={styles.eyebrow}>EL DÍA A DÍA, CONECTADO</p><h2>Del primer servicio<br />al cierre del mes.</h2><p>Herramientas enfocadas en el trabajo de los equipos que hacen posible cada experiencia.</p></div>
-                  <div className={styles.grid}>{modules.map(({ icon: Icon, name, tone, detail }, i) => <article key={name} data-reveal data-reveal-delay={String(i + 1)} className={`${styles.module} ${styles[tone]}`}><div className={styles.moduleTop}><Icon size={25} strokeWidth={1.6} /><span>0{i + 1}</span></div><h3>{name}</h3><p>{detail}</p></article>)}</div>
-                </section>
-        <section id="nosotros" className={styles.about}><div data-reveal><p className={styles.eyebrow}>DETRÁS DE TOURFILE</p><h2>Nace de una idea simple:<br />hacer más fácil la operación.</h2></div><div data-reveal data-reveal-delay="2"><p>TourFile es un proyecto independiente creado en Bolivia. Comenzó en enero de 2025 y lanzó su aplicación en junio del mismo año.</p><p>Desarrollamos herramientas para facilitar el trabajo de operadores turísticos y equipos de operaciones. Nuestro siguiente paso es explorar inteligencia artificial para el análisis de datos y el soporte dentro de la plataforma.</p><a href="mailto:daniel.carrasco@tourfile.lat" className={styles.contact}><Mail size={20} />daniel.carrasco@tourfile.lat <ArrowRight size={18} /></a></div></section>
-                <section className={styles.closing}><div data-reveal><p className={styles.eyebrow}>HABLEMOS DE TU OPERACIÓN</p><h2>Cada viaje tiene mucho detrás.<br />Dale un lugar a todo.</h2><a className={styles.primary} href="mailto:daniel.carrasco@tourfile.lat">Contactar a TourFile <ArrowRight size={18} /></a></div></section>
-              </main>
-              <footer className={styles.footer} data-reveal><Link href="/" className={styles.footerBrand}><Image src="/logo.png" width={22} height={22} alt="" />TourFile</Link><span>Bolivia · Proyecto independiente</span><span>© {new Date().getFullYear()} TourFile</span></footer>
+
+        <section id="nosotros" className={styles.about} aria-labelledby="about-title">
+          <p className={styles.sectionLabel} data-reveal>02 / DETRÁS DE TOURFILE</p>
+          <div className={styles.aboutContent}><h2 id="about-title" data-reveal>Una idea simple.<br /><span>Hacer más fácil<br />la operación.</span></h2><div data-reveal data-reveal-delay="1"><p>TourFile es un proyecto independiente creado en Bolivia. Comenzó en enero de 2025 y lanzó su aplicación en junio del mismo año.</p><p>Desarrollamos herramientas para facilitar el trabajo de operadores turísticos y equipos de operaciones. Nuestro siguiente paso es explorar inteligencia artificial para el análisis de datos y el soporte dentro de la plataforma.</p><a href="mailto:daniel.carrasco@tourfile.lat" className={styles.textLink}>Hablemos de tu operación <ArrowRight size={17} /></a></div></div>
+        </section>
+
+        <section id="preguntas" className={styles.faq} aria-labelledby="faq-title"><div data-reveal><p className={styles.sectionLabel}>03 / RESOLVAMOS LAS DUDAS</p><h2 id="faq-title">Antes de<br /><span>empezar.</span></h2><p>Lo esencial sobre TourFile.</p></div><div className={styles.questions}>{questions.map(({question, answer}, i) => <details className={styles.question} key={question} data-reveal data-reveal-delay={String(i)}><summary><span className={styles.questionNumber}>0{i + 1}</span><span>{question}</span><ChevronDown size={18} /></summary><div className={styles.answer}>{answer}</div></details>)}</div></section>
+
+        <section className={styles.closing} data-reveal><p className={styles.sectionLabel}>MENOS PENDIENTES. MÁS CLARIDAD.</p><h2>Tú haces posible el viaje.<br /><span>TourFile conecta lo que hay detrás.</span></h2><Link href="/login" className={styles.primary}>Entrar a TourFile <ArrowRight size={18} /></Link></section>
+      </main>
+      <footer className={styles.footer}><div className={styles.footerTop} data-reveal><div><Link href="/" className={styles.brand} aria-label="TourFile, inicio"><Image src="/logo.png" width={30} height={30} alt="" />TourFile</Link><p>Operaciones turísticas, conectadas.</p></div><nav aria-label="Navegación del pie de página"><a href="#modulos">Módulos</a><a href="#nosotros">El proyecto</a><a href="#preguntas">Preguntas</a><a href="mailto:daniel.carrasco@tourfile.lat">Contacto <ArrowRight size={14} /></a></nav></div><div className={styles.footerBottom} data-reveal><span>© {new Date().getFullYear()} TourFile</span><span>Hecho en Bolivia · Proyecto independiente</span></div></footer>
     </div>
   );
 }
