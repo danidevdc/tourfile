@@ -1,69 +1,40 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
-/**
- * Animación de entrada al hacer scroll, estilo producto Apple.
- *
- * Marca los elementos con `data-reveal` (y opcionalmente `data-reveal-delay`)
- * como visibles cuando entran en el viewport. Es progresivo: si JavaScript no
- * corre, el CSS de `@media (prefers-reduced-motion: no-preference)` deja todo
- * visible, así que el contenido nunca queda escondido.
- *
- * IntersectionObserver en vez de listener de scroll: no bloquea el hilo
- * principal y no necesita recalcular posiciones en cada frame.
- */
+/** Content stays visible until the observer is ready; each entrance runs once. */
 export default function ScrollReveal() {
-  // guarda los elementos observados para poder dejar de observarlos
-  const seen = useRef<WeakSet<Element>>(new WeakSet());
-
   useEffect(() => {
     const nodes = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
-    if (!nodes.length) return;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (motion.matches || !("IntersectionObserver" in window)) return;
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // si el usuario pidió menos movimiento, mostramos todo y listo
-    if (reduced) {
-      nodes.forEach((el) => el.classList.add("is-revealed"));
-      return;
-    }
-
-    if (!("IntersectionObserver" in window)) {
-      nodes.forEach((el) => el.classList.add("is-revealed"));
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          entry.target.classList.add("is-revealed");
-          seen.current.add(entry.target);
-          observer.unobserve(entry.target);
-        }
-      },
-      {
-        // empieza a animar un poco antes de que el elemento llegue al borde
-        rootMargin: "0px 0px -12% 0px",
-        threshold: 0.08,
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        (entry.target as HTMLElement).dataset.revealState = "visible";
+        observer.unobserve(entry.target);
       }
-    );
+    }, { rootMargin: "0px 0px -10% 0px", threshold: 0.08 });
 
-    nodes.forEach((el) => observer.observe(el));
+    for (const node of nodes) {
+      // Do not hide content already on screen when restoring a scroll position.
+      if (node.getBoundingClientRect().top < window.innerHeight * 0.9) continue;
+      node.dataset.revealState = "pending";
+      observer.observe(node);
+    }
 
-    // si la ventana pierde el foco y vuelve, los elementos ya visibles
-    // deben aparecer aunque el observer no haya disparado (pestaña en background)
-    const onVisible = () => {
-      document.querySelectorAll<HTMLElement>("[data-reveal]").forEach((el) => {
-        if (!seen.current.has(el)) return;
-        el.classList.add("is-revealed");
-      });
+    const showAll = () => {
+      if (!motion.matches) return;
+      observer.disconnect();
+      nodes.forEach((node) => delete node.dataset.revealState);
     };
-    document.addEventListener("visibilitychange", onVisible);
+    motion.addEventListener("change", showAll);
 
     return () => {
       observer.disconnect();
-      document.removeEventListener("visibilitychange", onVisible);
+      motion.removeEventListener("change", showAll);
+      nodes.forEach((node) => delete node.dataset.revealState);
     };
   }, []);
 
